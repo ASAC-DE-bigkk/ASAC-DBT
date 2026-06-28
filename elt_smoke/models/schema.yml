@@ -3,8 +3,8 @@ version: 2
 sources:
   - name: bronze
     description: Bronze Iceberg tables loaded by the Airflow DAG from sample source data.
-    database: "{{ env_var('TRINO_ICEBERG_CATALOG', 'iceberg') }}"
-    schema: "{{ env_var('SMOKE_SCHEMA', 'ops_smoke') }}"
+    database: "{{ target.database }}"
+    schema: "{{ target.schema }}"
     tables:
       - name: sample_events
         identifier: bronze_sample_events
