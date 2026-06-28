@@ -25,6 +25,49 @@ sources:
           - name: ingested_at
             tests:
               - not_null
+  - name: ask_seoul_bronze
+    description: Bronze Iceberg tables loaded by the Ask Seoul API Airflow DAG.
+    database: "{{ target.database }}"
+    schema: "{{ env_var('ASK_SEOUL_SCHEMA', target.schema) }}"
+    tables:
+      - name: kma_vilage_fcst
+        identifier: bronze_kma_vilage_fcst
+        description: Append-only KMA getVilageFcst item rows loaded from raw R2 API payloads.
+        columns:
+          - name: request_id
+            tests:
+              - not_null
+          - name: place_id
+            tests:
+              - not_null
+          - name: category
+            tests:
+              - not_null
+          - name: fcst_value
+            tests:
+              - not_null
+          - name: raw_object_key
+            tests:
+              - not_null
+          - name: collected_at
+            tests:
+              - not_null
+      - name: seoul_traffic_incident
+        identifier: bronze_seoul_traffic_incident
+        description: Append-only Seoul TOPIS AccInfo rows loaded from raw R2 XML payloads.
+        columns:
+          - name: request_id
+            tests:
+              - not_null
+          - name: acc_id
+            tests:
+              - not_null
+          - name: raw_object_key
+            tests:
+              - not_null
+          - name: collected_at
+            tests:
+              - not_null
 
 models:
   - name: silver_sample_events
@@ -51,5 +94,55 @@ models:
           - not_null
           - unique
       - name: event_count
+        tests:
+          - not_null
+  - name: silver_kma_vilage_fcst
+    description: Deduplicated and time-standardized KMA forecast rows for Ask Seoul smoke validation.
+    columns:
+      - name: place_id
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: forecast_at
+        tests:
+          - not_null
+      - name: time_bucket
+        tests:
+          - not_null
+      - name: fcst_value_raw
+        tests:
+          - not_null
+      - name: collected_at
+        tests:
+          - not_null
+  - name: silver_seoul_traffic_incident
+    description: Deduplicated and time-standardized Seoul TOPIS AccInfo rows for Ask Seoul smoke validation.
+    columns:
+      - name: source_record_id
+        tests:
+          - not_null
+          - unique
+      - name: occurred_at
+        tests:
+          - not_null
+      - name: time_bucket
+        tests:
+          - not_null
+      - name: collected_at
+        tests:
+          - not_null
+  - name: gold_ask_seoul_api_ingestion_summary
+    description: Source-level row and raw object counts proving Ask Seoul API data reached silver/gold through Trino.
+    columns:
+      - name: source_id
+        tests:
+          - not_null
+          - unique
+      - name: row_count
+        tests:
+          - not_null
+      - name: raw_object_count
         tests:
           - not_null
