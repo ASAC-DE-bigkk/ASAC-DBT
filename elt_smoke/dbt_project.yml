@@ -10,6 +10,7 @@ flags:
 model-paths: ["models"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
+test-paths: ["tests"]
 
 target-path: target
 clean-targets:
@@ -19,13 +20,3 @@ clean-targets:
 models:
   elt_smoke:
     +materialized: table
-
-seeds:
-  elt_smoke:
-    +quote_columns: false
-    sample_events:
-      +column_types:
-        event_id: varchar
-        event_type: varchar
-        event_ts: timestamp(6)
-        payload: varchar
