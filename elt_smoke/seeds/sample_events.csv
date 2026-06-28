@@ -1,0 +1,6 @@
+event_id,event_type,event_ts,payload
+evt_001,page_view,2026-06-27 09:00:00,home
+evt_002,signup,2026-06-27 09:05:00,email
+evt_003,page_view,2026-06-27 09:10:00,pricing
+evt_004,purchase,2026-06-27 09:20:00,starter
+evt_005,page_view,2026-06-27 09:30:00,docs

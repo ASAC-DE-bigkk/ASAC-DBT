@@ -1,0 +1,31 @@
+name: elt_smoke
+version: "1.0.0"
+config-version: 2
+
+profile: elt_smoke
+
+flags:
+  require_certificate_validation: true
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  elt_smoke:
+    +materialized: table
+
+seeds:
+  elt_smoke:
+    +quote_columns: false
+    sample_events:
+      +column_types:
+        event_id: varchar
+        event_type: varchar
+        event_ts: timestamp(6)
+        payload: varchar

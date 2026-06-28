@@ -1,0 +1,28 @@
+version: 2
+
+seeds:
+  - name: sample_events
+    description: Small reproducible seed used by the infrastructure smoke DAG.
+    columns:
+      - name: event_id
+        tests:
+          - not_null
+          - unique
+      - name: event_type
+        tests:
+          - not_null
+      - name: event_ts
+        tests:
+          - not_null
+
+models:
+  - name: smoke_event_counts
+    description: Aggregates the smoke seed to prove dbt can read and write through Trino Iceberg.
+    columns:
+      - name: event_type
+        tests:
+          - not_null
+          - unique
+      - name: event_count
+        tests:
+          - not_null
