@@ -69,7 +69,7 @@ models:
           - unique
 
   - name: silver_culture_exhibition
-    description: 정제된 서울시립미술관 전시 (분관→자치구 매핑, 전시 기간=event_time)
+    description: 정제된 서울시립미술관 전시 (분관→자치구 매핑은 seed sema_branch_gu, 전시 기간=event_time)
     columns:
       - name: exhibition_id
         description: 전시 ID(DP_EX_NO)
@@ -207,3 +207,14 @@ models:
         description: 경도(WGS84, Y_COORD) — 서울범위 밖/0은 NULL
       - name: latitude
         description: 위도(WGS84, X_COORD) — 서울범위 밖/0은 NULL
+
+seeds:
+  - name: sema_branch_gu
+    description: SeMA 분관/구청 갤러리 keyword → 자치구 매핑 마스터 (silver_culture_exhibition 조인)
+    columns:
+      - name: keyword
+        description: venue_name 부분일치 keyword
+      - name: location_key
+        description: 자치구
+      - name: priority
+        description: 다중 매칭 시 우선순위(높을수록 우선)
