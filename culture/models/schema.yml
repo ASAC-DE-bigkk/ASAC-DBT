@@ -14,6 +14,25 @@ models:
       - name: location_key
         description: 자치구(gugunnm)
 
+  - name: silver_culture_event
+    description: 정제된 서울 문화행사 (typed, event_key 중복제거, location_key=GUNAME 자치구, 행사기간=event_time)
+    columns:
+      - name: event_key
+        description: surrogate 키 (제목·시작일·장소 해시)
+        tests:
+          - not_null
+          - unique
+      - name: event_title
+        description: 행사명
+      - name: location_key
+        description: 공용 location_key = 자치구(GUNAME)
+        tests:
+          - not_null
+      - name: period_start
+        description: 행사 시작일 (event_time)
+      - name: period_end
+        description: 행사 종료일 (event_time)
+
   - name: silver_culture_performance
     description: 정제된 KOPIS 공연 (typed, performance_id 기준 중복제거, 공연 기간 = event_time, location_key=자치구)
     columns:
@@ -39,17 +58,25 @@ models:
         description: 공연 종료일 (event_time)
 
   - name: gold_culture_location_daily
-    description: location_key × 일자 공연 집계 (구간→일자 전개). 혼잡 gold와 시점 조인용 표준 산출물.
+    description: 자치구 × 일자 culture 활동 집계 (공연+문화행사 union, 구간→일자 전개). 혼잡 gold와 시점 조인용 표준 산출물.
     columns:
       - name: location_key
-        description: 공용 location_key
+        description: 공용 location_key (자치구)
         tests:
           - not_null
       - name: event_date
         description: 공용 date 키
         tests:
           - not_null
+      - name: activities_count
+        description: 해당 자치구·일자 활성 활동 수 (공연+행사)
+        tests:
+          - not_null
       - name: performances_count
-        description: 해당 location_key·일자에 활성인 공연 수
+        description: 그중 공연(KOPIS) 수
+        tests:
+          - not_null
+      - name: events_count
+        description: 그중 문화행사(서울) 수
         tests:
           - not_null

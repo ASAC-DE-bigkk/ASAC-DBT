@@ -26,3 +26,10 @@ sources:
             description: 원본 레코드(JSON) — mt10id·fcltynm·sidonm·gugunnm 등
           - name: ingest_ts
             description: 적재 실행 식별 타임스탬프(UTC)
+      - name: bronze_seoul_cultural_event
+        description: 서울 문화행사정보(culturalEventInfo) 원본 — GUNAME(자치구)·행사기간(STRTDATE/END_DATE) 보유
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — TITLE·GUNAME·STRTDATE·END_DATE·CODENAME 등
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC)
