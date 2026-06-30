@@ -1,6 +1,7 @@
 -- silver: 서울시립미술관 전시(ListExhibitionOfSeoulMOAInfo).
--- 분관명(DP_PLACE)→자치구 매핑(주요 분관만 확정, 그 외 NULL=gold 제외). 날짜 'YYYY-MM-DD'.
--- (분관→자치구 마스터 dim/seed는 후속 — 지금은 확실한 주요 분관만 CASE)
+-- 분관명(DP_PLACE)→자치구 매핑은 seed 마스터(sema_branch_gu)의 keyword 부분일치 +
+-- 우선순위(priority) 최상위 1건으로 결정. 미매핑(기타·서울 외·빈값)은 NULL → gold 제외.
+-- (분관 추가/수정은 seeds/sema_branch_gu.csv 한 줄로.) 날짜 'YYYY-MM-DD'.
 
 with bronze as (
     select
@@ -20,18 +21,6 @@ typed as (
         nullif(trim(venue_name), '') as venue_name,
         try(cast(substr(strt_raw, 1, 10) as date)) as period_start,
         try(cast(substr(end_raw, 1, 10) as date))  as period_end,
-        case
-            when venue_name like '%서소문본관%'   then '중구'
-            when venue_name like '%북서울%'       then '노원구'
-            when venue_name like '%난지%'         then '마포구'
-            when venue_name like '%남서울%'       then '관악구'
-            when venue_name like '%SeMA 창고%'    then '은평구'
-            when venue_name like '%벙커%'         then '영등포구'
-            when venue_name like '%사진미술관%'   then '도봉구'
-            when venue_name like '%미술아카이브%' then '종로구'
-            when venue_name like '%서서울%'       then '금천구'
-            else null
-        end as location_key,   -- 자치구 (미매핑은 NULL → gold 제외)
         ingest_ts
     from bronze
     where exhibition_id is not null
@@ -40,14 +29,32 @@ typed as (
 dedup as (
     select *, row_number() over (partition by exhibition_id order by ingest_ts desc) as rn
     from typed
-)
+),
+
+latest as (select * from dedup where rn = 1),
+
+-- 분관 keyword → 자치구 (seed 마스터). venue_name 부분일치 중 우선순위 최상위 1건.
+gu_match as (
+    select
+        l.exhibition_id,
+        s.location_key,
+        row_number() over (
+            partition by l.exhibition_id
+            order by s.priority desc, s.location_key
+        ) as pr
+    from latest l
+    join {{ ref('sema_branch_gu') }} s
+        on l.venue_name like '%' || s.keyword || '%'
+),
+
+best_gu as (select exhibition_id, location_key from gu_match where pr = 1)
 
 select
-    exhibition_id,
-    title,
-    venue_name,
-    location_key,
-    period_start,
-    period_end
-from dedup
-where rn = 1
+    l.exhibition_id,
+    l.title,
+    l.venue_name,
+    g.location_key,          -- 자치구 (미매핑은 NULL → gold 제외)
+    l.period_start,
+    l.period_end
+from latest l
+left join best_gu g on l.exhibition_id = g.exhibition_id
