@@ -33,3 +33,18 @@ sources:
             description: 원본 레코드(JSON) — TITLE·GUNAME·STRTDATE·END_DATE·CODENAME 등
           - name: ingest_ts
             description: 적재 실행 식별 타임스탬프(UTC)
+      - name: bronze_kopis_festival
+        description: KOPIS 축제(prffest) 원본 — 공연과 동일 구조(mt20id·fcltynm·prfpdfrom/to)
+        columns:
+          - name: record_json
+          - name: ingest_ts
+      - name: bronze_seoul_sema_exhibition
+        description: 서울시립미술관 전시 원본 — DP_NAME·DP_PLACE(분관)·DP_START/END
+        columns:
+          - name: record_json
+          - name: ingest_ts
+      - name: bronze_seoul_sejong
+        description: 세종문화회관 공연/전시(SJWPerform) 원본 — TITLE·PLACE_LIST·START_DATE/END_DATE
+        columns:
+          - name: record_json
+          - name: ingest_ts
