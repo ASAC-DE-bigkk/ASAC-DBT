@@ -1,6 +1,6 @@
 -- gold: 공연 구간(period_start~period_end)을 일자로 전개해 location_key × date 집계.
--- 계획안의 "구간 신호(공연 기간 × 공연장)" 를 일 단위 시계열로 — 혼잡 gold와 시점 겹침 조인 재료.
--- 그레인: location_key × event_date.
+-- location_key = 자치구(공연장→facility.gugunnm 매핑). 혼잡 gold(자치구 그레인)와 시점 겹침 조인 가능.
+-- 그레인: location_key(자치구) × event_date.
 
 with perf as (
     select

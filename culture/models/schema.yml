@@ -1,8 +1,21 @@
 version: 2
 
 models:
+  - name: silver_culture_facility
+    description: KOPIS 공연시설 차원 (mt10id·공연장명·자치구). 공연장→자치구 매핑 원천.
+    columns:
+      - name: facility_id
+        description: KOPIS 공연시설 ID(mt10id)
+        tests:
+          - not_null
+          - unique
+      - name: facility_name
+        description: 공연장명
+      - name: location_key
+        description: 자치구(gugunnm)
+
   - name: silver_culture_performance
-    description: 정제된 KOPIS 공연 (typed, performance_id 기준 중복제거, 공연 기간 = event_time)
+    description: 정제된 KOPIS 공연 (typed, performance_id 기준 중복제거, 공연 기간 = event_time, location_key=자치구)
     columns:
       - name: performance_id
         description: KOPIS 공연 ID(mt20id)
@@ -12,7 +25,14 @@ models:
       - name: performance_name
         description: 공연명
       - name: location_key
-        description: 공용 location_key (1단계 임시 = 공연장명)
+        description: 공용 location_key — 자치구(공연장→facility 매핑) 또는 공연장명(폴백)
+        tests:
+          - not_null
+      - name: location_key_level
+        description: location_key 출처 ('gu' = 자치구 매핑, 'venue_fallback' = 미매칭 폴백)
+        tests:
+          - accepted_values:
+              values: ["gu", "venue_fallback"]
       - name: period_start
         description: 공연 시작일 (event_time)
       - name: period_end

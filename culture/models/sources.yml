@@ -19,3 +19,10 @@ sources:
             description: 적재 파티션 일자(KST)
           - name: raw_object_key
             description: 원본 R2 객체 경로(리니지)
+      - name: bronze_kopis_facility
+        description: KOPIS 공연시설(prfplc) 원본 — 공연장 차원. gugunnm(자치구) 보유, 공연장→자치구 매핑 원천
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — mt10id·fcltynm·sidonm·gugunnm 등
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC)
