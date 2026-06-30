@@ -7,6 +7,11 @@ sources:
     description: culture 원천 적재(raw) Iceberg 테이블 — ASAC-DAG `write_iceberg` 로더 산출
     database: "{{ target.database }}"
     schema: "{{ target.schema }}"
+    # 수집 신선도 감시: collected_at(적재 시각, timestamp) 기준. `dbt source freshness`로 측정.
+    loaded_at_field: collected_at
+    freshness:
+      warn_after: {count: 30, period: hour}
+      error_after: {count: 48, period: hour}
     tables:
       - name: bronze_kopis_performance
         description: KOPIS 공연목록(pblprfr) 원본 — 레코드 1건=1행, 원본은 record_json, provenance 포함
@@ -21,6 +26,9 @@ sources:
             description: 원본 R2 객체 경로(리니지)
       - name: bronze_kopis_facility
         description: KOPIS 공연시설(prfplc) 원본 — 공연장 차원. gugunnm(자치구) 보유, 공연장→자치구 매핑 원천
+        freshness:   # SCD2 차원(느린 변화) → 완화
+          warn_after: {count: 8, period: day}
+          error_after: {count: 14, period: day}
         columns:
           - name: record_json
             description: 원본 레코드(JSON) — mt10id·fcltynm·sidonm·gugunnm 등
@@ -68,6 +76,9 @@ sources:
           - name: ingest_ts
       - name: bronze_seoul_cultural_space
         description: 서울 문화공간정보(culturalSpaceInfo) 원본 — FAC_NAME·GNGU(자치구)·ADDR·X_COORD(위도)/Y_COORD(경도)
+        freshness:   # 문화공간 차원(느린 변화) → 완화
+          warn_after: {count: 8, period: day}
+          error_after: {count: 14, period: day}
         columns:
           - name: record_json
           - name: ingest_ts
