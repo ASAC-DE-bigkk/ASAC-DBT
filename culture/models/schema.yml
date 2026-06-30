@@ -25,9 +25,7 @@ models:
       - name: event_title
         description: 행사명
       - name: location_key
-        description: 공용 location_key = 자치구(GUNAME)
-        tests:
-          - not_null
+        description: 공용 location_key = 자치구(GUNAME). 일부 행사는 자치구 미상(NULL) — gold에서 제외됨.
       - name: period_start
         description: 행사 시작일 (event_time)
       - name: period_end
