@@ -55,8 +55,35 @@ models:
       - name: period_end
         description: 공연 종료일 (event_time)
 
+  - name: silver_culture_festival
+    description: 정제된 KOPIS 축제 (공연장→facility 자치구 매핑, 축제 기간=event_time)
+    columns:
+      - name: festival_id
+        description: KOPIS 축제 ID(mt20id)
+        tests:
+          - not_null
+          - unique
+
+  - name: silver_culture_exhibition
+    description: 정제된 서울시립미술관 전시 (분관→자치구 매핑, 전시 기간=event_time)
+    columns:
+      - name: exhibition_id
+        description: 전시 ID(DP_EX_NO)
+        tests:
+          - not_null
+          - unique
+
+  - name: silver_culture_sejong
+    description: 정제된 세종문화회관 공연/전시 (location_key=종로구 상수, 기간=event_time)
+    columns:
+      - name: sejong_id
+        description: 공연 ID(PERFORM_IDX)
+        tests:
+          - not_null
+          - unique
+
   - name: gold_culture_location_daily
-    description: 자치구 × 일자 culture 활동 집계 (공연+문화행사 union, 구간→일자 전개). 혼잡 gold와 시점 조인용 표준 산출물.
+    description: 자치구 × 일자 culture 활동 집계 (공연·문화행사·축제·전시·세종 union, 구간→일자 전개). 혼잡 gold와 시점 조인용 표준 산출물.
     columns:
       - name: location_key
         description: 공용 location_key (자치구)
@@ -67,7 +94,7 @@ models:
         tests:
           - not_null
       - name: activities_count
-        description: 해당 자치구·일자 활성 활동 수 (공연+행사)
+        description: 해당 자치구·일자 활성 활동 수 (전체)
         tests:
           - not_null
       - name: performances_count
@@ -76,5 +103,17 @@ models:
           - not_null
       - name: events_count
         description: 그중 문화행사(서울) 수
+        tests:
+          - not_null
+      - name: festivals_count
+        description: 그중 축제(KOPIS) 수
+        tests:
+          - not_null
+      - name: exhibitions_count
+        description: 그중 전시(시립미술관) 수
+        tests:
+          - not_null
+      - name: sejong_count
+        description: 그중 세종문화회관 수
         tests:
           - not_null
