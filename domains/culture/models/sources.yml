@@ -66,3 +66,8 @@ sources:
           - name: record_json
           - name: load_date
           - name: ingest_ts
+      - name: bronze_seoul_cultural_space
+        description: 서울 문화공간정보(culturalSpaceInfo) 원본 — FAC_NAME·GNGU(자치구)·ADDR·X_COORD(위도)/Y_COORD(경도)
+        columns:
+          - name: record_json
+          - name: ingest_ts
