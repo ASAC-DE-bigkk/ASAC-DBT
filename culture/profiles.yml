@@ -1,0 +1,28 @@
+culture:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    # prod: prod Iceberg 카탈로그(iceberg = seoul 버킷), 도메인 스키마 culture
+    prod:
+      type: trino
+      method: none
+      user: "{{ env_var('TRINO_USER', 'airflow') }}"
+      host: "{{ env_var('TRINO_HOST', 'trino') }}"
+      port: "{{ env_var('TRINO_PORT', '8080') | int }}"
+      database: "{{ env_var('TRINO_ICEBERG_CATALOG', 'iceberg') }}"
+      schema: "{{ env_var('CULTURE_SCHEMA', 'culture') }}"
+      http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
+      threads: 4
+      timeout_seconds: 300
+
+    # dev: dev Iceberg 카탈로그(iceberg_dev = seoul-dev 버킷), 동일 스키마 culture
+    dev:
+      type: trino
+      method: none
+      user: "{{ env_var('TRINO_USER', 'airflow') }}"
+      host: "{{ env_var('TRINO_HOST', 'trino') }}"
+      port: "{{ env_var('TRINO_PORT', '8080') | int }}"
+      database: "{{ env_var('TRINO_DEV_ICEBERG_CATALOG', 'iceberg_dev') }}"
+      schema: "{{ env_var('CULTURE_SCHEMA', 'culture') }}"
+      http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
+      threads: 4
+      timeout_seconds: 300
