@@ -60,3 +60,9 @@ sources:
           - name: record_json
           - name: load_date
           - name: ingest_ts
+      - name: bronze_kopis_boxoffice
+        description: KOPIS 예매상황판(boxoffice) 원본 — 기간 랭킹 top50 스냅샷(rnum·prfnm·prfplcnm·prfpd·seatcnt·mt20id)
+        columns:
+          - name: record_json
+          - name: load_date
+          - name: ingest_ts
