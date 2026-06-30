@@ -117,3 +117,38 @@ models:
         description: 그중 세종문화회관 수
         tests:
           - not_null
+
+  - name: silver_culture_reservation
+    description: 공공예약(문화+체육) 스냅샷 — 상태(SVCSTATNM)·자치구(AREANM), (SVCID, load_date) 단위
+    columns:
+      - name: service_id
+        description: 예약 서비스 ID(SVCID)
+        tests:
+          - not_null
+      - name: reservation_type
+        description: culture | sport
+        tests:
+          - accepted_values:
+              values: ["culture", "sport"]
+      - name: location_key
+        description: 자치구(AREANM) — 일부 미상(NULL)은 gold 제외
+
+  - name: gold_culture_reservation_daily
+    description: 자치구 × 스냅샷일 공공예약 가용 현황 (스냅샷 append). availability_rate=접수중/전체.
+    columns:
+      - name: location_key
+        description: 공용 location_key (자치구)
+        tests:
+          - not_null
+      - name: snapshot_date
+        description: 적재 스냅샷 일자 (load_date)
+        tests:
+          - not_null
+      - name: total_services
+        description: 자치구·스냅샷일 예약 서비스 총수
+        tests:
+          - not_null
+      - name: availability_rate
+        description: 접수중 비율 (0~1) — 충원율 대체 지표
+        tests:
+          - not_null
