@@ -1,6 +1,7 @@
 -- silver: 공공서비스예약(문화 + 체육) 스냅샷. 상태(SVCSTATNM)·자치구(AREANM) 보유.
 -- 스냅샷형: (SVCID, load_date)당 1행 = 그 날의 예약 서비스 상태. 같은 날 재적재는 최신 ingest_ts.
 -- 명시적 충원율 필드 없음 → 상태로 가용률(접수중 비율)을 gold에서 계산.
+-- 좌표: X(경도)/Y(위도) → longitude/latitude 정규화.
 
 with raw as (
     select 'culture' as reservation_type, record_json, load_date, ingest_ts
@@ -20,6 +21,8 @@ parsed as (
         nullif(trim(json_extract_scalar(record_json, '$.MINCLASSNM')), '') as category,
         nullif(trim(json_extract_scalar(record_json, '$.PLACENM')), '')   as place,
         nullif(trim(json_extract_scalar(record_json, '$.PAYATNM')), '')   as pay_type,
+        -- 좌표: X=경도, Y=위도
+        {{ seoul_lonlat("json_extract_scalar(record_json, '$.X')", "json_extract_scalar(record_json, '$.Y')") }},
         load_date,
         ingest_ts
     from raw
@@ -41,6 +44,8 @@ select
     category,
     place,
     pay_type,
+    longitude,
+    latitude,
     load_date,
     ingest_ts
 from dedup

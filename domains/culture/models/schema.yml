@@ -30,6 +30,10 @@ models:
         description: 행사 시작일 (event_time)
       - name: period_end
         description: 행사 종료일 (event_time)
+      - name: longitude
+        description: 경도(WGS84, LOT) — 서울범위 밖/0은 NULL
+      - name: latitude
+        description: 위도(WGS84, LAT) — 서울범위 밖/0은 NULL
 
   - name: silver_culture_performance
     description: 정제된 KOPIS 공연 (typed, performance_id 기준 중복제거, 공연 기간 = event_time, location_key=자치구)
@@ -132,6 +136,10 @@ models:
               values: ["culture", "sport"]
       - name: location_key
         description: 자치구(AREANM) — 일부 미상(NULL)은 gold 제외
+      - name: longitude
+        description: 경도(WGS84, X) — 서울범위 밖/0은 NULL
+      - name: latitude
+        description: 위도(WGS84, Y) — 서울범위 밖/0은 NULL
 
   - name: gold_culture_reservation_daily
     description: 자치구 × 스냅샷일 공공예약 가용 현황 (스냅샷 append). availability_rate=접수중/전체.
@@ -182,3 +190,20 @@ models:
           - not_null
       - name: location_key
         description: 자치구 (공연ID→공연 매핑 best-effort, 대부분 NULL)
+
+  - name: silver_culture_space
+    description: 서울 문화공간 차원(culturalSpaceInfo) — location_key=GNGU(자치구), 좌표 정규화(Y_COORD=경도/X_COORD=위도)
+    columns:
+      - name: space_id
+        description: 문화공간 ID(NUM)
+        tests:
+          - not_null
+          - unique
+      - name: facility_name
+        description: 공간/시설명(FAC_NAME)
+      - name: location_key
+        description: 자치구(GNGU)
+      - name: longitude
+        description: 경도(WGS84, Y_COORD) — 서울범위 밖/0은 NULL
+      - name: latitude
+        description: 위도(WGS84, X_COORD) — 서울범위 밖/0은 NULL
