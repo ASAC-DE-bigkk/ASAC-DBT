@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: bronze
     description: 원본 인구혼잡도 데이터 (Trino Bronze에서 로드)
-    database: iceberg
+    database: "{{ target.database }}"
     schema: seoul_ppltn
     tables:
       - name: bronze_seoul_ppltn

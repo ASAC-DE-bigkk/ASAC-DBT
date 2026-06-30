@@ -21,7 +21,7 @@ with bronze as (
         cast(replace_yn as varchar) as replace_yn,
         cast(ppltn_time as varchar) as ppltn_time,
         cast(fcst_yn as varchar) as fcst_yn,
-        cast(ingested_at as varchar) as ingested_at
+        cast(collected_at as varchar) as collected_at
     from {{ source('bronze', 'bronze_seoul_ppltn') }}
 ),
 
@@ -30,7 +30,7 @@ ranked as (
         *,
         row_number() over (
             partition by area_nm, ppltn_time
-            order by ingested_at desc
+            order by collected_at desc
         ) as row_num
     from bronze
     where area_nm is not null
@@ -60,6 +60,6 @@ select
     replace_yn,
     ppltn_time,
     fcst_yn,
-    ingested_at
+    collected_at
 from ranked
 where row_num = 1
