@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: silver_culture_performance
+    description: 정제된 KOPIS 공연 (typed, performance_id 기준 중복제거, 공연 기간 = event_time)
+    columns:
+      - name: performance_id
+        description: KOPIS 공연 ID(mt20id)
+        tests:
+          - not_null
+          - unique
+      - name: performance_name
+        description: 공연명
+      - name: location_key
+        description: 공용 location_key (1단계 임시 = 공연장명)
+      - name: period_start
+        description: 공연 시작일 (event_time)
+      - name: period_end
+        description: 공연 종료일 (event_time)
+
+  - name: gold_culture_location_daily
+    description: location_key × 일자 공연 집계 (구간→일자 전개). 혼잡 gold와 시점 조인용 표준 산출물.
+    columns:
+      - name: location_key
+        description: 공용 location_key
+        tests:
+          - not_null
+      - name: event_date
+        description: 공용 date 키
+        tests:
+          - not_null
+      - name: performances_count
+        description: 해당 location_key·일자에 활성인 공연 수
+        tests:
+          - not_null

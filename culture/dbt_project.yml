@@ -1,0 +1,23 @@
+name: culture
+version: "1.0.0"
+config-version: 2
+
+profile: culture
+
+flags:
+  require_certificate_validation: true
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+
+# silver_* / gold_* 테이블 모두 도메인 스키마(culture)에 적재 (bronze_* 와 같은 컨벤션).
+models:
+  culture:
+    +materialized: table
