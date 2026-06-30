@@ -152,3 +152,33 @@ models:
         description: 접수중 비율 (0~1) — 충원율 대체 지표
         tests:
           - not_null
+
+  - name: silver_culture_boxoffice
+    description: KOPIS 예매상황판(boxoffice) top50 랭킹 스냅샷 — (load_date, rank_no) 단위, 기간/순위/좌석수 정제
+    columns:
+      - name: rank_no
+        description: 예매 순위(rnum)
+        tests:
+          - not_null
+      - name: performance_id
+        description: 공연 ID(mt20id) — location_key best-effort 조인 키
+      - name: performance_name
+        description: 공연명(prfnm)
+
+  - name: gold_culture_boxoffice_daily
+    description: 스냅샷일 × 순위 인기공연 랭킹 (스냅샷 append). location_key는 공연ID→자치구 best-effort(nullable).
+    columns:
+      - name: snapshot_date
+        description: 적재 스냅샷 일자 (load_date)
+        tests:
+          - not_null
+      - name: rank_no
+        description: 예매 순위 (1~50)
+        tests:
+          - not_null
+      - name: performance_name
+        description: 공연명
+        tests:
+          - not_null
+      - name: location_key
+        description: 자치구 (공연ID→공연 매핑 best-effort, 대부분 NULL)
