@@ -20,6 +20,24 @@ models:
       - name: time_bucket
         tests:
           - not_null
+      - name: source_coordinate_system
+        description: Source coordinate reference system. TOPIS AccInfo grs80tm_x/y are GRS80 TM, not WGS84 longitude/latitude.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['GRS80_TM']
+      - name: source_location_quality
+        description: Whether the source GRS80 TM coordinate pair is available on the TOPIS row.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['source_coordinate_available', 'source_coordinate_missing']
+      - name: grs80tm_x
+        description: TOPIS source GRS80 TM X coordinate. Do not treat this as WGS84 longitude.
+      - name: grs80tm_y
+        description: TOPIS source GRS80 TM Y coordinate. Do not treat this as WGS84 latitude.
       - name: raw_object_key
         tests:
           - not_null
@@ -38,6 +56,12 @@ models:
         tests:
           - not_null
       - name: raw_object_count
+        tests:
+          - not_null
+      - name: source_coordinate_row_count
+        tests:
+          - not_null
+      - name: missing_source_coordinate_row_count
         tests:
           - not_null
       - name: first_occurred_at

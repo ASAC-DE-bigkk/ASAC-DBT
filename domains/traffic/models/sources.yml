@@ -32,6 +32,10 @@ sources:
           - name: occr_time
             tests:
               - not_null
+          - name: grs80tm_x
+            description: TOPIS source GRS80 TM X coordinate, not WGS84 longitude.
+          - name: grs80tm_y
+            description: TOPIS source GRS80 TM Y coordinate, not WGS84 latitude.
           - name: result_code
             tests:
               - not_null

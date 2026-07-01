@@ -33,7 +33,13 @@ standardized as (
     select
         *,
         {{ topis_timestamp('occr_date', 'occr_time') }} as occurred_at,
-        {{ topis_timestamp('exp_clr_date', 'exp_clr_time') }} as expected_clear_at
+        {{ topis_timestamp('exp_clr_date', 'exp_clr_time') }} as expected_clear_at,
+        'GRS80_TM' as source_coordinate_system,
+        case
+            when grs80tm_x is not null and grs80tm_y is not null
+                then 'source_coordinate_available'
+            else 'source_coordinate_missing'
+        end as source_location_quality
     from bronze
     where result_code = 'INFO-000'
 ),
@@ -60,6 +66,8 @@ select
     link_id as asset_id,
     acc_road_code,
     acc_info,
+    source_coordinate_system,
+    source_location_quality,
     grs80tm_x,
     grs80tm_y,
     occurred_at,
