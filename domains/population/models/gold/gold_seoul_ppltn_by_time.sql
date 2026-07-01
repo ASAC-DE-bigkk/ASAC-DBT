@@ -1,3 +1,7 @@
+-- gold: 시간대별 장소 인구혼잡도 (silver를 소비, 평균 인구 등 파생).
+--
+-- 지금은 table(전체 재생성). silver를 소비하는 얇은 파생이라 비용이 작다.
+
 select
     ppltn_time,
     area_nm,
@@ -17,6 +21,6 @@ select
     ppltn_rate_60,
     ppltn_rate_70,
     resnt_ppltn_rate,
-    non_resnt_ppltn_rate
+    non_resnt_ppltn_rate,
+    collected_at
 from {{ ref('silver_seoul_ppltn') }}
-order by ppltn_time desc, area_nm

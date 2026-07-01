@@ -1,6 +1,9 @@
--- silver: bronze의 원본 payload(citydata_ppltn 레코드 JSON)를 개별 필드로 분해(파싱)한 뒤
+-- silver: bronze의 원본 payload(citydata_ppltn 레코드 JSON)를 개별 필드로 파싱하고
 -- (area_nm, ppltn_time) 기준 최신 1건으로 중복 제거한다.
--- bronze는 schema-on-read(원본 payload 통째 저장)이므로, 여기서 json_extract_scalar로 파싱한다.
+--
+-- 지금은 table(전체 재생성). 규모가 작아 15분 주기에 충분히 싸다.
+-- (incremental(merge)은 dbt-trino + R2 Data Catalog에서 is_incremental 첫 run 이슈가 있어
+--  향후 과제로 둔다 — docs 참고.)
 
 with bronze as (
     select
@@ -25,7 +28,7 @@ with bronze as (
         json_extract_scalar(payload, '$.REPLACE_YN') as replace_yn,
         json_extract_scalar(payload, '$.PPLTN_TIME') as ppltn_time,
         json_extract_scalar(payload, '$.FCST_YN') as fcst_yn,
-        cast(collected_at as varchar) as collected_at
+        collected_at
     from {{ source('bronze', 'bronze_seoul_ppltn') }}
 ),
 
