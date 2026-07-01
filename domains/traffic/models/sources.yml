@@ -1,0 +1,43 @@
+version: 2
+
+sources:
+  - name: traffic_bronze
+    description: Seoul TOPIS traffic Bronze Iceberg tables loaded by ASAC-DAG.
+    database: "{{ target.database }}"
+    schema: "{{ env_var('ASK_SEOUL_SCHEMA', 'ask_seoul') }}"
+    loaded_at_field: collected_at
+    freshness:
+      warn_after: {count: 30, period: minute}
+      error_after: {count: 2, period: hour}
+    tables:
+      - name: seoul_traffic_incident
+        identifier: bronze_seoul_traffic_incident
+        description: Seoul TOPIS AccInfo incident rows with raw lineage metadata.
+        columns:
+          - name: request_id
+            tests:
+              - not_null
+          - name: source_id
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['seoul_traffic_incident']
+          - name: acc_id
+            tests:
+              - not_null
+          - name: occr_date
+            tests:
+              - not_null
+          - name: occr_time
+            tests:
+              - not_null
+          - name: result_code
+            tests:
+              - not_null
+          - name: raw_object_key
+            tests:
+              - not_null
+          - name: collected_at
+            tests:
+              - not_null

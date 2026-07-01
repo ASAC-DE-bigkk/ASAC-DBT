@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: silver_seoul_traffic_incident
+    description: Deduplicated and time-standardized Seoul TOPIS AccInfo incident rows.
+    columns:
+      - name: source_id
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['seoul_traffic_incident']
+      - name: source_record_id
+        tests:
+          - not_null
+          - unique
+      - name: occurred_at
+        tests:
+          - not_null
+      - name: time_bucket
+        tests:
+          - not_null
+      - name: raw_object_key
+        tests:
+          - not_null
+      - name: collected_at
+        tests:
+          - not_null
+
+  - name: gold_traffic_incident_summary
+    description: Traffic incident source-level row, raw object, and occurrence time coverage summary.
+    columns:
+      - name: source_id
+        tests:
+          - not_null
+          - unique
+      - name: row_count
+        tests:
+          - not_null
+      - name: raw_object_count
+        tests:
+          - not_null
+      - name: first_occurred_at
+        tests:
+          - not_null
+      - name: last_occurred_at
+        tests:
+          - not_null
+      - name: last_collected_at
+        tests:
+          - not_null
