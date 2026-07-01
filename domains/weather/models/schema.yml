@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: silver_kma_vilage_fcst
+    description: Deduplicated and time-standardized KMA forecast rows.
+    columns:
+      - name: source_id
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['kma_vilage_fcst']
+      - name: place_id
+        tests:
+          - not_null
+      - name: nx
+        tests:
+          - not_null
+      - name: ny
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: issued_at
+        tests:
+          - not_null
+      - name: forecast_at
+        tests:
+          - not_null
+      - name: time_bucket
+        tests:
+          - not_null
+      - name: fcst_value_raw
+        tests:
+          - not_null
+      - name: raw_object_key
+        tests:
+          - not_null
+      - name: collected_at
+        tests:
+          - not_null
+
+  - name: gold_weather_forecast_summary
+    description: Weather source-level row, raw object, and forecast time coverage summary.
+    columns:
+      - name: source_id
+        tests:
+          - not_null
+          - unique
+      - name: row_count
+        tests:
+          - not_null
+      - name: raw_object_count
+        tests:
+          - not_null
+      - name: first_forecast_at
+        tests:
+          - not_null
+      - name: last_forecast_at
+        tests:
+          - not_null
+      - name: last_collected_at
+        tests:
+          - not_null
