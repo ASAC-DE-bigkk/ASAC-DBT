@@ -1,0 +1,55 @@
+version: 2
+
+sources:
+  - name: weather_bronze
+    description: KMA weather Bronze Iceberg tables loaded by ASAC-DAG.
+    database: "{{ target.database }}"
+    schema: "{{ env_var('ASK_SEOUL_SCHEMA', 'ask_seoul') }}"
+    loaded_at_field: collected_at
+    freshness:
+      warn_after: {count: 30, period: hour}
+      error_after: {count: 48, period: hour}
+    tables:
+      - name: kma_vilage_fcst
+        identifier: bronze_kma_vilage_fcst
+        description: KMA getVilageFcst item rows with raw lineage metadata.
+        columns:
+          - name: request_id
+            tests:
+              - not_null
+          - name: source_id
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['kma_vilage_fcst']
+          - name: place_id
+            tests:
+              - not_null
+          - name: base_date
+            tests:
+              - not_null
+          - name: base_time
+            tests:
+              - not_null
+          - name: category
+            tests:
+              - not_null
+          - name: fcst_date
+            tests:
+              - not_null
+          - name: fcst_time
+            tests:
+              - not_null
+          - name: fcst_value
+            tests:
+              - not_null
+          - name: result_code
+            tests:
+              - not_null
+          - name: raw_object_key
+            tests:
+              - not_null
+          - name: collected_at
+            tests:
+              - not_null
