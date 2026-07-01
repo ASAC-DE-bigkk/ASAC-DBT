@@ -1,0 +1,84 @@
+version: 2
+
+# bronze는 ASAC-DAG 로더가 적재한 Iceberg 테이블. dev/prod에 따라 카탈로그가 갈리므로
+# database/schema를 target에 맞춘다 (dev=iceberg_dev.culture / prod=iceberg.culture).
+sources:
+  - name: culture_bronze
+    description: culture 원천 적재(raw) Iceberg 테이블 — ASAC-DAG `write_iceberg` 로더 산출
+    database: "{{ target.database }}"
+    schema: "{{ target.schema }}"
+    # 수집 신선도 감시: collected_at(적재 시각, timestamp) 기준. `dbt source freshness`로 측정.
+    loaded_at_field: collected_at
+    freshness:
+      warn_after: {count: 30, period: hour}
+      error_after: {count: 48, period: hour}
+    tables:
+      - name: bronze_kopis_performance
+        description: KOPIS 공연목록(pblprfr) 원본 — 레코드 1건=1행, 원본은 record_json, provenance 포함
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON 문자열) — silver에서 json_extract로 파싱
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC) = ingest_time (event_time 아님)
+          - name: load_date
+            description: 적재 파티션 일자(KST)
+          - name: raw_object_key
+            description: 원본 R2 객체 경로(리니지)
+      - name: bronze_kopis_facility
+        description: KOPIS 공연시설(prfplc) 원본 — 공연장 차원. gugunnm(자치구) 보유, 공연장→자치구 매핑 원천
+        freshness:   # SCD2 차원(느린 변화) → 완화
+          warn_after: {count: 8, period: day}
+          error_after: {count: 14, period: day}
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — mt10id·fcltynm·sidonm·gugunnm 등
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC)
+      - name: bronze_seoul_cultural_event
+        description: 서울 문화행사정보(culturalEventInfo) 원본 — GUNAME(자치구)·행사기간(STRTDATE/END_DATE) 보유
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — TITLE·GUNAME·STRTDATE·END_DATE·CODENAME 등
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC)
+      - name: bronze_kopis_festival
+        description: KOPIS 축제(prffest) 원본 — 공연과 동일 구조(mt20id·fcltynm·prfpdfrom/to)
+        columns:
+          - name: record_json
+          - name: ingest_ts
+      - name: bronze_seoul_sema_exhibition
+        description: 서울시립미술관 전시 원본 — DP_NAME·DP_PLACE(분관)·DP_START/END
+        columns:
+          - name: record_json
+          - name: ingest_ts
+      - name: bronze_seoul_sejong
+        description: 세종문화회관 공연/전시(SJWPerform) 원본 — TITLE·PLACE_LIST·START_DATE/END_DATE
+        columns:
+          - name: record_json
+          - name: ingest_ts
+      - name: bronze_seoul_culture_reservation
+        description: 공공서비스예약-문화(ListPublicReservationCulture) 원본 — AREANM(자치구)·SVCSTATNM(상태) 스냅샷
+        columns:
+          - name: record_json
+          - name: load_date
+          - name: ingest_ts
+      - name: bronze_seoul_sports_reservation
+        description: 공공서비스예약-체육(ListPublicReservationSport) 원본 — AREANM(자치구)·SVCSTATNM(상태) 스냅샷
+        columns:
+          - name: record_json
+          - name: load_date
+          - name: ingest_ts
+      - name: bronze_kopis_boxoffice
+        description: KOPIS 예매상황판(boxoffice) 원본 — 기간 랭킹 top50 스냅샷(rnum·prfnm·prfplcnm·prfpd·seatcnt·mt20id)
+        columns:
+          - name: record_json
+          - name: load_date
+          - name: ingest_ts
+      - name: bronze_seoul_cultural_space
+        description: 서울 문화공간정보(culturalSpaceInfo) 원본 — FAC_NAME·GNGU(자치구)·ADDR·X_COORD(위도)/Y_COORD(경도)
+        freshness:   # 문화공간 차원(느린 변화) → 완화
+          warn_after: {count: 8, period: day}
+          error_after: {count: 14, period: day}
+        columns:
+          - name: record_json
+          - name: ingest_ts
