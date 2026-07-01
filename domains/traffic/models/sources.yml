@@ -45,3 +45,32 @@ sources:
           - name: collected_at
             tests:
               - not_null
+
+      - name: seoul_traffic_incident_request_audit
+        identifier: bronze_seoul_traffic_incident_request_audit
+        description: Seoul TOPIS AccInfo request-level audit rows, including normal zero-row responses.
+        columns:
+          - name: request_id
+            tests:
+              - not_null
+          - name: source_id
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['seoul_traffic_incident']
+          - name: start_index
+            tests:
+              - not_null
+          - name: end_index
+            tests:
+              - not_null
+          - name: result_code
+            tests:
+              - not_null
+          - name: row_count
+            tests:
+              - not_null
+          - name: collected_at
+            tests:
+              - not_null
