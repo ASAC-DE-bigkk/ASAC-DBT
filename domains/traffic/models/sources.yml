@@ -45,6 +45,9 @@ sources:
           - name: collected_at
             tests:
               - not_null
+          - name: dag_run_id
+            tests:
+              - not_null
 
       - name: seoul_traffic_incident_request_audit
         identifier: bronze_seoul_traffic_incident_request_audit
@@ -65,12 +68,21 @@ sources:
           - name: end_index
             tests:
               - not_null
+          - name: raw_object_key
+            tests:
+              - not_null
           - name: result_code
+            tests:
+              - not_null
+          - name: list_total_count
             tests:
               - not_null
           - name: row_count
             tests:
               - not_null
           - name: collected_at
+            tests:
+              - not_null
+          - name: dag_run_id
             tests:
               - not_null
