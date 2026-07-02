@@ -49,6 +49,27 @@ sources:
             tests:
               - not_null
 
+      - name: collection_run_manifest
+        identifier: bronze_collection_run_manifest
+        description: Bronze DAG run-level publish gate written by ASAC-DAG.
+        loaded_at_field: event_at
+        columns:
+          - name: source_id
+            tests:
+              - not_null
+          - name: dag_run_id
+            tests:
+              - not_null
+          - name: status
+            tests:
+              - not_null
+          - name: is_publishable
+            tests:
+              - not_null
+          - name: event_at
+            tests:
+              - not_null
+
       - name: seoul_traffic_incident_request_audit
         identifier: bronze_seoul_traffic_incident_request_audit
         description: Seoul TOPIS AccInfo request-level audit rows, including normal zero-row responses.
