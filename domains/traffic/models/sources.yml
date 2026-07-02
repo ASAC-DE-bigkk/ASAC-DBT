@@ -23,7 +23,16 @@ sources:
               - accepted_values:
                   arguments:
                     values: ['seoul_traffic_incident']
+          - name: request_params_json
+            tests:
+              - not_null
           - name: acc_id
+            tests:
+              - not_null
+          - name: start_index
+            tests:
+              - not_null
+          - name: end_index
             tests:
               - not_null
           - name: occr_date
@@ -39,10 +48,28 @@ sources:
           - name: result_code
             tests:
               - not_null
+          - name: result_msg
+            tests:
+              - not_null
           - name: raw_object_key
             tests:
               - not_null
+          - name: payload_hash
+            tests:
+              - not_null
+          - name: http_status
+            tests:
+              - not_null
+          - name: list_total_count
+            tests:
+              - not_null
+          - name: row_count
+            tests:
+              - not_null
           - name: collected_at
+            tests:
+              - not_null
+          - name: load_date
             tests:
               - not_null
           - name: dag_run_id
@@ -89,10 +116,22 @@ sources:
           - name: end_index
             tests:
               - not_null
+          - name: request_params_json
+            tests:
+              - not_null
           - name: raw_object_key
             tests:
               - not_null
+          - name: payload_hash
+            tests:
+              - not_null
+          - name: http_status
+            tests:
+              - not_null
           - name: result_code
+            tests:
+              - not_null
+          - name: result_msg
             tests:
               - not_null
           - name: list_total_count
@@ -102,6 +141,9 @@ sources:
             tests:
               - not_null
           - name: collected_at
+            tests:
+              - not_null
+          - name: load_date
             tests:
               - not_null
           - name: dag_run_id
