@@ -62,7 +62,7 @@ silver/gold 모두 `table`(전체 재생성)입니다. 규모가 작아 15분 �
 ## 실행
 
 ```bash
-# Airflow 자동: ASAC-DAG seoul_ppltn_transform DAG가 15분마다 dbt run + test
+# Airflow 자동: ASAC-DAG population_transform DAG가 15분마다 dbt run + test
 
 # 수동 (컨테이너 내부, dev):
 cd /opt/airflow/dbt/domains/population

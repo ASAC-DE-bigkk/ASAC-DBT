@@ -5,7 +5,7 @@ sources:
     description: >
       서울시 실시간 인구혼잡도(citydata_ppltn) 원본. schema-on-read 방식으로,
       원본 레코드 JSON을 payload 컬럼에 통째로 저장한다(파싱 안 함).
-      DAG(ASAC-DAG seoul_ppltn_collect)가 적재. dev/prod는 target.database로 가른다.
+      DAG(ASAC-DAG population_bronze)가 적재. dev/prod는 target.database로 가른다.
     database: "{{ target.database }}"
     schema: seoul_ppltn
     tables:
