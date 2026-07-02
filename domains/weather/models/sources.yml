@@ -26,6 +26,9 @@ sources:
           - name: place_id
             tests:
               - not_null
+          - name: request_params_json
+            tests:
+              - not_null
           - name: base_date
             tests:
               - not_null
@@ -50,7 +53,28 @@ sources:
           - name: raw_object_key
             tests:
               - not_null
+          - name: payload_hash
+            tests:
+              - not_null
+          - name: http_status
+            tests:
+              - not_null
           - name: collected_at
+            tests:
+              - not_null
+          - name: result_msg
+            tests:
+              - not_null
+          - name: total_count
+            tests:
+              - not_null
+          - name: item_count
+            tests:
+              - not_null
+          - name: load_date
+            tests:
+              - not_null
+          - name: dag_run_id
             tests:
               - not_null
 

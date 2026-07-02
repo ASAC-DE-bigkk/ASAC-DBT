@@ -21,8 +21,9 @@ coverage 계약을 정리한다. 공용 package보다 도메인별 계약을 먼
 
 ### `seoul_traffic_incident`
 
-- 공통 요청/수집 정보: `request_id`, `source_id`, `raw_object_key`,
-  `result_code`, `collected_at`, `dag_run_id`는 `not_null`.
+- 공통 요청/수집 정보: `request_id`, `source_id`, `request_params_json`,
+  `raw_object_key`, `payload_hash`, `http_status`, `result_code`, `result_msg`,
+  `collected_at`, `load_date`, `dag_run_id`는 `not_null`.
 - `source_id`는 `seoul_traffic_incident`로 고정 accepted_values.
 - TOPIS 사건 id `acc_id`, 일시 `occr_date/occr_time`는 `not_null`.
 - 위치계 관련 필드 `grs80tm_x`, `grs80tm_y`는 원천 좌표라 WGS84 위경도로 보지 않는다.
@@ -32,7 +33,8 @@ coverage 계약을 정리한다. 공용 package보다 도메인별 계약을 먼
 - `request_id`/`source_id`는 `not_null`.
 - 페이지 제어 정보 `start_index`, `end_index`, `list_total_count`, `row_count`는
   `not_null`.
-- `raw_object_key`, `result_code`, `collected_at`, `dag_run_id`는 `not_null`.
+- `request_params_json`, `raw_object_key`, `payload_hash`, `http_status`, `result_code`,
+  `result_msg`, `collected_at`, `load_date`, `dag_run_id`는 `not_null`.
 - zero-row 응답은 이 audit 테이블이 기록해야 하며, Silver empty를 허용하는지 판단할 때
   직접 사용하지 않는다.
 
