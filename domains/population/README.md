@@ -52,13 +52,15 @@ try_cast(nullif(trim(json_extract_scalar(payload, '$.AREA_PPLTN_MIN')), '') as i
 이점: API 필드가 바뀌어도 bronze는 안 깨지고(컬럼 고정), **파싱 규칙을 dbt SQL로 버전 관리**하며,
 원본 보존으로 재처리(replay)가 가능합니다. (bronze 설계 근거: ASAC-DAG `domains/population/docs/bronze-metadata.md`)
 
-## materialization: silver는 incremental(merge), gold는 table
+## materialization: silver·gold 둘 다 incremental(merge)
 
 - **silver**: `incremental` + `merge`, unique_key `(area_nm, ppltn_time)`. 매 run은
   `max(collected_at) - 30분`(지연 도착 lookback) 이후의 bronze만 파싱해 merge하므로
   bronze가 쌓여도 run 비용이 일정합니다 → 수집(5분)과 같은 5분 주기로 돌립니다.
-- **gold**: silver를 소비하는 얇은 파생이라 `table`(전체 재생성) 유지. 무거운 집계가
-  생기면 그때 incremental 또는 별도 주기(asset 트리거) 분리를 검토합니다.
+- **gold**: `incremental` + `merge`, unique_key `(ppltn_time, area_cd)`. silver의 최근
+  수집분만(30분 lookback) merge합니다. 5분마다 **전체 재생성하지 않으므로** 스냅샷/
+  데이터파일 누적이 최소화되고, 실시간 지도(최신 슬라이스)와 시간별 분석(누적 히스토리)을
+  한 테이블로 동시에 만족합니다. (같은 `(ppltn_time, area_cd)`는 2건 이상 나오지 않음)
 
 ### ⚠ 첫 run / drop 직후 주의 (R2 Data Catalog eventual consistency)
 

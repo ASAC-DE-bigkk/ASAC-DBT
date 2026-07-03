@@ -1,8 +1,19 @@
 -- gold: 시간대별 장소 인구혼잡도 (silver를 소비, 평균 인구 등 파생).
 --
--- 지금은 table(전체 재생성). silver를 소비하는 얇은 파생이라 비용이 작다.
+-- incremental(merge): silver의 최근 수집분만(30분 lookback) 읽어 (ppltn_time, area_cd)
+-- 키로 merge한다. 5분마다 전체 재생성하지 않으므로 스냅샷/데이터파일 누적이 최소화된다.
+-- 실시간 지도(최신 슬라이스)와 시간별 분석(누적 히스토리)을 한 테이블로 동시에 만족한다.
 -- 위치(중심점/카테고리)는 seed(seoul_ppltn_area_geo)를 area_cd로 left join --
 -- 폴리곤 WKT는 행마다 붙이기엔 무거워 seed에 남겨두고 필요할 때 직접 join한다.
+--
+-- ⚠ 기존 table에서 전환 시 drop 없이 그대로 run하면 기존 테이블에 merge된다(안전).
+--   drop 직후 run은 R2 카탈로그 eventual consistency로 실패할 수 있다(README 참고).
+
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['ppltn_time', 'area_cd'],
+) }}
 
 select
     s.ppltn_time,
@@ -31,3 +42,11 @@ select
 from {{ ref('silver_seoul_ppltn') }} s
 left join {{ ref('seoul_ppltn_area_geo') }} geo
     on s.area_cd = geo.area_cd
+{% if is_incremental() %}
+-- 이미 반영된 collected_at 이후(-30분 여유)의 silver만 스캔. merge가 기존 키를
+-- 갱신하므로 lookback으로 같은 행을 다시 읽어도 결과는 동일(멱등).
+where s.collected_at >= (
+    select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
+    from {{ this }}
+)
+{% endif %}

@@ -99,7 +99,7 @@ models:
     description: >
       silver를 소비하는 시간별 장소 인구혼잡도. 평균 인구(avg_ppltn) 파생 +
       위치 참조(seoul_ppltn_area_geo seed)를 area_cd로 left join해 중심점/분류 포함.
-      현재 table 재생성.
+      incremental(merge) — 최근 수집분만(30분 lookback) (ppltn_time, area_cd) 키로 merge.
     columns:
       - name: ppltn_time
         description: 원천 측정 시각
