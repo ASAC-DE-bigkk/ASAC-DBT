@@ -5,13 +5,19 @@ sources:
     description: >
       서울시 실시간 인구혼잡도(citydata_ppltn) 원본. schema-on-read 방식으로,
       원본 레코드 JSON을 payload 컬럼에 통째로 저장한다(파싱 안 함).
-      DAG(ASAC-DAG seoul_ppltn_collect)가 적재. dev/prod는 target.database로 가른다.
+      DAG(ASAC-DAG population_bronze)가 적재. dev/prod는 target.database로 가른다.
     database: "{{ target.database }}"
     # 샌드박스 테스트 시 SEOUL_PPLTN_SCHEMA로 격리 스키마의 bronze를 읽는다.
     schema: "{{ env_var('SEOUL_PPLTN_SCHEMA', 'seoul_ppltn') }}"
     tables:
       - name: bronze_seoul_ppltn
         description: 인구혼잡도 원본 payload + 추적 메타데이터 (1행 = 장소 1건)
+        # 수집은 5분 주기. 최신 수집이 15분↑ 지연이면 warn, 30분↑이면 error(수집 정지 감지).
+        # 실행: dbt source freshness (dbt build엔 미포함 — transform DAG에 별도 태스크로).
+        loaded_at_field: collected_at
+        freshness:
+          warn_after: {count: 15, period: minute}
+          error_after: {count: 30, period: minute}
         columns:
           - name: request_id
             description: 요청 1건 고유 식별자 (raw 객체 ↔ bronze 행 연결)
@@ -25,6 +31,7 @@ sources:
             description: API 결과 메시지
           - name: payload
             description: ★ 원본 레코드 JSON 통째 (silver에서 json_extract로 파싱)
+            data_tests: [not_null]
           - name: payload_hash
             description: 원본 bytes의 SHA-256 (무결성/중복 판단)
           - name: raw_object_key
