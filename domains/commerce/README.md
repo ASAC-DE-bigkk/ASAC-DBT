@@ -6,6 +6,8 @@ bronze(원본층) → silver(정제·SCD2) → gold(집계)를 만든다. **자�
 
 전체 설계·단계별 계획: ASAC-DAG `dags/domains/commerce/docs/pipeline/medallion-implementation-plan.md`.
 
+> **dbt 가 처음이라면 → [docs/beginner-guide.md](docs/beginner-guide.md)** (확인·실행·디버깅 실전 가이드).
+
 ## 레이어
 
 - **bronze**(입력, 이 프로젝트가 만들지 않음): `<catalog>.<COMMERCE_SCHEMA>.bronze_localdata_license`
