@@ -29,7 +29,13 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 | `fcst_value` | 원천 예보 값 | `not_null` |
 | `result_code` | KMA 응답 성공 코드 | `not_null`, 성공값 `00` |
 | `raw_object_key` | R2 raw object lineage | `not_null` |
+| `payload_hash` | raw payload fingerprint | `not_null` |
+| `request_params_json` | API key를 제외한 재현 가능한 요청 조건 | `not_null` |
+| `http_status` | gateway HTTP status | `not_null` |
+| `result_msg` | KMA 응답 메시지 | `not_null` |
+| `total_count`, `item_count` | API total과 parsed item count | `not_null` |
 | `collected_at` | 수집 시각 | `not_null`, freshness 기준 |
+| `load_date`, `dag_run_id` | 적재 파티션 후보와 Airflow run lineage | `not_null` |
 
 Bronze DAG는 `total_count`가 실제 parsed item 수보다 큰 partial 응답을 성공으로
 처리하지 않아야 한다. dbt는 성공적으로 publish된 Bronze table을 읽는다는 전제에서
