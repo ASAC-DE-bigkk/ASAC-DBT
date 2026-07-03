@@ -1,0 +1,21 @@
+name: commerce
+version: "1.0.0"
+config-version: 2
+
+profile: commerce
+
+flags:
+  require_certificate_validation: true
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  commerce:
+    +materialized: table

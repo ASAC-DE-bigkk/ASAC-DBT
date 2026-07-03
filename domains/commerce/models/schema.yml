@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: silver_license_history
+    description: >
+      서울 인허가 SCD2 이력. bronze 변경로그를 publishable run 으로 필터하고, 연속 중복을 제거해
+      (정당한 원복 A→B→A 는 보존) valid_from/valid_to/is_current 로 버전화한다. grain=(dataset, mgtno, version_seq).
+    columns:
+      - name: dataset
+        tests:
+          - not_null
+      - name: mgtno
+        tests:
+          - not_null
+      - name: version_seq
+        description: 업소(dataset×mgtno) 내 버전 순번(전순서 정렬키 기준, 1부터).
+        tests:
+          - not_null
+      - name: content_hash
+        tests:
+          - not_null
+      - name: valid_from
+        tests:
+          - not_null
+      - name: is_current
+        tests:
+          - not_null
+      - name: district
+        description: 자치구(구). 도로명 우선·지번 폴백 파싱. 서울 외/미매칭은 null.
+
+  - name: silver_license_current
+    description: 인허가 현재 상태(업소당 최신 1버전, is_current 슬라이스). grain=(dataset, mgtno).
+    columns:
+      - name: dataset
+        tests:
+          - not_null
+      - name: mgtno
+        tests:
+          - not_null
+      - name: bplcnm
+        description: 업소명(BPLCNM).
