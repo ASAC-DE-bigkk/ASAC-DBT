@@ -8,6 +8,7 @@ flags:
   require_certificate_validation: true
 
 model-paths: ["models"]
+seed-paths: ["seeds"]
 macro-paths: ["macros"]
 test-paths: ["tests"]
 
@@ -19,3 +20,21 @@ clean-targets:
 models:
   weather:
     +materialized: table
+
+seeds:
+  weather:
+    +quote_columns: false
+    weather_place_grid_mapping:
+      +column_types:
+        place_id: varchar
+        place_name: varchar
+        alias_names: varchar
+        gu: varchar
+        admin_dong: varchar
+        latitude: double
+        longitude: double
+        nx: integer
+        ny: integer
+        mapping_method: varchar
+        grid_distance_m: double
+        source_admin_code: varchar
