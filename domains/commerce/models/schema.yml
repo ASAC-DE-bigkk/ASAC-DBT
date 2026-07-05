@@ -18,17 +18,17 @@ models:
         tests:
           - not_null
       - name: collected_at
-        description: 파이프라인 수집 시각. **UTC**(naive) — KST 인 소스 시각과 직접 비교 금지.
+        description: 파이프라인 수집 시각. 원래 UTC 로 기록 — 무보정 통과(silver timestamp 는 전부 UTC).
         tests:
           - not_null
       - name: updatedt_ts
-        description: UPDATEDT(개방 데이터 갱신시각, KST) 파싱 timestamp. 비정형이면 null.
+        description: UPDATEDT(개방 데이터 갱신시각, KST 원문) → **UTC 변환(-9h)** timestamp. 비정형이면 null.
       - name: updatedt_sort
         description: 정렬 전용(결측=epoch 치환). 시각 해석에는 updatedt_ts 를 쓸 것.
         tests:
           - not_null
       - name: lastmodts_ts
-        description: LASTMODTS(원천 최종수정시점, KST) 파싱 timestamp. 비정형이면 null.
+        description: LASTMODTS(원천 최종수정시점, KST 원문) → **UTC 변환(-9h)** timestamp. 비정형이면 null.
       - name: lastmodts_sort
         description: 정렬 전용(결측=epoch 치환). 시각 해석에는 lastmodts_ts 를 쓸 것.
         tests:

@@ -3,7 +3,9 @@
 -- 명시적 버전 컬럼(version_seq/valid_from/valid_to/is_current) 없음 — (dataset, mgtno) 안에서
 -- (updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash) 내림차순 정렬이
 -- 곧 버전 순서다(암묵 버저닝). current 는 이 정렬의 최신 1행.
--- 타임존/결측 규약: docs/timestamps-and-nulls.md · 컬럼 구조: docs/dataset-columns.md
+-- 타임존 정책: silver 의 timestamp 는 **전부 UTC(naive)** — KST 원문(UPDATEDT/LASTMODTS)은
+-- 문자열로 보존하고 *_ts 는 UTC 변환(-9h), collected_at 은 원래 UTC 라 무보정.
+-- 상세/결측 규약: docs/timestamps-and-nulls.md · 컬럼 구조: docs/dataset-columns.md
 
 with publishable as (
     -- 데이터셋별 발행 게이트: is_publishable 인 (dataset, bronze_run_id) 만 반영.
@@ -27,6 +29,7 @@ bronze as (
         cast(b.bronze_run_id as varchar) as bronze_run_id,
         cast(b.dag_run_id as varchar) as dag_run_id,
         cast(b.raw_object_key as varchar) as raw_object_key,
+        -- 수집 시점에 이미 UTC 로 기록된 값 — 무보정 통과(+9h 금지: 이중 보정).
         cast(b.collected_at as timestamp(6)) as collected_at
     from {{ source('commerce_bronze', 'localdata_license') }} as b
     inner join publishable as p
@@ -57,20 +60,20 @@ parsed as (
         nullif(trim(json_extract_scalar(record_json, '$.X')), '') as source_coord_x,
         nullif(trim(json_extract_scalar(record_json, '$.Y')), '') as source_coord_y,
         nullif(trim(json_extract_scalar(record_json, '$.LASTMODTS')), '') as lastmodts,
-        -- UPDATEDT(KST, 14자리 YYYYMMDDHHMMSS 기대, 비정형 가능) → timestamp. 실패 시 null.
+        -- UPDATEDT(KST 문자열, 14자리 기대, 비정형 가능) → **UTC** timestamp(-9h). 실패 시 null.
         try(date_parse(
             substr(regexp_replace(updatedt, '[^0-9]', ''), 1, 14), '%Y%m%d%H%i%s'
-        )) as updatedt_ts
+        )) - interval '9' hour as updatedt_ts
     from bronze
 ),
 
 normalized as (
     select
         *,
-        -- LASTMODTS(KST, 'YYYY-MM-DD HH:MM:SS' 계열 기대, 비정형 가능) → timestamp. 실패 시 null.
+        -- LASTMODTS(KST 문자열, 'YYYY-MM-DD HH:MM:SS' 계열 기대, 비정형 가능) → **UTC** timestamp(-9h). 실패 시 null.
         try(date_parse(
             substr(regexp_replace(lastmodts, '[^0-9]', ''), 1, 14), '%Y%m%d%H%i%s'
-        )) as lastmodts_ts,
+        )) - interval '9' hour as lastmodts_ts,
         -- 주소 정규화 v1: '(' 이후 절단 → 연속 공백 1개 → trim → 빈값 null. (Python 수집측과 규칙 동일)
         nullif(trim(regexp_replace(regexp_replace(coalesce(road_address, ''), '\(.*$', ''), '\s+', ' ')), '') as road_address_norm,
         nullif(trim(regexp_replace(regexp_replace(coalesce(jibun_address, ''), '\(.*$', ''), '\s+', ' ')), '') as jibun_address_norm,

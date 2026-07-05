@@ -1,35 +1,41 @@
 # 타임스탬프 타임존 · 결측치 처리 규약 — dbt/domains/commerce
 
-silver 모델이 다루는 모든 시각 컬럼의 **타임존 실태**와 **결측치(null) 처리 규칙**,
+silver 모델이 다루는 모든 시각 컬럼의 **타임존 정책**과 **결측치(null) 처리 규칙**,
 그리고 각 규칙이 **어느 파일의 어느 단계에서** 적용되는지 정리한다.
-(조사 근거: ASAC-DAG `dags/domains/commerce/include/bronze/` 적재 코드 실사 — 2026-07-05)
+(조사 근거: ASAC-DAG `dags/domains/commerce/include/bronze/` 적재 코드 실사 — 2026-07-05.
+타임존 정책 UTC 일원화 확정 — 2026-07-06 사용자 결정.)
 
 ---
 
-## 1. 타임스탬프 타임존 실태 — **KST와 UTC가 혼재한다**
+## 1. 타임존 정책 — **silver 의 timestamp 는 전부 UTC(naive)로 일원화**
 
-| 컬럼 | 생산자 | 타임존 | 형식/타입 | 근거 |
-|---|---|---|---|---|
-| `UPDATEDT` (→ `updatedt`, `updatedt_ts`) | 소스(개방 플랫폼 갱신시각) | **KST** (naive) | 문자열, 14자리 `YYYYMMDDHHMMSS` 기대(비정형 가능) | LOCALDATA 표준 — 한국 지자체 데이터는 KST 표기 |
-| `LASTMODTS` (→ `lastmodts`, `lastmodts_ts`) | 소스(원천 시스템 최종수정시점) | **KST** (naive) | 문자열, `YYYY-MM-DD HH:MM:SS` 계열 기대(비정형 가능) | 상동 |
-| `APVPERMYMD` / `DCBYMD` (인허가일/폐업일) | 소스 | **KST** 의미의 날짜 | 문자열 날짜(형식 비균일 가능) | 상동 |
-| `collected_at` | 파이프라인(수집 마커) | **UTC** (naive) | Iceberg `timestamp(6)` | 수집 시 `_utcnow_iso()` 로 기록(`include/bronze/bronze_tasks.py`), 적재 시 `_to_naive_utc()` 로 UTC naive 변환(`include/bronze/warehouse.py`) |
-| `observed_date` | 파이프라인(논리 수집일) | **KST** 날짜 | 문자열 `YYYY-MM-DD` | 수집 DAG 가 KST 로 산출 |
-| `load_date` | 파이프라인(적재일, bronze 파티션) | **KST** 날짜 | 문자열 `YYYY-MM-DD` | `commerce_load_bronze.resolve_load_date()` 가 KST 로 산출 |
-| `bronze_run_id` | 파이프라인(run 식별자) | **KST** 시각 문자열 | `YYYY-MM-DD_HHMMSS_mmm` | `make_bronze_run_id` (KST) |
+국제표준(저장=UTC, 표시=로컬) 정렬 — silver 적재 시점에 KST 원문 시각을 UTC 로 변환한다.
+원문 문자열은 감사용으로 그대로 보존한다.
 
-### 사용 시 주의 (혼재의 귀결)
+| 컬럼 | 원천 의미 | silver 처리 | 결과 |
+|---|---|---|---|
+| `updatedt` / `lastmodts` (문자열) | 소스 KST 원문 (`YYYYMMDDHHMMSS` / `YYYY-MM-DD HH:MM:SS` 계열) | **무변환 보존**(감사·재처리용) | KST 원문 |
+| `updatedt_ts` / `lastmodts_ts` | 위 원문의 파싱 시각 | 파싱 후 **`- interval '9' hour`** (KST → UTC) | **UTC** timestamp |
+| `updatedt_sort` / `lastmodts_sort` | 버전 정렬키 | 위 UTC 값의 결측=epoch 치환(정렬 전용) | UTC 기준 정렬 |
+| `collected_at` | 파이프라인 수집 시각 — 수집 마커가 `_utcnow_iso()` 로 **처음부터 UTC 기록** (`include/bronze/bronze_tasks.py` → `warehouse._to_naive_utc()`) | **무보정 통과** | **UTC** timestamp |
+| `observed_date` / `load_date` / `APVPERMYMD` / `DCBYMD` | KST **달력 날짜**(시간 정보 없음) | 변환 **불가·비대상** — 그대로 보존 | KST 날짜 |
+| `bronze_run_id` | KST 실행시각 문자열(식별자) | 식별자로만 사용(시각 연산 금지) | KST 문자열 |
 
-- **`updatedt_ts`/`lastmodts_ts`(KST)와 `collected_at`(UTC)을 직접 비교·연산하지 말 것.**
-  9시간 차이가 그대로 오차가 된다. gold 에서 두 계열을 함께 쓰려면
-  `collected_at + interval '9' hour` 로 KST 정렬 후 사용하거나, 한쪽 계열만 쓴다.
-- 버전 정렬키(`updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash`)에서
-  `collected_at` 은 **4순위 tie-break** 로만 쓰인다. 같은 키의 행끼리 일관되게 UTC 로 비교되므로
-  **순서의 결정성은 유지**된다(절대 시각 해석만 금지).
+### 사용 시 주의
+
+- **`collected_at` 에 +9h 를 더하지 말 것** — "KST 보다 9시간 빠져 보이는" 것은 UTC 라서이며
+  이미 정책상 정답이다. +9h 는 이중 보정이 된다.
+- **모든 timestamp 가 UTC 로 통일**됐으므로 `updatedt_ts` ↔ `collected_at` 직접 비교·연산 가능.
+- **KST 벽시계로 보려면** 조회/서빙 시점에 `+ interval '9' hour` (한국은 DST 없음 — 고정 오프셋).
+- **일별 집계 주의(gold)**: KST 하루와 UTC 하루는 경계가 다르다(00:00~09:00 구간).
+  일 단위 분석은 KST 날짜 컬럼(`observed_date`/`load_date`)을 쓰거나,
+  `date(ts + interval '9' hour)` 로 KST 날짜를 만들어 묶을 것 — `date(ts)` (UTC 날짜) 금지.
 - source freshness(`models/sources.yml` 의 `loaded_at_field: collected_at`)는 UTC 기준으로
-  현재 시각과 비교되므로 정합하다.
-- Iceberg/Trino 의 `timestamp(6)` 는 타임존 없는 벽시계 값이다 — 위 표의 타임존은
-  **값의 의미**이지 타입에 담겨 있지 않다. 신규 컬럼을 추가할 때 반드시 이 표를 갱신할 것.
+  현재 시각과 비교되므로 정합하다(변경 없음).
+- Iceberg/Trino 의 `timestamp(6)` 는 타임존 없는 벽시계 값이다 — "UTC" 는 **값의 의미**이지
+  타입에 담겨 있지 않다. 신규 시각 컬럼 추가 시 반드시 UTC 로 변환하고 이 표를 갱신할 것.
+- 서빙 DB 적재 시(후속): `timestamptz` 타입이면 UTC 로 명시 적재(`AT TIME ZONE 'UTC'`),
+  표시 변환은 애플리케이션/BI 계층의 몫.
 
 ---
 
@@ -60,8 +66,8 @@ silver 모델이 다루는 모든 시각 컬럼의 **타임존 실태**와 **결
 | CTE | 하는 일 |
 |---|---|
 | `publishable` → `bronze` | 발행 게이트(manifest `SUCCESS`+`is_publishable`) 통과 run 만 유입 |
-| `parsed` | `record_json` 에서 공통 필드 추출 + **결측 규약 v1**(`nullif(trim(...),'')`) + `updatedt_ts` 파싱 |
-| `normalized` | `lastmodts_ts` 파싱 + 주소 정규화 + `district` 파생 |
+| `parsed` | `record_json` 에서 공통 필드 추출 + **결측 규약 v1**(`nullif(trim(...),'')`) + `updatedt_ts` 파싱·**UTC 변환(-9h)** |
+| `normalized` | `lastmodts_ts` 파싱·**UTC 변환(-9h)** + 주소 정규화 + `district` 파생 |
 | `keyed` | 주소 키 2종 + 정렬 전용 `updatedt_sort`/`lastmodts_sort`(결측=epoch) |
 | `ordered` → `deduped` | 암묵 버전 정렬키로 인접 중복 제거 |
 
