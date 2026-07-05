@@ -1,5 +1,17 @@
--- 인허가 현재 상태(업소당 최신 1버전). history 의 is_current 슬라이스.
+-- 인허가 현재 상태(업소당 최신 1행). history 의 암묵 버저닝 정렬
+-- (updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash) 내림차순 최상위.
 -- grain: (dataset, mgtno). 좌표 보정 조인(bronze_geocode_address)은 Step 8 에서 추가.
+
+with ranked as (
+    select
+        *,
+        row_number() over (
+            partition by dataset, mgtno
+            order by updatedt_sort desc, lastmodts_sort desc,
+                     observed_date desc, collected_at desc, content_hash desc
+        ) as recency_rank
+    from {{ ref('silver_license_history') }}
+)
 
 select
     dataset,
@@ -24,13 +36,13 @@ select
     content_hash,
     updatedt,
     updatedt_ts,
-    valid_from,
-    version_seq,
+    lastmodts,
+    lastmodts_ts,
     observed_date,
     collected_at,
     bronze_run_id,
     dag_run_id,
     raw_object_key,
     load_date
-from {{ ref('silver_license_history') }}
-where is_current
+from ranked
+where recency_rank = 1

@@ -19,3 +19,12 @@ clean-targets:
 models:
   commerce:
     +materialized: table
+
+# 단위 제외(삭제) 목록 — silver 전량 재빌드에서 해당 단위를 뺀다(복원 = 목록에서 제거 후 dbt run).
+# bronze 는 불변이므로 "삭제"는 silver 노출 제외이며, 원본·이력은 bronze 에 남는다.
+# 정책·절차: docs/rebuild-and-ops.md · 적용 지점: models/silver/silver_license_history.sql
+vars:
+  exclude_datasets: []          # 예: ["general_restaurant"]  (인허가 API/dataset 단위)
+  exclude_observed_dates: []    # 예: ["2026-07-01"]          (논리 수집일 단위, KST)
+  exclude_load_dates: []        # 예: ["2026-07-02"]          (적재일 단위, KST)
+  exclude_bronze_run_ids: []    # 예: ["2026-07-01_040000_123"] (수집 run 단위 — 가장 정밀)

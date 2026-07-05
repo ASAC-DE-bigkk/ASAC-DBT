@@ -3,8 +3,10 @@ version: 2
 models:
   - name: silver_license_history
     description: >
-      서울 인허가 SCD2 이력. bronze 변경로그를 publishable run 으로 필터하고, 연속 중복을 제거해
-      (정당한 원복 A→B→A 는 보존) valid_from/valid_to/is_current 로 버전화한다. grain=(dataset, mgtno, version_seq).
+      서울 인허가 변경 이력(정제된 변경로그). bronze 를 publishable run 으로 필터하고 연속 중복을
+      제거(정당한 원복 A→B→A 는 보존)한다. 명시적 버전 컬럼 없음 — (dataset, mgtno) 안에서
+      (updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash) 내림차순 정렬이
+      곧 버전 순서(암묵 버저닝). 행 식별 그레인 = (dataset, mgtno, collected_at, content_hash).
     columns:
       - name: dataset
         tests:
@@ -12,24 +14,32 @@ models:
       - name: mgtno
         tests:
           - not_null
-      - name: version_seq
-        description: 업소(dataset×mgtno) 내 버전 순번(전순서 정렬키 기준, 1부터).
-        tests:
-          - not_null
       - name: content_hash
         tests:
           - not_null
-      - name: valid_from
+      - name: collected_at
+        description: 파이프라인 수집 시각. **UTC**(naive) — KST 인 소스 시각과 직접 비교 금지.
         tests:
           - not_null
-      - name: is_current
+      - name: updatedt_ts
+        description: UPDATEDT(개방 데이터 갱신시각, KST) 파싱 timestamp. 비정형이면 null.
+      - name: updatedt_sort
+        description: 정렬 전용(결측=epoch 치환). 시각 해석에는 updatedt_ts 를 쓸 것.
+        tests:
+          - not_null
+      - name: lastmodts_ts
+        description: LASTMODTS(원천 최종수정시점, KST) 파싱 timestamp. 비정형이면 null.
+      - name: lastmodts_sort
+        description: 정렬 전용(결측=epoch 치환). 시각 해석에는 lastmodts_ts 를 쓸 것.
         tests:
           - not_null
       - name: district
         description: 자치구(구). 도로명 우선·지번 폴백 파싱. 서울 외/미매칭은 null.
 
   - name: silver_license_current
-    description: 인허가 현재 상태(업소당 최신 1버전, is_current 슬라이스). grain=(dataset, mgtno).
+    description: >
+      인허가 현재 상태(업소당 최신 1행). history 의 암묵 버저닝 정렬 내림차순 최상위(row_number=1).
+      grain=(dataset, mgtno).
     columns:
       - name: dataset
         tests:
@@ -38,4 +48,4 @@ models:
         tests:
           - not_null
       - name: bplcnm
-        description: 업소명(BPLCNM).
+        description: 업소명(BPLCNM). 원본 '' 는 null 로 정규화.

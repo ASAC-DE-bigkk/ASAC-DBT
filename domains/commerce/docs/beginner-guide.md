@@ -34,7 +34,7 @@ raw(R2) ──commerce_load_bronze(Airflow)──▶ Iceberg bronze ──dbt(�
 | `dbt_project.yml` | 프로젝트 설정(이름 `commerce`, 모델 기본 materialized=table) |
 | `profiles.yml` | **접속 정보**(Trino host/port, dev=iceberg_dev / prod=iceberg, schema=commerce) |
 | `models/sources.yml` | **읽을 bronze 테이블 선언** + 소스 검증 테스트 |
-| `models/silver/silver_license_history.sql` | SCD2 이력(업소 상태 변경 이력) |
+| `models/silver/silver_license_history.sql` | 업소 상태 변경 이력(정제된 변경로그, 암묵 버저닝) |
 | `models/silver/silver_license_current.sql` | 현재 상태(업소당 최신 1행) |
 | `models/schema.yml` | 모델 컬럼 설명 + not_null/unique 테스트 |
 | `tests/*.sql` | 커스텀 검증(그레인 유일성·발행 게이트·연속중복 등) |
@@ -160,25 +160,30 @@ general_restaurant 폐업 414,338 | instant_sale_mfg 폐업 138,860 | general_re
 **확인 포인트**
 - `silver_license_current` 행수 = bronze 유니크 mgtno 수(업소당 1행). 실측 1,341,784.
 - `silver_license_history` 행수 ≥ current(변경 이력만큼 더 많음). 실측 1,341,987.
-- `is_current=true` 인 행만 current 로 넘어옴.
+- current = history 에서 업소당 정렬 최신 1행(row_number=1)만 넘어옴.
 
 ---
 
 ## 7. 커머스 모델이 하는 일 (SQL 로직 요약)
 
-### silver_license_history (이력, SCD2)
+### silver_license_history (이력, 암묵 버저닝)
 1. `publishable` — 발행 게이트(`bronze_collection_run_manifest`)에서 `status='SUCCESS' AND
    is_publishable` 인 (dataset, bronze_run_id) 만 추린다. **적재 성공분만 silver 로 넘긴다.**
 2. `bronze` — 위 발행분에 해당하는 bronze 행만 inner join.
 3. `parsed` — `record_json` 통짜에서 `json_extract_scalar` 로 컬럼 추출(BPLCNM 업소명,
-   TRDSTATENM 영업상태, 주소, 좌표 등). UPDATEDT → timestamp 파싱.
-4. `normalized`/`keyed` — 자치구(구) 파생, 주소 정규화, 주소 해시 키, 버전 정렬키.
-5. `deduped` — **연속(인접) 중복 제거**: 직전 버전과 content_hash 가 같으면 제거
+   TRDSTATENM 영업상태, 주소, 좌표, LASTMODTS 등 — 빈 문자열은 null 로). UPDATEDT → timestamp 파싱.
+4. `normalized`/`keyed` — LASTMODTS → timestamp 파싱, 자치구(구) 파생, 주소 정규화,
+   주소 해시 키, 정렬 전용 `updatedt_sort`/`lastmodts_sort`(결측=epoch).
+5. `deduped` — **연속(인접) 중복 제거**: 정렬키 기준 직전 행과 content_hash 가 같으면 제거
    (재적재/재유입 노이즈 제거, A→B→A 원복은 보존).
-6. `scd2` — `valid_from`/`valid_to`/`is_current` 부여(lead 로 다음 버전 시작을 이번 끝으로).
+
+명시적 버전 컬럼은 없다 — `(dataset, mgtno)` 안에서 `updatedt_sort, lastmodts_sort,
+observed_date, collected_at, content_hash` **내림차순 정렬이 곧 버전 순서**다.
+타임존/결측 규약: [timestamps-and-nulls.md](timestamps-and-nulls.md).
 
 ### silver_license_current (현재)
-- `silver_license_history` 에서 `is_current=true` 만 뽑은 슬라이스. grain=(dataset, mgtno).
+- history 를 위 정렬키 내림차순으로 세워 업소당 최상위 1행(row_number=1)만 선택.
+  grain=(dataset, mgtno).
 
 ### 좌표 보정·gold
 - 후속(계획서 Step 8·9). 지금은 미구현.
