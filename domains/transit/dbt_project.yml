@@ -1,0 +1,36 @@
+name: transit
+version: "1.0.0"
+config-version: 2
+
+profile: transit
+
+flags:
+  require_certificate_validation: true
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+
+# dim: 최신 load_date 스냅샷 차원(view). silver: 시간당 수집분 incremental.
+models:
+  transit:
+    dim:
+      +materialized: view
+    silver:
+      +materialized: incremental
+
+# 지하철 실시간 arrival 의 subwayId 코드 → 역명마스터 route 라벨 crosswalk.
+# 행안부/노선 코드는 varchar 고정(선행 0/숫자 오인 방지).
+seeds:
+  transit:
+    +quote_columns: false
+    seoul_subway_line_code:
+      +column_types:
+        subway_id: varchar
+        line_name: varchar
