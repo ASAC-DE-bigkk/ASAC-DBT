@@ -5,12 +5,19 @@ sources:
     description: >
       서울시 실시간 인구혼잡도(citydata_ppltn) 원본. schema-on-read 방식으로,
       원본 레코드 JSON을 payload 컬럼에 통째로 저장한다(파싱 안 함).
-      DAG(ASAC-DAG seoul_ppltn_collect)가 적재. dev/prod는 target.database로 가른다.
+      DAG(ASAC-DAG population_bronze)가 적재. dev/prod는 target.database로 가른다.
     database: "{{ target.database }}"
-    schema: seoul_ppltn
+    # 샌드박스 테스트 시 SEOUL_PPLTN_SCHEMA로 격리 스키마의 bronze를 읽는다.
+    schema: "{{ env_var('SEOUL_PPLTN_SCHEMA', 'seoul_ppltn') }}"
     tables:
       - name: bronze_seoul_ppltn
         description: 인구혼잡도 원본 payload + 추적 메타데이터 (1행 = 장소 1건)
+        # 수집은 5분 주기. 최신 수집이 15분↑ 지연이면 warn, 30분↑이면 error(수집 정지 감지).
+        # 실행: dbt source freshness (dbt build엔 미포함 — transform DAG에 별도 태스크로).
+        loaded_at_field: collected_at
+        freshness:
+          warn_after: {count: 15, period: minute}
+          error_after: {count: 30, period: minute}
         columns:
           - name: request_id
             description: 요청 1건 고유 식별자 (raw 객체 ↔ bronze 행 연결)
@@ -24,6 +31,7 @@ sources:
             description: API 결과 메시지
           - name: payload
             description: ★ 원본 레코드 JSON 통째 (silver에서 json_extract로 파싱)
+            data_tests: [not_null]
           - name: payload_hash
             description: 원본 bytes의 SHA-256 (무결성/중복 판단)
           - name: raw_object_key
@@ -39,11 +47,43 @@ sources:
           - name: dag_run_id
             description: Airflow run id (운영 추적)
 
+seeds:
+  - name: seoul_ppltn_area_geo
+    description: >
+      서울시 주요 121장소 영역(shapefile, WGS84) 기반 위치 참조 데이터.
+      원본은 R2 reference/population/area_geo/에 아카이브, 이 seed는 조인용 가공본
+      (중심점 = 면적 가중 centroid, bbox, 폴리곤 WKT). AREA_CD/AREA_NM은
+      citydata_ppltn API 및 DAG AREAS 레지스트리와 1:1 일치(121개).
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — silver/gold의 area_cd와 조인 키
+        data_tests: [unique, not_null]
+      - name: category
+        description: 장소 분류 (관광특구/고궁·문화유산/인구밀집지역 등)
+      - name: area_nm
+        description: 장소명 (DAG AREAS 레지스트리와 동일 표기)
+        data_tests: [unique, not_null]
+      - name: center_lon
+        description: 중심점 경도 (WGS84, 면적 가중 centroid)
+      - name: center_lat
+        description: 중심점 위도 (WGS84)
+      - name: lon_min
+        description: 영역 bbox 서쪽 경계
+      - name: lat_min
+        description: 영역 bbox 남쪽 경계
+      - name: lon_max
+        description: 영역 bbox 동쪽 경계
+      - name: lat_max
+        description: 영역 bbox 북쪽 경계
+      - name: polygon_wkt
+        description: 영역 폴리곤 WKT (POLYGON/MULTIPOLYGON, WGS84)
+
 models:
   - name: silver_seoul_ppltn
     description: >
       bronze payload를 json_extract로 개별 필드 분해 후 (area_nm, ppltn_time) 기준
-      최신 1건으로 중복 제거한 정제 테이블. 현재 table 재생성(멱등).
+      최신 1건으로 중복 제거한 정제 테이블. incremental(merge) — 최근 수집분만
+      (30분 lookback) 파싱해 (area_nm, ppltn_time) 키로 merge(멱등).
     columns:
       - name: area_nm
         description: 장소명
@@ -64,13 +104,20 @@ models:
 
   - name: gold_seoul_ppltn_by_time
     description: >
-      silver를 소비하는 시간별 장소 인구혼잡도. 평균 인구(avg_ppltn) 등 파생.
-      현재 table 재생성.
+      silver를 소비하는 시간별 장소 인구혼잡도. 평균 인구(avg_ppltn) 파생 +
+      위치 참조(seoul_ppltn_area_geo seed)를 area_cd로 left join해 중심점/분류 포함.
+      incremental(merge) — 최근 수집분만(30분 lookback) (ppltn_time, area_cd) 키로 merge.
     columns:
       - name: ppltn_time
         description: 원천 측정 시각
       - name: area_nm
         description: 장소명
+      - name: area_category
+        description: 장소 분류 (seed 조인)
+      - name: center_lon
+        description: 장소 중심점 경도 (seed 조인, WGS84)
+      - name: center_lat
+        description: 장소 중심점 위도 (seed 조인, WGS84)
       - name: area_congest_lvl
         description: 혼잡도 수준
       - name: avg_ppltn

@@ -1,9 +1,19 @@
 -- silver: bronze의 원본 payload(citydata_ppltn 레코드 JSON)를 개별 필드로 파싱하고
 -- (area_nm, ppltn_time) 기준 최신 1건으로 중복 제거한다.
 --
--- 지금은 table(전체 재생성). 규모가 작아 15분 주기에 충분히 싸다.
--- (incremental(merge)은 dbt-trino + R2 Data Catalog에서 is_incremental 첫 run 이슈가 있어
---  향후 과제로 둔다 — docs 참고.)
+-- incremental(merge): 5분 주기에 맞춰 최근 수집분만 파싱해 (area_nm, ppltn_time)
+-- 키로 merge한다(bronze 전체 재스캔 없음). 지연 도착 대비 30분 lookback을 두고,
+-- 같은 키가 다시 오면 collected_at이 더 최신인 행으로 갱신된다.
+--
+-- ⚠ R2 Data Catalog eventual consistency: 테이블을 drop한 직후에는 카탈로그가
+-- 잠시 "존재"로 응답해 is_incremental()이 잘못 true가 될 수 있다(README 참고).
+-- 기존 테이블을 유지한 채 전환하면 해당 없음. drop이 필요하면 잠시 후 재실행.
+
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['area_nm', 'ppltn_time'],
+) }}
 
 with bronze as (
     select
@@ -30,6 +40,14 @@ with bronze as (
         json_extract_scalar(payload, '$.FCST_YN') as fcst_yn,
         collected_at
     from {{ source('bronze', 'bronze_seoul_ppltn') }}
+    {% if is_incremental() %}
+    -- 이미 반영된 시각 이후(-30분 여유)만 스캔. merge가 기존 키를 갱신하므로
+    -- lookback으로 같은 행을 다시 읽어도 결과는 동일(멱등).
+    where collected_at >= (
+        select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
+        from {{ this }}
+    )
+    {% endif %}
 ),
 
 ranked as (
