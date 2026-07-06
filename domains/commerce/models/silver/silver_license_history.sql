@@ -3,8 +3,9 @@
 -- 명시적 버전 컬럼(version_seq/valid_from/valid_to/is_current) 없음 — (dataset, mgtno) 안에서
 -- (updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash) 내림차순 정렬이
 -- 곧 버전 순서다(암묵 버저닝). current 는 이 정렬의 최신 1행.
--- 타임존 정책: silver 의 timestamp 는 **전부 UTC(naive)** — KST 원문(UPDATEDT/LASTMODTS)은
--- 문자열로 보존하고 *_ts 는 UTC 변환(-9h), collected_at 은 원래 UTC 라 무보정.
+-- 타임존 정책: silver 의 timestamp 는 **전부 KST(naive)** — KST 원문(UPDATEDT/LASTMODTS)은
+-- 문자열로 보존하고 *_ts 는 파싱만(무변환, KST), collected_at 은 bronze 의 UTC 값을 +9h 하여 KST 로 변환.
+-- (bronze 는 UTC 원본을 그대로 유지 = 소스 진실; KST 일원화는 silver 표기 계층에서만.)
 -- 상세/결측 규약: docs/timestamps-and-nulls.md · 컬럼 구조: docs/dataset-columns.md
 
 with publishable as (
@@ -29,8 +30,9 @@ bronze as (
         cast(b.bronze_run_id as varchar) as bronze_run_id,
         cast(b.dag_run_id as varchar) as dag_run_id,
         cast(b.raw_object_key as varchar) as raw_object_key,
-        -- 수집 시점에 이미 UTC 로 기록된 값 — 무보정 통과(+9h 금지: 이중 보정).
-        cast(b.collected_at as timestamp(6)) as collected_at
+        -- bronze 는 수집 시점을 UTC 로 기록(_utcnow_iso). silver 는 KST 일원화 → +9h 로 변환.
+        -- (한국은 DST 없음 — 고정 오프셋. bronze 원본은 UTC 유지, 여기서만 표기 변환.)
+        cast(b.collected_at as timestamp(6)) + interval '9' hour as collected_at
     from {{ source('commerce_bronze', 'localdata_license') }} as b
     inner join publishable as p
         on cast(b.dataset as varchar) = p.dataset
@@ -60,20 +62,20 @@ parsed as (
         nullif(trim(json_extract_scalar(record_json, '$.X')), '') as source_coord_x,
         nullif(trim(json_extract_scalar(record_json, '$.Y')), '') as source_coord_y,
         nullif(trim(json_extract_scalar(record_json, '$.LASTMODTS')), '') as lastmodts,
-        -- UPDATEDT(KST 문자열, 14자리 기대, 비정형 가능) → **UTC** timestamp(-9h). 실패 시 null.
+        -- UPDATEDT(KST 문자열, 14자리 기대, 비정형 가능) → **KST** timestamp(파싱만·무변환). 실패 시 null.
         try(date_parse(
             substr(regexp_replace(updatedt, '[^0-9]', ''), 1, 14), '%Y%m%d%H%i%s'
-        )) - interval '9' hour as updatedt_ts
+        )) as updatedt_ts
     from bronze
 ),
 
 normalized as (
     select
         *,
-        -- LASTMODTS(KST 문자열, 'YYYY-MM-DD HH:MM:SS' 계열 기대, 비정형 가능) → **UTC** timestamp(-9h). 실패 시 null.
+        -- LASTMODTS(KST 문자열, 'YYYY-MM-DD HH:MM:SS' 계열 기대, 비정형 가능) → **KST** timestamp(파싱만·무변환). 실패 시 null.
         try(date_parse(
             substr(regexp_replace(lastmodts, '[^0-9]', ''), 1, 14), '%Y%m%d%H%i%s'
-        )) - interval '9' hour as lastmodts_ts,
+        )) as lastmodts_ts,
         -- 주소 정규화 v1: '(' 이후 절단 → 연속 공백 1개 → trim → 빈값 null. (Python 수집측과 규칙 동일)
         nullif(trim(regexp_replace(regexp_replace(coalesce(road_address, ''), '\(.*$', ''), '\s+', ' ')), '') as road_address_norm,
         nullif(trim(regexp_replace(regexp_replace(coalesce(jibun_address, ''), '\(.*$', ''), '\s+', ' ')), '') as jibun_address_norm,

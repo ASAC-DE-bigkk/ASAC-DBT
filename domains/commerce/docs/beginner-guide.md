@@ -169,11 +169,12 @@ general_restaurant 폐업 414,338 | instant_sale_mfg 폐업 138,860 | general_re
 ### silver_license_history (이력, 암묵 버저닝)
 1. `publishable` — 발행 게이트(`bronze_collection_run_manifest`)에서 `status='SUCCESS' AND
    is_publishable` 인 (dataset, bronze_run_id) 만 추린다. **적재 성공분만 silver 로 넘긴다.**
-2. `bronze` — 위 발행분에 해당하는 bronze 행만 inner join.
+2. `bronze` — 위 발행분에 해당하는 bronze 행만 inner join. `collected_at` 은 bronze 의 UTC 값을
+   **+9h 하여 KST** 로 변환(silver timestamp 는 전부 KST).
 3. `parsed` — `record_json` 통짜에서 `json_extract_scalar` 로 컬럼 추출(BPLCNM 업소명,
    TRDSTATENM 영업상태, 주소, 좌표, LASTMODTS 등 — 빈 문자열은 null 로).
-   UPDATEDT → timestamp 파싱 + **UTC 변환(-9h)** (silver timestamp 는 전부 UTC).
-4. `normalized`/`keyed` — LASTMODTS → timestamp 파싱 + **UTC 변환(-9h)**, 자치구(구) 파생,
+   UPDATEDT → timestamp 파싱(**무변환·KST** — 원문이 이미 KST).
+4. `normalized`/`keyed` — LASTMODTS → timestamp 파싱(**무변환·KST**), 자치구(구) 파생,
    주소 정규화, 주소 해시 키, 정렬 전용 `updatedt_sort`/`lastmodts_sort`(결측=epoch).
 5. `deduped` — **연속(인접) 중복 제거**: 정렬키 기준 직전 행과 content_hash 가 같으면 제거
    (재적재/재유입 노이즈 제거, A→B→A 원복은 보존).
