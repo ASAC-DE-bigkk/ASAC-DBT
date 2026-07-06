@@ -128,3 +128,15 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.5}
               config: {severity: warn}
+
+  - name: silver_culture_sejong
+    description: 세종문화회관 기간 fact — 위치 상수(seed)
+    columns:
+      - name: sejong_id
+        tests: [not_null, unique]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: gu_code
+        tests: [not_null]   # 상수 위치 — 항상 채워져야 함
