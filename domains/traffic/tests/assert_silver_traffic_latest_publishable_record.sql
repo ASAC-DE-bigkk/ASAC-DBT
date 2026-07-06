@@ -24,7 +24,7 @@ bronze_candidates as (
         on cast(bronze.dag_run_id as varchar) = publishable_runs.dag_run_id
     where cast(bronze.result_code as varchar) = 'INFO-000'
       and cast(bronze.acc_id as varchar) is not null
-      and {{ topis_timestamp('cast(bronze.occr_date as varchar)', 'cast(bronze.occr_time as varchar)') }} is not null
+      and {{ asac_axes.kst_at_from_parts('cast(bronze.occr_date as varchar)', 'cast(bronze.occr_time as varchar)') }} is not null
 ),
 
 bronze_latest as (
