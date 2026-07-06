@@ -1,0 +1,4 @@
+packages:
+  # asac_axes 공용 패키지 (issue #48) — 로컬 경로 참조.
+  # 컨테이너 마운트: elt_smoke=/opt/airflow/dbt/elt_smoke, asac_axes=/opt/airflow/dbt/packages/asac_axes
+  - local: ../packages/asac_axes
