@@ -23,13 +23,13 @@ seeds:
       - name: latitude
         tests:
           - not_null
-          - in_seoul_bbox:
+          - asac_axes.in_seoul_bbox:
               arguments:
                 kind: lat
       - name: longitude
         tests:
           - not_null
-          - in_seoul_bbox:
+          - asac_axes.in_seoul_bbox:
               arguments:
                 kind: lon
       - name: nx
@@ -170,7 +170,7 @@ models:
       - name: admin_dong_code
         tests:
           - not_null
-          - axis_coverage:
+          - asac_axes.axis_coverage:
               arguments:
                 min_ratio: 1.0
       - name: gu_code
