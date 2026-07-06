@@ -140,3 +140,30 @@ models:
         tests: [not_null]
       - name: gu_code
         tests: [not_null]   # 상수 위치 — 항상 채워져야 함
+
+  - name: silver_culture_reservation
+    description: 공공예약 일 스냅샷 fact — 그레인 (service_id, load_date)
+    columns:
+      - name: service_id
+        tests: [not_null]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: reservation_type
+        tests:
+          - accepted_values:
+              arguments: {values: ["culture", "sport"]}
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.9}
+              config: {severity: warn}
