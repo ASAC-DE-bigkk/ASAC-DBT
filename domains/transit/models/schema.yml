@@ -1,0 +1,144 @@
+version: 2
+
+models:
+  # ---------------- 차원 ----------------
+  - name: dim_transit_station
+    description: >
+      지하철 역사 차원(최신 load_date). PK station_id(bldn_id). 실시간 arrival 조인용
+      정규화 컬럼 station_name_join(괄호 제거) + route 노출. 공간축 부착.
+    columns:
+      - name: station_id
+        description: 역사 코드(bldn_id) — PK.
+        tests:
+          - not_null
+          - unique
+      - name: station_name
+        tests:
+          - not_null
+      - name: route
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        description: >
+          행안부 10자리. 마스터 784역 중 서울 행정경계 내 ~400역만 할당됨(coverage≈0.51).
+          나머지는 bbox(느슨한 사각형) 안이나 경기·인천(철산·부천·부평·별내 등) 소속이라 NULL.
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.50}
+      - name: gu_code
+        description: 행안부 5자리(자치구).
+
+  - name: dim_transit_parking
+    description: >
+      주차장 차원(최신 load_date). PK parking_id(pklt_cd). 공간축 부착 + addr_gu(주소 자치구 토큰).
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+          - unique
+      - name: parking_name
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        description: >
+          좌표 0.0(미상) 주차장이 다수라 커버리지 제한. 마스터 850개 lot 중 유효좌표
+          118개만 행정동 할당(coverage≈0.14). 실시간에 실제 쓰이는 lot 은 대부분 유효좌표라
+          slv_transit_parking 에서는 커버리지 0.96.
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.12}
+
+  # ---------------- 실버 ----------------
+  - name: slv_transit_parking
+    description: >
+      주차장 실시간 정제. grain (parking_id, event_at). event_at=NOW_PRK_VHCL_UPDT_TM KST.
+      공간축은 dim_transit_parking 조인.
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+      - name: event_at
+        description: 도메인 대표시각(주차 현황 갱신, KST).
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        description: dim_transit_parking 조인. 실시간 lot 은 대부분 유효좌표(coverage≈0.96).
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.90}
+
+  - name: slv_transit_subway_arrival
+    description: >
+      지하철 도착정보 정제. grain (statn_id, ordkey, recptn_dt). event_at=recptnDt KST.
+      공간축은 dim_transit_station 조인('역명+노선', subwayId→route seed 변환).
+    columns:
+      - name: statn_id
+        tests:
+          - not_null
+      - name: event_at
+        description: 도메인 대표시각(도착정보 수신, KST).
+        tests:
+          - not_null
+      - name: route
+        description: seoul_subway_line_code seed 로 subwayId 에서 변환한 노선 라벨.
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.90}
+
+  - name: slv_transit_bus_position
+    description: >
+      버스 실시간 위치 정제(XML regexp+UNNEST 파싱). grain (veh_id, data_tm).
+      event_at=dataTm KST. gpsX/gpsY→경위도 직접 + 행정동 런타임 할당.
+    columns:
+      - name: veh_id
+        tests:
+          - not_null
+      - name: event_at
+        description: 도메인 대표시각(버스 위치 관측, KST).
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.90}
