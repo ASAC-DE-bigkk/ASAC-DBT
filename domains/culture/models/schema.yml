@@ -177,3 +177,21 @@ models:
         tests: [not_null]
       - name: ingested_at
         tests: [not_null]
+
+  - name: gold_culture_location_daily
+    description: gu_code × 일자 문화활동 집계 (기간 겹침 전개)
+    columns:
+      - name: gu_code
+        tests: [not_null]
+      - name: event_date
+        tests: [not_null]
+  - name: gold_culture_reservation_daily
+    description: gu_code × 스냅샷일 예약 가용 현황
+    columns:
+      - name: gu_code
+        tests: [not_null]
+  - name: gold_culture_boxoffice_daily
+    description: 랭킹 스냅샷 (snapshot_date × rank_no)
+    columns:
+      - name: rank_no
+        tests: [not_null]
