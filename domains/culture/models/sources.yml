@@ -82,3 +82,16 @@ sources:
         columns:
           - name: record_json
           - name: ingest_ts
+      - name: bronze_kopis_facility_detail
+        description: KOPIS 공연시설상세(prfplc/{mt10id}) 원본 — 좌표(la=위도, lo=경도)·주소(adres). 시설 좌표의 유일 원천
+        freshness:   # 좌표 차원(느린 변화) → 목록과 동일 완화
+          warn_after: {count: 8, period: day}
+          error_after: {count: 14, period: day}
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — mt10id·adres·la·lo 등
+      - name: bronze_kopis_performance_detail
+        description: KOPIS 공연상세(pblprfr/{mt20id}) 원본 — mt10id(공연시설 ID) 보유, 공연→시설 정밀 조인의 원천
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — mt20id·mt10id·prfstate 등
