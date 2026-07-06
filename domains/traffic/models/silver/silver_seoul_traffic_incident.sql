@@ -42,8 +42,8 @@ bronze as (
 standardized as (
     select
         *,
-        {{ topis_timestamp('occr_date', 'occr_time') }} as occurred_at,
-        {{ topis_timestamp('exp_clr_date', 'exp_clr_time') }} as expected_clear_at,
+        {{ asac_axes.kst_at_from_parts('occr_date', 'occr_time') }} as occurred_at,
+        {{ asac_axes.kst_at_from_parts('exp_clr_date', 'exp_clr_time') }} as expected_clear_at,
         'GRS80_TM' as source_coordinate_system,
         case
             when grs80tm_x is not null and grs80tm_y is not null
@@ -54,6 +54,40 @@ standardized as (
     where result_code = 'INFO-000'
 ),
 
+located as (
+    select
+        *,
+        {{ asac_axes.tm_to_wgs84('grs80tm_x', 'grs80tm_y') }}
+    from standardized
+),
+
+admin_matched as (
+    select
+        located.*,
+        boundary.admin_dong_code,
+        boundary.gu_code,
+        boundary.dong as admin_dong,
+        boundary.sigungu as gu,
+        row_number() over (
+            partition by located.acc_id, located.request_id, located.raw_object_key
+            order by
+                case when boundary.admin_dong_code is null then 1 else 0 end,
+                boundary.admin_dong_code
+        ) as admin_match_num
+    from located
+    left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} as boundary
+        on located.longitude is not null
+       and located.latitude is not null
+       and boundary.admin_dong_code is not null
+       and {{ asac_axes.admin_dong_contains('boundary.boundary_wkt', 'located.longitude', 'located.latitude') }}
+),
+
+admin_deduped as (
+    select *
+    from admin_matched
+    where admin_match_num = 1
+),
+
 ranked as (
     select
         *,
@@ -61,7 +95,7 @@ ranked as (
             partition by acc_id
             order by collected_at desc, raw_object_key desc, request_id desc
         ) as row_num
-    from standardized
+    from admin_deduped
     where acc_id is not null
       and occurred_at is not null
 )
@@ -80,7 +114,14 @@ select
     source_location_quality,
     grs80tm_x,
     grs80tm_y,
+    longitude,
+    latitude,
+    admin_dong_code,
+    gu_code,
+    admin_dong,
+    gu,
     occurred_at,
+    occurred_at as event_at,
     expected_clear_at,
     occurred_at as valid_from,
     expected_clear_at as valid_to,
