@@ -28,3 +28,26 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.05}   # detail 캡(~12%) 반영 초기값 — Task 18에서 실측 후 확정
               config: {severity: warn}
+
+  - name: silver_culture_space
+    description: 서울 문화공간 dim (좌표 축 스왑 처리, space_key = NUM — Task 2 실측 채택)
+    columns:
+      - name: space_key
+        tests: [not_null, unique]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.5}
+              config: {severity: warn}
