@@ -85,3 +85,31 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.3}
               config: {severity: warn}
+
+  - name: silver_culture_event
+    description: 서울 문화행사 기간 fact. 기간 질의는 event_start_date <= D and D <= event_end_date (event_at 단독 필터 = 시작일 기준)
+    columns:
+      - name: event_key
+        tests: [not_null, unique]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.9}
+              config: {severity: warn}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.7}
+              config: {severity: warn}
