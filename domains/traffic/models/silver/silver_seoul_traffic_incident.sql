@@ -1,3 +1,16 @@
+-- silver: latest TOPIS AccInfo incident row by source_record_id(acc_id).
+--
+-- incremental(merge): scan recent bronze rows only with a 30 minute
+-- collected_at lookback, then merge by the output grain source_record_id.
+-- Re-reading the lookback is idempotent because the ranked CTE keeps the
+-- latest publishable row per acc_id.
+
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['source_record_id'],
+) }}
+
 with publishable_runs as (
     select distinct cast(dag_run_id as varchar) as dag_run_id
     from {{ source('traffic_bronze', 'collection_run_manifest') }}
@@ -37,6 +50,12 @@ bronze as (
     from {{ source('traffic_bronze', 'seoul_traffic_incident') }} as bronze
     inner join publishable_runs
         on cast(bronze.dag_run_id as varchar) = publishable_runs.dag_run_id
+    {% if is_incremental() %}
+    where cast(bronze.collected_at as timestamp(6)) >= (
+        select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
+        from {{ this }}
+    )
+    {% endif %}
 ),
 
 standardized as (
