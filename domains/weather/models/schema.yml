@@ -23,9 +23,15 @@ seeds:
       - name: latitude
         tests:
           - not_null
+          - in_seoul_bbox:
+              arguments:
+                kind: lat
       - name: longitude
         tests:
           - not_null
+          - in_seoul_bbox:
+              arguments:
+                kind: lon
       - name: nx
         tests:
           - not_null
@@ -68,6 +74,9 @@ models:
         tests:
           - not_null
       - name: forecast_at
+        tests:
+          - not_null
+      - name: event_at
         tests:
           - not_null
       - name: time_bucket
@@ -156,6 +165,15 @@ models:
         tests:
           - not_null
       - name: source_admin_code
+        tests:
+          - not_null
+      - name: admin_dong_code
+        tests:
+          - not_null
+          - axis_coverage:
+              arguments:
+                min_ratio: 1.0
+      - name: gu_code
         tests:
           - not_null
 
