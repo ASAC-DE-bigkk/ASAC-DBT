@@ -9,6 +9,7 @@ bronze(원본층) → silver(정제·변경이력) → gold(집계)를 만든다
 > **dbt 가 처음이라면 → [docs/beginner-guide.md](docs/beginner-guide.md)** (확인·실행·디버깅 실전 가이드).
 > 컬럼 구조(39종 공통/개별): [docs/dataset-columns.md](docs/dataset-columns.md) ·
 > 타임존/결측 규약: [docs/timestamps-and-nulls.md](docs/timestamps-and-nulls.md) ·
+> 주소·구/동 코드·좌표 변환 규약: [docs/address-and-geo.md](docs/address-and-geo.md) ·
 > **적재형태·재빌드 정책 + 단위 재적재/삭제 운영: [docs/rebuild-and-ops.md](docs/rebuild-and-ops.md)**
 
 ## 레이어

@@ -31,12 +31,12 @@
 | `TRDSTATEGBN` / `TRDSTATENM` | 영업상태 코드/명 | ✓ `trdstategbn` / `trdstatenm` |
 | `DTLSTATEGBN` / `DTLSTATENM` | 상세영업상태 코드/명 | ✓ `dtlstategbn` / `dtlstatenm` |
 | `SITETEL` | 소재지 전화 | ✓ `sitetel` |
-| `SITEWHLADDR` / `RDNWHLADDR` | 지번 / 도로명 주소 | ✓ `jibun_address` / `road_address` (+정규화·주소키·`district` 파생) |
+| `SITEWHLADDR` / `RDNWHLADDR` | 지번 / 도로명 주소 | ✓ `jibun_address` / `road_address` (+정규화·주소키·`gu`/동 파생). 지번 결측은 `LOTNO_ADDR`(숙박업 등 필드명 상이)→Juso 순 채움(`jibun_address_source`) — [address-and-geo.md](address-and-geo.md) |
 | `SITEPOSTNO` / `RDNPOSTNO` | 우편번호 2종 | ✗ (record_json 보존) |
 | `LASTMODTS` | 원천 최종수정시점 | ✓ `lastmodts`(+`lastmodts_ts`) — **버전 정렬 2순위** |
 | `UPDATEGBN` | 데이터갱신 구분(I/U) | ✗ (자체 diff 로 신규/변경 판정하므로 불사용, record_json 보존) |
 | `UPDATEDT` | 데이터갱신일자 | ✓ bronze 최상위 `updatedt`(+`updatedt_ts`) — **버전 정렬 1순위** |
-| `X` / `Y` | 좌표(좌표계 미표기, 미보정) | ✓ `source_coord_x` / `source_coord_y` (보존만 — 보정은 Step 8) |
+| `X` / `Y` | 좌표(EPSG:5174 실측 판별) | ✓ `source_coord_x` / `source_coord_y` 보존 + **`latitude`/`longitude`**(WGS84 순수 계산 변환, bbox 밖 null) — [address-and-geo.md](address-and-geo.md) |
 
 ## 3. 준공통 5컬럼 (일부 군 누락 → optional)
 

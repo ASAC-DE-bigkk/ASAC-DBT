@@ -33,8 +33,26 @@ models:
         description: 정렬 전용(결측=epoch 치환). 시각 해석에는 lastmodts_ts 를 쓸 것.
         tests:
           - not_null
-      - name: district
-        description: 자치구(구). 도로명 우선·지번 폴백 파싱. 서울 외/미매칭은 null.
+      - name: jibun_address
+        description: 지번주소 — 원천(SITEWHLADDR) → LOTNO_ADDR(숙박업 등) → Juso 보강(도로명 키) 순 채움.
+      - name: jibun_address_source
+        description: 지번주소 채움 계보 — source | lotno_addr | juso_api | null(3계보 모두 없음).
+      - name: gu
+        description: 자치구(구). 도로명 우선·지번 폴백 파싱. 서울 외/미매칭은 null. (구 district 컬럼 rename)
+      - name: gu_code
+        description: 시군구 코드 5자리(법정동코드 앞 5자리, 행안부 참조). gu 미매칭이면 null.
+      - name: legal_dong
+        description: 법정동명 — 지번주소 동 토큰이 법정동명에 매치(우선), 아니면 행정동→법정동 참조 매핑으로 보완.
+      - name: legal_code
+        description: 법정동코드 10자리(행안부).
+      - name: admin_dong
+        description: 행정동명 — 동 토큰이 행정동명에 매치, 아니면 법정동→행정동 참조 매핑으로 보완(다대다는 결정적 근사 — docs/address-and-geo.md).
+      - name: admin_code
+        description: 행정동코드 10자리(행안부).
+      - name: latitude
+        description: WGS84 위도 — 원천 X/Y(중부원점 TM, EPSG:5174)를 순수 계산 변환. 한반도 bbox 밖·결측은 null(원문 X/Y 보존).
+      - name: longitude
+        description: WGS84 경도 — 변환 파라미터·검증 근거는 docs/address-and-geo.md.
 
   - name: silver_license_current
     description: >

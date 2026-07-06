@@ -50,6 +50,30 @@ sources:
             tests:
               - not_null
 
+      - name: ref_admin_dong
+        identifier: bronze_ref_admin_dong
+        description: >
+          행안부 행정동↔법정동 매핑(전국) 최신 스냅샷. commerce_localdata_transform 의
+          enrich_admin_dong_ref 태스크가 R2 raw/common/admin_dong 최신본으로 전량 교체 적재.
+          silver 의 gu_code·legal/admin dong 상호 매핑 참조.
+        loaded_at_field: loaded_at
+        freshness: null    # 참조 스냅샷 — 신선도 게이트 비대상(소스 공통 기준 상속 차단)
+        columns:
+          - name: legal_dong_code
+            tests:
+              - not_null
+          - name: admin_dong_code
+            tests:
+              - not_null
+
+      - name: address_enrichment
+        identifier: bronze_address_enrichment
+        description: >
+          도로명→지번 Juso 보강 캐시(그레인 road_address_norm). enrich_fill_jibun 태스크가
+          지번 결측 도로명만 조회해 적재(패턴/호출수/상태 감사 컬럼 포함). status='filled' 만 silver 조인.
+        loaded_at_field: requested_at
+        freshness: null    # 보강 캐시 — 결측이 없으면 갱신도 없음(신선도 비대상)
+
       - name: collection_run_manifest
         identifier: bronze_collection_run_manifest
         description: 데이터셋별 발행 게이트(그레인 source_id×bronze_run_id). is_publishable 만 silver 반영.
