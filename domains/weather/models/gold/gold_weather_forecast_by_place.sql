@@ -1,3 +1,15 @@
+-- gold: latest KMA forecast mart by place_id, forecast_at, category.
+--
+-- incremental(merge): scan the recent silver lookback only and merge by the
+-- mart grain. event_at follows forecast_at so downstream common-time joins use
+-- one canonical event timestamp without changing the native forecast column.
+
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['place_id', 'forecast_at', 'category'],
+) }}
+
 with place_grid as (
     select
         place_id,
@@ -37,6 +49,12 @@ forecast as (
         collected_at,
         dag_run_id
     from {{ ref('silver_kma_vilage_fcst') }}
+    {% if is_incremental() %}
+    where collected_at >= (
+        select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
+        from {{ this }}
+    )
+    {% endif %}
 ),
 
 ranked_forecast as (
@@ -64,6 +82,7 @@ latest_forecast as (
         category,
         issued_at,
         forecast_at,
+        forecast_at as event_at,
         time_bucket,
         fcst_value_raw,
         fcst_value_num,
@@ -99,6 +118,7 @@ place_forecast as (
         latest_forecast.category,
         latest_forecast.issued_at,
         latest_forecast.forecast_at,
+        latest_forecast.event_at,
         latest_forecast.time_bucket,
         latest_forecast.fcst_value_raw,
         latest_forecast.fcst_value_num,
@@ -135,6 +155,7 @@ select
     category,
     issued_at,
     forecast_at,
+    event_at,
     time_bucket,
     fcst_value_raw,
     fcst_value_num,
