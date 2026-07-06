@@ -1,3 +1,9 @@
+-- gold: source-level traffic incident summary.
+--
+-- Keep this model as table materialization for now. It aggregates the full
+-- incremental silver table into one row per source_id, so rebuilding the tiny
+-- summary avoids stale counts without re-scanning bronze.
+
 select
     source_id,
     count(*) as row_count,

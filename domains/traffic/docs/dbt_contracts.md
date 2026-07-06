@@ -76,6 +76,13 @@ collected_at desc, raw_object_key desc, request_id desc
 서울 bbox guard 밖이거나 경계 단순화 때문에 매칭되지 않는 경우 행정동 축은 NULL일 수
 있으며, coverage test로 비율을 감시한다.
 
+Silver materialization은 `incremental` + `merge`를 사용한다. unique key는 output grain인
+`source_record_id`(`acc_id`)이고, incremental run에서는 이미 반영된 `collected_at`의
+최댓값에서 30분을 뺀 구간만 bronze에서 다시 읽는다. lookback 구간의 같은 사고 row를
+다시 읽어도 ranked CTE가 최신 1건만 남기므로 merge 결과는 멱등이다. 테이블을 drop한 뒤
+바로 재실행하면 R2/Data Catalog eventual consistency 때문에 `is_incremental()` 판단이
+어긋날 수 있으므로, full refresh가 필요하면 `dbt run --full-refresh`를 우선 사용한다.
+
 ## Coverage and completeness
 
 traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 coverage가 오도될 수 있다.
@@ -98,6 +105,8 @@ traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 c
   `missing_source_coordinate_row_count`는 null 허용 불가.
 - `first_occurred_at`, `last_occurred_at`, `last_collected_at`는 null 허용 불가.
 - 좌표 존재율은 `source_location_quality`를 통해 추적한다.
+- 현재 Gold summary는 table materialization을 유지한다. Silver 전체를 읽어 source 단위
+  1행으로 집계하는 작은 모델이라 incremental로 부분 집계하면 stale count 위험이 더 크다.
 
 ## PR checklist
 
@@ -113,6 +122,7 @@ traffic dbt PR 본문에는 최소한 아래 항목을 남긴다.
 - Ingest time 컬럼: `collected_at`
 - Spatial axis 컬럼: `longitude`, `latitude`, `admin_dong_code`, `gu_code`
 - Dedup/grain 기준
+- Incremental unique key / lookback 기준
 - request-audit coverage test 실행 여부
 - `dbt parse`, `dbt run`, `dbt test` 결과
 - 타 도메인 모델 삭제/변경 diff가 없는지 확인
