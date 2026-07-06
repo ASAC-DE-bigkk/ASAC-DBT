@@ -70,3 +70,18 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.5}
               config: {severity: warn}
+
+  - name: silver_culture_festival
+    description: KOPIS 축제 기간 fact — 시설 이름 매칭(미매칭 NULL)
+    columns:
+      - name: festival_id
+        tests: [not_null, unique]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.3}
+              config: {severity: warn}
