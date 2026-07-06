@@ -1,18 +1,22 @@
 -- silver: bronze의 원본 payload(citydata_ppltn 레코드 JSON)를 개별 필드로 파싱하고
--- (area_nm, ppltn_time) 기준 최신 1건으로 중복 제거한다.
+-- (area_nm, ppltn_time) 기준 최신 1건으로 중복 제거한 뒤, **위치(좌표)·행정구역(시/구/동)
+-- 을 보강**한다. 사내에서 바로 활용 가능한 표준 형태를 목표로, 좌표/행정동을 여기서 붙인다.
 --
 -- incremental(merge): 5분 주기에 맞춰 최근 수집분만 파싱해 (area_nm, ppltn_time)
--- 키로 merge한다(bronze 전체 재스캔 없음). 지연 도착 대비 30분 lookback을 두고,
--- 같은 키가 다시 오면 collected_at이 더 최신인 행으로 갱신된다.
+-- 키로 merge한다(bronze 전체 재스캔 없음). 지연 도착 대비 30분 lookback.
 --
--- ⚠ R2 Data Catalog eventual consistency: 테이블을 drop한 직후에는 카탈로그가
--- 잠시 "존재"로 응답해 is_incremental()이 잘못 true가 될 수 있다(README 참고).
--- 기존 테이블을 유지한 채 전환하면 해당 없음. drop이 필요하면 잠시 후 재실행.
+-- 보강(참조 조인):
+--  * 좌표/분류: seed(seoul_ppltn_area_geo)를 area_cd로 left join → center_lon/lat, category
+--  * 행정구역: area 중심점을 행정동 경계 seed(seoul_dong_boundary)에 point-in-polygon
+--    → sido/sigungu/dong (동 code 앞 5자리 = 자치구라 sigungu도 함께). 도메인 통합 join 키.
+--
+-- ⚠ 새 컬럼(좌표/행정동) 추가 시 기존 테이블은 --full-refresh 로 재생성해야 한다.
 
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_nm', 'ppltn_time'],
+    on_table_exists='drop',
 ) }}
 
 with bronze as (
@@ -41,8 +45,6 @@ with bronze as (
         collected_at
     from {{ source('bronze', 'bronze_seoul_ppltn') }}
     {% if is_incremental() %}
-    -- 이미 반영된 시각 이후(-30분 여유)만 스캔. merge가 기존 키를 갱신하므로
-    -- lookback으로 같은 행을 다시 읽어도 결과는 동일(멱등).
     where collected_at >= (
         select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
         from {{ this }}
@@ -61,30 +63,60 @@ ranked as (
     where area_nm is not null
         and area_cd is not null
         and ppltn_time is not null
+),
+
+deduped as (
+    select * from ranked where row_num = 1
+),
+
+area_admin as (
+    -- area 중심점 → 행정동 판정(정적, area당 1건). 동 경계 하나로 시/구/동을 한 번에.
+    select area_cd, sido, sigungu, dong
+    from (
+        select
+            g.area_cd,
+            '서울특별시' as sido,
+            b.sigungu,
+            b.dong,
+            row_number() over (partition by g.area_cd order by b.dong) as rn
+        from {{ ref('seoul_ppltn_area_geo') }} g
+        left join {{ ref('seoul_dong_boundary') }} b
+            on ST_Contains(ST_GeometryFromText(b.boundary_wkt), ST_Point(g.center_lon, g.center_lat))
+    )
+    where rn = 1
 )
 
 select
-    area_nm,
-    area_cd,
-    area_congest_lvl,
-    area_congest_msg,
-    area_ppltn_min,
-    area_ppltn_max,
-    male_ppltn_rate,
-    female_ppltn_rate,
-    ppltn_rate_0,
-    ppltn_rate_10,
-    ppltn_rate_20,
-    ppltn_rate_30,
-    ppltn_rate_40,
-    ppltn_rate_50,
-    ppltn_rate_60,
-    ppltn_rate_70,
-    resnt_ppltn_rate,
-    non_resnt_ppltn_rate,
-    replace_yn,
-    ppltn_time,
-    fcst_yn,
-    collected_at
-from ranked
-where row_num = 1
+    d.area_nm,
+    d.area_cd,
+    aa.sido,
+    aa.sigungu,
+    aa.dong,
+    geo.center_lon,
+    geo.center_lat,
+    geo.category as area_category,
+    d.area_congest_lvl,
+    d.area_congest_msg,
+    d.area_ppltn_min,
+    d.area_ppltn_max,
+    d.male_ppltn_rate,
+    d.female_ppltn_rate,
+    d.ppltn_rate_0,
+    d.ppltn_rate_10,
+    d.ppltn_rate_20,
+    d.ppltn_rate_30,
+    d.ppltn_rate_40,
+    d.ppltn_rate_50,
+    d.ppltn_rate_60,
+    d.ppltn_rate_70,
+    d.resnt_ppltn_rate,
+    d.non_resnt_ppltn_rate,
+    d.replace_yn,
+    d.ppltn_time,
+    d.fcst_yn,
+    d.collected_at
+from deduped d
+left join {{ ref('seoul_ppltn_area_geo') }} geo
+    on d.area_cd = geo.area_cd
+left join area_admin aa
+    on d.area_cd = aa.area_cd
