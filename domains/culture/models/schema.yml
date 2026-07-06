@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: silver_culture_facility
+    description: KOPIS 공연시설 dim — 목록+상세(좌표) 병합. 좌표는 detail 수집분만(부분 커버리지 — 설계 §5).
+    columns:
+      - name: facility_id
+        tests: [not_null, unique]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.9}
+              config: {severity: warn}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.05}   # detail 캡(~12%) 반영 초기값 — Task 18에서 실측 후 확정
+              config: {severity: warn}
