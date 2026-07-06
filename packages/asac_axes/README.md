@@ -4,8 +4,15 @@ ASAC 프로젝트 전 도메인이 공유하는 **시간축/공간축 표준**�
 
 - **표준 축**: 원천마다 제각각인 시각·좌표 표기를 매크로 하나로 통일한다.
 - **canonical 코드**: 행정동은 **행안부 10자리**를 canonical 키로, **통계청 7/5자리**를 alias 로 잇는다.
-- 모델은 없다 — 소비 프로젝트가 `packages.yml`(local)로 참조해 **매크로와 seed 만** 쓴다.
+- 소비 프로젝트가 `packages.yml`(local)로 참조해 **매크로 · seed · 공용 차원 모델**을 쓴다.
 - Trino(Iceberg) 어댑터 기준.
+
+## crosswalk seed → bronze source 전환 (issue #48)
+
+행정동 **코드·명칭의 canonical 원천은 이제 bronze source**(`axes_bronze.admin_dong_master` = ASAC-DAG #154 가 적재한 행안부 행정동 마스터 Iceberg 테이블)다.
+`dim_admin_dong` 모델이 이 source 의 최신 개정(revision_date)에서 서울 행정동 grain(구/시 집계행 제외)으로 차원을 만들고,
+`seoul_admin_dong_crosswalk` seed 는 **원천에 없는 좌표(중심 위경도)만 보조**로 left join 한다.
+즉 seed 의 역할은 (1) 좌표 보조, (2) source 부재(테이블 미적재) 환경의 폴백으로 축소됐고, 코드/명칭의 진실원천은 bronze 다.
 
 ## 설치 (소비 프로젝트)
 
