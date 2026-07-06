@@ -1,5 +1,47 @@
 version: 2
 
+seeds:
+  - name: weather_place_grid_mapping
+    description: Weather-owned Seoul place to KMA grid mapping based on the KMA grid/longitude/latitude guide.
+    columns:
+      - name: place_id
+        tests:
+          - not_null
+          - unique
+      - name: place_name
+        tests:
+          - not_null
+      - name: alias_names
+        tests:
+          - not_null
+      - name: gu
+        tests:
+          - not_null
+      - name: admin_dong
+        tests:
+          - not_null
+      - name: latitude
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - not_null
+      - name: nx
+        tests:
+          - not_null
+      - name: ny
+        tests:
+          - not_null
+      - name: mapping_method
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['kma_admin_dong_grid_20260325']
+      - name: source_admin_code
+        tests:
+          - not_null
+
 models:
   - name: silver_kma_vilage_fcst
     description: Deduplicated and time-standardized KMA forecast rows.
@@ -76,5 +118,83 @@ models:
         tests:
           - not_null
       - name: last_collected_at
+        tests:
+          - not_null
+
+  - name: dim_weather_place
+    description: Weather-owned Seoul admin-dong place dimension mapped to authoritative KMA forecast grids.
+    columns:
+      - name: place_id
+        tests:
+          - not_null
+          - unique
+      - name: place_name
+        tests:
+          - not_null
+      - name: alias_names
+        tests:
+          - not_null
+      - name: gu
+        tests:
+          - not_null
+      - name: admin_dong
+        tests:
+          - not_null
+      - name: latitude
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - not_null
+      - name: nx
+        tests:
+          - not_null
+      - name: ny
+        tests:
+          - not_null
+      - name: mapping_method
+        tests:
+          - not_null
+      - name: source_admin_code
+        tests:
+          - not_null
+
+  - name: gold_weather_forecast_by_place
+    description: User-facing latest KMA forecast mart at place_id, forecast_at, category grain.
+    columns:
+      - name: place_id
+        tests:
+          - not_null
+      - name: place_name
+        tests:
+          - not_null
+      - name: alias_names
+        tests:
+          - not_null
+      - name: nx
+        tests:
+          - not_null
+      - name: ny
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: issued_at
+        tests:
+          - not_null
+      - name: forecast_at
+        tests:
+          - not_null
+      - name: time_bucket
+        tests:
+          - not_null
+      - name: fcst_value_raw
+        tests:
+          - not_null
+      - name: raw_object_key
+        tests:
+          - not_null
+      - name: collected_at
         tests:
           - not_null

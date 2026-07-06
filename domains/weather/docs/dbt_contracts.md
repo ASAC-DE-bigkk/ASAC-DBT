@@ -12,6 +12,8 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 - Bronze table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_kma_vilage_fcst`
 - Silver model: `silver_kma_vilage_fcst`
 - Gold model: `gold_weather_forecast_summary`
+- Place dimension: `dim_weather_place`
+- User-facing forecast mart: `gold_weather_forecast_by_place`
 
 ## Source contract
 
@@ -89,6 +91,42 @@ weather coverage는 "row가 존재하는지"가 아니라 "최신 발표시각�
 이 테스트가 실패하면 최신 KMA 수집이 서울 전체 격자를 충분히 포함하지 못했거나,
 Bronze publish 기준과 dbt 실행 시점 사이에 데이터가 비어 있는 상태로 봐야 한다.
 
+## Place mapping contract
+
+`weather_place_grid_mapping` seed는 KMA 격자 위경도 가이드의 서울특별시 행정동 row를
+weather 도메인 안으로 고정한 장소-격자 계약이다.
+
+| 컬럼 | 의미 | 계약 |
+|---|---|---|
+| `place_id` | weather mart에서 쓰는 표준 장소 식별자 | `seoul_admd_<행정구역코드>`, unique |
+| `place_name` | 사용자에게 보여줄 기본 장소명 | 행정동명 |
+| `alias_names` | 사용자 질의 alias 후보 | `|`로 구분한 문자열 |
+| `gu`, `admin_dong` | 서울 자치구와 행정동 | `not_null` |
+| `latitude`, `longitude` | KMA 가이드의 행정동 대표 위경도 | `not_null` |
+| `nx`, `ny` | KMA 단기예보 격자 | `not_null`, Bronze 수집 grid 안에 있어야 함 |
+| `mapping_method` | 매핑 출처/방식 | `kma_admin_dong_grid_20260325` |
+| `grid_distance_m` | 실제 POI와 grid 대표점 거리 | 현재는 계산하지 않아 null 허용 |
+| `source_admin_code` | KMA 가이드의 행정구역코드 | `not_null` |
+
+`dim_weather_place`는 이 seed를 타입 캐스팅한 weather 전용 place dimension이다. 공통
+`dim_place`를 먼저 만들지 않고 weather 안에 둔 이유는, KMA 예보의 authoritative 단위가
+장소명이 아니라 `nx`, `ny` 격자이기 때문이다. 다른 도메인과 결합할 공통 place 계약은
+이 모델을 검증한 뒤 별도 공통 이슈에서 승격한다.
+
+주요 hotspot alias는 행정동 row에 보강한다.
+
+| alias | 표준 행정동 | 비고 |
+|---|---|---|
+| `홍대`, `홍대입구`, `홍대입구역` | 마포구 서교동 | 상권 질의 alias |
+| `건대`, `건대입구`, `건대입구역` | 광진구 화양동 | 상권 질의 alias |
+| `강남`, `강남역` | 강남구 역삼1동 | 역세권 질의 alias |
+| `성수`, `성수동` | 성동구 성수1가제2동 | 상권 질의 alias |
+| `여의도`, `여의도역` | 영등포구 여의동 | 업무/핫플레이스 질의 alias |
+
+서울시 실시간 도시데이터 121장소는 KMA forecast 대체재가 아니다. 해당 source를 쓰더라도
+hotspot 현황이나 혼잡도 enrichment로 분리하고, weather forecast mart의 예보 값은 계속
+KMA grid forecast에서만 온다.
+
 ## Gold contract
 
 `gold_weather_forecast_summary`는 source-level 요약 모델이다.
@@ -98,6 +136,23 @@ Bronze publish 기준과 dbt 실행 시점 사이에 데이터가 비어 있는 
 - `first_forecast_at`, `last_forecast_at`, `last_collected_at`은 null이면 안 된다.
 - Gold에서 처음으로 raw 날짜/시간 파싱이나 dedup 기준을 만들지 않는다.
 
+`gold_weather_forecast_by_place`는 사용자 질의용 최신 예보 mart다.
+
+```text
+place_id, forecast_at, category
+```
+
+위 조합이 mart grain이다. 같은 `place_id`, `forecast_at`, `category`에 여러 발표시각이
+존재하면 아래 순서로 최신 1건을 선택한다.
+
+```text
+issued_at desc, collected_at desc, raw_object_key desc, request_id desc
+```
+
+이 mart는 `silver_kma_vilage_fcst`의 `nx`, `ny`를 `dim_weather_place`의 `nx`, `ny`와
+조인한다. 따라서 한 KMA grid에 여러 행정동이 매핑될 수 있으며, 이는 KMA 격자 예보를
+장소 질의로 펼치는 의도된 중복이다. Silver 원천 grain 자체는 바꾸지 않는다.
+
 ## PR checklist
 
 weather dbt PR 본문에는 최소한 아래를 남긴다.
@@ -105,10 +160,13 @@ weather dbt PR 본문에는 최소한 아래를 남긴다.
 - Source table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_kma_vilage_fcst`
 - Target table: `iceberg_dev.weather.silver_kma_vilage_fcst`
 - Target table: `iceberg_dev.weather.gold_weather_forecast_summary`
+- Target table: `iceberg_dev.weather.dim_weather_place`
+- Target table: `iceberg_dev.weather.gold_weather_forecast_by_place`
 - Event time 컬럼: `forecast_at`
 - Issued time 컬럼: `issued_at`
 - Ingest time 컬럼: `collected_at`
 - Dedup/grain 기준
 - Grid coverage test 실행 여부
+- Place mapping seed row count와 주요 alias coverage test 실행 여부
 - `dbt parse`, `dbt run`, `dbt test` 결과
 - 다른 도메인 모델 삭제/변경 diff가 없는지 여부
