@@ -1,16 +1,19 @@
 -- silver: bronze의 원본 payload(citydata_ppltn 레코드 JSON)를 개별 필드로 파싱하고
--- (area_nm, ppltn_time) 기준 최신 1건으로 중복 제거한 뒤, **위치(좌표)·행정구역(시/구/동)
--- 을 보강**한다. 사내에서 바로 활용 가능한 표준 형태를 목표로, 좌표/행정동을 여기서 붙인다.
+-- (area_nm, ppltn_time) 기준 최신 1건으로 중복 제거한 뒤, **위치(좌표)·행정구역·시간축**
+-- 을 #48 공통축 표준(asac_axes)으로 보강한다. 사내에서 바로 활용 가능한 표준 형태.
 --
 -- incremental(merge): 5분 주기에 맞춰 최근 수집분만 파싱해 (area_nm, ppltn_time)
 -- 키로 merge한다(bronze 전체 재스캔 없음). 지연 도착 대비 30분 lookback.
 --
--- 보강(참조 조인):
---  * 좌표/분류: seed(seoul_ppltn_area_geo)를 area_cd로 left join → center_lon/lat, category
---  * 행정구역: area 중심점을 행정동 경계 seed(seoul_dong_boundary)에 point-in-polygon
---    → sido/sigungu/dong (동 code 앞 5자리 = 자치구라 sigungu도 함께). 도메인 통합 join 키.
+-- 보강(참조 조인, #48 공통축 표준 — asac_axes 패키지):
+--  * 좌표/분류: seed(seoul_ppltn_area_geo)를 area_cd로 left join → longitude/latitude, category
+--  * 행정구역: area 중심점을 공용 경계 seed(asac_axes.seoul_admin_dong_boundary)에
+--    point-in-polygon → gu/admin_dong + 행안부 admin_dong_code(10, canonical)·gu_code(5).
+--    도메인 통합 join 키 = admin_dong_code(동)·gu_code(구).
+--  * 시간축: ppltn_time(varchar) → event_at(KST timestamp, asac_axes.kst_at) 신설(원본 유지).
 --
--- ⚠ 새 컬럼(좌표/행정동) 추가 시 기존 테이블은 --full-refresh 로 재생성해야 한다.
+-- ⚠ 공용 패키지 참조: packages.yml(local asac_axes) + dbt deps 필요. #49 머지 후 dev 반영.
+-- ⚠ 새 컬럼(좌표/행정동/event_at) 추가 시 기존 테이블은 --full-refresh 로 재생성해야 한다.
 
 {{ config(
     materialized='incremental',
@@ -70,18 +73,20 @@ deduped as (
 ),
 
 area_admin as (
-    -- area 중심점 → 행정동 판정(정적, area당 1건). 동 경계 하나로 시/구/동을 한 번에.
-    select area_cd, sido, sigungu, dong
+    -- area 중심점 → 행정동 판정(정적, area당 1건). 공용 경계 seed(asac_axes)로
+    -- gu/admin_dong 명칭 + 행안부 admin_dong_code(canonical)·gu_code를 한 번에 보강.
+    select area_cd, gu, admin_dong, gu_code, admin_dong_code
     from (
         select
             g.area_cd,
-            '서울특별시' as sido,
-            b.sigungu,
-            b.dong,
-            row_number() over (partition by g.area_cd order by b.dong) as rn
+            b.sigungu as gu,
+            b.dong as admin_dong,
+            b.gu_code,
+            b.admin_dong_code,
+            row_number() over (partition by g.area_cd order by b.admin_dong_code) as rn
         from {{ ref('seoul_ppltn_area_geo') }} g
-        left join {{ ref('seoul_dong_boundary') }} b
-            on ST_Contains(ST_GeometryFromText(b.boundary_wkt), ST_Point(g.center_lon, g.center_lat))
+        left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b
+            on {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'g.center_lon', 'g.center_lat') }}
     )
     where rn = 1
 )
@@ -89,11 +94,13 @@ area_admin as (
 select
     d.area_nm,
     d.area_cd,
-    aa.sido,
-    aa.sigungu,
-    aa.dong,
-    geo.center_lon,
-    geo.center_lat,
+    '서울특별시' as sido,
+    aa.gu,
+    aa.admin_dong,
+    aa.gu_code,
+    aa.admin_dong_code,
+    geo.center_lon as longitude,
+    geo.center_lat as latitude,
     geo.category as area_category,
     d.area_congest_lvl,
     d.area_congest_msg,
@@ -112,6 +119,7 @@ select
     d.resnt_ppltn_rate,
     d.non_resnt_ppltn_rate,
     d.replace_yn,
+    {{ asac_axes.kst_at('d.ppltn_time') }} as event_at,
     d.ppltn_time,
     d.fcst_yn,
     d.collected_at
