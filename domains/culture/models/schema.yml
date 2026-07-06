@@ -113,3 +113,18 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.7}
               config: {severity: warn}
+
+  - name: silver_culture_exhibition
+    description: 시립미술관 전시 기간 fact — 위치는 분관 seed 매칭
+    columns:
+      - name: exhibition_id
+        tests: [not_null, unique]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.5}
+              config: {severity: warn}
