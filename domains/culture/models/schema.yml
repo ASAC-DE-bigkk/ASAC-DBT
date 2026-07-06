@@ -21,12 +21,12 @@ models:
       - name: gu_code
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.9}
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (Task 18 확정, 상한 보정)
               config: {severity: warn}
       - name: admin_dong_code
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.05}   # detail 캡(~12%) 반영 초기값 — Task 18에서 실측 후 확정
+              arguments: {min_ratio: 0.06}   # 실측 11.88%(detail 캡) - 5%p (Task 18 확정)
               config: {severity: warn}
 
   - name: silver_culture_space
@@ -49,7 +49,7 @@ models:
       - name: admin_dong_code
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.5}
+              arguments: {min_ratio: 0.94}   # 실측 99.06% - 5%p (Task 18 확정)
               config: {severity: warn}
 
   - name: silver_culture_performance
@@ -68,7 +68,7 @@ models:
       - name: gu_code
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.5}
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (Task 18 확정, 상한 보정)
               config: {severity: warn}
 
   - name: silver_culture_festival
@@ -83,7 +83,7 @@ models:
       - name: gu_code
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.3}
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (Task 18 확정, 상한 보정)
               config: {severity: warn}
 
   - name: silver_culture_event
@@ -106,12 +106,12 @@ models:
       - name: gu_code
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.9}
+              arguments: {min_ratio: 0.94}   # 실측 99.41% - 5%p (Task 18 확정)
               config: {severity: warn}
       - name: admin_dong_code
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.7}
+              arguments: {min_ratio: 0.9}   # 실측 95.59% - 5%p (Task 18 확정)
               config: {severity: warn}
 
   - name: silver_culture_exhibition
@@ -126,7 +126,7 @@ models:
       - name: gu_code
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.5}
+              arguments: {min_ratio: 0.82}   # 실측 87.13% - 5%p (Task 18 확정)
               config: {severity: warn}
 
   - name: silver_culture_sejong
