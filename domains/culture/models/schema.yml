@@ -167,3 +167,13 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.9}
               config: {severity: warn}
+
+  - name: silver_culture_boxoffice
+    description: KOPIS 예매상황판 일 스냅샷 — 그레인 (load_date, rank_no), 공간축 면제
+    columns:
+      - name: rank_no
+        tests: [not_null]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
