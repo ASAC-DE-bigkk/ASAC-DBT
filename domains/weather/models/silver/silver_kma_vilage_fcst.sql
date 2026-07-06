@@ -38,8 +38,8 @@ bronze as (
 standardized as (
     select
         *,
-        {{ kma_timestamp('base_date', 'base_time') }} as issued_at,
-        {{ kma_timestamp('fcst_date', 'fcst_time') }} as forecast_at
+        {{ asac_axes.kst_at_from_parts('base_date', 'base_time') }} as issued_at,
+        {{ asac_axes.kst_at_from_parts('fcst_date', 'fcst_time') }} as forecast_at
     from bronze
     where result_code = '00'
 ),
@@ -66,6 +66,7 @@ select
     category,
     issued_at,
     forecast_at,
+    forecast_at as event_at,
     date_trunc('hour', forecast_at) as time_bucket,
     fcst_value_raw,
     fcst_value_num,
