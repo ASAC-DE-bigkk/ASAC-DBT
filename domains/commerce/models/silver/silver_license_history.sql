@@ -1,8 +1,11 @@
 -- 인허가 변경 이력(정제된 변경로그). bronze 변경로그 → publishable run 필터 → 파싱/파생 →
 -- 연속 중복 제거(diff 재유입·reconcile 재방출 제거, 정당한 원복 A→B→A 보존).
--- 명시적 버전 컬럼(version_seq/valid_from/valid_to/is_current) 없음 — (dataset, mgtno) 안에서
--- (updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash) 내림차순 정렬이
--- 곧 버전 순서다(암묵 버저닝). current 는 이 정렬의 최신 1행.
+-- 명시적 버전 컬럼(version_seq/valid_from/valid_to/is_current) 없음 —
+-- **(dataset, opnsfteamcode, mgtno)** 안에서 (updatedt_sort, lastmodts_sort, observed_date,
+-- collected_at, content_hash) 내림차순 정렬이 곧 버전 순서다(암묵 버저닝). current 는 최신 1행.
+-- MGTNO 는 **발급 자치단체(OPNSFTEAMCODE) 안에서만 유니크**(실측: 관광식당 등 55개 키가
+-- 서로 다른 구청의 별개 업소를 공유) — 업소 식별키에 opnsfteamcode 를 반드시 포함한다.
+-- (같은 키의 업장명/상태 변경은 승계·개명 등 정상 버전 이력 — 키 충돌이 아님.)
 -- 타임존 정책: silver 의 timestamp 는 **전부 KST(naive)** — KST 원문(UPDATEDT/LASTMODTS)은
 -- 문자열로 보존하고 *_ts 는 파싱만(무변환, KST), collected_at 은 bronze 의 UTC 값을 +9h 하여 KST 로 변환.
 -- (bronze 는 UTC 원본을 그대로 유지 = 소스 진실; KST 일원화는 silver 표기 계층에서만.)
@@ -50,6 +53,8 @@ parsed as (
     select
         *,
         -- 결측 규약 v1: 원본 '' → null (nullif+trim). 원본 그대로는 record_json 에 보존.
+        -- 개방자치단체코드 — MGTNO 의 유니크 범위(발급 구청). 업소 식별키 구성 요소.
+        nullif(trim(json_extract_scalar(record_json, '$.OPNSFTEAMCODE')), '') as opnsfteamcode,
         nullif(trim(json_extract_scalar(record_json, '$.BPLCNM')), '') as bplcnm,
         nullif(trim(json_extract_scalar(record_json, '$.TRDSTATEGBN')), '') as trdstategbn,
         nullif(trim(json_extract_scalar(record_json, '$.TRDSTATENM')), '') as trdstatenm,
@@ -338,7 +343,7 @@ ordered as (
     select
         *,
         lag(content_hash) over (
-            partition by dataset, mgtno
+            partition by dataset, opnsfteamcode, mgtno
             order by updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash
         ) as prev_content_hash
     from keyed
@@ -355,6 +360,7 @@ deduped as (
 
 select
     dataset,
+    opnsfteamcode,
     mgtno,
     bplcnm,
     trdstategbn,

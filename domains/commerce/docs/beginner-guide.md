@@ -119,7 +119,7 @@ schema.yml 의 not_null/unique + tests/ 의 커스텀 SQL 검증을 돌린다. �
 Done. PASS=27 WARN=0 ERROR=0 SKIP=0 TOTAL=27
 ```
 - 테스트 SQL 은 "**틀린 행을 SELECT**"하는 쿼리다. 결과가 0행이면 PASS, 1행이라도 나오면 FAIL.
-  예) `tests/assert_silver_license_current_grain_unique.sql` = (dataset,mgtno) 중복을 SELECT →
+  예) `tests/assert_silver_license_current_grain_unique.sql` = (dataset,opnsfteamcode,mgtno) 중복을 SELECT →
   중복이 있으면 그 행이 나와 FAIL.
 
 ### 4-7. `dbt build` — run + test 한 번에 (의존 순서대로)
@@ -179,13 +179,13 @@ general_restaurant 폐업 414,338 | instant_sale_mfg 폐업 138,860 | general_re
 5. `deduped` — **연속(인접) 중복 제거**: 정렬키 기준 직전 행과 content_hash 가 같으면 제거
    (재적재/재유입 노이즈 제거, A→B→A 원복은 보존).
 
-명시적 버전 컬럼은 없다 — `(dataset, mgtno)` 안에서 `updatedt_sort, lastmodts_sort,
+명시적 버전 컬럼은 없다 — `(dataset, opnsfteamcode, mgtno)` 안에서 `updatedt_sort, lastmodts_sort,
 observed_date, collected_at, content_hash` **내림차순 정렬이 곧 버전 순서**다.
 타임존/결측 규약: [timestamps-and-nulls.md](timestamps-and-nulls.md).
 
 ### silver_license_current (현재)
 - history 를 위 정렬키 내림차순으로 세워 업소당 최상위 1행(row_number=1)만 선택.
-  grain=(dataset, mgtno).
+  grain=(dataset, opnsfteamcode, mgtno) — MGTNO 는 발급 자치단체 안에서만 유니크.
 
 ### 좌표 보정·gold
 - 후속(계획서 Step 8·9). 지금은 미구현.

@@ -19,11 +19,11 @@ bronze(원본층) → silver(정제·변경이력) → gold(집계)를 만든다
   `bronze_collection_run_manifest`(발행 게이트). sources: [models/sources.yml](models/sources.yml).
 - **silver**
   - `silver_license_history` — 정제된 변경 이력. publishable run 필터 → 파싱/파생(자치구·주소 키) →
-    **연속 중복 제거**(A→B→A 원복 보존). **명시적 버전 컬럼 없음** — (dataset, mgtno) 안에서
+    **연속 중복 제거**(A→B→A 원복 보존). **명시적 버전 컬럼 없음** — (dataset, opnsfteamcode, mgtno) 안에서
     `updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash` **내림차순 정렬이
-    곧 버전 순서**(암묵 버저닝). 행 식별 그레인 (dataset, mgtno, collected_at, content_hash).
+    곧 버전 순서**(암묵 버저닝). 행 식별 그레인 (dataset, opnsfteamcode, mgtno, collected_at, content_hash).
   - `silver_license_current` — 업소당 최신 1행(위 정렬의 최상위, row_number=1).
-    grain (dataset, mgtno).
+    grain (dataset, opnsfteamcode, mgtno) — MGTNO 는 발급 자치단체 안에서만 유니크.
 - **gold** — 후속(Step 9). 현재 미구현. 이력 기반 상태 갱신 시 history 의 암묵 버저닝
   정렬을 그대로 사용한다.
 
@@ -61,7 +61,7 @@ DAG(05:00 KST, run silver → test silver). 적재형태(전량 재빌드)·특�
 
 ## 테스트
 
-- 행 유니크: history (dataset, mgtno, collected_at, content_hash) · current (dataset, mgtno)
+- 행 유니크: history (dataset, opnsfteamcode, mgtno, collected_at, content_hash) · current (dataset, opnsfteamcode, mgtno)
 - `assert_silver_commerce_uses_publishable_runs` — 미발행 run 유입 0
 - `assert_silver_license_history_no_adjacent_duplicates` — 연속 중복 제거 불변식
   (암묵 버전 정렬 기준 인접 동일 hash 0건, A→B→A 보존)

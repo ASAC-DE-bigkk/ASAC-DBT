@@ -24,8 +24,8 @@
 
 | 컬럼 | 의미 | silver 추출 여부 |
 |---|---|---|
-| `OPNSFTEAMCODE` | 개방자치단체코드 | ✗ (record_json 보존) |
-| `MGTNO` | 관리번호 — **인허가 건(업소) 단위 키** | ✓ bronze 최상위 컬럼 `mgtno` |
+| `OPNSFTEAMCODE` | 개방자치단체코드(발급 구청) | ✓ `opnsfteamcode` — **MGTNO 유니크 범위**(업소 식별키 구성 요소) |
+| `MGTNO` | 관리번호 — 인허가 건(업소) 키, **발급 자치단체 안에서만 유니크**(실측: 교차 구청 공유 55키) | ✓ bronze 최상위 컬럼 `mgtno` |
 | `BPLCNM` | 사업장명 | ✓ `bplcnm` |
 | `APVPERMYMD` / `DCBYMD` | 인허가일자 / 폐업일자 | ✓ `apvpermymd` / `dcbymd` |
 | `TRDSTATEGBN` / `TRDSTATENM` | 영업상태 코드/명 | ✓ `trdstategbn` / `trdstatenm` |

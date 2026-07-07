@@ -1,12 +1,13 @@
 -- 인허가 현재 상태(업소당 최신 1행). history 의 암묵 버저닝 정렬
 -- (updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash) 내림차순 최상위.
--- grain: (dataset, mgtno). 좌표 보정 조인(bronze_geocode_address)은 Step 8 에서 추가.
+-- grain: (dataset, opnsfteamcode, mgtno) — MGTNO 는 발급 자치단체 안에서만 유니크.
+-- 좌표 보정 조인(bronze_geocode_address)은 Step 8 에서 추가.
 
 with ranked as (
     select
         *,
         row_number() over (
-            partition by dataset, mgtno
+            partition by dataset, opnsfteamcode, mgtno
             order by updatedt_sort desc, lastmodts_sort desc,
                      observed_date desc, collected_at desc, content_hash desc
         ) as recency_rank
@@ -15,6 +16,7 @@ with ranked as (
 
 select
     dataset,
+    opnsfteamcode,
     mgtno,
     bplcnm,
     trdstategbn,
