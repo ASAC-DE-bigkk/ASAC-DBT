@@ -38,7 +38,8 @@ models:
 
   - name: dim_transit_parking
     description: >
-      주차장 차원(최신 load_date). PK parking_id(pklt_cd). 공간축 부착 + addr_gu(주소 자치구 토큰).
+      주차장 차원(최신 load_date). PK parking_id(pklt_cd). 공간축 부착 + addr_gu(주소 자치구 토큰)
+      + 운영 컬럼(평일/주말 운영시간, 유·무료, 야간개방 — "운영시간 내 점유율" 분석 재료).
     columns:
       - name: parking_id
         tests:
@@ -47,6 +48,16 @@ models:
       - name: parking_name
         tests:
           - not_null
+      - name: wd_oper_bgng_tm
+        description: 평일 운영 시작시각(HHMM 문자열 그대로, '0000/0000'=미상 존재).
+      - name: wd_oper_end_tm
+        description: 평일 운영 종료시각(HHMM, '2400' 표기·자정 넘김 '0100' 존재).
+      - name: we_oper_bgng_tm
+        description: 주말 운영 시작시각(HHMM).
+      - name: we_oper_end_tm
+        description: 주말 운영 종료시각(HHMM).
+      - name: night_free_open_yn_nm
+        description: 야간 무료 개방 여부 명칭(원천 nght_free_opn_yn_name, 예 '야간 미개방').
       - name: longitude
         tests:
           - asac_axes.in_seoul_bbox:
@@ -105,6 +116,17 @@ models:
           - not_null
       - name: route
         description: seoul_subway_line_code seed 로 subwayId 에서 변환한 노선 라벨.
+      - name: is_last_train
+        description: >
+          막차 여부(원천 lstcarAt 0/1 → int). '_at' 접미사는 공통축 계약상 KST timestamp
+          전용이라 여부형 이름으로 명명.
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
+      - name: terminal_statn_nm
+        description: 종착(행선지) 역명(원천 bstatnNm).
+      - name: transfer_line_cnt
+        description: 해당 역 환승 노선 수(원천 trnsitCo, int).
       - name: longitude
         tests:
           - asac_axes.in_seoul_bbox:
@@ -130,6 +152,25 @@ models:
         description: 도메인 대표시각(버스 위치 관측, KST).
         tests:
           - not_null
+      - name: stop_flag
+        description: 정차 여부(원천 stopFlag 0/1 → int, 1=정류소 정차 중).
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
+      - name: is_full
+        description: 만차 여부(원천 isFullFlag 0/1 → int).
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
+      - name: is_last_bus
+        description: 막차 여부(원천 islastyn 0/1 → int).
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
+      - name: rt_dist_km
+        description: 노선 누적 진행거리 km(원천 rtDist, 실증 39.65~62.2 → 노선 왕복 수십 km 스케일).
+      - name: full_sect_dist_km
+        description: 현재 구간 전체거리 km(원천 fullSectDist, 실증 0.095~3.584 → 정류장 간 수백 m 스케일).
       - name: longitude
         tests:
           - asac_axes.in_seoul_bbox:

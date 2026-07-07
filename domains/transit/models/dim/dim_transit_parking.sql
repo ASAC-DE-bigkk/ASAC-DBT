@@ -22,6 +22,15 @@ master as (
         regexp_extract(cast(addr as varchar), '([가-힣]+구)', 1) as addr_gu,
         cast(pklt_knd_nm as varchar) as parking_kind_nm,
         cast(chgd_free_nm as varchar) as charge_free_nm,
+        -- 운영 관련 컬럼("운영시간 내 점유율" 분석 재료). 시각은 HHMM 문자열 그대로 노출
+        -- (0000~2400, '0000/0000'=미상 존재 → 파싱은 소비층에서).
+        -- 중복 pklt_cd 행 간 운영 필드 전부 동일함을 실증(차이 나는 lot 0건) —
+        -- 아래 rn dedup 결정성(order by admin_dong_code, 좌표)에 영향 없음.
+        cast(wd_oper_bgng_tm as varchar) as wd_oper_bgng_tm,
+        cast(wd_oper_end_tm as varchar) as wd_oper_end_tm,
+        cast(we_oper_bgng_tm as varchar) as we_oper_bgng_tm,
+        cast(we_oper_end_tm as varchar) as we_oper_end_tm,
+        cast(nght_free_opn_yn_name as varchar) as night_free_open_yn_nm,
         try(cast(tpkct as integer)) as total_capacity,
         {{ asac_axes.seoul_lonlat('lot', 'lat') }},
         raw_object_key,
@@ -60,6 +69,11 @@ select
     addr_gu,
     parking_kind_nm,
     charge_free_nm,
+    wd_oper_bgng_tm,
+    wd_oper_end_tm,
+    we_oper_bgng_tm,
+    we_oper_end_tm,
+    night_free_open_yn_nm,
     total_capacity,
     latitude,
     longitude,

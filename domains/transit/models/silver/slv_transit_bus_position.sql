@@ -41,7 +41,12 @@ items as (
         regexp_extract(item, '<gpsY>([^<]*)</gpsY>', 1) as gps_y,
         regexp_extract(item, '<sectOrd>([^<]*)</sectOrd>', 1) as sect_ord,
         regexp_extract(item, '<congetion>([^<]*)</congetion>', 1) as congestion,
-        regexp_extract(item, '<nextStId>([^<]*)</nextStId>', 1) as next_st_id
+        regexp_extract(item, '<nextStId>([^<]*)</nextStId>', 1) as next_st_id,
+        regexp_extract(item, '<stopFlag>([^<]*)</stopFlag>', 1) as stop_flag_raw,
+        regexp_extract(item, '<isFullFlag>([^<]*)</isFullFlag>', 1) as is_full_raw,
+        regexp_extract(item, '<islastyn>([^<]*)</islastyn>', 1) as is_last_bus_raw,
+        regexp_extract(item, '<rtDist>([^<]*)</rtDist>', 1) as rt_dist_raw,
+        regexp_extract(item, '<fullSectDist>([^<]*)</fullSectDist>', 1) as full_sect_dist_raw
     from bronze b
     -- (?s): Trino 정규식의 '.' 는 기본적으로 개행에 매치되지 않는다. itemList 조각이
     --       개행을 포함하면 매치가 조용히 0건이 되므로 DOTALL 플래그로 개행을 포함시킨다.
@@ -59,6 +64,13 @@ typed as (
         try(cast(sect_ord as integer)) as sect_ord,
         try(cast(congestion as integer)) as congestion,
         next_st_id,
+        try(cast(stop_flag_raw as integer)) as stop_flag,
+        try(cast(is_full_raw as integer)) as is_full,
+        try(cast(is_last_bus_raw as integer)) as is_last_bus,
+        -- rtDist(노선 누적 진행거리)·fullSectDist(구간 전체거리)는 둘 다 km 단위(실증:
+        -- rtDist 39.65~62.2 = 노선 왕복 수십 km, fullSectDist 0.095~3.584 = 정류장 간 수백 m).
+        try(cast(rt_dist_raw as double)) as rt_dist_km,
+        try(cast(full_sect_dist_raw as double)) as full_sect_dist_km,
         dag_run_id,
         ingested_at
     from items
@@ -112,6 +124,11 @@ select
     sect_ord,
     congestion,
     next_st_id,
+    stop_flag,
+    is_full,
+    is_last_bus,
+    rt_dist_km,
+    full_sect_dist_km,
     dag_run_id,
     ingested_at
 from located

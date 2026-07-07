@@ -35,6 +35,11 @@ with bronze as (
         json_extract_scalar(raw, '$.arvlMsg2') as arvl_msg2,
         json_extract_scalar(raw, '$.arvlMsg3') as arvl_msg3,
         json_extract_scalar(raw, '$.arvlCd') as arvl_cd,
+        -- lstcarAt 은 원문이 0/1 플래그. '_at' 접미사는 공통축 계약상 KST timestamp 전용이라
+        -- 그대로 스네이크화(lstcar_at)하지 않고 여부형 이름(is_last_train)으로 캐스트한다.
+        try(cast(json_extract_scalar(raw, '$.lstcarAt') as integer)) as is_last_train,
+        trim(json_extract_scalar(raw, '$.bstatnNm')) as terminal_statn_nm,
+        try(cast(json_extract_scalar(raw, '$.trnsitCo') as integer)) as transfer_line_cnt,
         cast(dag_run_id as varchar) as dag_run_id,
         ingested_at
     from {{ source('transit_bronze', 'subway_arrival') }}
@@ -98,6 +103,9 @@ select
     b.arvl_msg2,
     b.arvl_msg3,
     b.arvl_cd,
+    b.is_last_train,
+    b.terminal_statn_nm,
+    b.transfer_line_cnt,
     sbl.station_id,
     sbl.latitude,
     sbl.longitude,
