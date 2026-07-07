@@ -114,17 +114,21 @@ normalized as (
         -- 주소 정규화 v1: '(' 이후 절단 → 연속 공백 1개 → trim → 빈값 null. (Python 수집측과 규칙 동일)
         nullif(trim(regexp_replace(regexp_replace(coalesce(jibun_address, ''), '\(.*$', ''), '\s+', ' ')), '') as jibun_address_norm,
         -- 자치구(gu) 파생 — 도로명 우선, 지번 폴백. 서울 외/미매칭은 null. (구 district 컬럼)
+        -- 접두 변형 대응: 서울특별시|서울시|서울 + 무공백 결합형(서울시노원구…)까지 흡수.
+        -- 시도/구 사이 공백은 \s*(0개 이상), 구는 lazy([가-힣]+?구)로 첫 '구'에서 멈춤(구로구구로동 안전).
         regexp_extract(
-            coalesce(road_address, jibun_address, ''), '서울특별시\s+(\S+구)', 1
+            coalesce(road_address, jibun_address, ''), '서울(?:특별시|시)?\s*([가-힣]+?구)', 1
         ) as gu
     from enriched
 ),
 
--- 지번주소의 동 토큰(구 다음 어절). 지번 표기의 동은 원칙적으로 **법정동** — 분류는 참조로 판정.
+-- 지번주소의 동 토큰(구 다음). 지번 표기의 동은 원칙적으로 **법정동** — 분류는 참조로 판정.
+-- gu 와 동일한 접두/무공백 대응. 동 토큰은 `[가-힣]+\d*(동|가)` 로 **번지 앞에서 정지** —
+-- 무공백 결합형(마포구 공덕2동461)에서 동과 번지가 붙어도 '공덕2동' 만 뽑는다.
 dong_token as (
     select
         *,
-        nullif(regexp_extract(coalesce(jibun_address_norm, ''), '서울특별시\s+\S+구\s+(\S+)', 1), '') as dong_raw
+        nullif(regexp_extract(coalesce(jibun_address_norm, ''), '서울(?:특별시|시)?\s*[가-힣]+?구\s*([가-힣]+\d*(?:동|가))', 1), '') as dong_raw
     from normalized
 ),
 
