@@ -3,39 +3,76 @@ version: 2
 models:
   - name: silver_license_history
     description: >
-      서울 인허가 SCD2 이력. bronze 변경로그를 publishable run 으로 필터하고, 연속 중복을 제거해
-      (정당한 원복 A→B→A 는 보존) valid_from/valid_to/is_current 로 버전화한다. grain=(dataset, mgtno, version_seq).
+      서울 인허가 변경 이력(정제된 변경로그). bronze 를 publishable run 으로 필터하고 연속 중복을
+      제거(정당한 원복 A→B→A 는 보존)한다. 명시적 버전 컬럼 없음 — (dataset, opnsfteamcode, mgtno)
+      안에서 (updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash) 내림차순
+      정렬이 곧 버전 순서(암묵 버저닝). 행 식별 그레인 = (dataset, opnsfteamcode, mgtno,
+      collected_at, content_hash) — MGTNO 는 발급 자치단체(OPNSFTEAMCODE) 안에서만 유니크.
     columns:
       - name: dataset
+        tests:
+          - not_null
+      - name: opnsfteamcode
+        description: 개방자치단체코드(발급 구청) — MGTNO 유니크 범위. 업소 식별키 구성 요소.
         tests:
           - not_null
       - name: mgtno
         tests:
           - not_null
-      - name: version_seq
-        description: 업소(dataset×mgtno) 내 버전 순번(전순서 정렬키 기준, 1부터).
-        tests:
-          - not_null
       - name: content_hash
         tests:
           - not_null
-      - name: valid_from
+      - name: collected_at
+        description: 파이프라인 수집 시각. bronze 는 UTC 기록 → silver 에서 **+9h KST 변환**(silver timestamp 는 전부 KST).
         tests:
           - not_null
-      - name: is_current
+      - name: updatedt_ts
+        description: UPDATEDT(개방 데이터 갱신시각, KST 원문) → **KST timestamp**(파싱만·무변환). 비정형이면 null.
+      - name: updatedt_sort
+        description: 버전 정렬 1순위(전용). UPDATEDT 결측 시 LASTMODTS 로 폴백, 그마저 없으면 epoch. 시각 해석엔 updatedt_ts 를 쓸 것.
         tests:
           - not_null
-      - name: district
-        description: 자치구(구). 도로명 우선·지번 폴백 파싱. 서울 외/미매칭은 null.
+      - name: lastmodts_ts
+        description: LASTMODTS(원천 최종수정시점, KST 원문) → **KST timestamp**(파싱만·무변환). 비정형이면 null.
+      - name: lastmodts_sort
+        description: 정렬 전용(결측=epoch 치환). 시각 해석에는 lastmodts_ts 를 쓸 것.
+        tests:
+          - not_null
+      - name: jibun_address
+        description: 지번주소 — 원천(SITEWHLADDR) → LOTNO_ADDR(숙박업 등) → Juso 보강(도로명 키) 순 채움.
+      - name: jibun_address_source
+        description: 지번주소 채움 계보 — source | lotno_addr | juso_api | null(3계보 모두 없음).
+      - name: gu
+        description: 자치구(구). 도로명 우선·지번 폴백 파싱. 서울 외/미매칭은 null. (구 district 컬럼 rename)
+      - name: gu_code
+        description: 시군구 코드 5자리(법정동코드 앞 5자리, 행안부 참조). gu 미매칭이면 null.
+      - name: legal_dong
+        description: 법정동명 — 지번주소 동 토큰이 법정동명에 매치(우선), 아니면 행정동→법정동 참조 매핑으로 보완.
+      - name: legal_code
+        description: 법정동코드 10자리(행안부).
+      - name: admin_dong
+        description: 행정동명 — 동 토큰이 행정동명에 매치, 아니면 법정동→행정동 참조 매핑으로 보완(다대다는 결정적 근사 — docs/address-and-geo.md).
+      - name: admin_code
+        description: 행정동코드 10자리(행안부).
+      - name: latitude
+        description: WGS84 위도 — 원천 X/Y(중부원점 TM, EPSG:5174)를 순수 계산 변환. 한반도 bbox 밖·결측은 null(원문 X/Y 보존).
+      - name: longitude
+        description: WGS84 경도 — 변환 파라미터·검증 근거는 docs/address-and-geo.md.
 
   - name: silver_license_current
-    description: 인허가 현재 상태(업소당 최신 1버전, is_current 슬라이스). grain=(dataset, mgtno).
+    description: >
+      인허가 현재 상태(업소당 최신 1행). history 의 암묵 버저닝 정렬 내림차순 최상위(row_number=1).
+      grain=(dataset, opnsfteamcode, mgtno) — MGTNO 는 발급 자치단체 안에서만 유니크.
     columns:
       - name: dataset
+        tests:
+          - not_null
+      - name: opnsfteamcode
+        description: 개방자치단체코드(발급 구청) — MGTNO 유니크 범위.
         tests:
           - not_null
       - name: mgtno
         tests:
           - not_null
       - name: bplcnm
-        description: 업소명(BPLCNM).
+        description: 업소명(BPLCNM). 원본 '' 는 null 로 정규화.
