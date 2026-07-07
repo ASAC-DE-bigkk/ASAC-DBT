@@ -29,7 +29,7 @@ models:
       - name: updatedt_ts
         description: UPDATEDT(개방 데이터 갱신시각, KST 원문) → **KST timestamp**(파싱만·무변환). 비정형이면 null.
       - name: updatedt_sort
-        description: 정렬 전용(결측=epoch 치환). 시각 해석에는 updatedt_ts 를 쓸 것.
+        description: 버전 정렬 1순위(전용). UPDATEDT 결측 시 LASTMODTS 로 폴백, 그마저 없으면 epoch. 시각 해석엔 updatedt_ts 를 쓸 것.
         tests:
           - not_null
       - name: lastmodts_ts

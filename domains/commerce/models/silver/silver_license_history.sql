@@ -337,8 +337,10 @@ keyed as (
         case when jibun_address_norm is not null
              then lower(to_hex(sha256(cast(jibun_address_norm as varbinary)))) end as address_key_jibun,
         -- 전순서 버전 정렬키: UPDATEDT → LASTMODTS → 관측일 → 수집시각 → content_hash(항상 tie-break).
-        -- 결측 timestamp 는 epoch(가장 오래된 것) 취급 — 시각 해석엔 *_ts 를 쓸 것(정렬 전용).
-        coalesce(updatedt_ts, timestamp '1970-01-01 00:00:00') as updatedt_sort,
+        -- **1순위 폴백**: UPDATEDT(updatedt_ts) 결측 시 LASTMODTS(lastmodts_ts, 최종수정시점)로 정렬,
+        -- 그마저 없으면 epoch(가장 오래된 것). → updatedt 없는 행이 무조건 최하위로 밀리지 않게 함.
+        -- (실측 현재 데이터는 updatedt_ts 100% 존재 → 폴백은 방어적; 시각 해석엔 *_ts 를 쓸 것 — 정렬 전용.)
+        coalesce(updatedt_ts, lastmodts_ts, timestamp '1970-01-01 00:00:00') as updatedt_sort,
         coalesce(lastmodts_ts, timestamp '1970-01-01 00:00:00') as lastmodts_sort
     from geo
 ),

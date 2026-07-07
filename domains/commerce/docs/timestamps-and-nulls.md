@@ -17,7 +17,7 @@ KST 원문 시각(UPDATEDT/LASTMODTS)은 파싱만 하고, UTC 로 기록된 `co
 |---|---|---|---|
 | `updatedt` / `lastmodts` (문자열) | 소스 KST 원문 (`YYYYMMDDHHMMSS` / `YYYY-MM-DD HH:MM:SS` 계열) | **무변환 보존**(감사·재처리용) | KST 원문 |
 | `updatedt_ts` / `lastmodts_ts` | 위 원문의 파싱 시각 | 파싱만(**무변환** — 원문이 이미 KST) | **KST** timestamp |
-| `updatedt_sort` / `lastmodts_sort` | 버전 정렬키 | 위 KST 값의 결측=epoch 치환(정렬 전용) | KST 기준 정렬 |
+| `updatedt_sort` / `lastmodts_sort` | 버전 정렬키 | `updatedt_sort`=UPDATEDT 결측 시 **LASTMODTS 폴백** 후 epoch, `lastmodts_sort`=결측 epoch(정렬 전용) | KST 기준 정렬 |
 | `collected_at` | 파이프라인 수집 시각 — 수집 마커가 `_utcnow_iso()` 로 **UTC 기록** (`include/bronze/bronze_tasks.py` → `warehouse._to_naive_utc()`); bronze 는 UTC 원본 유지 | **`+ interval '9' hour`** (UTC → KST) | **KST** timestamp |
 | `observed_date` / `load_date` / `APVPERMYMD` / `DCBYMD` | KST **달력 날짜**(시간 정보 없음) | 변환 **불가·비대상** — 그대로 보존 | KST 날짜 |
 | `bronze_run_id` | KST 실행시각 문자열(식별자) | 식별자로만 사용(시각 연산 금지) | KST 문자열 |
@@ -49,7 +49,7 @@ KST 원문 시각(UPDATEDT/LASTMODTS)은 파싱만 하고, UTC 로 기록된 `co
 | 파싱 문자열 필드 전부 (`bplcnm`, `trdstategbn`, `trdstatenm`, `dtlstategbn`, `dtlstatenm`, `apvpermymd`, `dcbymd`, `sitetel`, 주소 2종, `X`/`Y`, `lastmodts`) | `nullif(trim(...), '')` — 소스의 빈 문자열/공백을 null 로 | 결측 = null 로 일원화 |
 | 소스에 필드 자체가 없는 경우(업종군별 개별 컬럼 등) | `json_extract_scalar` 가 null 반환 | null |
 | `updatedt_ts` / `lastmodts_ts` 파싱 실패(비정형) | `try(date_parse(...))` → null | null (원문은 `updatedt`/`lastmodts` 에 보존) |
-| 버전 정렬 시 timestamp 결측 | `coalesce(*_ts, epoch)` = `*_sort` 컬럼 | **가장 오래된 것**으로 취급(정렬 전용 — 시각 해석 금지) |
+| 버전 정렬 시 timestamp 결측 | `updatedt_sort=coalesce(updatedt_ts, lastmodts_ts, epoch)`(UPDATEDT 없으면 **LASTMODTS 폴백**), `lastmodts_sort=coalesce(lastmodts_ts, epoch)` | 폴백 후에도 없으면 가장 오래된 것(정렬 전용 — 시각 해석 금지) |
 | 주소 정규화(`*_norm`) | `'(' 이후 절단 → 연속 공백 1개 → trim → 빈값 null` | Python 수집측(geocode)과 규칙 동일 유지 필수 |
 | `district` 미매칭(서울 외/주소 결측) | `regexp_extract` 미매칭 → null | null |
 | 좌표 `X`/`Y` 의 `0`·자릿수 오류 등 **품질 불량값** | **보존**(null 처리하지 않음) | 좌표 품질 판정은 Step 8 geocode 파이프라인(bbox 검증·`location_quality`)의 책임 |
