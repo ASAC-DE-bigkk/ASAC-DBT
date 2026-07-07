@@ -7,6 +7,17 @@ profile: transit
 flags:
   require_certificate_validation: true
 
+# transit silver 신선도(상한) 게이트 임계 (#66). event_at(KST 벽시계) > utc_to_kst(ingested_at)+스큐
+# 인 미래 행을 silver 에서 차단한다. 한 곳에서만 정의해 모델 3종·감시 테스트가 공유(리터럴 중복 금지).
+vars:
+  # 상한 허용 오차(분): 수집 파이프 클럭 스큐 감안. macros/freshness.sql 참조.
+  transit_freshness_skew_minutes: 10
+  # bronze 원천의 미래 event_at 비율이 이 값을 넘으면 감시 warn 테스트가 경고(조용한 대량 드랍 방지).
+  transit_freshness_warn_ratio: 0.05
+  # 감시 warn 테스트의 관측 윈도(시간, ingested_at 기준). 전 이력 비율은 이력이 쌓일수록
+  # 급성 이상(예: 원천 시계 붕괴로 당일 100% 미래)을 임계 아래로 희석하므로 최근 윈도로만 잰다.
+  transit_freshness_monitor_hours: 24
+
 model-paths: ["models"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]

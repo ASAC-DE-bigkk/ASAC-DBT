@@ -11,6 +11,10 @@
 --   - arrival 은 (subway_id, statnNm_join) 으로 이 매핑에 1회 조인(다단 조인 제거).
 --   - (subway_id, station_name_join) 유일성은 singular 테스트로 계약(실데이터 중복 0건 실증).
 --   - route 표시는 매칭된 dim.route(정확 라벨), 미매칭 시 seed 대표 라벨로 fallback.
+-- 신선도(#66): 이 원천은 전일 막차 안내를 잔존시켜 event_at(recptnDt KST 벽시계)이 수집시각보다
+--   미래인 행이 존재(실측: ingested 11:40 KST 런에 event_at 23:59). gold(#67) 시간대 집계 오염을
+--   막기 위해 event_at <= utc_to_kst(ingested_at)+스큐 상한 필터로 차단(transit_event_at_not_future,
+--   임계는 var transit_freshness_skew_minutes). 하한은 없음(과거 수신 정상).
 
 {{ config(
     materialized='incremental',
@@ -23,7 +27,8 @@ with bronze as (
         trim(json_extract_scalar(raw, '$.statnId')) as statn_id,
         trim(json_extract_scalar(raw, '$.ordkey')) as ordkey,
         json_extract_scalar(raw, '$.recptnDt') as recptn_dt,
-        {{ asac_axes.kst_at("json_extract_scalar(raw, '$.recptnDt')") }} as event_at,
+        -- event_at 도출식은 매크로 공유(#66): 감시 warn 테스트가 같은 식으로 bronze 를 재도록.
+        {{ transit_subway_event_at('raw') }} as event_at,
         trim(json_extract_scalar(raw, '$.subwayId')) as subway_id,
         trim(json_extract_scalar(raw, '$.statnNm')) as statn_nm,
         trim(regexp_replace(json_extract_scalar(raw, '$.statnNm'), '\(.*\)', '')) as statn_nm_join,
@@ -62,6 +67,8 @@ ranked as (
     where statn_id is not null
       and ordkey is not null
       and recptn_dt is not null
+      -- 신선도 상한(#66): 미래 event_at 차단. dedup 전에 걸어 미래 행이 대표행으로 뽑히지 않게.
+      and {{ transit_event_at_not_future('event_at', 'ingested_at') }}
 ),
 
 -- seed × dim 을 route=line_name 정확 매핑으로 미리 조인 → (subway_id, station_name_join) 단일 매핑.
