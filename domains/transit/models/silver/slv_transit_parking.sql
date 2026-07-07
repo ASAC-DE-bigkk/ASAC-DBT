@@ -4,6 +4,10 @@
 --   incremental(merge): 이미 반영된 ingested_at 이후(-2h lookback)만 스캔·중복은 merge 로 갱신.
 -- 시간축: event_at = 도메인 대표시각(주차 현황 갱신시각, KST).
 -- 공간축: dim_transit_parking 조인(pklt_cd)으로 latitude/longitude/admin_dong_code/gu_code 부착.
+-- 신선도(#66): event_at(KST 벽시계)이 수집시각보다 미래인 행을 차단 —
+--   event_at <= utc_to_kst(ingested_at)+스큐 상한 필터(transit_event_at_not_future,
+--   임계는 var transit_freshness_skew_minutes). 주 quirk 원천은 subway_arrival 이나
+--   3종 공통 계약으로 방어 적용(gold #67 시간대 집계 오염 차단). 하한은 없음(과거 수신 정상).
 
 {{ config(
     materialized='incremental',
@@ -15,7 +19,8 @@ with bronze as (
     select
         trim(json_extract_scalar(raw, '$.PKLT_CD')) as parking_id,
         trim(json_extract_scalar(raw, '$.PKLT_NM')) as parking_name,
-        {{ asac_axes.kst_at("json_extract_scalar(raw, '$.NOW_PRK_VHCL_UPDT_TM')") }} as event_at,
+        -- event_at 도출식은 매크로 공유(#66): 감시 warn 테스트가 같은 식으로 bronze 를 재도록.
+        {{ transit_parking_event_at('raw') }} as event_at,
         try(cast(json_extract_scalar(raw, '$.NOW_PRK_VHCL_CNT') as integer)) as now_prk_vhcl_cnt,
         try(cast(json_extract_scalar(raw, '$.TPKCT') as integer)) as total_capacity,
         trim(json_extract_scalar(raw, '$.PRK_STTS_NM')) as prk_stts_nm,
@@ -41,6 +46,8 @@ ranked as (
     from bronze
     where parking_id is not null
       and event_at is not null
+      -- 신선도 상한(#66): 미래 event_at 차단. dedup 전에 적용.
+      and {{ transit_event_at_not_future('event_at', 'ingested_at') }}
 )
 
 select

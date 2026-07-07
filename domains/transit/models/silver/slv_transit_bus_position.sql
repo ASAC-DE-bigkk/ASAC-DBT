@@ -7,6 +7,10 @@
 -- 시간축: event_at = dataTm(yyyyMMddHHmmss) KST.
 -- 공간축: gpsX→longitude, gpsY→latitude 직접(이미 WGS84), seoul_admin_dong_boundary 와
 --         런타임 point-in-polygon 조인으로 admin_dong_code/gu_code 할당.
+-- 신선도(#66): event_at(dataTm KST 벽시계)이 수집시각보다 미래인 행을 차단 —
+--   event_at <= utc_to_kst(ingested_at)+스큐 상한 필터(transit_event_at_not_future,
+--   임계는 var transit_freshness_skew_minutes). dataTm 은 실시간 GPS 관측시각이라 '전일 잔존'
+--   quirk 는 없고 클럭 스큐만 해당하나, 3종 공통 계약으로 방어 적용. 하한은 없음(과거 수신 정상).
 
 {{ config(
     materialized='incremental',
@@ -35,7 +39,8 @@ items as (
         b.dag_run_id,
         b.ingested_at,
         regexp_extract(item, '<vehId>([^<]*)</vehId>', 1) as veh_id,
-        regexp_extract(item, '<dataTm>([^<]*)</dataTm>', 1) as data_tm,
+        -- dataTm 도출식은 매크로 공유(#66): 감시 warn 테스트가 같은 식으로 bronze 를 재도록.
+        {{ transit_bus_data_tm('item') }} as data_tm,
         regexp_extract(item, '<plainNo>([^<]*)</plainNo>', 1) as plain_no,
         regexp_extract(item, '<gpsX>([^<]*)</gpsX>', 1) as gps_x,
         regexp_extract(item, '<gpsY>([^<]*)</gpsY>', 1) as gps_y,
@@ -48,16 +53,16 @@ items as (
         regexp_extract(item, '<rtDist>([^<]*)</rtDist>', 1) as rt_dist_raw,
         regexp_extract(item, '<fullSectDist>([^<]*)</fullSectDist>', 1) as full_sect_dist_raw
     from bronze b
-    -- (?s): Trino 정규식의 '.' 는 기본적으로 개행에 매치되지 않는다. itemList 조각이
-    --       개행을 포함하면 매치가 조용히 0건이 되므로 DOTALL 플래그로 개행을 포함시킨다.
-    cross join unnest(regexp_extract_all(b.raw, '(?s)<itemList>(.*?)</itemList>')) as t(item)
+    -- itemList 파싱((?s) DOTALL 포함)은 transit_bus_position_items 매크로에 정의 —
+    -- 감시 warn 테스트와 공유(#66). DOTALL 사유는 매크로 주석 참조.
+    cross join unnest({{ transit_bus_position_items('b.raw') }}) as t(item)
 ),
 
 typed as (
     select
         veh_id,
         data_tm,
-        {{ asac_axes.kst_at('data_tm') }} as event_at,
+        {{ transit_bus_event_at('data_tm') }} as event_at,
         bus_route_id,
         plain_no,
         {{ asac_axes.seoul_lonlat('gps_x', 'gps_y') }},
@@ -93,6 +98,9 @@ deduped as (
     select *
     from ranked
     where row_num = 1
+      -- 신선도 상한(#66): 미래 event_at 차단. event_at 은 data_tm 결정론적 파생이라
+      --   dedup 전후 결과 동일 — 경계 조인 전(행 축소 후)에 걸어 불필요한 point-in-polygon 회피.
+      and {{ transit_event_at_not_future('event_at', 'ingested_at') }}
 ),
 
 located as (
