@@ -7,7 +7,7 @@
 -- addr_gu: 주소 첫 자치구 토큰('[가-힣]+구'). 경계 조인 결과 gu(sigungu)와의 일치를
 --          경량 검증(assert_parking_addr_gu_matches_boundary, warn)에 쓴다.
 
-{{ config(materialized='view') }}
+{{ config(materialized='table') }}
 
 with latest as (
     select max(load_date) as load_date
@@ -39,9 +39,13 @@ located as (
         b.gu_code,
         b.sigungu as gu,
         b.dong as admin_dong,
+        -- pklt_cd 는 마스터에서 유일하지 않다: 65개 lot 이 같은 addr·행정동에
+        -- 좌표만 다른 다수 행으로 존재(실증). admin_dong_code 만으로 정렬하면 동률이
+        -- 발생해 어떤 좌표가 뽑힐지 비결정적 → view 재실행마다 좌표가 바뀔 수 있다.
+        -- admin_dong 이 잡힌 행 우선(nulls last) 후 좌표로 전순서를 확정해 결정성 보장.
         row_number() over (
             partition by m.parking_id
-            order by b.admin_dong_code
+            order by b.admin_dong_code nulls last, m.latitude, m.longitude
         ) as rn
     from master m
     left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b

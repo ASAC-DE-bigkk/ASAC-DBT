@@ -11,7 +11,7 @@
 --        seoul_admin_dong_boundary 와 point-in-polygon 조인해 admin_dong_code/gu_code 부착.
 -- 수도권(경기·인천) 역은 서울 bbox 밖이라 좌표/행정동이 NULL 이 된다(정상).
 
-{{ config(materialized='view') }}
+{{ config(materialized='table') }}
 
 with latest as (
     select max(load_date) as load_date

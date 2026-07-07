@@ -15,7 +15,6 @@ with bronze as (
     select
         trim(json_extract_scalar(raw, '$.PKLT_CD')) as parking_id,
         trim(json_extract_scalar(raw, '$.PKLT_NM')) as parking_name,
-        json_extract_scalar(raw, '$.NOW_PRK_VHCL_UPDT_TM') as updt_tm_raw,
         {{ asac_axes.kst_at("json_extract_scalar(raw, '$.NOW_PRK_VHCL_UPDT_TM')") }} as event_at,
         try(cast(json_extract_scalar(raw, '$.NOW_PRK_VHCL_CNT') as integer)) as now_prk_vhcl_cnt,
         try(cast(json_extract_scalar(raw, '$.TPKCT') as integer)) as total_capacity,

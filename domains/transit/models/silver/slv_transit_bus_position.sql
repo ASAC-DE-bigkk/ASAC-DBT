@@ -43,7 +43,9 @@ items as (
         regexp_extract(item, '<congetion>([^<]*)</congetion>', 1) as congestion,
         regexp_extract(item, '<nextStId>([^<]*)</nextStId>', 1) as next_st_id
     from bronze b
-    cross join unnest(regexp_extract_all(b.raw, '<itemList>(.*?)</itemList>')) as t(item)
+    -- (?s): Trino 정규식의 '.' 는 기본적으로 개행에 매치되지 않는다. itemList 조각이
+    --       개행을 포함하면 매치가 조용히 0건이 되므로 DOTALL 플래그로 개행을 포함시킨다.
+    cross join unnest(regexp_extract_all(b.raw, '(?s)<itemList>(.*?)</itemList>')) as t(item)
 ),
 
 typed as (
@@ -74,21 +76,27 @@ ranked as (
     from typed
 ),
 
+-- grain 중복 제거를 경계 조인과 분리(row_num=1 술어를 한 곳에서만 평가).
+deduped as (
+    select *
+    from ranked
+    where row_num = 1
+),
+
 located as (
     select
-        r.*,
+        d.*,
         b.admin_dong_code,
         b.gu_code,
         row_number() over (
-            partition by r.veh_id, r.data_tm
+            partition by d.veh_id, d.data_tm
             order by b.admin_dong_code
         ) as geo_rn
-    from ranked r
+    from deduped d
+    -- 좌표 유효분만 경계 조인(null 좌표 행은 left join 으로 보존, admin_dong 은 null).
     left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b
-        on r.row_num = 1
-       and r.longitude is not null
-       and {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'r.longitude', 'r.latitude') }}
-    where r.row_num = 1
+        on d.longitude is not null
+       and {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'd.longitude', 'd.latitude') }}
 )
 
 select
