@@ -4,9 +4,13 @@
 --   ingested_at 기준 -2h lookback.
 -- 시간축: event_at = recptnDt KST(도착정보 수신시각, 도메인 대표시각).
 -- 공간축: dim_transit_station 조인으로 부착. 조인 키는 '역명 + 노선':
---   - arrival subwayId → seoul_subway_line_code seed 로 route 라벨 변환(1002→2호선 등)
---   - 역명은 양쪽 괄호 부기 제거 후 매칭(dim.station_name_join)
---   - (statnNm_norm, line_name) 이 dim (station_name_join, route) 와 1:1 매칭됨을 실증.
+--   - seed(subway_id→line_name) × dim(route=line_name) 을 미리 조인해
+--     station_by_line = (subway_id, station_name_join) → 역 단일 매핑을 만든다.
+--     하나의 subwayId 가 복수 노선 라벨을 포괄하는 경우(1075→분당선·수인선,
+--     1077→신분당선 계열)는 seed 다행으로 커버한다.
+--   - arrival 은 (subway_id, statnNm_join) 으로 이 매핑에 1회 조인(다단 조인 제거).
+--   - (subway_id, station_name_join) 유일성은 singular 테스트로 계약(실데이터 중복 0건 실증).
+--   - route 표시는 매칭된 dim.route(정확 라벨), 미매칭 시 seed 대표 라벨로 fallback.
 
 {{ config(
     materialized='incremental',
@@ -55,9 +59,27 @@ ranked as (
       and recptn_dt is not null
 ),
 
-line as (
-    select subway_id, line_name
+-- seed × dim 을 route=line_name 정확 매핑으로 미리 조인 → (subway_id, station_name_join) 단일 매핑.
+station_by_line as (
+    select
+        s.subway_id,
+        d.station_name_join,
+        d.station_id,
+        d.route,
+        d.latitude,
+        d.longitude,
+        d.admin_dong_code,
+        d.gu_code
+    from {{ ref('seoul_subway_line_code') }} s
+    join {{ ref('dim_transit_station') }} d
+        on d.route = s.line_name
+),
+
+-- subwayId 당 대표 라벨(다행 seed 는 base 라벨이 최소값). 미매칭 행의 route fallback 용.
+line_label as (
+    select subway_id, min(line_name) as line_name
     from {{ ref('seoul_subway_line_code') }}
+    group by subway_id
 )
 
 select
@@ -66,7 +88,7 @@ select
     b.recptn_dt,
     b.event_at,
     b.subway_id,
-    l.line_name as route,
+    coalesce(sbl.route, ll.line_name) as route,
     b.statn_nm,
     b.train_line_nm,
     b.updn_line,
@@ -76,17 +98,17 @@ select
     b.arvl_msg2,
     b.arvl_msg3,
     b.arvl_cd,
-    d.station_id,
-    d.latitude,
-    d.longitude,
-    d.admin_dong_code,
-    d.gu_code,
+    sbl.station_id,
+    sbl.latitude,
+    sbl.longitude,
+    sbl.admin_dong_code,
+    sbl.gu_code,
     b.dag_run_id,
     b.ingested_at
 from ranked b
-left join line l
-    on b.subway_id = l.subway_id
-left join {{ ref('dim_transit_station') }} d
-    on b.statn_nm_join = d.station_name_join
-   and l.line_name = d.route
+left join station_by_line sbl
+    on b.subway_id = sbl.subway_id
+   and b.statn_nm_join = sbl.station_name_join
+left join line_label ll
+    on b.subway_id = ll.subway_id
 where b.row_num = 1
