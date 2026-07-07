@@ -1,9 +1,26 @@
 -- silver: bronze의 원본 payload(citydata_ppltn 레코드 JSON)를 개별 필드로 파싱하고
--- (area_nm, ppltn_time) 기준 최신 1건으로 중복 제거한다.
+-- (area_nm, ppltn_time) 기준 최신 1건으로 중복 제거한 뒤, **위치(좌표)·행정구역·시간축**
+-- 을 #48 공통축 표준(asac_axes)으로 보강한다. 사내에서 바로 활용 가능한 표준 형태.
 --
--- 지금은 table(전체 재생성). 규모가 작아 15분 주기에 충분히 싸다.
--- (incremental(merge)은 dbt-trino + R2 Data Catalog에서 is_incremental 첫 run 이슈가 있어
---  향후 과제로 둔다 — docs 참고.)
+-- incremental(merge): 5분 주기에 맞춰 최근 수집분만 파싱해 (area_nm, ppltn_time)
+-- 키로 merge한다(bronze 전체 재스캔 없음). 지연 도착 대비 30분 lookback.
+--
+-- 보강(참조 조인, #48 공통축 표준 — asac_axes 패키지):
+--  * 좌표/분류: seed(seoul_ppltn_area_geo)를 area_cd로 left join → longitude/latitude, category
+--  * 행정구역: area 중심점을 공용 경계 seed(asac_axes.seoul_admin_dong_boundary)에
+--    point-in-polygon → gu/admin_dong + 행안부 admin_dong_code(10, canonical)·gu_code(5).
+--    도메인 통합 join 키 = admin_dong_code(동)·gu_code(구).
+--  * 시간축: ppltn_time(varchar) → event_at(KST timestamp, asac_axes.kst_at) 신설(원본 유지).
+--
+-- ⚠ 공용 패키지 참조: packages.yml(local asac_axes) + dbt deps 필요. #49 머지 후 dev 반영.
+-- ⚠ 새 컬럼(좌표/행정동/event_at) 추가 시 기존 테이블은 --full-refresh 로 재생성해야 한다.
+
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['area_nm', 'ppltn_time'],
+    on_table_exists='drop',
+) }}
 
 with bronze as (
     select
@@ -30,6 +47,12 @@ with bronze as (
         json_extract_scalar(payload, '$.FCST_YN') as fcst_yn,
         collected_at
     from {{ source('bronze', 'bronze_seoul_ppltn') }}
+    {% if is_incremental() %}
+    where collected_at >= (
+        select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
+        from {{ this }}
+    )
+    {% endif %}
 ),
 
 ranked as (
@@ -43,30 +66,65 @@ ranked as (
     where area_nm is not null
         and area_cd is not null
         and ppltn_time is not null
+),
+
+deduped as (
+    select * from ranked where row_num = 1
+),
+
+area_admin as (
+    -- area 중심점 → 행정동 판정(정적, area당 1건). 공용 경계 seed(asac_axes)로
+    -- gu/admin_dong 명칭 + 행안부 admin_dong_code(canonical)·gu_code를 한 번에 보강.
+    select area_cd, gu, admin_dong, gu_code, admin_dong_code
+    from (
+        select
+            g.area_cd,
+            b.sigungu as gu,
+            b.dong as admin_dong,
+            b.gu_code,
+            b.admin_dong_code,
+            row_number() over (partition by g.area_cd order by b.admin_dong_code) as rn
+        from {{ ref('seoul_ppltn_area_geo') }} g
+        left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b
+            on {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'g.center_lon', 'g.center_lat') }}
+    )
+    where rn = 1
 )
 
 select
-    area_nm,
-    area_cd,
-    area_congest_lvl,
-    area_congest_msg,
-    area_ppltn_min,
-    area_ppltn_max,
-    male_ppltn_rate,
-    female_ppltn_rate,
-    ppltn_rate_0,
-    ppltn_rate_10,
-    ppltn_rate_20,
-    ppltn_rate_30,
-    ppltn_rate_40,
-    ppltn_rate_50,
-    ppltn_rate_60,
-    ppltn_rate_70,
-    resnt_ppltn_rate,
-    non_resnt_ppltn_rate,
-    replace_yn,
-    ppltn_time,
-    fcst_yn,
-    collected_at
-from ranked
-where row_num = 1
+    d.area_nm,
+    d.area_cd,
+    '서울특별시' as sido,
+    aa.gu,
+    aa.admin_dong,
+    aa.gu_code,
+    aa.admin_dong_code,
+    geo.center_lon as longitude,
+    geo.center_lat as latitude,
+    geo.category as area_category,
+    d.area_congest_lvl,
+    d.area_congest_msg,
+    d.area_ppltn_min,
+    d.area_ppltn_max,
+    d.male_ppltn_rate,
+    d.female_ppltn_rate,
+    d.ppltn_rate_0,
+    d.ppltn_rate_10,
+    d.ppltn_rate_20,
+    d.ppltn_rate_30,
+    d.ppltn_rate_40,
+    d.ppltn_rate_50,
+    d.ppltn_rate_60,
+    d.ppltn_rate_70,
+    d.resnt_ppltn_rate,
+    d.non_resnt_ppltn_rate,
+    d.replace_yn,
+    {{ asac_axes.kst_at('d.ppltn_time') }} as event_at,
+    d.ppltn_time,
+    d.fcst_yn,
+    d.collected_at
+from deduped d
+left join {{ ref('seoul_ppltn_area_geo') }} geo
+    on d.area_cd = geo.area_cd
+left join area_admin aa
+    on d.area_cd = aa.area_cd

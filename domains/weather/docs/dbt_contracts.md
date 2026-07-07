@@ -51,12 +51,13 @@ weather 도메인은 시간을 다음 역할로 분리한다.
 |---|---|---|
 | issued time | `issued_at` | `base_date + base_time` |
 | forecast event time | `forecast_at` | `fcst_date + fcst_time` |
+| common event time | `event_at` | `forecast_at` alias for cross-domain joins |
 | ingest time | `collected_at` | DAG 수집 시각 |
 | bucket time | `time_bucket` | `date_trunc('hour', forecast_at)` |
 
-`issued_at`과 `forecast_at`은 domain-local macro인 `kma_timestamp`로 만든다.
-KMA 날짜/시간 형식이 다른 도메인과 다르므로, 지금 단계에서는 공용 timestamp macro로
-빼지 않는다.
+`issued_at`과 `forecast_at`은 공용 package `asac_axes`의
+`kst_at_from_parts`로 만든다. KMA 원천 컬럼(`base_date/base_time`,
+`fcst_date/fcst_time`)은 보존하고, cross-domain 시간 조인은 `event_at`을 우선 사용한다.
 
 ## Silver grain and dedup
 
@@ -107,6 +108,8 @@ weather 도메인 안으로 고정한 장소-격자 계약이다.
 | `mapping_method` | 매핑 출처/방식 | `kma_admin_dong_grid_20260325` |
 | `grid_distance_m` | 실제 POI와 grid 대표점 거리 | 현재는 계산하지 않아 null 허용 |
 | `source_admin_code` | KMA 가이드의 행정구역코드 | `not_null` |
+| `admin_dong_code` | 행안부 10자리 canonical 행정동 코드 | `source_admin_code`와 동일 |
+| `gu_code` | 행안부 5자리 canonical 자치구 코드 | `admin_dong_code` 앞 5자리 |
 
 `dim_weather_place`는 이 seed를 타입 캐스팅한 weather 전용 place dimension이다. 공통
 `dim_place`를 먼저 만들지 않고 weather 안에 둔 이유는, KMA 예보의 authoritative 단위가
@@ -122,6 +125,19 @@ weather 도메인 안으로 고정한 장소-격자 계약이다.
 | `강남`, `강남역` | 강남구 역삼1동 | 역세권 질의 alias |
 | `성수`, `성수동` | 성동구 성수1가제2동 | 상권 질의 alias |
 | `여의도`, `여의도역` | 영등포구 여의동 | 업무/핫플레이스 질의 alias |
+| `서울역` | 중구 회현동 | 역세권 질의 alias |
+| `시청`, `서울시청`, `시청역` | 중구 소공동 | 공공/역세권 질의 alias |
+| `종각`, `종각역` | 종로구 종로1.2.3.4가동 | 역세권 질의 alias |
+| `용산`, `용산역` | 용산구 한강로동 | 역세권 질의 alias |
+| `신촌`, `신촌역` | 서대문구 신촌동 | 상권 질의 alias |
+| `가로수길` | 강남구 신사동 | 상권 질의 alias |
+| `고속터미널`, `고속터미널역` | 서초구 반포4동 | 역세권 질의 alias |
+| `DDP`, `동대문디자인플라자` | 중구 광희동 | 관광/핫플레이스 alias |
+| `코엑스`, `삼성역` | 강남구 삼성1동 | 업무/핫플레이스 alias |
+
+행정동명이 여러 구에서 충돌하는 경우가 있다. 현재 `신사동`은 관악구와 강남구에 모두
+존재하므로 alias 중복 테스트의 허용 목록으로 관리하고, 상권 alias인 `가로수길`처럼
+사용자 질의 의도가 더 좁은 이름은 별도 alias로 둔다.
 
 서울시 실시간 도시데이터 121장소는 KMA forecast 대체재가 아니다. 해당 source를 쓰더라도
 hotspot 현황이나 혼잡도 enrichment로 분리하고, weather forecast mart의 예보 값은 계속
@@ -163,6 +179,7 @@ weather dbt PR 본문에는 최소한 아래를 남긴다.
 - Target table: `iceberg_dev.weather.dim_weather_place`
 - Target table: `iceberg_dev.weather.gold_weather_forecast_by_place`
 - Event time 컬럼: `forecast_at`
+- Common event time 컬럼: `event_at`
 - Issued time 컬럼: `issued_at`
 - Ingest time 컬럼: `collected_at`
 - Dedup/grain 기준

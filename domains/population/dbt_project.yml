@@ -20,3 +20,18 @@ clean-targets:
 models:
   seoul_ppltn:
     +materialized: table
+
+seeds:
+  seoul_ppltn:
+    seoul_ppltn_area_geo:
+      +column_types:
+        area_cd: varchar
+        category: varchar
+        area_nm: varchar
+        center_lon: double
+        center_lat: double
+        lon_min: double
+        lat_min: double
+        lon_max: double
+        lat_max: double
+        polygon_wkt: varchar

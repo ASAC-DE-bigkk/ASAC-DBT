@@ -1,78 +1,80 @@
--- silver: KOPIS 공연목록 bronze(record_json)를 파싱·타입화·중복제거.
--- 계약: event_time(공연 기간) ≠ ingest_time(ingest_ts).
--- location_key = 공연장→자치구 매핑(facility의 gugunnm). 미매칭은 공연장명으로 폴백.
+-- silver: KOPIS 공연 기간 fact. 시설 축은 detail(mt10id) 정밀 조인 + 이름 매칭 폴백 —
+-- 기존 이름 단독 매칭의 동명 시설 임의 선택을 해소(설계 §2). 공간축은 facility dim 경유.
 
-with bronze as (
+with list_bronze as (
     select
         json_extract_scalar(record_json, '$.mt20id')    as performance_id,
         json_extract_scalar(record_json, '$.prfnm')     as performance_name,
         json_extract_scalar(record_json, '$.genrenm')   as genre,
         json_extract_scalar(record_json, '$.fcltynm')   as venue_name,
-        json_extract_scalar(record_json, '$.prfstate')  as performance_state,
-        json_extract_scalar(record_json, '$.area')      as area,
-        json_extract_scalar(record_json, '$.prfpdfrom') as period_from_raw,
-        json_extract_scalar(record_json, '$.prfpdto')   as period_to_raw,
-        load_date,
+        json_extract_scalar(record_json, '$.prfstate')  as state,
+        json_extract_scalar(record_json, '$.prfpdfrom') as start_raw,
+        json_extract_scalar(record_json, '$.prfpdto')   as end_raw,
         ingest_ts,
-        raw_object_key
+        {{ culture_lineage('kopis') }}
     from {{ source('culture_bronze', 'bronze_kopis_performance') }}
 ),
 
-typed as (
-    select
-        performance_id,
-        nullif(trim(performance_name), '')  as performance_name,
-        nullif(trim(genre), '')             as genre,
-        nullif(trim(venue_name), '')        as venue_name,
-        nullif(trim(performance_state), '') as performance_state,
-        nullif(trim(area), '')              as area,
-        -- KOPIS 날짜는 'YYYY.MM.DD' → date. 파싱 실패는 NULL.
-        try(cast(date_parse(period_from_raw, '%Y.%m.%d') as date)) as period_start,
-        try(cast(date_parse(period_to_raw, '%Y.%m.%d') as date))   as period_end,
-        load_date,
-        ingest_ts,
-        raw_object_key
-    from bronze
-    where performance_id is not null
+list_latest as (
+    select * from (
+        select
+            performance_id,
+            nullif(trim(performance_name), '') as performance_name,
+            nullif(trim(genre), '')            as genre,
+            nullif(trim(venue_name), '')       as venue_name,
+            nullif(trim(state), '')            as state,
+            try(cast(date_parse(trim(start_raw), '%Y.%m.%d') as date)) as event_start_date,
+            try(cast(date_parse(trim(end_raw), '%Y.%m.%d') as date))   as event_end_date,
+            source_system, dag_run_id, raw_object_key, collected_at, ingested_at, load_date,
+            row_number() over (partition by performance_id order by {{ culture_dedup_order() }}) as rn
+        from list_bronze
+        where performance_id is not null
+    ) where rn = 1
 ),
 
-dedup as (
-    select
-        *,
-        row_number() over (partition by performance_id order by ingest_ts desc) as rn
-    from typed
+detail_latest as (
+    select * from (
+        select
+            json_extract_scalar(record_json, '$.mt20id') as performance_id,
+            json_extract_scalar(record_json, '$.mt10id') as facility_id,
+            row_number() over (
+                partition by json_extract_scalar(record_json, '$.mt20id')
+                order by {{ culture_dedup_order() }}
+            ) as rn
+        from {{ source('culture_bronze', 'bronze_kopis_performance_detail') }}
+        where json_extract_scalar(record_json, '$.mt10id') is not null
+    ) where rn = 1
 ),
 
-latest as (
-    select * from dedup where rn = 1
-),
-
--- 공연장명 → 자치구 매핑 (이름당 1행 보장, fan-out 방지)
-facility_gu as (
-    select
-        facility_name,
-        max(location_key) as gu,
-        max(facility_id)  as facility_id
+fac as (
+    select facility_id, facility_name, longitude, latitude, gu, gu_code, admin_dong, admin_dong_code
     from {{ ref('silver_culture_facility') }}
+),
+
+fac_by_name as (
+    select facility_name, min(facility_id) as facility_id
+    from fac
     where facility_name is not null
     group by facility_name
+),
+
+resolved as (
+    select
+        l.*,
+        coalesce(d.facility_id, n.facility_id) as facility_id,
+        case when d.facility_id is not null then 'detail_id'
+             when n.facility_id is not null then 'name' end as facility_match
+    from list_latest l
+    left join detail_latest d on d.performance_id = l.performance_id
+    left join fac_by_name n on n.facility_name = l.venue_name
 )
 
 select
-    l.performance_id,
-    l.performance_name,
-    l.genre,
-    l.venue_name,
-    f.facility_id,
-    -- 공용 location_key: 자치구(매핑 성공) 또는 공연장명(폴백)
-    coalesce(f.gu, l.venue_name)                                  as location_key,
-    case when f.gu is not null then 'gu' else 'venue_fallback' end as location_key_level,
-    l.performance_state,
-    l.area,
-    l.period_start,
-    l.period_end,
-    l.load_date,
-    l.ingest_ts
-from latest l
-left join facility_gu f
-    on l.venue_name = f.facility_name
+    r.performance_id, r.performance_name, r.genre, r.state, r.venue_name,
+    r.facility_id, r.facility_match,
+    r.event_start_date, r.event_end_date,
+    cast(r.event_start_date as timestamp(6)) as event_at,
+    f.longitude, f.latitude, f.gu, f.gu_code, f.admin_dong, f.admin_dong_code,
+    r.source_system, r.dag_run_id, r.raw_object_key, r.collected_at, r.ingested_at, r.load_date
+from resolved r
+left join fac f on f.facility_id = r.facility_id
