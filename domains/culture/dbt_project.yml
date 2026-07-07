@@ -21,3 +21,10 @@ clean-targets:
 models:
   culture:
     +materialized: table
+
+seeds:
+  culture:
+    sema_branch_location:
+      +column_types: {priority: integer, latitude: double, longitude: double}
+    sejong_location:
+      +column_types: {latitude: double, longitude: double}
