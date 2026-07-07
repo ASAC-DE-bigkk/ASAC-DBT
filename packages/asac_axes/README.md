@@ -14,6 +14,12 @@ ASAC 프로젝트 전 도메인이 공유하는 **시간축/공간축 표준**�
 `seoul_admin_dong_crosswalk` seed 는 **원천에 없는 좌표(중심 위경도)만 보조**로 left join 한다.
 즉 seed 의 역할은 (1) 좌표 보조, (2) source 부재(테이블 미적재) 환경의 폴백으로 축소됐고, 코드/명칭의 진실원천은 bronze 다.
 
+## `dim_beop_admin_link` — 법정동↔행정동 링크 (issue #51)
+
+같은 bronze source(`axes_bronze.admin_dong_master`)의 최신 revision 에서 서울 **법정동↔행정동 연계행**을 그대로 노출하는 view.
+법정동 주소 기반 도메인(commerce 인허가 등)이 `beop_dong_code` 로 이 링크를 타고 `admin_dong_code`(행안부 10자리 canonical)로 넘어와 행정동 공통축에 조인하는 다리다.
+grain 은 **(beop_dong_code, admin_dong_code) 쌍**이며 관계는 다대다(서울 최신 revision 743쌍 — 법정동 467개 중 134개가 복수 행정동에, 행정동 426개 중 91개가 복수 법정동에 걸침)라서, 법정동 하나가 행정동 하나로 결정되지 않는 경우 소비 측에서 분배 규칙(면적/균등 등)을 정해야 한다. 집계행(코드 끝 5자리 `00000`)은 dim_admin_dong 과 동일하게 제외.
+
 ## 설치 (소비 프로젝트)
 
 ```yaml

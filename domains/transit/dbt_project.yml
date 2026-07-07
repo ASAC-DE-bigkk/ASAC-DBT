@@ -1,0 +1,41 @@
+name: transit
+version: "1.0.0"
+config-version: 2
+
+profile: transit
+
+flags:
+  require_certificate_validation: true
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+
+# dim: 최신 load_date 스냅샷 차원. 주 1회 변하는 공간 조인(ST_Contains)이라
+#   view 로 두면 silver/테스트가 매 빌드마다 point-in-polygon 을 재수행한다.
+#   table 로 물화해 시간당 빌드의 반복 재계산을 제거한다.
+# silver: 시간당 수집분 incremental.
+models:
+  transit:
+    dim:
+      +materialized: table
+    silver:
+      +materialized: incremental
+
+# 지하철 실시간 arrival 의 subwayId 코드 → 역명마스터 route 라벨 crosswalk.
+# 하나의 subwayId 가 복수 route 라벨을 포괄하는 경우(1075→분당선·수인선,
+# 1077→신분당선·신분당선(연장)·(연장2)) subway_id 다행으로 매핑을 확장한다.
+# 행안부/노선 코드는 varchar 고정(선행 0/숫자 오인 방지).
+seeds:
+  transit:
+    +quote_columns: false
+    seoul_subway_line_code:
+      +column_types:
+        subway_id: varchar
+        line_name: varchar

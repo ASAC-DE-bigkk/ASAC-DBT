@@ -1,0 +1,95 @@
+version: 2
+
+# transit 브론즈 원천. ASAC-DAG transit DAG 들이 dev iceberg_dev.<user_schema> 에 적재.
+# database/schema 는 프로필(target)이 해석 → bronze·silver 동일 스키마(dev 실증 위치).
+sources:
+  - name: transit_bronze
+    description: Seoul transit Bronze Iceberg tables loaded by ASAC-DAG transit DAGs.
+    database: "{{ target.database }}"
+    schema: "{{ target.schema }}"
+    tables:
+      # --- 마스터(정적) ---
+      - name: subway_station_master
+        identifier: bronze_subway_station_master
+        description: 서울 지하철 역사 마스터(bldn_id·bldn_nm·route·lat·lot + 계보). #162 적재.
+        columns:
+          - name: bldn_id
+            description: 역사 코드(4자리) — 마스터 PK.
+            tests:
+              - not_null
+          - name: bldn_nm
+            description: 역명(일부 괄호 부기 예 '잠실(송파구청)').
+            tests:
+              - not_null
+          - name: route
+            description: 노선 라벨(예 '2호선','신분당선','7호선(인천)').
+            tests:
+              - not_null
+          - name: lat
+            description: 위도(WGS84 십진도, varchar).
+          - name: lot
+            description: 경도(WGS84 십진도, varchar).
+          - name: load_date
+            tests:
+              - not_null
+
+      - name: park_info_master
+        identifier: bronze_park_info_master
+        description: 서울 주차장 정보 마스터(pklt_cd·pklt_nm·addr·lat·lot 등 39필드 + 계보). #162 적재.
+        columns:
+          - name: pklt_cd
+            description: 주차장 코드 — 마스터 PK.
+            tests:
+              - not_null
+          - name: pklt_nm
+            tests:
+              - not_null
+          - name: addr
+            description: 주소(첫 토큰이 자치구인 경우가 많음).
+          - name: lat
+          - name: lot
+          - name: load_date
+            tests:
+              - not_null
+
+      # --- 실시간(스트리밍) ---
+      - name: subway_arrival
+        identifier: bronze_subway_arrival
+        description: >
+          지하철 실시간 도착정보. 1행 = 도착예측 1건, 페이로드는 raw(JSON) 컬럼.
+          핵심 키 statnId/ordkey/recptnDt, 노선 subwayId, 역명 statnNm.
+        columns:
+          - name: raw
+            description: 도착예측 1건 JSON 페이로드.
+            tests:
+              - not_null
+          - name: ingested_at
+            tests:
+              - not_null
+
+      - name: parking
+        identifier: bronze_parking
+        description: >
+          주차장 실시간(GetParkingInfo). 1행 = 주차장 스냅샷 1건, 페이로드는 raw(JSON).
+          키 PKLT_CD, 갱신시각 NOW_PRK_VHCL_UPDT_TM, 현재주차 NOW_PRK_VHCL_CNT.
+        columns:
+          - name: raw
+            tests:
+              - not_null
+          - name: ingested_at
+            tests:
+              - not_null
+
+      - name: bus_position
+        identifier: bronze_bus_position
+        description: >
+          버스 실시간 위치(getBusPosByRtid). 1행 = 노선 1회 호출 응답, raw 는 XML(<itemList> 다건).
+          Trino xpath 부재로 regexp_extract_all + UNNEST 로 파싱(vehId/dataTm/gpsX/gpsY).
+        columns:
+          - name: raw
+            description: ServiceResult XML(다수 itemList 포함).
+            tests:
+              - not_null
+          - name: ingested_at
+            tests:
+              - not_null
