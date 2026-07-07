@@ -10,7 +10,7 @@ commerce:
       database: "{{ env_var('TRINO_ICEBERG_CATALOG', 'iceberg') }}"
       schema: "{{ env_var('COMMERCE_SCHEMA', 'commerce') }}"
       http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
-      threads: 4
+      threads: 1
       timeout_seconds: 300
 
     dev:
@@ -22,5 +22,5 @@ commerce:
       database: "{{ env_var('TRINO_DEV_ICEBERG_CATALOG', 'iceberg_dev') }}"
       schema: "{{ env_var('COMMERCE_SCHEMA', 'commerce') }}"
       http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
-      threads: 4
+      threads: 1
       timeout_seconds: 300

@@ -53,7 +53,7 @@ sources:
       - name: ref_admin_dong
         identifier: bronze_ref_admin_dong
         description: >
-          행안부 행정동↔법정동 매핑(전국) 최신 스냅샷. commerce_localdata_transform 의
+          행안부 행정동↔법정동 매핑(전국) 최신 스냅샷. commerce_load_silver 의
           enrich_admin_dong_ref 태스크가 R2 raw/common/admin_dong 최신본으로 전량 교체 적재.
           silver 의 gu_code·legal/admin dong 상호 매핑 참조.
         loaded_at_field: loaded_at
