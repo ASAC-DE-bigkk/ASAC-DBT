@@ -1,5 +1,9 @@
 -- 인허가 변경 이력(정제된 변경로그). bronze 변경로그 → publishable run 필터 → 파싱/파생 →
 -- 연속 중복 제거(diff 재유입·reconcile 재방출 제거, 정당한 원복 A→B→A 보존).
+{{ config(pre_hook="{{ delete_unmarked_silver_history_runs() }}") }}
+
+-- materialized=incremental(append): 첫 실행/--full-refresh 는 전체 publishable run 을 백필하고,
+-- 이후 실행은 silver_load_run_marker 의 DONE marker 가 없는 bronze_run_id 만 증분 처리한다.
 -- 명시적 버전 컬럼(version_seq/valid_from/valid_to/is_current) 없음 —
 -- **(dataset, opnsfteamcode, mgtno)** 안에서 (updatedt_sort, lastmodts_sort, observed_date,
 -- collected_at, content_hash) 내림차순 정렬이 곧 버전 순서다(암묵 버저닝). current 는 최신 1행.
@@ -47,6 +51,11 @@ bronze as (
         {{ not_in_excluded("cast(b.observed_date as varchar)", 'exclude_observed_dates') }}
         {{ not_in_excluded("cast(b.load_date as varchar)", 'exclude_load_dates') }}
         {{ not_in_excluded("cast(b.bronze_run_id as varchar)", 'exclude_bronze_run_ids') }}
+        {% if is_incremental() %}
+        -- DONE marker 기반 증분: dbt test 통과 후 Airflow 가 기록한 run 만 완료로 간주한다.
+        -- target table 이 없거나 --full-refresh 이면 is_incremental() 이 false 라 전체 백필된다.
+        and {{ silver_unmarked_publishable_predicate('b') }}
+        {% endif %}
 ),
 
 parsed as (
@@ -128,7 +137,11 @@ normalized as (
 dong_token as (
     select
         *,
-        nullif(regexp_extract(coalesce(jibun_address_norm, ''), '서울(?:특별시|시)?\s*[가-힣]+?구\s*([가-힣]+\d*(?:동|가))', 1), '') as dong_raw
+        case
+            when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
+                then null
+            else nullif(regexp_extract(coalesce(jibun_address_norm, ''), '서울(?:특별시|시)?\s*[가-힣]+?구\s*([가-힣]+\d*(?:동|가))', 1), '')
+        end as dong_raw
     from normalized
 ),
 
@@ -198,7 +211,7 @@ dong as (
         coalesce(rl.legal_dong_name, ra.legal_dong_name) as legal_dong,
         coalesce(rl.legal_dong_code, ra.legal_dong_code) as legal_code,
         coalesce(ra.admin_dong_name, rl.admin_dong_name) as admin_dong,
-        coalesce(ra.admin_dong_code, rl.admin_dong_code) as admin_code
+        coalesce(ra.admin_dong_code, rl.admin_dong_code) as admin_dong_code
     from dong_token as n
     left join ref_gu as rg
         on n.gu = rg.sgg_name
@@ -345,6 +358,128 @@ keyed as (
     from geo
 ),
 
+affected_keys as (
+    select
+        distinct dataset, opnsfteamcode, mgtno
+    from keyed
+),
+
+projected_new as (
+    select
+        dataset,
+        opnsfteamcode,
+        mgtno,
+        bplcnm,
+        trdstategbn,
+        trdstatenm,
+        dtlstategbn,
+        dtlstatenm,
+        apvpermymd,
+        dcbymd,
+        sitetel,
+        road_address,
+        jibun_address,
+        jibun_address_source,
+        road_address_norm,
+        jibun_address_norm,
+        gu,
+        gu_code,
+        legal_dong,
+        legal_code,
+        admin_dong,
+        admin_dong_code,
+        address_key_road,
+        address_key_jibun,
+        source_coord_x,
+        source_coord_y,
+        latitude,
+        longitude,
+        content_hash,
+        updatedt,
+        updatedt_ts,
+        updatedt_sort,
+        lastmodts,
+        lastmodts_ts,
+        lastmodts_sort,
+        observed_date,
+        collected_at,
+        bronze_run_id,
+        dag_run_id,
+        raw_object_key,
+        load_date,
+        'new' as _silver_source
+    from keyed
+),
+
+prior_tail as (
+    {% if is_incremental() %}
+    -- 새 batch 의 첫 행이 직전 silver 행과 같은 content_hash 인지 판정하기 위한
+    -- key별 최신 1행만 붙인다. 전체 기존 history 를 재스캔하지 않는다.
+    select
+        dataset,
+        opnsfteamcode,
+        mgtno,
+        bplcnm,
+        trdstategbn,
+        trdstatenm,
+        dtlstategbn,
+        dtlstatenm,
+        apvpermymd,
+        dcbymd,
+        sitetel,
+        road_address,
+        jibun_address,
+        jibun_address_source,
+        road_address_norm,
+        jibun_address_norm,
+        gu,
+        gu_code,
+        legal_dong,
+        legal_code,
+        admin_dong,
+        admin_dong_code,
+        address_key_road,
+        address_key_jibun,
+        source_coord_x,
+        source_coord_y,
+        latitude,
+        longitude,
+        content_hash,
+        updatedt,
+        updatedt_ts,
+        updatedt_sort,
+        lastmodts,
+        lastmodts_ts,
+        lastmodts_sort,
+        observed_date,
+        collected_at,
+        bronze_run_id,
+        dag_run_id,
+        raw_object_key,
+        load_date,
+        'prior' as _silver_source
+    from (
+        select
+            h.*,
+            row_number() over (
+                partition by h.dataset, h.opnsfteamcode, h.mgtno
+                order by h.updatedt_sort desc, h.lastmodts_sort desc,
+                         h.observed_date desc, h.collected_at desc, h.content_hash desc
+            ) as rn
+        from {{ this }} as h
+        inner join affected_keys as k
+            on h.dataset = k.dataset
+            and h.opnsfteamcode = k.opnsfteamcode
+            and h.mgtno = k.mgtno
+    )
+    where rn = 1
+    {% else %}
+    select *
+    from projected_new
+    where false
+    {% endif %}
+),
+
 ordered as (
     select
         *,
@@ -352,7 +487,11 @@ ordered as (
             partition by dataset, opnsfteamcode, mgtno
             order by updatedt_sort, lastmodts_sort, observed_date, collected_at, content_hash
         ) as prev_content_hash
-    from keyed
+    from (
+        select * from prior_tail
+        union all
+        select * from projected_new
+    )
 ),
 
 -- 연속(인접) 중복만 제거 → diff 재유입/reconcile 재방출은 걸러내고 정당한 원복(A→B→A)은 보존.
@@ -360,8 +499,8 @@ ordered as (
 deduped as (
     select *
     from ordered
-    where prev_content_hash is null
-       or prev_content_hash <> content_hash
+    where _silver_source = 'new'
+      and (prev_content_hash is null or prev_content_hash <> content_hash)
 )
 
 select
@@ -386,7 +525,7 @@ select
     legal_dong,
     legal_code,
     admin_dong,
-    admin_code,
+    admin_dong_code,
     address_key_road,
     address_key_jibun,
     source_coord_x,

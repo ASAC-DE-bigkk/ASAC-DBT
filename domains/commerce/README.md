@@ -53,8 +53,8 @@ dbt test --select silver_license_history silver_license_current
 ```
 
 접속 env: `TRINO_HOST/PORT/USER/HTTP_SCHEME`, `TRINO_DEV_ICEBERG_CATALOG|TRINO_ICEBERG_CATALOG`,
-`COMMERCE_SCHEMA`(기본 commerce). 오케스트레이션: ASAC-DAG 의 `commerce_localdata_transform`
-DAG(05:00 KST, run silver → test silver). 적재형태(전량 재빌드)·특정 dataset/일자/run 단위
+`COMMERCE_SCHEMA`(기본 commerce). 오케스트레이션: ASAC-DAG 의 `commerce_load_silver`
+DAG(05:00 KST, run silver → test silver). 적재형태(marker 증분 + full-refresh 백필)·특정 dataset/일자/run 단위
 재적재·삭제 절차: [docs/rebuild-and-ops.md](docs/rebuild-and-ops.md) — 단위 삭제는
 `dbt_project.yml` 의 `vars`(`exclude_datasets`/`exclude_observed_dates`/`exclude_load_dates`/
 `exclude_bronze_run_ids`) 수정만으로 동작한다.
