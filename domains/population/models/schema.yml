@@ -47,6 +47,28 @@ sources:
           - name: dag_run_id
             description: Airflow run id (운영 추적)
 
+      - name: bronze_seoul_citydata
+        description: >
+          citydata 통합 API 원본 (#192, ASAC-DAG population_citydata_bronze 적재).
+          1행 = 장소 1곳의 블록 1개 (block_name + payload JSON) — 기본 6블록
+          allowlist(인구/상권/승하차×2/따릉이/날씨·대기질), 전 블록 원본은 R2
+          raw(.json.gz)에 보존. 같은 ingest_ts delete-then-insert 멱등.
+        loaded_at_field: collected_at
+        freshness:
+          warn_after: {count: 30, period: minute}
+          error_after: {count: 60, period: minute}
+        columns:
+          - name: block_name
+            description: 블록 식별자 (LIVE_CMRCL_STTS 등) — silver가 블록별로 골라 파싱
+            data_tests: [not_null]
+          - name: payload
+            description: ★ 블록 원본 JSON 통째
+            data_tests: [not_null]
+          - name: area_cd
+            description: 장소 코드 (POI###)
+          - name: collected_at
+            description: 수집 시각 UTC
+
 seeds:
   - name: seoul_ppltn_area_geo
     description: >
@@ -202,3 +224,98 @@ models:
         description: 붐빔/약간 붐빔 이었던 슬라이스 비율 (%)
       - name: measurement_count
         description: 그날 수집 슬라이스 수 (완결성 지표)
+
+  # ── citydata 계열 (#69, ASAC-DAG#192) ───────────────────────────────────────
+
+  - name: dim_seoul_area
+    description: >
+      서울 주요 121장소 정적 차원 — seed 좌표 + asac_axes 경계 point-in-polygon으로
+      #48 공통축(gu/admin_dong/행안부 코드)을 1회 계산. citydata silver들의 조인원.
+    columns:
+      - name: area_cd
+        description: 장소 코드 (PK)
+        data_tests: [unique, not_null]
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 (canonical)
+        data_tests:
+          - asac_axes.axis_coverage:
+              arguments:
+                min_ratio: 0.99
+
+  - name: silver_citydata_cmrcl
+    description: >
+      실시간 상권(신한카드) 요약 — grain (area_cd, event_at). event_at = CMRCL_TIME
+      파싱(KST, 실측 10분 주기). incremental(merge), 30분 lookback, 배치 내 dedup.
+    columns:
+      - name: area_cd
+        data_tests: [not_null]
+      - name: event_at
+        description: 상권 데이터 갱신 시각 (KST)
+        data_tests: [not_null]
+      - name: cmrcl_lvl
+        description: 장소 상권 활성 수준 (한산한/보통/분주한/바쁜)
+      - name: payment_count
+        description: 실시간 신한카드 결제 건수 (10분 창)
+
+  - name: silver_citydata_cmrcl_rsb
+    description: >
+      상권 업종별 상세 — grain (area_cd, event_at, 업종 대·중분류). CMRCL_RSB 배열
+      UNNEST. incremental(merge).
+    columns:
+      - name: rsb_mid_ctgr
+        description: 업종 중분류 (한식/편의점 등)
+        data_tests: [not_null]
+
+  - name: silver_citydata_transit_ppltn
+    description: >
+      지하철/버스 승하차 인원 — grain (area_cd, mode, observed_at). 원천 시각 필드가
+      없어 observed_at=collected_at(KST). 5/10/30분 창 + 당일 누적. incremental(merge).
+    columns:
+      - name: mode
+        description: subway | bus
+        data_tests: [not_null]
+      - name: observed_at
+        data_tests: [not_null]
+
+  - name: silver_citydata_sbike
+    description: >
+      따릉이 대여소 현황 — grain (area_cd, spot_id, observed_at). SBIKE_STTS 배열
+      UNNEST, 대여소 좌표 포함. incremental(merge).
+    columns:
+      - name: spot_id
+        description: 대여소 ID (ST-###)
+        data_tests: [not_null]
+
+  - name: silver_citydata_air
+    description: >
+      날씨 실황 + 대기질 — grain (area_cd, event_at=WEATHER_TIME, 실측 10분).
+      FCST24HOURS(예보)는 weather 도메인 canonical이라 제외. incremental(merge).
+    columns:
+      - name: event_at
+        data_tests: [not_null]
+      - name: pm25
+        description: 초미세먼지 농도
+      - name: pm10
+        description: 미세먼지 농도
+
+  - name: gold_citydata_place_latest
+    description: >
+      장소별 최신 크로스 신호 스냅샷 (장소당 1행) — 혼잡도(silver_seoul_ppltn) ×
+      소비 × 승하차 × 따릉이 × 대기질. 실시간 지도/현황판 마트. incremental(merge,
+      key=area_cd) — 최근 6시간 창에서 신호별 최신값을 merge, 전체 재생성 없음.
+    columns:
+      - name: area_cd
+        data_tests: [unique, not_null]
+      - name: refreshed_at
+        description: 이 행에 반영된 신호들의 최신 시각 (증분 기준점)
+        data_tests: [not_null]
+
+  - name: gold_citydata_cmrcl_daily
+    description: >
+      장소별 일 소비 인사이트 — grain (event_date, area_cd). 결제 규모·피크 시간대·
+      활성 비율·측정 완결성. incremental(merge) — 최근 2일 재집계 후 merge.
+    columns:
+      - name: event_date
+        data_tests: [not_null]
+      - name: area_cd
+        data_tests: [not_null]
