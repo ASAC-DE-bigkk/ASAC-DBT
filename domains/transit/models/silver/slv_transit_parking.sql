@@ -21,8 +21,10 @@ with bronze as (
         trim(json_extract_scalar(raw, '$.PKLT_NM')) as parking_name,
         -- event_at 도출식은 매크로 공유(#66): 감시 warn 테스트가 같은 식으로 bronze 를 재도록.
         {{ transit_parking_event_at('raw') }} as event_at,
-        try(cast(json_extract_scalar(raw, '$.NOW_PRK_VHCL_CNT') as integer)) as now_prk_vhcl_cnt,
-        try(cast(json_extract_scalar(raw, '$.TPKCT') as integer)) as total_capacity,
+        -- 원천이 소수 문자열("806.0")이라 integer 직접 캐스트는 전건 실패(#72) —
+        -- double 경유 매크로로 소수·정수 문자열 모두 수용(dim_transit_parking 과 공유).
+        {{ transit_int_from_numeric_str("json_extract_scalar(raw, '$.NOW_PRK_VHCL_CNT')") }} as now_prk_vhcl_cnt,
+        {{ transit_int_from_numeric_str("json_extract_scalar(raw, '$.TPKCT')") }} as total_capacity,
         trim(json_extract_scalar(raw, '$.PRK_STTS_NM')) as prk_stts_nm,
         cast(ts_source as varchar) as ts_source,
         cast(dag_run_id as varchar) as dag_run_id,

@@ -31,7 +31,9 @@ master as (
         cast(we_oper_bgng_tm as varchar) as we_oper_bgng_tm,
         cast(we_oper_end_tm as varchar) as we_oper_end_tm,
         cast(nght_free_opn_yn_name as varchar) as night_free_open_yn_nm,
-        try(cast(tpkct as integer)) as total_capacity,
+        -- 원천 tpkct 가 소수 문자열("1.0")이라 integer 직접 캐스트는 전건 실패(#72) —
+        -- double 경유 매크로로 소수·정수 문자열 모두 수용(slv_transit_parking 과 공유).
+        {{ transit_int_from_numeric_str('tpkct') }} as total_capacity,
         {{ asac_axes.seoul_lonlat('lot', 'lat') }},
         raw_object_key,
         source_system,
