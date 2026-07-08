@@ -10,6 +10,7 @@ transit dbt 프로젝트가 만드는 silver·dim 모델과, 소비하는 공통
 | [slv_transit_parking.md](slv_transit_parking.md) | fact (20분) | 주차장 1개의 시점 스냅샷 |
 | [slv_transit_subway_arrival.md](slv_transit_subway_arrival.md) | fact (20분) | 열차 도착예측 1건 |
 | [slv_transit_bus_position.md](slv_transit_bus_position.md) | fact (20분) | 버스 1대의 시점 위치 |
+| [gold_transit_dong_hourly.md](gold_transit_dong_hourly.md) | gold (시간) | 행정동 1개 × 1시간대 교통 상태(버스·지하철·주차) |
 | [dim_transit_station.md](dim_transit_station.md) | dim (주간) | 지하철역 1개 |
 | [dim_transit_parking.md](dim_transit_parking.md) | dim (주간) | 공영주차장 1개소 |
 | [dim_admin_dong.md](dim_admin_dong.md) | dim (공통, asac_axes) | 서울 행정동 1개 |

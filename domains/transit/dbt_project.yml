@@ -32,11 +32,14 @@ clean-targets:
 #   view 로 두면 silver/테스트가 매 빌드마다 point-in-polygon 을 재수행한다.
 #   table 로 물화해 시간당 빌드의 반복 재계산을 제거한다.
 # silver: 시간당 수집분 incremental.
+# gold: silver 를 동×시간 버킷으로 재집계하는 마트도 incremental(merge, -3h lookback #67).
 models:
   transit:
     dim:
       +materialized: table
     silver:
+      +materialized: incremental
+    gold:
       +materialized: incremental
 
 # 지하철 실시간 arrival 의 subwayId 코드 → 역명마스터 route 라벨 crosswalk.
