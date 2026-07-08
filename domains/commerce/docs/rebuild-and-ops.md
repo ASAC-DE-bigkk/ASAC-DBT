@@ -1,7 +1,7 @@
-# 적재형태·재빌드 정책 + 단위 재적재/삭제 운영 가이드
+# 적재형태·증분/백필 정책 + 단위 재적재/삭제 운영 가이드
 
 silver 의 **적재형태(materialization) 정책**과, **특정 일자·특정 인허가 API(dataset)·특정 run
-단위의 재적재/삭제**를 설정 파일 변경만으로 수행하는 절차를 정의한다. (관리 문서 — 운영자는
+단위의 증분/백필/삭제**를 수행하는 절차를 정의한다. (관리 문서 — 운영자는
 이 문서만 보면 된다.)
 
 ---
@@ -10,23 +10,34 @@ silver 의 **적재형태(materialization) 정책**과, **특정 일자·특정 
 
 | 항목 | 정책 |
 |---|---|
-| materialization | 전 모델 `table` — **매 실행 bronze 전체에서 전량 재빌드** ([dbt_project.yml](../dbt_project.yml) `+materialized: table`) |
-| 원칙 | **silver/gold 는 bronze 의 순수 함수** — 상태를 갖지 않고, 같은 bronze + 같은 설정이면 항상 같은 결과 |
-| 멱등성 | 재실행·재시도 안전. 실패하면 그냥 다시 `dbt run` |
-| incremental 미채택 사유 | ① 입력이 변경로그라 소형 ② 암묵 버저닝의 정렬·인접 dedup 은 키별 전체 이력이 필요 ③ R2 Data Catalog 의 incremental 이슈(ASAC-DAG 계획서 §2.2) |
-| 재검토 트리거 | 일일 재빌드 소요가 실측으로 문제 될 때(수십 분대) → 변경 키만 재계산하는 key-scoped 증분 검토. bronze 성장의 지배 요인인 **분기 full_reconcile 재유입 정책**을 먼저 결정할 것 |
+| `silver_license_history` | `incremental` + `append`. 첫 실행/`--full-refresh` 는 publishable bronze 전체를 백필하고, 이후 실행은 이 테이블에 아직 없는 `bronze_run_id` 만 읽는다. |
+| `silver_license_current` | `table`. history 를 기준으로 현재 1행을 재계산한다. bronze 전체를 다시 파싱하지 않는다. |
+| 증분 marker | `silver_load_run_marker` 의 `(dataset, bronze_run_id, status='DONE')` — dbt test 통과 후 Airflow 가 기록한다. |
+| marker 없음 | marker table/target table 이 없거나 `--full-refresh` 를 주면 `is_incremental()` 이 false → 해당 경로의 publishable bronze 전체 백필. |
+| 멱등성 | DONE marker 가 없는 후보 run 은 pre-hook 으로 history 에서 선삭제 후 재삽입한다. dbt test 통과 전에는 DONE 이 찍히지 않아 재시도 가능하다. |
+| 리소스 정책 | Airflow 태스크는 직렬, dbt profile `threads: 1`. full-refresh/backfill 도 Trino/Iceberg 쿼리로 처리하고 Airflow/Python 에 전체 데이터를 올리지 않는다. |
 
 이 원칙의 귀결: **"재적재"는 layer 마다 의미가 다르다.**
 
-- **silver 재적재** = `dbt run` 한 번(항상 전량). 별도 단위 개념이 없다 — 단위 제어는 아래
-  §2(입력 = bronze 쪽)와 §3(제외 = vars)이 담당한다.
+- **silver 증분 반영** = `dbt run` 한 번. `silver_load_run_marker` 에 DONE 이 있는 run 은 건너뛰고 신규 run 만 처리한다.
+- **silver 전체 백필** = `dbt run --full-refresh --select silver_license_history+`. 기존 marker/table 을
+  버리고 publishable bronze 전체로 다시 만든다.
 - **bronze 재적재** = ASAC-DAG `commerce_load_bronze` 의 몫(워터마크 상태 파일로 단위 제어).
+
+공식 문서 근거:
+- dbt incremental 모델은 첫 실행에 전체를 만들고 이후 `is_incremental()` 조건으로 필터링한 행만
+  처리한다: https://docs.getdbt.com/docs/build/incremental-models
+- dbt-trino 의 기본 incremental strategy 는 `append` 이며, `delete+insert`/`merge` 는 connector
+  지원과 unique key 조건을 탄다: https://docs.getdbt.com/reference/resource-configs/trino-configs
+- dbt `threads: 1` 은 한 번에 한 모델 경로만 실행해 warehouse 부하를 낮춘다:
+  https://docs.getdbt.com/docs/running-a-dbt-project/using-threads
 
 ## 2. 단위 재적재 (특정 dataset / 특정 시점 이후) — bronze 상태 파일 수정
 
 bronze 적재 상태는 R2 의 파일로만 관리된다(RDB 없음): `{prefix}/commerce_bronze_state/_watermark.json`
 = `{ "<dataset short>": "<마지막 적재 run_id>" }`. **파일 수정 → `commerce_load_bronze` 실행 →
-`dbt run`** 순서면 끝난다 (적재는 (dataset, run_id) 단위 delete-then-insert 멱등이라 중복이 생기지 않는다).
+`dbt run`** 순서면 끝난다. bronze 적재는 (dataset, run_id) 단위 delete-then-insert 멱등이고,
+silver 는 아직 반영되지 않은 `bronze_run_id` 만 추가한다.
 
 | 원하는 것 | `_watermark.json` 수정 | 다음 실행의 동작 |
 |---|---|---|
@@ -39,17 +50,20 @@ bronze 적재 상태는 R2 의 파일로만 관리된다(RDB 없음): `{prefix}/
 # 1) _watermark.json 에서 "general_restaurant" 항목 제거 후 업로드
 # 2) 적재 → 변환
 docker compose exec airflow-scheduler airflow dags trigger commerce_load_bronze
-docker compose exec airflow-scheduler airflow dags trigger commerce_localdata_transform
+docker compose exec airflow-scheduler airflow dags trigger commerce_load_silver
 ```
 
 - run_id 목록은 raw 폴더(`{prefix}/raw/commerce/YYYY/MM/DD/run_id=*`) 또는
   receipt(`{prefix}/commerce_bronze_state/receipts/<date>/`)에서 확인한다.
-- silver 는 전량 재빌드라 **bronze 가 바뀌면 자동 반영** — silver 쪽 추가 조치 없음.
+- silver history 가 이미 동일 `bronze_run_id` 를 반영한 상태에서 bronze 내용을 강제로 교체했다면
+  DONE marker 가 있으면 다시 읽지 않는다. 이 경우 `dbt run --full-refresh --select silver_license_history+`
+  로 해당 환경의 silver marker 를 재생성한다.
 
 ## 3. 단위 삭제 (특정 dataset / 일자 / run 을 silver 에서 제외) — dbt vars 수정
 
-[dbt_project.yml](../dbt_project.yml) 의 `vars` 목록에 넣고 `dbt run` 하면 전량 재빌드에서
-해당 단위가 빠진다. **복원 = 목록에서 제거 후 다시 `dbt run`** — bronze 는 불변이므로
+[dbt_project.yml](../dbt_project.yml) 의 `vars` 목록에 넣고 `dbt run --full-refresh --select
+silver_license_history+` 하면 백필 입력에서 해당 단위가 빠진다. **복원 = 목록에서 제거 후 다시
+full-refresh** — bronze 는 불변이므로
 삭제는 "silver 노출 제외"이고 원본·감사 이력은 항상 bronze 에 남는다.
 
 | var | 단위 | 예 |
@@ -64,9 +78,9 @@ bronze CTE 의 `where` 절(매크로 [macros/exclusions.sql](../macros/exclusion
 current·(후속) gold 는 history 를 참조하므로 자동 전파된다.
 
 ```bash
-# 영구 반영: dbt_project.yml vars 수정 → 커밋 → dbt run
+# 영구 반영: dbt_project.yml vars 수정 → 커밋 → full-refresh 백필
 # 일회성 확인(파일 수정 없이): --vars 오버라이드
-dbt run  --select silver_license_history silver_license_current \
+dbt run --full-refresh --select silver_license_history+ \
   --vars '{exclude_bronze_run_ids: ["2026-07-01_040000_123"]}'
 dbt test --select silver_license_history silver_license_current
 ```
@@ -77,15 +91,15 @@ dbt test --select silver_license_history silver_license_current
 
 ## 4. 오케스트레이션
 
-`commerce_localdata_transform` DAG(ASAC-DAG 번들, 05:00 KST — bronze 적재 04:00 이후):
-`dbt run --select silver_*` → `dbt test --select silver_*`. DAG 는 상태가 없으므로(§1)
-수동 재실행이 언제나 안전하다. gold 는 Step 9 구현 시 태스크 2개가 뒤에 추가된다.
+`commerce_load_silver` DAG(ASAC-DAG 번들, 05:00 KST — bronze 적재 04:00 이후):
+`ensure_silver_marker` → `dbt run --select silver_*` → `dbt test --select silver_*` →
+`mark_silver_done`. DAG 는 DONE marker 가 없는 신규 `bronze_run_id` 만 처리한다.
+gold 는 Step 9 구현 시 태스크 2개가 뒤에 추가된다.
 
 ## 5. 운영 노트
 
-- **Iceberg 스냅샷 누적**: 전량 재빌드는 실행마다 새 스냅샷을 만든다. R2 Data Catalog 의
-  스냅샷 만료/컴팩션 적용 여부를 확인하고, 미적용이면 분기 운영 캘린더(full_reconcile)에
-  `expire_snapshots` 성 유지보수를 함께 등록할 것.
+- **Iceberg 스냅샷 누적**: incremental append 와 full-refresh 모두 스냅샷을 만든다. R2 Data Catalog 의
+  스냅샷 만료/컴팩션 적용 여부를 확인하고, 미적용이면 분기 운영 캘린더에 유지보수를 등록할 것.
 - **vars 변경은 커밋으로 남긴다**: 제외 목록이 곧 "현재 silver 의 정의"다. 일회성 `--vars` 는
   확인용으로만 쓰고, 유지할 결정은 dbt_project.yml 에 반영해 이력을 남긴다.
 - **검증 루틴**: 어떤 단위 조작 후에도 `dbt test` 4종(행 유니크·발행 게이트·인접 중복)이

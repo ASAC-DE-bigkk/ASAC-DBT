@@ -14,6 +14,12 @@ ASAC 프로젝트 전 도메인이 공유하는 **시간축/공간축 표준**�
 `seoul_admin_dong_crosswalk` seed 는 **원천에 없는 좌표(중심 위경도)만 보조**로 left join 한다.
 즉 seed 의 역할은 (1) 좌표 보조, (2) source 부재(테이블 미적재) 환경의 폴백으로 축소됐고, 코드/명칭의 진실원천은 bronze 다.
 
+## `dim_beop_admin_link` — 법정동↔행정동 링크 (issue #51)
+
+같은 bronze source(`axes_bronze.admin_dong_master`)의 최신 revision 에서 서울 **법정동↔행정동 연계행**을 그대로 노출하는 view.
+법정동 주소 기반 도메인(commerce 인허가 등)이 `beop_dong_code` 로 이 링크를 타고 `admin_dong_code`(행안부 10자리 canonical)로 넘어와 행정동 공통축에 조인하는 다리다.
+grain 은 **(beop_dong_code, admin_dong_code) 쌍**이며 관계는 다대다(서울 최신 revision 743쌍 — 법정동 467개 중 134개가 복수 행정동에, 행정동 426개 중 91개가 복수 법정동에 걸침)라서, 법정동 하나가 행정동 하나로 결정되지 않는 경우 소비 측에서 분배 규칙(면적/균등 등)을 정해야 한다. 집계행(코드 끝 5자리 `00000`)은 dim_admin_dong 과 동일하게 제외.
+
 ## 설치 (소비 프로젝트)
 
 ```yaml
@@ -64,6 +70,7 @@ from {{ source('bronze', 'foo') }}
 | --- | --- |
 | `seoul_lonlat(lon_raw, lat_raw)` | 이미 WGS84 십진도인 좌표 정규화 (culture 매크로 승격) |
 | `tm_to_wgs84(x_col, y_col)` | 중부원점 TM 좌표 → WGS84 근사 역변환 |
+| `tm_to_wgs84_relation(relation, x_col, y_col)` | 동일 수식의 레이어드 변형 — FROM 블록 생성 (표현식 인라인 폭발 회피, 아래 주의 참조) |
 | `admin_dong_contains(wkt, lon, lat)` | 행정동 point-in-polygon 술어 (`ST_Contains`) |
 
 ```sql
@@ -78,6 +85,14 @@ from {{ source('bronze', 'commerce') }}
 
 중부원점 TM(EPSG:5186 계열, 중앙자오선 127°·원점위도 38°·k0 1.0·false E/N 200000/500000·GRS80)의
 **역 Transverse Mercator 급수 전개**를 SQL 수식으로 구현. 상수는 `scripts/build_crosswalk.py`와 동일 GRS80 파라미터로 사전 계산.
+
+**복잡한 모델(CTE 다단 참조·incremental merge)에서는 `tm_to_wgs84_relation`을 사용한다.**
+인라인 버전은 중간항(mu, fp, W, N1, R1, D…)이 Jinja 문자열 치환으로 중첩 전개돼 컴파일
+표현식이 지수적으로 커진다(traffic silver 기준 73KB). Trino 는 프로젝션 하나를 단일
+메서드로 코드젠하므로 `QUERY_EXCEEDED_COMPILER_LIMIT`로 실패할 수 있다(2026-07-07
+traffic 장애). relation 변형은 중간항을 서브쿼리 레이어 컬럼으로 **한 번씩만** 계산해
+같은 수식을 선형 크기(~10KB)로 유지한다. 출력 = `relation.*` + `longitude`/`latitude`
++ `__tm_*` 스크래치 컬럼(최종 select 에서 명시 컬럼만 뽑으면 노출되지 않음).
 
 > **근사 변환 — 수 m~수십 m 오차. 정밀 측지 용도가 아니라 행정동 할당 용도.**
 > 서울 범위에서 위경도 0.001°(~100m) 이내를 목표로 하며, 실측 검증 결과 서울시청 역산은 실제값과 lon ~57m·lat ~15m 차이(0.001° 이내)다.

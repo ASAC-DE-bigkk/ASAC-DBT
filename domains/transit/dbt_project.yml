@@ -1,0 +1,55 @@
+name: transit
+version: "1.0.0"
+config-version: 2
+
+profile: transit
+
+flags:
+  require_certificate_validation: true
+
+# transit silver 신선도(상한) 게이트 임계 (#66). event_at(KST 벽시계) > utc_to_kst(ingested_at)+스큐
+# 인 미래 행을 silver 에서 차단한다. 한 곳에서만 정의해 모델 3종·감시 테스트가 공유(리터럴 중복 금지).
+vars:
+  # 상한 허용 오차(분): 수집 파이프 클럭 스큐 감안. macros/freshness.sql 참조.
+  transit_freshness_skew_minutes: 10
+  # bronze 원천의 미래 event_at 비율이 이 값을 넘으면 감시 warn 테스트가 경고(조용한 대량 드랍 방지).
+  transit_freshness_warn_ratio: 0.05
+  # 감시 warn 테스트의 관측 윈도(시간, ingested_at 기준). 전 이력 비율은 이력이 쌓일수록
+  # 급성 이상(예: 원천 시계 붕괴로 당일 100% 미래)을 임계 아래로 희석하므로 최근 윈도로만 잰다.
+  transit_freshness_monitor_hours: 24
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+
+# dim: 최신 load_date 스냅샷 차원. 주 1회 변하는 공간 조인(ST_Contains)이라
+#   view 로 두면 silver/테스트가 매 빌드마다 point-in-polygon 을 재수행한다.
+#   table 로 물화해 시간당 빌드의 반복 재계산을 제거한다.
+# silver: 시간당 수집분 incremental.
+# gold: silver 를 동×시간 버킷으로 재집계하는 마트도 incremental(merge, -3h lookback #67).
+models:
+  transit:
+    dim:
+      +materialized: table
+    silver:
+      +materialized: incremental
+    gold:
+      +materialized: incremental
+
+# 지하철 실시간 arrival 의 subwayId 코드 → 역명마스터 route 라벨 crosswalk.
+# 하나의 subwayId 가 복수 route 라벨을 포괄하는 경우(1075→분당선·수인선,
+# 1077→신분당선·신분당선(연장)·(연장2)) subway_id 다행으로 매핑을 확장한다.
+# 행안부/노선 코드는 varchar 고정(선행 0/숫자 오인 방지).
+seeds:
+  transit:
+    +quote_columns: false
+    seoul_subway_line_code:
+      +column_types:
+        subway_id: varchar
+        line_name: varchar

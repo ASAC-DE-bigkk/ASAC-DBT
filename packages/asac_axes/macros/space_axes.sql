@@ -79,6 +79,87 @@
 {% endmacro %}
 
 {#
+  tm_to_wgs84_relation — tm_to_wgs84 와 같은 수식/상수의 **레이어드 변형** (2026-07-07 traffic 장애 대응).
+
+  tm_to_wgs84 는 중간항(mu, fp, sin/cos/tan, W, N1, R1, T1, C1, D)을 Jinja 문자열 치환으로
+  중첩 전개하기 때문에 컴파일된 표현식이 지수적으로 커진다(traffic silver 기준 컴파일 SQL 73KB).
+  Trino 는 프로젝션 하나를 단일 메서드로 코드젠하므로 이 크기에서
+  QUERY_EXCEEDED_COMPILER_LIMIT 로 실패한다. 이 매크로는 각 중간항을 서브쿼리 레이어의
+  컬럼(심볼)으로 **한 번씩만** 계산한다 — Trino 옵티마이저는 복수 참조되는 비자명 심볼을
+  재인라인하지 않으므로 표현식 크기가 선형으로 유지된다.
+
+  계약: `select`(FROM 절 전체) 블록을 돌려준다. 출력 = `{{ relation }}.*`
+  + `longitude`/`latitude`(서울범위 가드·NULL 전파는 tm_to_wgs84 와 동일)
+  + `__tm_*` 스크래치 컬럼(중간항 — 최종 select 에서 명시 컬럼만 뽑으면 노출되지 않음).
+
+      located as (
+          {{ asac_axes.tm_to_wgs84_relation('standardized', 'grs80tm_x', 'grs80tm_y') }}
+      )
+#}
+{% macro tm_to_wgs84_relation(relation, x_col, y_col) %}
+select
+    t8.*,
+    case when t8.__tm_lon_deg between 126.6 and 127.3 then t8.__tm_lon_deg end as longitude,
+    case when t8.__tm_lat_deg between 37.3 and 37.75 then t8.__tm_lat_deg end as latitude
+from (
+    select
+        t7.*,
+        degrees(2.2165681500327987 + (
+            __tm_d
+            - (1 + 2*__tm_t1 + __tm_c1)*power(__tm_d, 3)/6
+            + (5 - 2*__tm_c1 + 28*__tm_t1 - 3*__tm_c1*__tm_c1 + 8*0.0067394967754789573 + 24*__tm_t1*__tm_t1)*power(__tm_d, 5)/120
+        )/__tm_cosfp) as __tm_lon_deg,
+        degrees(__tm_fp - (__tm_n1*__tm_tanfp/__tm_r1)*(
+            power(__tm_d, 2)/2
+            - (5 + 3*__tm_t1 + 10*__tm_c1 - 4*__tm_c1*__tm_c1 - 9*0.0067394967754789573)*power(__tm_d, 4)/24
+            + (61 + 90*__tm_t1 + 298*__tm_c1 + 45*__tm_t1*__tm_t1 - 252*0.0067394967754789573 - 3*__tm_c1*__tm_c1)*power(__tm_d, 6)/720
+        )) as __tm_lat_deg
+    from (
+        select t6.*, (__tm_x / __tm_n1) as __tm_d
+        from (
+            select
+                t5.*,
+                (6378137.0 / sqrt(__tm_w)) as __tm_n1,
+                (6378137.0*(1 - 0.0066943800229007869) / power(__tm_w, 1.5)) as __tm_r1
+            from (
+                select
+                    t4.*,
+                    (1 - 0.0066943800229007869*__tm_sinfp*__tm_sinfp) as __tm_w,
+                    (__tm_tanfp*__tm_tanfp) as __tm_t1,
+                    (0.0067394967754789573*__tm_cosfp*__tm_cosfp) as __tm_c1
+                from (
+                    select
+                        t3.*,
+                        sin(__tm_fp) as __tm_sinfp,
+                        cos(__tm_fp) as __tm_cosfp,
+                        tan(__tm_fp) as __tm_tanfp
+                    from (
+                        select
+                            t2.*,
+                            (__tm_mu
+                             + 0.0025188265967581876*sin(2*__tm_mu)
+                             + 3.7009490719640127e-06*sin(4*__tm_mu)
+                             + 7.4478138772111321e-09*sin(6*__tm_mu)
+                             + 1.7035993573185927e-11*sin(8*__tm_mu)) as __tm_fp
+                        from (
+                            select t1.*, ((4207498.0191503242 + __tm_y) / 6367449.1459084488) as __tm_mu
+                            from (
+                                select
+                                    base.*,
+                                    (try(cast({{ x_col }} as double)) - 200000.0) as __tm_x,
+                                    (try(cast({{ y_col }} as double)) - 500000.0) as __tm_y
+                                from {{ relation }} as base
+                            ) as t1
+                        ) as t2
+                    ) as t3
+                ) as t4
+            ) as t5
+        ) as t6
+    ) as t7
+) as t8
+{% endmacro %}
+
+{#
   admin_dong_contains — 행정동 경계 seed 와의 point-in-polygon 술어 한 조각.
   seoul_admin_dong_boundary seed 의 boundary_wkt 컬럼과 좌표를 받아
   ST_Contains(polygon, point) 불리언을 돌려준다. 조인 ON 절/서브쿼리에서 사용.

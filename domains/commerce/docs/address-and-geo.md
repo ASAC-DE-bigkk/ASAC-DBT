@@ -3,8 +3,8 @@
 silver 가 주소를 어떻게 보강·분해하고(지번 채움, 구/동 코드), 원천 X/Y 를 어떻게
 WGS84 위경도로 변환하는지 정리한다. (조사·실측 근거: 2026-07-06, bronze 134만 행 실데이터.)
 
-파이프라인 배선: ASAC-DAG `commerce_localdata_transform` —
-`[enrich_admin_dong_ref, enrich_fill_jibun] → dbt run → dbt test`.
+파이프라인 배선: ASAC-DAG `commerce_load_silver` —
+`[enrich_admin_dong_ref, enrich_fill_jibun, ensure_silver_marker] → dbt run → notify_masked_address_summary → dbt test → mark_silver_done`.
 보강 코드: `dags/domains/commerce/include/silver/{juso.py, enrich_tasks.py}`.
 
 ---
@@ -51,6 +51,8 @@ WGS84 위경도로 변환하는지 정리한다. (조사·실측 근거: 2026-07
 **서울만 적재** ~730행 — Iceberg INSERT 커밋 비용, `ADMIN_DONG_SIDO_FILTER` 로 조정)를
 `raw/common/admin_dong/load_date=*/ingest_ts=*`(R2, 공용 수집물) 최신본으로 **전량 교체**
 적재(enrich_admin_dong_ref). 코드는 문자열로 고정(자릿수 보존), `sgg_code` = 법정동코드 앞 5자리.
+행정동코드와 법정동코드의 앞 5자리(시군구 코드)가 다르면 `admin_dong_sgg_prefix_mismatch`
+이벤트를 **error** 레벨로 남기고 알림 인터페이스(`COMMERCE_NOTIFY_WEBHOOK_URL`)로 전달한다.
 
 | 컬럼 | 파생 규칙 |
 |---|---|
@@ -64,15 +66,22 @@ WGS84 위경도로 변환하는지 정리한다. (조사·실측 근거: 2026-07
 (구로구구로동 같은 결합형에서 첫 '구'까지만), 동은 `[가-힣]+\d*(?:동|가)` 로 **번지 앞에서 정지**
 (공덕2동461 → 공덕2동)한다. 비서울(경기도 등)·마스킹 주소(`당산동*가`)는 매치 안 됨 → null(정상).
 | `legal_dong/legal_code` | 동 토큰이 (구, 법정동명)에 매치(**우선**) → 그 코드. 매치가 행정동뿐이면 행정동→법정동 매핑으로 보완 |
-| `admin_dong/admin_code` | 동 토큰이 행정동명에만 매치하면 그 코드. 법정동으로 확정된 행은 법정동→행정동 매핑으로 보완 |
+| `admin_dong/admin_dong_code` | 동 토큰이 행정동명에만 매치하면 그 코드. 법정동으로 확정된 행은 법정동→행정동 매핑으로 보완 |
+
+**마스킹 주소 예외**: `road_address` 또는 `jibun_address` 에 `*` 가 포함된 행은 원천 주소가
+마스킹된 것으로 보고 silver에서 동 토큰 추출과 법정동/행정동 매핑을 수행하지 않는다. `gu/gu_code`
+수준 파싱은 유지할 수 있지만, `legal_dong/legal_code/admin_dong/admin_dong_code` 는 null 로 둔다.
+`commerce_load_silver.notify_masked_address_summary` 는 이 조건의 발생 건수, 정산건수(점검 대상
+전체 건수), 전체 대비 비율을 `warning` 레벨로 로그와 알림 인터페이스에 전달한다.
 
 **다대다 주의(정직한 한계)**: 법정동 1개가 행정동 여러 개에 걸치고(예: 역삼동 → 역삼1·2동)
 행정동 1개가 법정동 여러 개를 관할한다(예: 종로1.2.3.4가동). 번지 없이 정확한 배정은 불가 —
 **결정적 근사**로 채운다: 숫자·구분점(`[0-9·.]`) 제거한 행정동명이 법정동명과 같은 것 우선,
 동률이면 코드 오름차순. 정밀 배정이 필요해지면 Step 8(geocode, 번지 단위)에서 재산출한다.
 
-**법정동 폐지/개편 대응**: 참조 테이블이 매 실행 최신 스냅샷으로 교체되고 silver 는 전량
-재빌드(순수 함수)이므로, 개편은 **재빌드로 소급 반영**된다. 원천 주소 문자열 자체의 갱신은
+**법정동 폐지/개편 대응**: 참조 테이블이 매 실행 최신 스냅샷으로 교체된다. 참조 로직 변경이나
+과거 행 재해석이 필요하면 `dbt run --full-refresh --select silver_license_history+` 로 전체 백필해
+소급 반영한다. 원천 주소 문자열 자체의 갱신은
 지자체가 인허가 시스템을 고칠 때 U 증분으로 유입된다(2026-07-06 실증 — as-is→to-be 추적 가능).
 
 ---

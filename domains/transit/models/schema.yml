@@ -1,0 +1,227 @@
+version: 2
+
+models:
+  # ---------------- 차원 ----------------
+  - name: dim_transit_station
+    description: >
+      지하철 역사 차원(최신 load_date). PK station_id(bldn_id). 실시간 arrival 조인용
+      정규화 컬럼 station_name_join(괄호 제거) + route 노출. 공간축 부착.
+    columns:
+      - name: station_id
+        description: 역사 코드(bldn_id) — PK.
+        tests:
+          - not_null
+          - unique
+      - name: station_name
+        tests:
+          - not_null
+      - name: route
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        description: >
+          행안부 10자리. 마스터 784역 중 서울 행정경계 내 ~400역만 할당됨(coverage≈0.51).
+          나머지는 bbox(느슨한 사각형) 안이나 경기·인천(철산·부천·부평·별내 등) 소속이라 NULL.
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.50}
+      - name: gu_code
+        description: 행안부 5자리(자치구).
+
+  - name: dim_transit_parking
+    description: >
+      주차장 차원(최신 load_date). PK parking_id(pklt_cd). 공간축 부착 + addr_gu(주소 자치구 토큰)
+      + 운영 컬럼(평일/주말 운영시간, 유·무료, 야간개방 — "운영시간 내 점유율" 분석 재료).
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+          - unique
+      - name: parking_name
+        tests:
+          - not_null
+      - name: wd_oper_bgng_tm
+        description: 평일 운영 시작시각(HHMM 문자열 그대로, '0000/0000'=미상 존재).
+      - name: wd_oper_end_tm
+        description: 평일 운영 종료시각(HHMM, '2400' 표기·자정 넘김 '0100' 존재).
+      - name: we_oper_bgng_tm
+        description: 주말 운영 시작시각(HHMM).
+      - name: we_oper_end_tm
+        description: 주말 운영 종료시각(HHMM).
+      - name: night_free_open_yn_nm
+        description: 야간 무료 개방 여부 명칭(원천 nght_free_opn_yn_name, 예 '야간 미개방').
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        description: >
+          좌표 0.0(미상) 주차장이 다수라 커버리지 제한. 마스터 850개 lot 중 유효좌표
+          118개만 행정동 할당(coverage≈0.14). 실시간에 실제 쓰이는 lot 은 대부분 유효좌표라
+          slv_transit_parking 에서는 커버리지 0.96.
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.12}
+
+  # ---------------- 실버 ----------------
+  - name: slv_transit_parking
+    description: >
+      주차장 실시간 정제. grain (parking_id, event_at). event_at=NOW_PRK_VHCL_UPDT_TM KST.
+      공간축은 dim_transit_parking 조인.
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+      - name: event_at
+        description: 도메인 대표시각(주차 현황 갱신, KST).
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        description: dim_transit_parking 조인. 실시간 lot 은 대부분 유효좌표(coverage≈0.96).
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.90}
+
+  - name: slv_transit_subway_arrival
+    description: >
+      지하철 도착정보 정제. grain (statn_id, ordkey, recptn_dt). event_at=recptnDt KST.
+      공간축은 dim_transit_station 조인('역명+노선', subwayId→route seed 변환).
+    columns:
+      - name: statn_id
+        tests:
+          - not_null
+      - name: event_at
+        description: 도메인 대표시각(도착정보 수신, KST).
+        tests:
+          - not_null
+      - name: route
+        description: seoul_subway_line_code seed 로 subwayId 에서 변환한 노선 라벨.
+      - name: is_last_train
+        description: >
+          막차 여부(원천 lstcarAt 0/1 → int). '_at' 접미사는 공통축 계약상 KST timestamp
+          전용이라 여부형 이름으로 명명.
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
+      - name: terminal_statn_nm
+        description: 종착(행선지) 역명(원천 bstatnNm).
+      - name: transfer_line_cnt
+        description: 해당 역 환승 노선 수(원천 trnsitCo, int).
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.90}
+
+  - name: slv_transit_bus_position
+    description: >
+      버스 실시간 위치 정제(XML regexp+UNNEST 파싱). grain (veh_id, data_tm).
+      event_at=dataTm KST. gpsX/gpsY→경위도 직접 + 행정동 런타임 할당.
+    columns:
+      - name: veh_id
+        tests:
+          - not_null
+      - name: event_at
+        description: 도메인 대표시각(버스 위치 관측, KST).
+        tests:
+          - not_null
+      - name: stop_flag
+        description: 정차 여부(원천 stopFlag 0/1 → int, 1=정류소 정차 중).
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
+      - name: is_full
+        description: 만차 여부(원천 isFullFlag 0/1 → int).
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
+      - name: is_last_bus
+        description: 막차 여부(원천 islastyn 0/1 → int).
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
+      - name: rt_dist_km
+        description: 노선 누적 진행거리 km(원천 rtDist, 실증 39.65~62.2 → 노선 왕복 수십 km 스케일).
+      - name: full_sect_dist_km
+        description: 현재 구간 전체거리 km(원천 fullSectDist, 실증 0.095~3.584 → 정류장 간 수백 m 스케일).
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.90}
+
+  # ---------------- 골드 ----------------
+  - name: gold_transit_dong_hourly
+    description: >
+      동×시간대 교통 상태판(#67). grain (admin_dong_code, hour_at). hour_at=date_trunc('hour',
+      event_at) KST. silver 3종(버스·지하철·주차)을 동·시간으로 집계해 한 행에 나란히(3원 outer 결합
+      — 한 소스만 있는 조합도 행 생성). 지하철은 역 3곳(4개 동)에만 존재해 대부분 행에서 subway_* null.
+      정화된 silver(#66)만 소비하므로 추가 시간 필터 없음. incremental merge(-3h lookback).
+      주의: 상류 결손으로 parking_occupancy_avg/parking_full_lot_cnt 현재 전건 null/0(모델 헤더 주석).
+    columns:
+      - name: admin_dong_code
+        description: 행안부 10자리 행정동 코드(공간축, 그레인 축). null 행은 소스에서 제외.
+        tests:
+          - not_null
+      - name: hour_at
+        description: 시간 버킷(KST 벽시계, date_trunc('hour', event_at)). 그레인 축.
+        tests:
+          - not_null
+      - name: bus_obs_cnt
+        description: 버스 관측 행수(동×시간).
+      - name: bus_veh_cnt
+        description: distinct 차량 수(veh_id).
+      - name: bus_congestion_avg
+        description: 혼잡도 평균(원천 congestion, 0='정보없음' 제외. 값역 3~5).
+      - name: bus_full_ratio
+        description: 만차 비율(is_full 평균, 0~1).
+      - name: bus_stop_ratio
+        description: 정차 비율(stop_flag 평균, 0~1).
+      - name: subway_arrival_cnt
+        description: 지하철 도착정보 관측 행수.
+      - name: subway_wait_avg_s
+        description: 접근 중 열차 평균 잔여 도착시간(초). barvl_dt_sec=0(도착/진입) 제외.
+      - name: subway_last_train_cnt
+        description: 막차 관측 합(is_last_train 합).
+      - name: parking_lot_cnt
+        description: 관측 주차 개소 수(동×시간 distinct lot).
+      - name: parking_occupancy_avg
+        description: >
+          평균 점유율(개소별 평균 점유율의 평균, 개소 동등가중). 현재 상류 silver 의
+          now_prk_vhcl_cnt·total_capacity 결손으로 전건 null — silver 캐스트 수정 시 채워짐.
+      - name: parking_full_lot_cnt
+        description: 만차 개소 수(개소별 시간 내 최대 점유율 >= 0.95). 상류 결손으로 현재 0.

@@ -33,10 +33,26 @@ select
     jibun_address_norm,
     gu,
     gu_code,
-    legal_dong,
-    legal_code,
-    admin_dong,
-    admin_code,
+    case
+        when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
+            then null
+        else legal_dong
+    end as legal_dong,
+    case
+        when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
+            then null
+        else legal_code
+    end as legal_code,
+    case
+        when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
+            then null
+        else admin_dong
+    end as admin_dong,
+    case
+        when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
+            then null
+        else admin_dong_code
+    end as admin_dong_code,
     address_key_road,
     address_key_jibun,
     source_coord_x,

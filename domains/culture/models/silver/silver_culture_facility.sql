@@ -29,10 +29,11 @@ list_latest as (
 
 detail_bronze as (
     select
-        json_extract_scalar(record_json, '$.mt10id') as facility_id,
-        json_extract_scalar(record_json, '$.adres')  as address_raw,
-        json_extract_scalar(record_json, '$.la')     as lat_raw,   -- la = 위도
-        json_extract_scalar(record_json, '$.lo')     as lon_raw,   -- lo = 경도
+        json_extract_scalar(record_json, '$.mt10id')    as facility_id,
+        json_extract_scalar(record_json, '$.adres')     as address_raw,
+        json_extract_scalar(record_json, '$.la')        as lat_raw,   -- la = 위도
+        json_extract_scalar(record_json, '$.lo')        as lon_raw,   -- lo = 경도
+        json_extract_scalar(record_json, '$.seatscale') as seat_raw,  -- 총 좌석수(0 = 미상)
         ingest_ts, load_date, raw_object_key
     from {{ source('culture_bronze', 'bronze_kopis_facility_detail') }}
 ),
@@ -43,6 +44,8 @@ detail_latest as (
             facility_id,
             nullif(trim(address_raw), '') as address,
             {{ asac_axes.seoul_lonlat('lon_raw', 'lat_raw') }},
+            -- KOPIS 는 좌석수 미상을 0/공백으로 표기 → null 로 정규화(진짜 0석과 구분 없음, 둘 다 미측정 취급).
+            nullif(try_cast(nullif(trim(seat_raw), '') as integer), 0) as seat_scale,
             row_number() over (partition by facility_id order by {{ culture_dedup_order() }}) as rn
         from detail_bronze
         where facility_id is not null
@@ -52,7 +55,7 @@ detail_latest as (
 joined as (
     select
         l.facility_id, l.facility_name, l.sido, l.gu,
-        d.address, d.longitude, d.latitude,
+        d.address, d.longitude, d.latitude, d.seat_scale,
         l.source_system, l.dag_run_id, l.raw_object_key, l.collected_at, l.ingested_at, l.load_date
     from list_latest l
     left join detail_latest d on d.facility_id = l.facility_id
@@ -73,6 +76,7 @@ select
     coalesce(g.gu_code, d.coord_gu_code) as gu_code,
     d.admin_dong,
     d.admin_dong_code,
+    j.seat_scale,
     j.source_system, j.dag_run_id, j.raw_object_key, j.collected_at, j.ingested_at, j.load_date
 from joined j
 left join dong_map d on j.longitude = d.longitude and j.latitude = d.latitude

@@ -70,7 +70,9 @@ collected_at desc, raw_object_key desc, request_id desc
 `acc_id`가 null이거나 `occurred_at`이 null인 행은 제외한다.
 
 `source_coordinate_system`은 고정 `GRS80_TM`으로 기록해 downstream 좌표 오해를 방지한다.
-공통 공간축은 `asac_axes.tm_to_wgs84(grs80tm_x, grs80tm_y)`로 `longitude`/`latitude`를
+공통 공간축은 `asac_axes.tm_to_wgs84_relation('standardized', 'grs80tm_x', 'grs80tm_y')`
+(레이어드 변형 — 인라인 `tm_to_wgs84`는 이 모델에서 표현식 폭발로 Trino
+`QUERY_EXCEEDED_COMPILER_LIMIT`를 유발, 2026-07-07 장애)로 `longitude`/`latitude`를
 만들고, `asac_axes.seoul_admin_dong_boundary`와 point-in-polygon 조인해
 `admin_dong_code`, `gu_code`, `admin_dong`, `gu`를 노출한다. source 좌표가 없거나
 서울 bbox guard 밖이거나 경계 단순화 때문에 매칭되지 않는 경우 행정동 축은 NULL일 수
@@ -82,6 +84,11 @@ Silver materialization은 `incremental` + `merge`를 사용한다. unique key는
 다시 읽어도 ranked CTE가 최신 1건만 남기므로 merge 결과는 멱등이다. 테이블을 drop한 뒤
 바로 재실행하면 R2/Data Catalog eventual consistency 때문에 `is_incremental()` 판단이
 어긋날 수 있으므로, full refresh가 필요하면 `dbt run --full-refresh`를 우선 사용한다.
+
+incremental tmp relation은 `views_enabled=false`로 **테이블**로 생성한다. R2 Data
+Catalog가 `__dbt_tmp` 뷰 생성에 409 AlreadyExists(리스트/exists에는 안 보이는 유령
+레코드)를 반환한 2026-07-07 장애의 재발을 차단하고, merge 소스를 물질화된 테이블
+스캔으로 단순화하기 위함이다. `on_table_exists='drop'`은 population silver 선례를 따른다.
 
 ## Coverage and completeness
 

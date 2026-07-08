@@ -31,7 +31,7 @@ raw(R2) ──commerce_load_bronze(Airflow)──▶ Iceberg bronze ──dbt(�
 
 | 파일/폴더 | 역할 |
 |---|---|
-| `dbt_project.yml` | 프로젝트 설정(이름 `commerce`, 모델 기본 materialized=table) |
+| `dbt_project.yml` | 프로젝트 설정(이름 `commerce`, history=incremental, current=table) |
 | `profiles.yml` | **접속 정보**(Trino host/port, dev=iceberg_dev / prod=iceberg, schema=commerce) |
 | `models/sources.yml` | **읽을 bronze 테이블 선언** + 소스 검증 테스트 |
 | `models/silver/silver_license_history.sql` | 업소 상태 변경 이력(정제된 변경로그, 암묵 버저닝) |
@@ -41,7 +41,7 @@ raw(R2) ──commerce_load_bronze(Airflow)──▶ Iceberg bronze ──dbt(�
 | `target/` | dbt 가 생성하는 산출물(컴파일된 SQL·실행 결과). git 무시. **여기서 실제 SQL 을 본다** |
 | `logs/dbt.log` | 실행 로그 |
 
-> 모델 파일은 `SELECT` 만 쓴다. `CREATE TABLE` 은 dbt 가 자동으로 감싼다(materialized=table).
+> 모델 파일은 `SELECT` 만 쓴다. `CREATE TABLE`/증분 INSERT 는 dbt 가 materialization 설정대로 감싼다.
 
 ---
 
@@ -61,7 +61,7 @@ $DBT <명령어>
 - `DBT_TARGET=dev` → dev 카탈로그(`iceberg_dev`, 버킷 seoul-dev). prod 면 `prod`.
 - `DBT_PROFILES_DIR` / `DBT_PROJECT_DIR` → 이 프로젝트 폴더(둘 다 같음, profiles.yml 이 여기 있음).
 
-> 운영에서는 이걸 `commerce_localdata_transform` DAG(후속)이 자동으로 돌린다. 지금은 수동 확인용.
+> 운영에서는 이걸 `commerce_load_silver` DAG 이 자동으로 돌린다. 지금은 수동 확인용.
 
 ---
 
@@ -104,7 +104,9 @@ $DBT show --select silver_license_current --limit 5
 ```
 
 ### 4-5. `dbt run` — **실제 테이블 생성/갱신**
-모델 SQL 로 Trino 에 `CREATE TABLE AS SELECT` 를 실행. 우리 실측:
+모델 SQL 로 Trino 에 테이블 생성/증분 INSERT 를 실행한다. 첫 실행 또는 `--full-refresh` 는
+전체 publishable bronze 를 백필하고, 이후 일반 실행은 아직 `silver_license_history` 에 없는
+`bronze_run_id` 만 읽는다. 기존 전량 재빌드 실측:
 ```
 1 of 2 OK created sql table model commerce.silver_license_history .. [CREATE TABLE (1_341_987 rows) in 34.75s]
 2 of 2 OK created sql table model commerce.silver_license_current .. [CREATE TABLE (1_341_784 rows) in 18.57s]
@@ -112,6 +114,7 @@ Completed successfully
 ```
 - 특정 모델만: `$DBT run --select silver_license_history`
 - 그 모델 + 하위 의존까지: `$DBT run --select silver_license_history+`
+- 깨끗한 백필: `$DBT run --full-refresh --select silver_license_history+`
 
 ### 4-6. `dbt test` — **검증 실행**
 schema.yml 의 not_null/unique + tests/ 의 커스텀 SQL 검증을 돌린다. 우리 실측:
@@ -200,7 +203,8 @@ observed_date, collected_at, content_hash` **내림차순 정렬이 곧 버전 �
   → `commerce_load_bronze` 로 적재부터. (silver 는 bronze 가 있어야 돈다.)
 - **테스트 FAIL**: FAIL 난 테스트 이름으로 `target/compiled/.../<test>.sql` 을 열어 그 SELECT 를
   Trino 로 직접 돌려보면 **어떤 행이 규칙을 위반했는지** 바로 보인다.
-- **다시 깨끗이**: `$DBT run` 은 테이블을 매번 새로 만든다(materialized=table). 그냥 재실행하면 됨.
+- **다시 깨끗이**: `$DBT run --full-refresh --select silver_license_history+` 는 marker/table 을 버리고
+  publishable bronze 전체를 다시 백필한다. 일반 `$DBT run` 은 신규 bronze_run_id 만 증분 반영한다.
 - **모델 하나만 빠르게**: `--select <모델명>` 으로 범위 좁히기.
 
 ---
