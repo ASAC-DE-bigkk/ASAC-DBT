@@ -2,10 +2,12 @@ version: 2
 
 models:
   - name: silver_culture_facility
-    description: KOPIS 공연시설 dim — 목록+상세(좌표) 병합. 좌표는 detail 수집분만(부분 커버리지 — 설계 §5).
+    description: KOPIS 공연시설 dim — 목록+상세(좌표·좌석수) 병합. 좌표·좌석수는 detail 수집분만(부분 커버리지 — 설계 §5, 캡 상향 #206).
     columns:
       - name: facility_id
         tests: [not_null, unique]
+      - name: seat_scale
+        description: 시설 총 좌석수. KOPIS seatscale — 0/공백(미상)은 null 로 정규화. 혼잡 규모 가중치용(#206 커버리지 확대 예정). 값이 있으면 양수(assert_facility_seat_scale_positive).
       - name: load_date
         tests: [not_null]
       - name: ingested_at
