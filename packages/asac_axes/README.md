@@ -70,6 +70,7 @@ from {{ source('bronze', 'foo') }}
 | --- | --- |
 | `seoul_lonlat(lon_raw, lat_raw)` | 이미 WGS84 십진도인 좌표 정규화 (culture 매크로 승격) |
 | `tm_to_wgs84(x_col, y_col)` | 중부원점 TM 좌표 → WGS84 근사 역변환 |
+| `tm_to_wgs84_relation(relation, x_col, y_col)` | 동일 수식의 레이어드 변형 — FROM 블록 생성 (표현식 인라인 폭발 회피, 아래 주의 참조) |
 | `admin_dong_contains(wkt, lon, lat)` | 행정동 point-in-polygon 술어 (`ST_Contains`) |
 
 ```sql
@@ -84,6 +85,14 @@ from {{ source('bronze', 'commerce') }}
 
 중부원점 TM(EPSG:5186 계열, 중앙자오선 127°·원점위도 38°·k0 1.0·false E/N 200000/500000·GRS80)의
 **역 Transverse Mercator 급수 전개**를 SQL 수식으로 구현. 상수는 `scripts/build_crosswalk.py`와 동일 GRS80 파라미터로 사전 계산.
+
+**복잡한 모델(CTE 다단 참조·incremental merge)에서는 `tm_to_wgs84_relation`을 사용한다.**
+인라인 버전은 중간항(mu, fp, W, N1, R1, D…)이 Jinja 문자열 치환으로 중첩 전개돼 컴파일
+표현식이 지수적으로 커진다(traffic silver 기준 73KB). Trino 는 프로젝션 하나를 단일
+메서드로 코드젠하므로 `QUERY_EXCEEDED_COMPILER_LIMIT`로 실패할 수 있다(2026-07-07
+traffic 장애). relation 변형은 중간항을 서브쿼리 레이어 컬럼으로 **한 번씩만** 계산해
+같은 수식을 선형 크기(~10KB)로 유지한다. 출력 = `relation.*` + `longitude`/`latitude`
++ `__tm_*` 스크래치 컬럼(최종 select 에서 명시 컬럼만 뽑으면 노출되지 않음).
 
 > **근사 변환 — 수 m~수십 m 오차. 정밀 측지 용도가 아니라 행정동 할당 용도.**
 > 서울 범위에서 위경도 0.001°(~100m) 이내를 목표로 하며, 실측 검증 결과 서울시청 역산은 실제값과 lon ~57m·lat ~15m 차이(0.001° 이내)다.

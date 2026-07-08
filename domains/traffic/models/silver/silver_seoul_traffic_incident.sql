@@ -4,11 +4,23 @@
 -- collected_at lookback, then merge by the output grain source_record_id.
 -- Re-reading the lookback is idempotent because the ranked CTE keeps the
 -- latest publishable row per acc_id.
+--
+-- tmp relation must be a TABLE, not a view (views_enabled=false) — 2026-07-07 dev incident:
+--  * merging from the inlined __dbt_tmp view duplicated the tm_to_wgs84 expression tree
+--    per column reference and failed every run with Trino QUERY_EXCEEDED_COMPILER_LIMIT;
+--    materializing the lookback window first keeps the merge source a plain table scan.
+--  * R2 Data Catalog additionally kept rejecting the __dbt_tmp *view* create with
+--    409 AlreadyExists (phantom record not visible via list/exists) — the table path
+--    avoids the catalog view endpoint entirely.
+-- on_table_exists='drop': full-refresh rebuild without rename, matching the
+-- population silver precedent on this catalog.
 
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['source_record_id'],
+    views_enabled=false,
+    on_table_exists='drop',
 ) }}
 
 with publishable_runs as (
@@ -73,11 +85,10 @@ standardized as (
     where result_code = 'INFO-000'
 ),
 
+-- layered variant: inline tm_to_wgs84 exploded the compiled expression (~73KB)
+-- past Trino's single-projection codegen limit; see asac_axes.tm_to_wgs84_relation.
 located as (
-    select
-        *,
-        {{ asac_axes.tm_to_wgs84('grs80tm_x', 'grs80tm_y') }}
-    from standardized
+    {{ asac_axes.tm_to_wgs84_relation('standardized', 'grs80tm_x', 'grs80tm_y') }}
 ),
 
 admin_matched as (
