@@ -24,31 +24,34 @@
 
 with bronze as (
     select
-        trim(json_extract_scalar(payload, '$.AREA_NM')) as area_nm,
-        trim(json_extract_scalar(payload, '$.AREA_CD')) as area_cd,
-        lower(trim(json_extract_scalar(payload, '$.AREA_CONGEST_LVL'))) as area_congest_lvl,
-        json_extract_scalar(payload, '$.AREA_CONGEST_MSG') as area_congest_msg,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.AREA_PPLTN_MIN')), '') as integer) as area_ppltn_min,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.AREA_PPLTN_MAX')), '') as integer) as area_ppltn_max,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.MALE_PPLTN_RATE')), '') as decimal(5, 2)) as male_ppltn_rate,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.FEMALE_PPLTN_RATE')), '') as decimal(5, 2)) as female_ppltn_rate,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.PPLTN_RATE_0')), '') as decimal(5, 2)) as ppltn_rate_0,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.PPLTN_RATE_10')), '') as decimal(5, 2)) as ppltn_rate_10,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.PPLTN_RATE_20')), '') as decimal(5, 2)) as ppltn_rate_20,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.PPLTN_RATE_30')), '') as decimal(5, 2)) as ppltn_rate_30,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.PPLTN_RATE_40')), '') as decimal(5, 2)) as ppltn_rate_40,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.PPLTN_RATE_50')), '') as decimal(5, 2)) as ppltn_rate_50,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.PPLTN_RATE_60')), '') as decimal(5, 2)) as ppltn_rate_60,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.PPLTN_RATE_70')), '') as decimal(5, 2)) as ppltn_rate_70,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.RESNT_PPLTN_RATE')), '') as decimal(5, 2)) as resnt_ppltn_rate,
-        try_cast(nullif(trim(json_extract_scalar(payload, '$.NON_RESNT_PPLTN_RATE')), '') as decimal(5, 2)) as non_resnt_ppltn_rate,
-        json_extract_scalar(payload, '$.REPLACE_YN') as replace_yn,
-        json_extract_scalar(payload, '$.PPLTN_TIME') as ppltn_time,
-        json_extract_scalar(payload, '$.FCST_YN') as fcst_yn,
+        trim(json_extract_scalar(payload, '$[0].AREA_NM')) as area_nm,
+        trim(json_extract_scalar(payload, '$[0].AREA_CD')) as area_cd,
+        lower(trim(json_extract_scalar(payload, '$[0].AREA_CONGEST_LVL'))) as area_congest_lvl,
+        json_extract_scalar(payload, '$[0].AREA_CONGEST_MSG') as area_congest_msg,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].AREA_PPLTN_MIN')), '') as integer) as area_ppltn_min,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].AREA_PPLTN_MAX')), '') as integer) as area_ppltn_max,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].MALE_PPLTN_RATE')), '') as decimal(5, 2)) as male_ppltn_rate,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].FEMALE_PPLTN_RATE')), '') as decimal(5, 2)) as female_ppltn_rate,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].PPLTN_RATE_0')), '') as decimal(5, 2)) as ppltn_rate_0,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].PPLTN_RATE_10')), '') as decimal(5, 2)) as ppltn_rate_10,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].PPLTN_RATE_20')), '') as decimal(5, 2)) as ppltn_rate_20,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].PPLTN_RATE_30')), '') as decimal(5, 2)) as ppltn_rate_30,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].PPLTN_RATE_40')), '') as decimal(5, 2)) as ppltn_rate_40,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].PPLTN_RATE_50')), '') as decimal(5, 2)) as ppltn_rate_50,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].PPLTN_RATE_60')), '') as decimal(5, 2)) as ppltn_rate_60,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].PPLTN_RATE_70')), '') as decimal(5, 2)) as ppltn_rate_70,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].RESNT_PPLTN_RATE')), '') as decimal(5, 2)) as resnt_ppltn_rate,
+        try_cast(nullif(trim(json_extract_scalar(payload, '$[0].NON_RESNT_PPLTN_RATE')), '') as decimal(5, 2)) as non_resnt_ppltn_rate,
+        json_extract_scalar(payload, '$[0].REPLACE_YN') as replace_yn,
+        json_extract_scalar(payload, '$[0].PPLTN_TIME') as ppltn_time,
+        json_extract_scalar(payload, '$[0].FCST_YN') as fcst_yn,
         collected_at
-    from {{ source('bronze', 'bronze_seoul_ppltn') }}
+    from {{ source('bronze_citydata', 'bronze_seoul_citydata') }}
+    -- 인구는 citydata 번들의 LIVE_PPLTN_STTS 블록에서 파싱한다(citydata_ppltn 과 필드 100%
+    -- 동일 검증). 블록 payload 는 [{...}] 배열이라 위에서 $[0] 로 꺼낸다. 단일 수집원 통합.
+    where block_name = 'LIVE_PPLTN_STTS'
     {% if is_incremental() %}
-    where collected_at >= (
+      and collected_at >= (
         select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
         from {{ this }}
     )
