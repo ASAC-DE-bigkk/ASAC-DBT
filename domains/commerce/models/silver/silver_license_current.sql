@@ -18,6 +18,7 @@ select
     dataset,
     opnsfteamcode,
     mgtno,
+    record_json,          -- 원본 보존(API별 비공통 필드) → gold 가 API별 table화
     bplcnm,
     trdstategbn,
     trdstatenm,
