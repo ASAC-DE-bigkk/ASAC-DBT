@@ -76,3 +76,44 @@ models:
           - not_null
       - name: bplcnm
         description: 업소명(BPLCNM). 원본 '' 는 null 로 정규화.
+
+  - name: silver_license_detail_health
+    description: >
+      보건 대분류(식품·의료·위생·미용·안경·치과·숙박·축산·동물·약국)의 **분야별(개별) 영역** —
+      공통/주소/좌표는 silver_license_current 에 있고 여기서는 업종군 고유 컬럼만 record_json 에서
+      추출한 '정규화 이전 큰 정보 단위'. 해당 군에 없는 필드는 null(schema-on-read). 완전 정규화 X.
+      grain=(dataset, opnsfteamcode, mgtno). 필드 사전: docs/dataset-columns.md §3.
+    columns:
+      - name: dataset
+        tests:
+          - not_null
+      - name: opnsfteamcode
+        tests:
+          - not_null
+      - name: mgtno
+        tests:
+          - not_null
+      - name: category
+        description: 중분류(식품/의료/위생·미용/…) — taxonomy 시드 기준.
+        tests:
+          - not_null
+      - name: record_json
+        description: 원본 레코드(개별 필드 소급 추출 + gold table화용) 보존.
+        tests:
+          - not_null
+
+seeds:
+  - name: commerce_dataset_taxonomy
+    description: >
+      데이터셋 short → 대분류(major=보건/문화/산업/환경) · 중분류(category) · 명칭분류(sub_category) ·
+      포맷(fmt v1/v2). ASAC-DAG 레지스트리에서 파생(분류 규칙: ASAC-DAG docs/PROJECT.md).
+    columns:
+      - name: short
+        description: 데이터셋 short(= silver.dataset 조인키).
+        tests:
+          - not_null
+          - unique
+      - name: major
+        description: 대분류. 문화·산업·환경 외 전부 health(보건).
+        tests:
+          - not_null

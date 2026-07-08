@@ -10,6 +10,7 @@ flags:
 model-paths: ["models"]
 macro-paths: ["macros"]
 test-paths: ["tests"]
+seed-paths: ["seeds"]
 
 target-path: target
 clean-targets:
