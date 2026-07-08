@@ -509,6 +509,7 @@ select
     dataset,
     opnsfteamcode,
     mgtno,
+    record_json,
     bplcnm,
     trdstategbn,
     trdstatenm,
