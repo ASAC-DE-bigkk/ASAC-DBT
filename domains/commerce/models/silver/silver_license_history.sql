@@ -29,10 +29,8 @@ with publishable as (
 bronze as (
     select
         cast(b.dataset as varchar) as dataset,
-        cast(b.mgtno as varchar) as mgtno,
-        cast(b.record_json as varchar) as record_json,
+        cast(b.record_json as varchar) as record_json,   -- 원본 보존(비공통 필드 포함). silver 가 v1/v2 별칭으로 파싱
         cast(b.content_hash as varchar) as content_hash,
-        cast(b.updatedt as varchar) as updatedt,
         cast(b.observed_date as varchar) as observed_date,
         cast(b.load_date as varchar) as load_date,
         cast(b.bronze_run_id as varchar) as bronze_run_id,
@@ -61,28 +59,26 @@ bronze as (
 parsed as (
     select
         *,
-        -- 결측 규약 v1: 원본 '' → null (nullif+trim). 원본 그대로는 record_json 에 보존.
-        -- 개방자치단체코드 — MGTNO 의 유니크 범위(발급 구청). 업소 식별키 구성 요소.
-        nullif(trim(json_extract_scalar(record_json, '$.OPNSFTEAMCODE')), '') as opnsfteamcode,
-        nullif(trim(json_extract_scalar(record_json, '$.BPLCNM')), '') as bplcnm,
-        nullif(trim(json_extract_scalar(record_json, '$.TRDSTATEGBN')), '') as trdstategbn,
-        nullif(trim(json_extract_scalar(record_json, '$.TRDSTATENM')), '') as trdstatenm,
-        nullif(trim(json_extract_scalar(record_json, '$.DTLSTATEGBN')), '') as dtlstategbn,
-        nullif(trim(json_extract_scalar(record_json, '$.DTLSTATENM')), '') as dtlstatenm,
-        nullif(trim(json_extract_scalar(record_json, '$.APVPERMYMD')), '') as apvpermymd,
-        nullif(trim(json_extract_scalar(record_json, '$.DCBYMD')), '') as dcbymd,
-        nullif(trim(json_extract_scalar(record_json, '$.SITETEL')), '') as sitetel,
-        -- 지번주소 원천 2계보: 표준 SITEWHLADDR + 일부 업종군(숙박업)의 LOTNO_ADDR
-        nullif(trim(json_extract_scalar(record_json, '$.SITEWHLADDR')), '') as jibun_address_src,
-        nullif(trim(json_extract_scalar(record_json, '$.LOTNO_ADDR')), '') as lotno_address,
-        nullif(trim(json_extract_scalar(record_json, '$.RDNWHLADDR')), '') as road_address,
-        nullif(trim(json_extract_scalar(record_json, '$.X')), '') as source_coord_x,
-        nullif(trim(json_extract_scalar(record_json, '$.Y')), '') as source_coord_y,
-        nullif(trim(json_extract_scalar(record_json, '$.LASTMODTS')), '') as lastmodts,
-        -- UPDATEDT(KST 문자열, 14자리 기대, 비정형 가능) → **KST** timestamp(파싱만·무변환). 실패 시 null.
-        try(date_parse(
-            substr(regexp_replace(updatedt, '[^0-9]', ''), 1, 14), '%Y%m%d%H%i%s'
-        )) as updatedt_ts
+        -- 결측 규약: 원본 '' → null. record_json 원본은 보존. v1(구형)·v2(신형) 컬럼 표준을 lf() 로
+        -- 정본(v1) 우선 → 없으면 v2 별칭으로 정규화. (개방자치단체코드+관리번호 = 업소 식별키.)
+        {{ lf('MGTNO', 'MNG_NO') }} as mgtno,
+        {{ lf('OPNSFTEAMCODE', 'OGDP_INST_CD') }} as opnsfteamcode,
+        {{ lf('BPLCNM', 'BPLC_NM') }} as bplcnm,
+        {{ lf('TRDSTATEGBN', 'SALS_STTS_CD') }} as trdstategbn,
+        {{ lf('TRDSTATENM', 'SALS_STTS_NM') }} as trdstatenm,
+        {{ lf('DTLSTATEGBN', 'DTL_SALS_STTS_CD') }} as dtlstategbn,
+        {{ lf('DTLSTATENM', 'DTL_SALS_STTS_NM') }} as dtlstatenm,
+        {{ lf('APVPERMYMD', 'LCPMT_YMD') }} as apvpermymd,
+        {{ lf('DCBYMD', 'CLSBIZ_YMD') }} as dcbymd,
+        {{ lf('SITETEL', 'TELNO') }} as sitetel,
+        -- 지번주소 원천: v1 SITEWHLADDR + 숙박업/v2 의 LOTNO_ADDR
+        {{ lf('SITEWHLADDR') }} as jibun_address_src,
+        {{ lf('LOTNO_ADDR') }} as lotno_address,
+        {{ lf('RDNWHLADDR', 'ROAD_NM_ADDR') }} as road_address,
+        {{ lf('X', 'XCRD') }} as source_coord_x,
+        {{ lf('Y', 'YCRD') }} as source_coord_y,
+        {{ lf('LASTMODTS', 'LAST_MDFCN_YMD') }} as lastmodts,
+        {{ lf('UPDATEDT', 'DATA_UPDT_YMD') }} as updatedt
     from bronze
 ),
 
@@ -116,7 +112,11 @@ enriched as (
 normalized as (
     select
         *,
-        -- LASTMODTS(KST 문자열, 'YYYY-MM-DD HH:MM:SS' 계열 기대, 비정형 가능) → **KST** timestamp(파싱만·무변환). 실패 시 null.
+        -- UPDATEDT/LASTMODTS(KST 문자열, 14자리 기대, 비정형 가능) → **KST** timestamp(파싱만·무변환). 실패 시 null.
+        -- (updatedt 는 parsed 에서 v1/v2 정규화됨 → 여기서 파싱. 정렬키는 keyed 에서 이걸 씀.)
+        try(date_parse(
+            substr(regexp_replace(updatedt, '[^0-9]', ''), 1, 14), '%Y%m%d%H%i%s'
+        )) as updatedt_ts,
         try(date_parse(
             substr(regexp_replace(lastmodts, '[^0-9]', ''), 1, 14), '%Y%m%d%H%i%s'
         )) as lastmodts_ts,
@@ -369,6 +369,7 @@ projected_new as (
         dataset,
         opnsfteamcode,
         mgtno,
+        record_json,
         bplcnm,
         trdstategbn,
         trdstatenm,
@@ -419,6 +420,7 @@ prior_tail as (
         dataset,
         opnsfteamcode,
         mgtno,
+        record_json,
         bplcnm,
         trdstategbn,
         trdstatenm,
