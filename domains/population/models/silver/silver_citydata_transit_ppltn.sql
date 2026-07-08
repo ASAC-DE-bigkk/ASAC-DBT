@@ -6,6 +6,7 @@
 -- 값 의미: 최근 5/10/30분 창의 승·하차 인원 min~max + 당일 누적(acml).
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_cd', 'mode', 'observed_at'],
@@ -37,7 +38,7 @@ with src as (
         try_cast(json_extract_scalar(payload, '$.{{ p }}_ACML_GTOFF_PPLTN_MIN') as bigint) as gtoff_acml_min,
         try_cast(json_extract_scalar(payload, '$.{{ p }}_ACML_GTOFF_PPLTN_MAX') as bigint) as gtoff_acml_max,
         try_cast(json_extract_scalar(payload, '$.{{ p }}_STN_CNT') as integer) as station_count
-    from {{ source('bronze', 'bronze_seoul_citydata') }}
+    from {{ source('bronze_citydata', 'bronze_seoul_citydata') }}
     where block_name = '{{ block }}'
     {% if is_incremental() %}
       and {{ asac_axes.utc_to_kst('collected_at') }} >= (

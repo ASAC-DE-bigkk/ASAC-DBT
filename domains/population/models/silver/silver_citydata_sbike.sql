@@ -4,6 +4,7 @@
 -- 없어 observed_at = collected_at(KST). 대여소 좌표는 원소의 X(경도)/Y(위도).
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_cd', 'spot_id', 'observed_at'],
@@ -15,7 +16,7 @@ with src as (
         area_cd,
         payload,
         {{ asac_axes.utc_to_kst('collected_at') }} as observed_at
-    from {{ source('bronze', 'bronze_seoul_citydata') }}
+    from {{ source('bronze_citydata', 'bronze_seoul_citydata') }}
     where block_name = 'SBIKE_STTS'
     {% if is_incremental() %}
       and {{ asac_axes.utc_to_kst('collected_at') }} >= (

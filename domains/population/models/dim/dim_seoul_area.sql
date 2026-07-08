@@ -4,7 +4,7 @@
 -- 행정구역(#48 공통축: gu/admin_dong + 행안부 코드)을 1회 계산해 둔다. silver 마다
 -- ST_Contains 를 반복하지 않기 위한 테이블. 121행 고정이라 table 재생성이 가장 싸고 멱등.
 
-{{ config(materialized='table', on_table_exists='drop') }}
+{{ config(materialized='table', on_table_exists='drop', schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata")) }}
 
 with admin as (
     select area_cd, gu, admin_dong, gu_code, admin_dong_code

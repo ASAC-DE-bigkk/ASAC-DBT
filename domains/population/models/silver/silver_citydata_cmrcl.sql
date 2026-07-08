@@ -6,6 +6,7 @@
 -- 배치 내 dedup(최신 collected_at) + merge 가 이를 흡수한다(멱등).
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_cd', 'event_at'],
@@ -18,7 +19,7 @@ with src as (
         area_nm,
         payload,
         {{ asac_axes.utc_to_kst('collected_at') }} as collected_at
-    from {{ source('bronze', 'bronze_seoul_citydata') }}
+    from {{ source('bronze_citydata', 'bronze_seoul_citydata') }}
     where block_name = 'LIVE_CMRCL_STTS'
     {% if is_incremental() %}
       and {{ asac_axes.utc_to_kst('collected_at') }} >= (

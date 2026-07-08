@@ -6,6 +6,7 @@
 -- 당일 슬라이스가 늦게 도착해도 다음 run 재집계가 흡수한다(멱등).
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['event_date', 'area_cd'],

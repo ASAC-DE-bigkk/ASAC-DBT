@@ -11,6 +11,7 @@
 --  끊김"의 정직한 표현이다.)
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_cd'],

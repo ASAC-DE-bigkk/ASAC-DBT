@@ -4,6 +4,7 @@
 -- event_at 은 부모 블록의 CMRCL_TIME. merge 키에 업종 축이 들어가 배치 내 dedup 후 멱등.
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_cd', 'event_at', 'rsb_lrg_ctgr', 'rsb_mid_ctgr'],
@@ -15,7 +16,7 @@ with src as (
         area_cd,
         payload,
         {{ asac_axes.utc_to_kst('collected_at') }} as collected_at
-    from {{ source('bronze', 'bronze_seoul_citydata') }}
+    from {{ source('bronze_citydata', 'bronze_seoul_citydata') }}
     where block_name = 'LIVE_CMRCL_STTS'
     {% if is_incremental() %}
       and {{ asac_axes.utc_to_kst('collected_at') }} >= (

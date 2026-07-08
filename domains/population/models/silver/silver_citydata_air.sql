@@ -5,6 +5,7 @@
 -- event_at = WEATHER_TIME("yyyy-MM-dd HH:mm", 실측 10분 주기) 파싱.
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_cd', 'event_at'],
@@ -16,7 +17,7 @@ with src as (
         area_cd,
         payload,
         {{ asac_axes.utc_to_kst('collected_at') }} as collected_at
-    from {{ source('bronze', 'bronze_seoul_citydata') }}
+    from {{ source('bronze_citydata', 'bronze_seoul_citydata') }}
     where block_name = 'WEATHER_STTS'
     {% if is_incremental() %}
       and {{ asac_axes.utc_to_kst('collected_at') }} >= (
