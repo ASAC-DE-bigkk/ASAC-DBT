@@ -46,7 +46,7 @@ located as (
         ) as rn
     from master m
     left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b
-        on m.longitude is not null
+        on m.longitude is not null and m.latitude is not null
        and {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'm.longitude', 'm.latitude') }}
 )
 

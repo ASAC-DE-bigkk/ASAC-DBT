@@ -115,7 +115,7 @@ located as (
     from deduped d
     -- 좌표 유효분만 경계 조인(null 좌표 행은 left join 으로 보존, admin_dong 은 null).
     left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b
-        on d.longitude is not null
+        on d.longitude is not null and d.latitude is not null
        and {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'd.longitude', 'd.latitude') }}
 )
 
