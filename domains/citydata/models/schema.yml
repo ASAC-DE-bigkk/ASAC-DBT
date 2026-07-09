@@ -31,6 +31,17 @@ sources:
           - name: collected_at
             description: 수집 시각 UTC
 
+  # ── 크로스도메인 source (조인 예시, #94) ─────────────────────────────────────
+  # ⚠ 타 도메인(culture) 스키마 참조. cross_domain 태그 모델에서만 사용하며,
+  #    라이브 transform 은 tag:cross_domain 을 제외해 결합을 피한다.
+  - name: culture
+    description: (크로스도메인) culture 도메인 silver — 문화행사. 조인 예시용.
+    database: "{{ target.database }}"
+    schema: culture
+    tables:
+      - name: silver_culture_event
+        description: 서울 문화행사 기간 fact (행정동·기간·좌표). admin_dong_code 공통축 보유.
+
 seeds:
   - name: seoul_ppltn_area_geo
     description: >
@@ -281,3 +292,19 @@ models:
         data_tests: [not_null]
       - name: area_cd
         data_tests: [not_null]
+
+  - name: gold_cross_ppltn_culture_daily
+    description: >
+      (크로스도메인 예시, #94) 행정동 × 날짜별 인구 혼잡도 × 진행 중 문화행사 수.
+      인구(장소·5분)를 admin_dong_code×날짜로 집계하고, culture 문화행사를 같은
+      날짜 진행 중(start~end) 이벤트 수로 range 조인. 공통축 = admin_dong_code + 날짜.
+      ⚠ culture 스키마 의존 → tag:cross_domain, 라이브 transform 에서 제외.
+    columns:
+      - name: admin_dong_code
+        description: 행안부 행정동 10자리 (grain 축, 공통 조인 키)
+        data_tests: [not_null]
+      - name: event_date
+        description: 집계 날짜 (KST, grain 축)
+        data_tests: [not_null]
+      - name: active_event_count
+        description: 그 행정동·날짜에 진행 중인 문화행사 수 (없으면 0)
