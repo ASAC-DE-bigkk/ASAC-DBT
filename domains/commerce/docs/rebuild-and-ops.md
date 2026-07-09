@@ -43,7 +43,7 @@ silver 는 아직 반영되지 않은 `bronze_run_id` 만 추가한다.
 |---|---|---|
 | **특정 dataset 전체 재적재** (예: general_restaurant) | 해당 key **삭제** | 그 dataset 첫 run 부터 전체 재적재(전체 스냅샷=PyIceberg, 이후 증분=Trino) |
 | **특정 시점 이후 재적재** (특정 일자 포함) | 해당 key 값을 **그 일자 직전 완료 run_id 로 되돌림** | 그 이후 모든 완료 run 을 순서대로 재적재(멱등 — 기존 행은 run 단위로 교체) |
-| **전부 처음부터** | 파일 삭제(+Iceberg 테이블 drop 가능) | 39종 전체 재적재. raw 는 불변이라 항상 가능 |
+| **전부 처음부터** | 파일 삭제(+Iceberg 테이블 drop 가능) | 152종 전체 재적재. raw 는 불변이라 항상 가능 |
 
 ```bash
 # 예: general_restaurant 만 처음부터 재적재 (R2 상태 파일 편집)
