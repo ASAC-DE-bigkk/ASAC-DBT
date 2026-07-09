@@ -10,10 +10,13 @@
 --  일부 신호만 창에 없으면 해당 컬럼이 null 로 갱신되는데, 이는 "그 신호가 6시간째
 --  끊김"의 정직한 표현이다.)
 
+-- ⚠ 단일키(area_cd) merge 는 dbt-trino/Iceberg 에서 update 대신 중복 insert 하는
+-- 케이스가 있어(라이브 incremental 에서 area_cd 당 N행 누적 → unique 테스트 실패),
+-- **delete+insert** 로 한다: 매 run 창에 등장한 area_cd 를 지우고 다시 넣어 유일성 보장.
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
-    incremental_strategy='merge',
+    incremental_strategy='delete+insert',
     unique_key=['area_cd'],
     on_table_exists='drop',
 ) }}
