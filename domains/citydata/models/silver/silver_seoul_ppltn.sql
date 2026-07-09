@@ -45,13 +45,14 @@ with bronze as (
         json_extract_scalar(payload, '$[0].REPLACE_YN') as replace_yn,
         json_extract_scalar(payload, '$[0].PPLTN_TIME') as ppltn_time,
         json_extract_scalar(payload, '$[0].FCST_YN') as fcst_yn,
-        collected_at
+        -- 시간축 표준: 수집시각도 KST 로 통일(다른 citydata silver 와 동일 — asac_axes.utc_to_kst).
+        {{ asac_axes.utc_to_kst('collected_at') }} as collected_at
     from {{ source('bronze_citydata', 'bronze_seoul_citydata') }}
     -- 인구는 citydata 번들의 LIVE_PPLTN_STTS 블록에서 파싱한다(citydata_ppltn 과 필드 100%
     -- 동일 검증). 블록 payload 는 [{...}] 배열이라 위에서 $[0] 로 꺼낸다. 단일 수집원 통합.
     where block_name = 'LIVE_PPLTN_STTS'
     {% if is_incremental() %}
-      and collected_at >= (
+      and {{ asac_axes.utc_to_kst('collected_at') }} >= (
         select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
         from {{ this }}
     )
