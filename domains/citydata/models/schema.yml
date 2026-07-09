@@ -1,52 +1,6 @@
 version: 2
 
 sources:
-  - name: bronze
-    description: >
-      서울시 실시간 인구혼잡도(citydata_ppltn) 원본. schema-on-read 방식으로,
-      원본 레코드 JSON을 payload 컬럼에 통째로 저장한다(파싱 안 함).
-      DAG(ASAC-DAG population_bronze)가 적재. dev/prod는 target.database로 가른다.
-    database: "{{ target.database }}"
-    # 샌드박스 테스트 시 SEOUL_PPLTN_SCHEMA로 격리 스키마의 bronze를 읽는다.
-    schema: "{{ env_var('SEOUL_PPLTN_SCHEMA', 'seoul_ppltn') }}"
-    tables:
-      - name: bronze_seoul_ppltn
-        description: 인구혼잡도 원본 payload + 추적 메타데이터 (1행 = 장소 1건)
-        # 수집은 5분 주기. 최신 수집이 15분↑ 지연이면 warn, 30분↑이면 error(수집 정지 감지).
-        # 실행: dbt source freshness (dbt build엔 미포함 — transform DAG에 별도 태스크로).
-        loaded_at_field: collected_at
-        freshness:
-          warn_after: {count: 15, period: minute}
-          error_after: {count: 30, period: minute}
-        columns:
-          - name: request_id
-            description: 요청 1건 고유 식별자 (raw 객체 ↔ bronze 행 연결)
-          - name: source_id
-            description: 소스 식별자 (seoul_ppltn)
-          - name: requested_area_nm
-            description: 요청한 장소명 (요청 파라미터)
-          - name: result_code
-            description: API 결과 코드 (정상 = INFO-000)
-          - name: result_msg
-            description: API 결과 메시지
-          - name: payload
-            description: ★ 원본 레코드 JSON 통째 (silver에서 json_extract로 파싱)
-            data_tests: [not_null]
-          - name: payload_hash
-            description: 원본 bytes의 SHA-256 (무결성/중복 판단)
-          - name: raw_object_key
-            description: R2에 아카이브된 전체 응답 객체 경로 (리니지)
-          - name: http_status
-            description: HTTP 상태코드
-          - name: collected_at
-            description: 수집 시각 UTC (ingest time, freshness/시계열 기준)
-          - name: load_date
-            description: KST 날짜 (bronze 테이블 파티션 키)
-          - name: ingest_ts
-            description: 실행 1회 식별 (같은 파티션 delete-then-insert 멱등)
-          - name: dag_run_id
-            description: Airflow run id (운영 추적)
-
   - name: bronze_citydata
     description: >
       citydata 통합 API 원본 (#192/#69). **seoul_citydata 스키마로 분리** — population

@@ -7,6 +7,7 @@
 -- (event_date, area_code) 키로 merge. 오늘 값은 슬라이스가 쌓일수록 갱신된다.
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['event_date', 'area_code'],

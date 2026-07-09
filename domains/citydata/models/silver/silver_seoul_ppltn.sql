@@ -5,17 +5,17 @@
 -- incremental(merge): 5분 주기에 맞춰 최근 수집분만 파싱해 (area_nm, ppltn_time)
 -- 키로 merge한다(bronze 전체 재스캔 없음). 지연 도착 대비 30분 lookback.
 --
--- 보강(참조 조인, #48 공통축 표준 — asac_axes 패키지):
---  * 좌표/분류: seed(seoul_ppltn_area_geo)를 area_cd로 left join → longitude/latitude, category
---  * 행정구역: area 중심점을 공용 경계 seed(asac_axes.seoul_admin_dong_boundary)에
---    point-in-polygon → gu/admin_dong + 행안부 admin_dong_code(10, canonical)·gu_code(5).
---    도메인 통합 join 키 = admin_dong_code(동)·gu_code(구).
+-- 보강(참조 조인, #48 공통축 표준):
+--  * 공간축: dim_seoul_area(area_cd) 조인 → 좌표·분류·gu/admin_dong + 행안부
+--    admin_dong_code(10, canonical)·gu_code(5). 다른 citydata silver 와 동일하게 공통
+--    dim 을 조인원으로 써 point-in-polygon 을 한 곳(dim)에서만 계산한다(중복 로직 제거).
 --  * 시간축: ppltn_time(varchar) → event_at(KST timestamp, asac_axes.kst_at) 신설(원본 유지).
 --
--- ⚠ 공용 패키지 참조: packages.yml(local asac_axes) + dbt deps 필요. #49 머지 후 dev 반영.
--- ⚠ 새 컬럼(좌표/행정동/event_at) 추가 시 기존 테이블은 --full-refresh 로 재생성해야 한다.
+-- 스키마: seoul_citydata (다른 citydata 신호와 통합 — 인구도 같은 citydata 번들 소스).
+-- ⚠ 새 컬럼 추가 시 기존 테이블은 --full-refresh 로 재생성해야 한다.
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_nm', 'ppltn_time'],
@@ -73,38 +73,19 @@ ranked as (
 
 deduped as (
     select * from ranked where row_num = 1
-),
-
-area_admin as (
-    -- area 중심점 → 행정동 판정(정적, area당 1건). 공용 경계 seed(asac_axes)로
-    -- gu/admin_dong 명칭 + 행안부 admin_dong_code(canonical)·gu_code를 한 번에 보강.
-    select area_cd, gu, admin_dong, gu_code, admin_dong_code
-    from (
-        select
-            g.area_cd,
-            b.sigungu as gu,
-            b.dong as admin_dong,
-            b.gu_code,
-            b.admin_dong_code,
-            row_number() over (partition by g.area_cd order by b.admin_dong_code) as rn
-        from {{ ref('seoul_ppltn_area_geo') }} g
-        left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b
-            on {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'g.center_lon', 'g.center_lat') }}
-    )
-    where rn = 1
 )
 
 select
     d.area_nm,
     d.area_cd,
-    '서울특별시' as sido,
-    aa.gu,
-    aa.admin_dong,
-    aa.gu_code,
-    aa.admin_dong_code,
-    geo.center_lon as longitude,
-    geo.center_lat as latitude,
-    geo.category as area_category,
+    a.sido,
+    a.gu,
+    a.admin_dong,
+    a.gu_code,
+    a.admin_dong_code,
+    a.longitude,
+    a.latitude,
+    a.area_category,
     d.area_congest_lvl,
     d.area_congest_msg,
     d.area_ppltn_min,
@@ -127,7 +108,5 @@ select
     d.fcst_yn,
     d.collected_at
 from deduped d
-left join {{ ref('seoul_ppltn_area_geo') }} geo
-    on d.area_cd = geo.area_cd
-left join area_admin aa
-    on d.area_cd = aa.area_cd
+left join {{ ref('dim_seoul_area') }} a
+    on d.area_cd = a.area_cd

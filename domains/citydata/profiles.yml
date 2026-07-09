@@ -8,7 +8,7 @@ seoul_ppltn:
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       user: "{{ env_var('TRINO_USER', 'airflow') }}"
       catalog: iceberg
-      schema: seoul_ppltn
+      schema: seoul_citydata
       http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
       threads: 4
       timeout_seconds: 300
@@ -20,9 +20,9 @@ seoul_ppltn:
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       user: "{{ env_var('TRINO_USER', 'airflow') }}"
       catalog: iceberg_dev
-      # 개인 샌드박스 테스트 시 env로 덮어쓴다 (예: dev_<github_id>_ppltn) --
-      # 공유 dev 스키마(seoul_ppltn)와 격리. DAG 쪽 SEOUL_PPLTN_SCHEMA와 같은 키.
-      schema: "{{ env_var('SEOUL_PPLTN_SCHEMA', 'seoul_ppltn') }}"
+      # 기본 스키마 = seoul_citydata (인구 포함 전 모델·seed 통합, #87). 개인 샌드박스는
+      # SEOUL_CITYDATA_SCHEMA 하나로 격리(예: dev_<id>) — 모델(명시)·seed(기본) 모두 이 값.
+      schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
       http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
       threads: 4
       timeout_seconds: 300
