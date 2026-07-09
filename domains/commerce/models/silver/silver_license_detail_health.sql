@@ -2,14 +2,23 @@
 -- 공통/주소/좌표는 silver_license_current 에 있고, 여기서는 보건 업종군 고유 컬럼만 record_json 에서 추출한다.
 -- 해당 군에 없는 필드는 자동 null(schema-on-read) — 완전 정규화(필드별 소테이블) 하지 않는다.
 -- grain: (dataset, opnsfteamcode, mgtno). 필드 사전/근거: docs/dataset-columns.md §3.
-
-{{ config(materialized='table') }}
+-- 증분(#81): current 와 동일 grain 단위 incremental(delete+insert). current 가 이번 run 갱신한 grain
+-- (collected_at 최신)만 재추출·교체 → 286s 전체 재빌드 회피. 정합성 재계산은 --full-refresh.
+{{ config(
+    materialized='incremental',
+    unique_key=['dataset', 'opnsfteamcode', 'mgtno'],
+    incremental_strategy='delete+insert',
+    on_schema_change='sync_all_columns',
+) }}
 
 with base as (
     select c.*, t.category, t.sub_category
     from {{ ref('silver_license_current') }} c
     join {{ ref('commerce_dataset_taxonomy') }} t on t.short = c.dataset
     where t.major = 'health'
+    {% if is_incremental() %}
+    and c.collected_at > (select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }})
+    {% endif %}
 )
 
 select
