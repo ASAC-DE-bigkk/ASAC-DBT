@@ -5,6 +5,7 @@
 -- 계산한다. 실시간 지도(최신 슬라이스)와 시간별 분석(누적)용 마트. grain = (ppltn_time, area_cd).
 
 {{ config(
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['ppltn_time', 'area_cd'],
