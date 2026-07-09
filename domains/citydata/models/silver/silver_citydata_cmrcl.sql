@@ -50,7 +50,6 @@ parsed as (
         try_cast(json_extract_scalar(payload, '$.CMRCL_60_RATE') as decimal(5, 2)) as rate_60,
         try_cast(json_extract_scalar(payload, '$.CMRCL_PERSONAL_RATE') as decimal(5, 2)) as personal_rate,
         try_cast(json_extract_scalar(payload, '$.CMRCL_CORPORATION_RATE') as decimal(5, 2)) as corporation_rate,
-        json_extract_scalar(payload, '$.CMRCL_TIME') as cmrcl_time,
         collected_at
     from src
 ),
@@ -87,7 +86,6 @@ select
     d.rate_10, d.rate_20, d.rate_30, d.rate_40, d.rate_50, d.rate_60,
     d.personal_rate,
     d.corporation_rate,
-    d.cmrcl_time,
     d.collected_at
 from deduped d
 left join {{ ref('dim_seoul_area') }} a on d.area_cd = a.area_cd

@@ -2,24 +2,23 @@
 --
 -- 좌표(longitude/latitude)·행정구역(gu/admin_dong + 행안부 코드)·시간축(event_at)·분류는
 -- 이미 silver에서 #48 공통축으로 보강되므로 여기서는 그대로 가져오고 파생(avg_ppltn)만
--- 계산한다. 실시간 지도(최신 슬라이스)와 시간별 분석(누적)용 마트. grain = (ppltn_time, area_cd).
+-- 계산한다. 실시간 지도(최신 슬라이스)와 시간별 분석(누적)용 마트. grain = (event_at, area_cd).
 
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
-    unique_key=['ppltn_time', 'area_cd'],
+    unique_key=['event_at', 'area_cd'],
     on_table_exists='drop',
 ) }}
 
 -- ⚠ silver가 incremental merge 과정에서 완전동일 중복행을 남길 수 있어(dbt-trino/Iceberg
--- merge가 update 대신 insert 하는 케이스 — 실패 run 재시도가 증폭), grain(ppltn_time,
+-- merge가 update 대신 insert 하는 케이스 — 실패 run 재시도가 증폭), grain(event_at,
 -- area_cd) 기준 1건으로 dedup한 뒤 merge한다. 이게 없으면 중복 소스가 gold merge의
 -- MERGE_TARGET_ROW_MULTIPLE_MATCHES(한 target 행에 source 다수 매칭)를 유발한다.
 with src as (
     select
         s.event_at,
-        s.ppltn_time,
         s.area_nm,
         s.area_cd,
         s.sido,
@@ -47,7 +46,7 @@ with src as (
         s.non_resnt_ppltn_rate,
         s.collected_at,
         row_number() over (
-            partition by s.ppltn_time, s.area_cd order by s.collected_at desc
+            partition by s.event_at, s.area_cd order by s.collected_at desc
         ) as _rn
     from {{ ref('silver_seoul_ppltn') }} s
     {% if is_incremental() %}
@@ -60,7 +59,6 @@ with src as (
 
 select
     event_at,
-    ppltn_time,
     area_nm,
     area_cd,
     sido,

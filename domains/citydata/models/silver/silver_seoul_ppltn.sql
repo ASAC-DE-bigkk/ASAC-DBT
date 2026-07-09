@@ -18,7 +18,7 @@
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='merge',
-    unique_key=['area_nm', 'ppltn_time'],
+    unique_key=['area_nm', 'event_at'],
     on_table_exists='drop',
 ) }}
 
@@ -43,7 +43,9 @@ with bronze as (
         try_cast(nullif(trim(json_extract_scalar(payload, '$[0].RESNT_PPLTN_RATE')), '') as decimal(5, 2)) as resnt_ppltn_rate,
         try_cast(nullif(trim(json_extract_scalar(payload, '$[0].NON_RESNT_PPLTN_RATE')), '') as decimal(5, 2)) as non_resnt_ppltn_rate,
         json_extract_scalar(payload, '$[0].REPLACE_YN') as replace_yn,
-        json_extract_scalar(payload, '$[0].PPLTN_TIME') as ppltn_time,
+        -- 시간축: PPLTN_TIME(원본 문자열)을 KST timestamp 로 파싱해 event_at 으로.
+        -- 원본 문자열은 bronze payload 에 보존되므로 silver 엔 파싱본만 둔다.
+        {{ asac_axes.kst_at("json_extract_scalar(payload, '$[0].PPLTN_TIME')") }} as event_at,
         json_extract_scalar(payload, '$[0].FCST_YN') as fcst_yn,
         -- 시간축 표준: 수집시각도 KST 로 통일(다른 citydata silver 와 동일 — asac_axes.utc_to_kst).
         {{ asac_axes.utc_to_kst('collected_at') }} as collected_at
@@ -63,13 +65,13 @@ ranked as (
     select
         *,
         row_number() over (
-            partition by area_nm, ppltn_time
+            partition by area_nm, event_at
             order by collected_at desc
         ) as row_num
     from bronze
     where area_nm is not null
         and area_cd is not null
-        and ppltn_time is not null
+        and event_at is not null
 ),
 
 deduped as (
@@ -104,8 +106,7 @@ select
     d.resnt_ppltn_rate,
     d.non_resnt_ppltn_rate,
     d.replace_yn,
-    {{ asac_axes.kst_at('d.ppltn_time') }} as event_at,
-    d.ppltn_time,
+    d.event_at,
     d.fcst_yn,
     d.collected_at
 from deduped d

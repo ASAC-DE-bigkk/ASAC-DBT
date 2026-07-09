@@ -107,11 +107,9 @@ models:
       - name: area_ppltn_max
         description: 추정 최대 인구 (integer)
       - name: event_at
-        description: 대표 측정 시각 (KST timestamp — ppltn_time 파싱, 크로스도메인 시간축)
-      - name: ppltn_time
-        description: 원천 측정 시각 문자열 (dedup grain의 한 축, 원본 보존)
+        description: 대표 측정 시각 (KST timestamp — PPLTN_TIME 파싱, dedup grain·크로스도메인 시간축)
       - name: collected_at
-        description: 수집 시각 (dedup 시 최신 판단 기준)
+        description: 수집 시각 (KST, dedup 시 최신 판단 기준)
 
   - name: gold_seoul_ppltn_by_time
     description: >
@@ -120,9 +118,7 @@ models:
       incremental(merge) — 최근 수집분만(30분 lookback) (ppltn_time, area_cd) 키로 merge.
     columns:
       - name: event_at
-        description: 대표 측정 시각 (KST timestamp)
-      - name: ppltn_time
-        description: 원천 측정 시각 문자열
+        description: 대표 측정 시각 (KST timestamp, grain 축)
       - name: area_nm
         description: 장소명
       - name: gu
