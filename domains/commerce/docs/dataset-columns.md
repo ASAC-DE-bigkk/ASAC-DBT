@@ -14,16 +14,18 @@
 
 `bronze_localdata_license` 를 dataset별 `record_json` 키로 실측한 결과(dev):
 
-- **적재 40종**(v1 39 + v2 1=환경). 레지스트리 목표는 **150+종** — 나머지는 dev 미적재라
+- **적재 40종**(v1 39 + v2 1=환경). 레지스트리 목표(수집 대상)는 **152종(v1 139 + v2 13)** — 나머지는 dev 미적재라
   분야별 필드는 적재된 40종 기준으로 확정하고, 미적재 군은 적재 시 동일 절차로 확장한다.
-- 공통 **16컬럼** + 준공통 **4컬럼**. (기존 문서의 "공통 19"는 준공통 3종을 포함해 계수한 것 —
+- 공통 **16컬럼** + 준공통 **4컬럼** (dev 40종 실측 기준 — historical). **권위 있는 최신 실측은
+  ASAC-DAG `docs/pipeline/raw/api-field-coverage.md`(152종 라이브 프로브) · `docs/pipeline/common_info.md`
+  참조 — v1 전 종 공통 14 + 준공통 5.** (기존 문서의 "공통 19"는 준공통 3종을 포함해 계수한 것 —
   `DCBYMD`·`SITETEL`·`SITEWHLADDR` 는 일부 군 결측이라 본 문서는 **준공통**으로 재분류.)
 - 분야별 개별 필드가 방대: 식품 48 · 의료 37 · 위생·미용 34 · 안경·치과 28 · 숙박 19 ·
   축산 9 · 동물 8 · 약국 5. → 이 부분이 지금 `record_json` 에만 있어 컬럼으로 조회 불가.
 
 ---
 
-## 1. 공통 16컬럼 — silver 기준 스키마 (전 v1 존재)
+## 1. 공통 16컬럼 — silver 기준 스키마 (전 v1 존재) *(계수는 §0 참조 — 권위 실측 v1 공통 14)*
 
 `OPNSFTEAMCODE` `MGTNO` `BPLCNM` `APVPERMYMD` `TRDSTATEGBN` `TRDSTATENM` `DTLSTATEGBN`
 `DTLSTATENM` `RDNWHLADDR` `RDNPOSTNO` `SITEPOSTNO` `LASTMODTS` `UPDATEGBN` `UPDATEDT` `X` `Y`
@@ -32,7 +34,7 @@
 - 주소/좌표: `RDNWHLADDR`(도로명), `X`/`Y`(EPSG:5174) → silver 에서 정규화·`gu`/동·`lat/lon` 파생.
 - 현재 silver(`silver_license_history`/`current`)가 이 영역을 추출한다(v1/v2 는 `lf()` 매크로로 흡수).
 
-## 2. 준공통 4컬럼 (대부분 제공, 일부 군 결측 → optional/null)
+## 2. 준공통 4컬럼 (대부분 제공, 일부 군 결측 → optional/null) *(계수는 §0 참조 — 권위 실측 준공통 5)*
 
 `DCBYMD`(폐업일자) · `SITEWHLADDR`(지번주소) · `SITETEL`(전화) · `SITEAREA`(소재지면적)
 

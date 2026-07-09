@@ -11,7 +11,7 @@ WGS84 위경도로 변환하는지 정리한다. (조사·실측 근거: 2026-07
 
 ## 1. 지번주소 채움 (jibun_address / jibun_address_source)
 
-원천 39종 중 일부(예: 숙박업 `lodging`)는 지번주소 필드명이 `SITEWHLADDR` 가 아니라
+원천 152종 중 일부(예: 숙박업 `lodging`)는 지번주소 필드명이 `SITEWHLADDR` 가 아니라
 `LOTNO_ADDR` 다(실측: lodging 7,111행 중 7,103행이 LOTNO_ADDR 만 보유). 나머지 결측은
 도로명주소로 Juso API 를 조회해 채운다(실측: 전 데이터셋 합계 유니크 도로명 ~450건).
 

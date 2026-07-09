@@ -4,8 +4,9 @@ sources:
   - name: commerce_bronze
     description: >
       Seoul LOCALDATA 인허가(상권) Bronze Iceberg 테이블. ASAC-DAG 의 commerce_load_bronze DAG 가
-      raw 증분(row-NDJSON)을 적재한다(전체=PyIceberg / 증분=Trino). 39종 데이터셋은 동일 스키마라
-      단일 테이블(dataset 컬럼으로 구분). raw(R2)와 bronze(Iceberg)는 분리 레이어다.
+      raw 증분(row-NDJSON)을 적재한다(전체=PyIceberg / 증분=Trino). 152종(v1 인허가 139 + v2 환경 13)을
+      record_json 통짜(schema-on-read)로 단일 테이블에 수용한다 — v1/v2 필드명이 달라도 무관, dataset
+      컬럼으로 구분. v1/v2 통합은 silver 의 lf() 매크로에서 일어난다. raw(R2)와 bronze(Iceberg)는 분리 레이어다.
     database: "{{ target.database }}"
     schema: "{{ env_var('COMMERCE_SCHEMA', 'commerce') }}"
     loaded_at_field: collected_at
@@ -19,7 +20,7 @@ sources:
         description: 인허가 레코드 변경로그(append-only). record_json 통짜 + 계보 컬럼.
         columns:
           - name: dataset
-            description: 데이터셋 short. 예 general_restaurant. 39종 구분.
+            description: 데이터셋 short. 예 general_restaurant. 152종 구분.
             tests:
               - not_null
           - name: mgtno
