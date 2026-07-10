@@ -323,3 +323,13 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.91}   # 실측 96.95% - 5%p (#85 확정)
               config: {severity: warn}
+
+  - name: gold_culture_activity_by_dong
+    description: 행정동(admin_dong_code) × 일자 문화활동 집계(#48). dim_admin_dong 426동 scaffold라 활동 0건 동도 0으로 존재. sports 제외.
+    columns:
+      - name: admin_dong_code
+        tests: [not_null]
+      - name: event_date
+        tests: [not_null]
+      - name: gu_code
+        tests: [not_null]
