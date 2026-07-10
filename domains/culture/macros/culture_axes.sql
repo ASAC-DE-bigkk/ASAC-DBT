@@ -65,6 +65,27 @@ canon_gu as (
 {%- endmacro %}
 
 {#
+  culture_admin_stamp — dong_map + culture_admin_canon 결과를 최종 select 에 stamp 하는
+  공통 꼬리(#48). 공간 silver 8개가 바이트 동일하게 복붙하던 컬럼 3개 + 조인 3개를
+  단일화한다. canon/canon_gu 별칭(cd/cg)은 culture_admin_canon 이 만든 CTE 이름에 고정.
+  - _cols(dong)         : 최종 select 의 gu_code / admin_dong / admin_dong_code 3컬럼
+  - _joins(driver, dong): dong_map·canon·canon_gu 세 left join
+  ``driver`` = 최종 select 가 읽는 CTE 별칭(latest l / placed p / joined j / deduped d 등),
+  ``dong``   = dong_map 별칭(대개 'd', 드라이버가 'd'인 경우 'm').
+#}
+{% macro culture_admin_stamp_cols(dong='d') -%}
+coalesce(cd.gu_code, cg.gu_code, {{ dong }}.coord_gu_code) as gu_code,
+    coalesce(cd.admin_dong, {{ dong }}.admin_dong) as admin_dong,
+    {{ dong }}.admin_dong_code
+{%- endmacro %}
+
+{% macro culture_admin_stamp_joins(driver, dong='d') -%}
+left join dong_map {{ dong }} on {{ driver }}.longitude = {{ dong }}.longitude and {{ driver }}.latitude = {{ dong }}.latitude
+left join canon cd on cd.admin_dong_code = {{ dong }}.admin_dong_code
+left join canon_gu cg on cg.gu = {{ driver }}.gu
+{%- endmacro %}
+
+{#
   culture_quality_status — 공간축 정밀도 3치 표식(#111). 최종 컬럼 null 여부로 순수 파생.
   - dong_precise : admin_dong_code 있음(좌표 point-in-polygon 성공, 행정동까지)
   - gu_only      : admin_dong_code 없고 gu_code 있음(좌표 없어 구 레벨 근사)
