@@ -9,6 +9,7 @@ commerce 도메인의 **모든 테이블·뷰와 그 관계**를 레이어별로
 | silver | [silver/tables.md](silver/tables.md) | 공통 카탈로그(history/current) · 보강 참조 · marker |
 | gold | [gold/tables.md](gold/tables.md) | Supertype(entity)+이력 · dim(code 정규화) · detail 78(cluster 8+single 70) · marker |
 | gold | [gold/views.md](gold/views.md) | 도메인 view 8×2 · API view 152×2 (current/history) — 조회 인터페이스 |
+| gold | [gold/cluster-domain-coherence.md](gold/cluster-domain-coherence.md) | detail cluster 8개 **도메인 정합성 검증**(공식 LOCALDATA 코드·소관 법령 대조 — 오병합 0건) |
 
 ## 전체 관계 (ERD)
 
