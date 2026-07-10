@@ -2,8 +2,9 @@
 
 > 대분류/중분류/소분류는 **조회·집계용 분류**일 뿐 테이블 설계 기준이 아니다. 이 문서는 **152종 응답
 > 필드를 API 단위로 전수 실측**해 (1) 공통 밖(비공통)을 **실제로 겹치는 API끼리 하나의 카탈로그**로 묶고,
-> (2) **바뀌는 값을 이력으로 보존**하며, (3) **gold가 silver 기반 정규화 + 별도 이력 테이블**을 만드는
-> 구조를 정한다. 인벤토리: [api-field-inventory.csv](api-field-inventory.csv) · 클러스터: [api-field-clusters.json](api-field-clusters.json).
+> (2) **바뀌는 값을 이력으로 보존**하고, (3) **gold가 silver 기반 정규화 + 별도 이력 테이블**을 만들며,
+> (4) **각 단계(bronze→silver→gold)에 marker를 둬 값 바뀐 신규분만 증분 적재**하는 구조를 정한다.
+> 인벤토리: [api-field-inventory.csv](api-field-inventory.csv) · 클러스터: [api-field-clusters.json](api-field-clusters.json).
 
 ## 0. 왜 다시 보나 — 기존 설계의 두 문제
 
@@ -91,7 +92,28 @@
      - (b) **EAV 이력 롱테이블** `gold_license_attr(dataset, opnsfteamcode, mgtno, collected_at, field_code, field_value)`
        — 342 sparse 컬럼 없이 비공통 전량을 **버전 이력**으로 질의.
 
-## 6. 테이블 수 결론 (이력 포함)
+## 6. 단계별 marker & 증분 적재 (필수)
+
+원칙: **각 단계(bronze → silver → gold)마다 "어디까지 적재했나"를 알려주는 marker/지시자**를 두고,
+그 marker 이후 **값이 바뀐 신규분만** 처리한다(raw→bronze의 워터마크·diff와 동일 철학). 재개 표준
+(ASAC-DAG `PROJECT.md §3`)과 정합 — 완료 제외 · 실패 이어받기 · 중단 시 미완성 drop 후 재실행.
+
+| 단계 | marker(지시자) | 증분 단위 | 상태 |
+|---|---|---|---|
+| raw→bronze | `commerce_bronze_state/_watermark.json`(short별 마지막 run_id) + `bronze_collection_run_manifest`(발행) | (dataset, bronze_run_id) | **기존** ✅ — diff로 값 바뀐 신규만, 워터마크 이후만 |
+| bronze→silver | `silver_load_run_marker`(dataset, bronze_run_id, `DONE`) | (dataset, bronze_run_id) | **기존** ✅ — 미마커 publishable run만 파싱·중복제거 |
+| **silver→gold** | **`gold_load_run_marker`(신규 필수)** — (모델/클러스터, 반영한 silver 버전 상한) | (dataset, opnsfteamcode, mgtno, collected_at) | **신규 구현 필요** ❌ |
+
+- **gold marker 설계**: 각 `gold_detail_<cluster>` / `gold_license_change_history` 는 자신이 반영한
+  silver history의 상한(`max(collected_at)` 또는 처리한 `bronze_run_id` 집합)을 marker로 기록 →
+  다음 실행은 그 이후 **신규 silver 버전만** delete+insert/append. (현행 silver current/detail의
+  `where collected_at > (select max(collected_at) from {{ this }})` 증분 패턴과 동일 계약.)
+- **"값 바뀐 것만" 자동 보장**: silver history가 이미 인접중복 제거(=내용 변경분만 버전 생성)라, gold는
+  그 신규 버전만 받으면 자동으로 실질 변경분만 적재된다.
+- **DAG 배선**: gold task는 silver `mark_silver_done` 이후 실행 → gold marker로 증분 → 완료 시 gold
+  marker 기록(silver의 `mark_silver_done` 대칭). 실패 시 marker 미기록 → 재시도가 이어받음(재개 표준).
+
+## 7. 테이블 수 결론 (이력 포함)
 
 | 구성 | 테이블 | 이력 |
 |---|---:|---|
@@ -103,11 +125,13 @@
 → 대분류(4) ❌ · per-API(152) ❌ → **공통 2 + gold 클러스터 ~12~18 + 이력 1 (+EAV 1)**.
 임계값·최소 클러스터 크기는 운영 노브 — [api-field-inventory.csv](api-field-inventory.csv)로 조정.
 
-## 7. 다음 단계 (검증 후)
+## 8. 다음 단계 (검증 후)
 
 1. 임계/최소크기 확정 → 클러스터·테이블 목록 픽스.
 2. `gold_detail_<cluster>`(history-form) + `gold_license_change_history`(정규화 이력) 스키마 확정.
-3. `detail_health` → gold 클러스터로 마이그레이션(current→history 전환), `dataset-columns.md` 실측 갱신.
-4. 테스트: history grain unique · 인접중복 0 · counts. gold는 silver `ref()`만 참조(재파싱은 record_json 추출 한정).
+3. **`gold_load_run_marker`(신규) 설계·구현** — silver→gold 증분 지시자(§6).
+4. `detail_health` → gold 클러스터로 마이그레이션(current→history 전환), `dataset-columns.md` 실측 갱신.
+5. 테스트: history grain unique · 인접중복 0 · counts · **gold 증분(신규 버전만 반영)**. gold는 silver
+   `ref()`만 참조(재파싱은 record_json 추출 한정).
 
 > 재측정: 적재 완료분 기준 `bronze_localdata_license.record_json`(Trino)이 권위. 신규 데이터셋/컬럼은 동일 절차로 인벤토리 갱신.
