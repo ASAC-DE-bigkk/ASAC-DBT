@@ -78,16 +78,11 @@ deduped as (
 )
 
 select
-    d.area_nm,
     d.area_cd,
-    a.sido,
-    a.gu,
-    a.admin_dong,
-    a.gu_code,
     a.admin_dong_code,
+    a.gu_code,
     a.longitude,
     a.latitude,
-    a.area_category,
     d.area_congest_lvl,
     d.area_congest_msg,
     d.area_ppltn_min,

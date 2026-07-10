@@ -60,11 +60,10 @@ deduped as (
 
 select
     d.area_cd,
-    a.area_nm,
-    a.gu,
-    a.admin_dong,
-    a.gu_code,
     a.admin_dong_code,
+    a.gu_code,
+    a.longitude,
+    a.latitude,
     d.event_at,
     d.rsb_lrg_ctgr,
     d.rsb_mid_ctgr,

@@ -63,11 +63,10 @@ deduped as (
 
 select
     d.area_cd,
-    a.area_nm,
-    a.gu,
-    a.admin_dong,
-    a.gu_code,
     a.admin_dong_code,
+    a.gu_code,
+    a.longitude,
+    a.latitude,
     d.mode,
     d.observed_at,
     d.gton_5min_min, d.gton_5min_max, d.gtoff_5min_min, d.gtoff_5min_max,
