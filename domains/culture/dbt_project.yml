@@ -28,3 +28,7 @@ seeds:
       +column_types: {priority: integer, latitude: double, longitude: double}
     sejong_location:
       +column_types: {latitude: double, longitude: double}
+    kbo_seoul_schedule:
+      +column_types: {game_date: date}
+    kbo_stadium_location:
+      +column_types: {latitude: double, longitude: double}

@@ -229,3 +229,27 @@ models:
         description: 서울 top10 관객합 / 전국 top10 관객합 (서울 쏠림 신호)
         tests:
           - not_null
+
+  - name: silver_culture_sports_event
+    description: KBO 서울 홈경기 일정 fact (seed 원천, 그레인 game_date×stadium×game_time). 문화행사 축과 분리(sports).
+    columns:
+      - name: game_date
+        tests: [not_null]
+      - name: stadium
+        tests: [not_null]
+      - name: event_at
+        description: 경기 시작 시각 (KST, event_time)
+        tests: [not_null]
+      - name: gu_code
+        description: 자치구 코드 (#48 코드 축)
+        tests: [not_null]
+
+  - name: gold_culture_sports_schedule
+    description: 서울 야구 경기 일정 질의 표면 (경기 1행). 최근접 미래 경기 = game_date>=current_date order by event_at.
+    columns:
+      - name: game_date
+        tests: [not_null]
+      - name: event_at
+        tests: [not_null]
+      - name: stadium
+        tests: [not_null]
