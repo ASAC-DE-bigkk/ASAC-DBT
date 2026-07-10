@@ -25,7 +25,7 @@ silver = **명확한 공통만** 컬럼화한 이력 원천(truth). 비공통(�
 
 | 테이블 | grain / 적재 | 용도 |
 |---|---|---|
-| `bronze_ref_admin_dong` | 전량 교체 | 행정동↔법정동 매핑(서울 필터) → gu/동 코드 파생, gold_dim_region 소스 |
+| `bronze_ref_admin_dong` | 전량 교체 | 행정동↔법정동 매핑(서울 필터) → gu/동 코드 파생, commerce_dim_region 소스 |
 | `bronze_address_enrichment` | `road_address_norm` upsert | 지번 결측 Juso 보강 캐시(`status='filled'` 만 소비) |
 
 ## marker

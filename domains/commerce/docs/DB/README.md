@@ -14,21 +14,21 @@ commerce 도메인의 **모든 테이블·뷰와 그 관계**를 레이어별로
 
 ```mermaid
 erDiagram
-    silver_license_history ||--o{ gold_business_entity_history : "정규화(공통)"
-    silver_license_history ||--o{ gold_X_detail : "비공통 lf() 추출"
-    silver_license_current ||--|| gold_business_entity : "현재 1행"
+    silver_license_history ||--o{ commerce_business_entity_history : "정규화(공통)"
+    silver_license_history ||--o{ commerce_X_detail : "비공통 lf() 추출"
+    silver_license_current ||--|| commerce_business_entity : "현재 1행"
 
-    gold_business_entity ||--o{ gold_business_entity_history : "entity_id"
-    gold_business_entity ||--o{ gold_X_detail : "entity_id (supertype-subtype)"
-    gold_dim_dataset ||--o{ gold_business_entity : "dataset"
-    gold_dim_region ||--o{ gold_business_entity : "admin_dong_code"
-    gold_dim_business_status ||--o{ gold_business_entity : "(fmt,status_code)"
+    commerce_business_entity ||--o{ commerce_business_entity_history : "entity_id"
+    commerce_business_entity ||--o{ commerce_X_detail : "entity_id (supertype-subtype)"
+    commerce_dim_dataset ||--o{ commerce_business_entity : "dataset"
+    commerce_dim_region ||--o{ commerce_business_entity : "admin_dong_code"
+    commerce_dim_business_status ||--o{ commerce_business_entity : "(fmt,status_code)"
 
-    gold_business_entity ||--o{ gold_v_DOMAIN : "view(현재)"
-    gold_business_entity_history ||--o{ gold_v_DOMAIN_history : "view(이력)"
+    commerce_business_entity ||--o{ commerce_v_DOMAIN : "view(현재)"
+    commerce_business_entity_history ||--o{ commerce_v_DOMAIN_history : "view(이력)"
 ```
 
-- `gold_X_detail` = 78개 상세 테이블(카탈로그의 detail_cluster 8 + detail_single 70)의 대표 표기.
+- `commerce_X_detail` = 78개 상세 테이블(카탈로그의 detail_cluster 8 + detail_single 70)의 대표 표기.
 - 모든 detail 은 **entity_id(공통 supertype key)** 로만 공통과 연결 — 공통 컬럼 재저장 없음.
 - 이력: silver history(append-only) → entity_history + detail(버전행). 조인 키
   `(entity_id, collected_at, content_hash)` — 같은 silver 버전행에서 나와 1:1 정합.
@@ -39,4 +39,12 @@ erDiagram
 |---|---|
 | `entity_id` | **결정적 서러게이트** = sha256(`dataset\|opnsfteamcode\|mgtno`) — 시퀀스 불필요, 재빌드 불변 |
 | 버전 키 | `(entity_id, collected_at, content_hash)` — silver history 의 버전 그레인과 동일 |
-| 증분 marker | `gold_load_run_marker.watermark_collected_at` — 완료 후에만 DONE, 중단 시 미완성 drop |
+| 증분 marker | `commerce_load_run_marker.watermark_collected_at` — 완료 후에만 DONE, 중단 시 미완성 drop |
+
+## 명명·구동 규약
+
+- **객체명에 레이어(gold) 금지** — 레이어는 DB/스키마가 식별. **`commerce_` 접두 = 도메인 식별**.
+- **카탈로그도 DB 객체**: `commerce_catalog`(1행=객체 1개, catalog_version) — 카탈로그와 DB 동시 존재.
+- **적재 DAG `commerce_load_gold`(2 task)**: `build_catalog`(실측→카탈로그 갱신+드리프트 리포트) →
+  `load_gold`(**초기 DDL ensure: 없는 table/view 생성** → marker 증분 → 중단 방어 → DONE).
+  상세: [gold/tables.md §6](gold/tables.md).
