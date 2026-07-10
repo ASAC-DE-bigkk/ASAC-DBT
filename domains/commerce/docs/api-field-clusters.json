@@ -1,0 +1,1653 @@
+{
+ "v1@0.7": [
+  {
+   "members": [
+    "bakery",
+    "container_pkg_mfg",
+    "contract_meal_service",
+    "distribution_sale",
+    "edible_ice_sale",
+    "entertainment_bar",
+    "food_additive_mfg",
+    "food_cold_storage",
+    "food_mfg",
+    "food_sale_etc",
+    "food_subdivision",
+    "food_transport",
+    "food_vending",
+    "general_restaurant",
+    "group_meal_facility",
+    "group_meal_food_sale",
+    "hfood_dist_sale",
+    "hfood_general_sale",
+    "instant_sale_mfg",
+    "rest_restaurant",
+    "singing_bar"
+   ],
+   "n": 21,
+   "shared_noncommon": [
+    "BDNGOWNSENM",
+    "FACILTOTSCP",
+    "FCTYOWKEPCNT",
+    "FCTYPDTJOBEPCNT",
+    "FCTYSILJOBEPCNT",
+    "HOFFEPCNT",
+    "HOMEPAGE",
+    "ISREAM",
+    "JTUPSOASGNNO",
+    "JTUPSOMAINEDF",
+    "LVSENM",
+    "MANEIPCNT",
+    "MONAM",
+    "MULTUSNUPSOYN",
+    "SITEAREA",
+    "SNTUPTAENM",
+    "TRDPJUBNSENM",
+    "WMEIPCNT",
+    "WTRSPLYFACILSENM"
+   ],
+   "categories": {
+    "food": 20,
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "animal_drug_wholesale",
+    "animal_hospital",
+    "animal_medical_device_sale",
+    "animal_pharmacy",
+    "animal_sale",
+    "feed_manufacturing",
+    "hospital",
+    "large_store",
+    "livestock_breeding",
+    "livestock_processing",
+    "livestock_sale",
+    "livestock_storage",
+    "livestock_transport",
+    "mail_order_sale",
+    "meat_packaging",
+    "petroleum_sale"
+   ],
+   "n": 16,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "CLGENDDT",
+    "CLGSTDT"
+   ],
+   "categories": {
+    "animal": 5,
+    "industry": 5,
+    "health_medical": 1,
+    "livestock": 5
+   }
+  },
+  {
+   "members": [
+    "cinema",
+    "film_distribution",
+    "film_import",
+    "film_production",
+    "film_screening",
+    "game_distribution",
+    "game_production",
+    "music_video_distribution",
+    "music_video_production",
+    "online_music_service",
+    "performance_hall",
+    "pop_culture_agency",
+    "printing_shop",
+    "publisher",
+    "video_distribution",
+    "video_production"
+   ],
+   "n": 16,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BDNGSRVNM",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CULPHYEDCOBNM",
+    "CULWRKRSENM",
+    "FACILAR",
+    "JISGNUMLAY",
+    "MNFACTREARTCLCN",
+    "NEARENVNM",
+    "REGNSENM",
+    "TOTNUMLAY",
+    "UNDERNUMLAY"
+   ],
+   "categories": {
+    "culture": 16
+   }
+  },
+  {
+   "members": [
+    "auto_campground",
+    "city_tour_bus",
+    "convention_facility",
+    "convention_planning",
+    "domestic_travel_agency",
+    "foreigner_entertainment_bar",
+    "general_campground",
+    "general_travel_agency",
+    "overseas_travel_agency",
+    "resort_complex",
+    "tour_cruise",
+    "tour_entertainment_bar",
+    "tour_restaurant",
+    "tourist_cabaret",
+    "tourist_performance_hall"
+   ],
+   "n": 15,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BDNGSRVNM",
+    "CAPT",
+    "CHAIRCNT",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CNSTYAREA",
+    "CULPHYEDCOBNM",
+    "CULWRKRSENM",
+    "ENGSTNTRNMADDR",
+    "ENGSTNTRNMNM",
+    "FACILAR",
+    "FACILSCP",
+    "INSURENDDT",
+    "INSURORGNM",
+    "INSURSTDT",
+    "JISGNUMLAY",
+    "MEETSAMTIMESYGSTF",
+    "MNFACTREARTCLCN",
+    "NEARENVNM",
+    "REGNSENM",
+    "SHPCNT",
+    "SHPINFO",
+    "SHPTOTTONS",
+    "STAGEAR",
+    "STROOMCNT",
+    "SVNSR",
+    "TOTNUMLAY",
+    "UNDERNUMLAY"
+   ],
+   "categories": {
+    "culture": 12,
+    "food": 3
+   }
+  },
+  {
+   "members": [
+    "billiard_hall",
+    "dance_academy",
+    "dance_hall",
+    "fitness_center",
+    "golf_course",
+    "golf_range",
+    "ice_rink",
+    "martial_arts_gym",
+    "sled_park",
+    "swimming_pool",
+    "yacht_marina"
+   ],
+   "n": 11,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BDNGDNGNUM",
+    "BDNGYAREA",
+    "BUPNM",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CULPHYEDCOBNM",
+    "INSURJNYNCODE",
+    "LDERCNT",
+    "MEMCOLLTOTSTFNUM",
+    "PUPRSENM"
+   ],
+   "categories": {
+    "culture": 11
+   }
+  },
+  {
+   "members": [
+    "combined_game_arcade",
+    "combined_video_service",
+    "general_game_arcade",
+    "internet_game_cafe",
+    "karaoke_room",
+    "video_small_theater",
+    "video_viewing_room",
+    "video_viewing_service",
+    "youth_game_arcade"
+   ],
+   "n": 9,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "AUTOCHAAIRYN",
+    "BDNGSRVNM",
+    "BFGAMEOCPTECTCOBNM",
+    "BGROOMCNT",
+    "BGROOMYN",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CNVEFACILYN",
+    "CULPHYEDCOBNM",
+    "CULWRKRSENM",
+    "EMERSTAIRYN",
+    "EMEXYN",
+    "FACILAR",
+    "FIREFACILYN",
+    "JISGNUMLAY",
+    "LGHTFACILINILLU",
+    "LGHTFACILYN",
+    "MNFACTREARTCLCN",
+    "NEARENVNM",
+    "NOROOMCNT",
+    "PASGBRETH",
+    "PRVDGATHINNM",
+    "REGNSENM",
+    "SOUARFACILYN",
+    "SOUNDFACILYN",
+    "SPECLGHTYN",
+    "TOTGASYSCNT",
+    "TOTNUMLAY",
+    "UNDERNUMLAY",
+    "VDORETORNM"
+   ],
+   "categories": {
+    "culture": 9
+   }
+  },
+  {
+   "members": [
+    "barber_shop",
+    "bathhouse",
+    "beauty_shop",
+    "laundry"
+   ],
+   "n": 4,
+   "shared_noncommon": [
+    "BDNGJISGFLRCNT",
+    "BDNGOWNSENM",
+    "BDNGUNDERFLRCNT",
+    "CNDPERMENDYMD",
+    "CNDPERMNTWHY",
+    "CNDPERMSTYMD",
+    "MANEIPCNT",
+    "MULTUSNUPSOYN",
+    "SITEAREA",
+    "SNTUPTAENM",
+    "UPTAENM",
+    "USEJISGENDFLR",
+    "USEJISGSTFLR",
+    "USEUNDERENDFLR",
+    "USEUNDERSTFLR",
+    "WMEIPCNT"
+   ],
+   "categories": {
+    "hygiene_beauty": 4
+   }
+  },
+  {
+   "members": [
+    "meter_certification",
+    "meter_import",
+    "meter_manufacturing",
+    "meter_repair"
+   ],
+   "n": 4,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "ROPNYMD",
+    "WRKPTELNO"
+   ],
+   "categories": {
+    "industry": 4
+   }
+  },
+  {
+   "members": [
+    "affiliated_medical",
+    "clinic",
+    "medical_corporation"
+   ],
+   "n": 3,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "HSTRMNUM",
+    "MEDEXTRITEMSCN",
+    "MEDEXTRITEMSCNNM",
+    "METRORGASSRNM",
+    "METRPNUM",
+    "SICBNUM",
+    "TOTAR"
+   ],
+   "categories": {
+    "health_medical": 3
+   }
+  },
+  {
+   "members": [
+    "medical_device_sale",
+    "safety_otc_drug_sale",
+    "sports_complex"
+   ],
+   "n": 3,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "CLGENDDT",
+    "CLGSTDT"
+   ],
+   "categories": {
+    "health_medical": 2,
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "amusement_etc",
+    "full_amusement_park",
+    "general_amusement_park"
+   ],
+   "n": 3,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BCFACILEN",
+    "BDNGSRVNM",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CULPHYEDCOBNM",
+    "CULWRKRSENM",
+    "DISPENEN",
+    "FACILAR",
+    "FACILSCP",
+    "GEICPFACILEN",
+    "INFOBEN",
+    "JISGNUMLAY",
+    "MNFACTREARTCLCN",
+    "NEARENVNM",
+    "PLAYFACILCNT",
+    "PLAYUTSCNTDTL",
+    "REGNSENM",
+    "TOTNUMLAY",
+    "UNDERNUMLAY"
+   ],
+   "categories": {
+    "culture": 3
+   }
+  },
+  {
+   "members": [
+    "groundwater_construction",
+    "groundwater_purification",
+    "groundwater_survey"
+   ],
+   "n": 3,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "FACILEQI",
+    "OTRORGTRANSYN",
+    "SPECMPWTOTNUM"
+   ],
+   "categories": {
+    "industry": 3
+   }
+  },
+  {
+   "members": [
+    "mlm_sale",
+    "sponsored_door_sale"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "CAPTSCALE",
+    "CLGENDDT",
+    "CLGSTDT",
+    "COBGBNNM"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "door_to_door_sale",
+    "telemarketing_sale"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "ASETSCP",
+    "BCTOTAM",
+    "CAPT",
+    "CLGENDDT",
+    "CLGSTDT",
+    "ROPNYMD"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "log_production",
+    "timber_import_dist"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "CAPT",
+    "MPWKEESITU",
+    "STATESENM",
+    "TMBSENM",
+    "TMBSRNM",
+    "TRETMBRPRDT",
+    "YTPDTQY"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "tobacco_import_sale",
+    "tobacco_wholesale"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "TBCOSPYUPCHNM",
+    "TREPRDTNM"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "caregiver_academy",
+    "funeral_director_academy"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "DELETEYMD",
+    "ROPNYMD"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "free_job_agency",
+    "paid_job_agency"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "BUPGBNNM",
+    "SENM"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "postpartum_care"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BABYRGLSTNUM",
+    "BBRMAR",
+    "BDNGLAYERCNT",
+    "BTPNUM",
+    "BTRMAR",
+    "CLGENDDT",
+    "CLGSTDT",
+    "COPNUM",
+    "JISGNUMLAY",
+    "JORIWONTOILAR",
+    "MMKNURMAR",
+    "NURSAIDCNT",
+    "NURSECNT",
+    "NUTRCNT",
+    "OFEAR",
+    "PGRMAR",
+    "POMFACILAR",
+    "PWNMRGLSTNUM",
+    "UNDERNUMLAY",
+    "WARMAR"
+   ],
+   "categories": {
+    "health_medical": 1
+   }
+  },
+  {
+   "members": [
+    "medical_similar"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "ASTNEPNUM",
+    "BATRAR",
+    "CLGENDDT",
+    "CLGSTDT",
+    "EPCNT",
+    "ETCEPCNT",
+    "FACILMNGNUM",
+    "METRBOSASSRNM",
+    "QUTNOWNERNUM",
+    "SICBNUM",
+    "TOTAR",
+    "UPTAENM"
+   ],
+   "categories": {
+    "health_medical": 1
+   }
+  },
+  {
+   "members": [
+    "pharmacy"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "ASGNYMD",
+    "CLGENDDT",
+    "CLGSTDT",
+    "PHARMTRDAR"
+   ],
+   "categories": {
+    "pharmacy": 1
+   }
+  },
+  {
+   "members": [
+    "disinfection"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "CLGENDDT",
+    "CLGSTDT",
+    "DISFETVEHGARAR",
+    "DYNPWSPRAYNUM",
+    "GMKNUM",
+    "HDOPTDSPRAYNUM",
+    "HNDUSESTLZNUM",
+    "MICROSPKLNUM",
+    "OFEAR",
+    "PROTGLSNUM",
+    "PROTUSECLOTNUM",
+    "VACUCLERNUM"
+   ],
+   "categories": {
+    "hygiene_beauty": 1
+   }
+  },
+  {
+   "members": [
+    "optical_shop"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "CLGENDDT",
+    "CLGSTDT",
+    "DEFPTRFRTGGNUM",
+    "EYEPYONUM",
+    "GLSWASHERNUM",
+    "HEATNUM",
+    "LENSCUTNUM",
+    "MSMCHAIRNUM",
+    "PPTNUSEGRNDNUM",
+    "PUPILDISTMEASNUM",
+    "SAMPLENSNUM",
+    "TOTAR"
+   ],
+   "categories": {
+    "optical_dental": 1
+   }
+  },
+  {
+   "members": [
+    "dental_lab"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "ACETNUM",
+    "APVCANCELYMD",
+    "BURYCNT",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CRFTUSECOMPRECNT",
+    "CRFTUSELESSNUM",
+    "CRFTUSEMOTNUM",
+    "CTPLCTMCENUM",
+    "DENTIUSEPRESSNUM",
+    "EFURNUM",
+    "PCANNUM",
+    "PINDEXCNT",
+    "SBMCNT",
+    "SPWVCLERNUM",
+    "SUVYNUM",
+    "TRMNUM",
+    "VITRNUM"
+   ],
+   "categories": {
+    "optical_dental": 1
+   }
+  },
+  {
+   "members": [
+    "lodging"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "BDNGJISGFLRCNT",
+    "BDNGOWNSENM",
+    "BDNGUNDERFLRCNT",
+    "CLGSTDT",
+    "CNDPERMENDYMD",
+    "CNDPERMNTWHY",
+    "CNDPERMSTYMD",
+    "HANSHILCNT",
+    "LOTNO_ADDR",
+    "MANEIPCNT",
+    "MULTUSNUPSOYN",
+    "SITEAREA",
+    "SNTTN_BZSTAT_NM",
+    "SNTUPTAENM",
+    "USEJISGENDFLR",
+    "USEJISGSTFLR",
+    "USEUNDERENDFLR",
+    "USEUNDERSTFLR",
+    "WMEIPCNT",
+    "YANGSILCNT"
+   ],
+   "categories": {
+    "lodging": 1
+   }
+  },
+  {
+   "members": [
+    "medical_device_repair"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "CLGENDDT",
+    "CLGSTDT",
+    "MEDKIND",
+    "ROPNYMD",
+    "SJYN",
+    "TOTSCP"
+   ],
+   "categories": {
+    "health_medical": 1
+   }
+  },
+  {
+   "members": [
+    "tourism_operator"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "AFC",
+    "APVCANCELYMD",
+    "CAPT",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CULPHYEDCOBNM",
+    "FACILSCP",
+    "INSURENDDT",
+    "INSURORGNM",
+    "INSURSTDT",
+    "PLNINSURENDDT",
+    "PLNINSURSTDT",
+    "SITEAREA"
+   ],
+   "categories": {
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "traditional_temple"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "ASGNCANCEL",
+    "ASGNCANCELWHY",
+    "ASGNCANCELYMD",
+    "BELVNUM",
+    "CLGENDDT",
+    "CLGSTDT",
+    "ESTBHDATE",
+    "MONKNUM",
+    "ORIGINHIST",
+    "TDTPNM"
+   ],
+   "categories": {
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "culture_arts_corporation"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BUPDISORGYMD",
+    "BUPESBMNTOBJ",
+    "BUPNM",
+    "CULPHYEDCOBNM",
+    "PERMCN",
+    "SITEAREA"
+   ],
+   "categories": {
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "outdoor_advertising"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "ROPNYMD",
+    "TRDCTN"
+   ],
+   "categories": {
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "high_pressure_gas"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "PRDSENM",
+    "ROPNYMD",
+    "SITEAREA",
+    "UPTAENM",
+    "WRKPGRDSRVSENM"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "petroleum_alt_fuel_sale"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "CAPT",
+    "CLGSTDT",
+    "UPCHNM",
+    "UPTAENM"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "pressure_equipment"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "BAEESBPLC",
+    "CGPAR",
+    "CLGENDDT",
+    "CLGSTDT",
+    "INSTRSTOROOMAR",
+    "LTCHGCN",
+    "OFEAR",
+    "ROPNYMD",
+    "SAVEEQULOC",
+    "TREGASCAP"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "special_high_pressure_gas"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "BMONUSEQY",
+    "SYGRGLSTCNT",
+    "USEMET",
+    "USEOBJ"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "emission_repair_agent"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "COBGBNNM",
+    "ENVBSNSENM",
+    "JONGGBNNM",
+    "ROPNYMD",
+    "UPTAENM"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "tobacco_retail"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "ASGNYMD",
+    "CLGENDDT",
+    "CLGSTDT",
+    "MWSRNM"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "mutual_aid_funeral"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "CAPTSCALE",
+    "CLGENDDT",
+    "CLGSTDT",
+    "DEBTPAYISRE",
+    "DEPBANKNM",
+    "DEPUCORGETCNM",
+    "DEPUCORGNM",
+    "INSUR",
+    "MWSRNM",
+    "ROPNYMD"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  }
+ ],
+ "v1@0.5": [
+  {
+   "members": [
+    "amusement_etc",
+    "auto_campground",
+    "cinema",
+    "city_tour_bus",
+    "convention_facility",
+    "convention_planning",
+    "domestic_travel_agency",
+    "film_distribution",
+    "film_import",
+    "film_production",
+    "film_screening",
+    "foreigner_entertainment_bar",
+    "full_amusement_park",
+    "game_distribution",
+    "game_production",
+    "general_amusement_park",
+    "general_campground",
+    "general_travel_agency",
+    "music_video_distribution",
+    "music_video_production",
+    "online_music_service",
+    "overseas_travel_agency",
+    "performance_hall",
+    "pop_culture_agency",
+    "printing_shop",
+    "publisher",
+    "resort_complex",
+    "tour_cruise",
+    "tour_entertainment_bar",
+    "tour_restaurant",
+    "tourist_cabaret",
+    "tourist_performance_hall",
+    "video_distribution",
+    "video_production"
+   ],
+   "n": 34,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BDNGSRVNM",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CULPHYEDCOBNM",
+    "CULWRKRSENM",
+    "FACILAR",
+    "JISGNUMLAY",
+    "MNFACTREARTCLCN",
+    "NEARENVNM",
+    "REGNSENM",
+    "TOTNUMLAY",
+    "UNDERNUMLAY"
+   ],
+   "categories": {
+    "culture": 31,
+    "food": 3
+   }
+  },
+  {
+   "members": [
+    "animal_drug_wholesale",
+    "animal_hospital",
+    "animal_medical_device_sale",
+    "animal_pharmacy",
+    "animal_sale",
+    "feed_manufacturing",
+    "high_pressure_gas",
+    "hospital",
+    "large_store",
+    "livestock_breeding",
+    "livestock_processing",
+    "livestock_sale",
+    "livestock_storage",
+    "livestock_transport",
+    "mail_order_sale",
+    "meat_packaging",
+    "medical_device_repair",
+    "medical_device_sale",
+    "petroleum_sale",
+    "pharmacy",
+    "safety_otc_drug_sale",
+    "sports_complex",
+    "tobacco_import_sale",
+    "tobacco_retail",
+    "tobacco_wholesale"
+   ],
+   "n": 25,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT"
+   ],
+   "categories": {
+    "animal": 5,
+    "industry": 9,
+    "health_medical": 4,
+    "livestock": 5,
+    "pharmacy": 1,
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "bakery",
+    "container_pkg_mfg",
+    "contract_meal_service",
+    "distribution_sale",
+    "edible_ice_sale",
+    "entertainment_bar",
+    "food_additive_mfg",
+    "food_cold_storage",
+    "food_mfg",
+    "food_sale_etc",
+    "food_subdivision",
+    "food_transport",
+    "food_vending",
+    "general_restaurant",
+    "group_meal_facility",
+    "group_meal_food_sale",
+    "hfood_dist_sale",
+    "hfood_general_sale",
+    "instant_sale_mfg",
+    "rest_restaurant",
+    "singing_bar"
+   ],
+   "n": 21,
+   "shared_noncommon": [
+    "BDNGOWNSENM",
+    "FACILTOTSCP",
+    "FCTYOWKEPCNT",
+    "FCTYPDTJOBEPCNT",
+    "FCTYSILJOBEPCNT",
+    "HOFFEPCNT",
+    "HOMEPAGE",
+    "ISREAM",
+    "JTUPSOASGNNO",
+    "JTUPSOMAINEDF",
+    "LVSENM",
+    "MANEIPCNT",
+    "MONAM",
+    "MULTUSNUPSOYN",
+    "SITEAREA",
+    "SNTUPTAENM",
+    "TRDPJUBNSENM",
+    "WMEIPCNT",
+    "WTRSPLYFACILSENM"
+   ],
+   "categories": {
+    "food": 20,
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "billiard_hall",
+    "dance_academy",
+    "dance_hall",
+    "fitness_center",
+    "golf_course",
+    "golf_range",
+    "ice_rink",
+    "martial_arts_gym",
+    "sled_park",
+    "swimming_pool",
+    "yacht_marina"
+   ],
+   "n": 11,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BDNGDNGNUM",
+    "BDNGYAREA",
+    "BUPNM",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CULPHYEDCOBNM",
+    "INSURJNYNCODE",
+    "LDERCNT",
+    "MEMCOLLTOTSTFNUM",
+    "PUPRSENM"
+   ],
+   "categories": {
+    "culture": 11
+   }
+  },
+  {
+   "members": [
+    "combined_game_arcade",
+    "combined_video_service",
+    "general_game_arcade",
+    "internet_game_cafe",
+    "karaoke_room",
+    "video_small_theater",
+    "video_viewing_room",
+    "video_viewing_service",
+    "youth_game_arcade"
+   ],
+   "n": 9,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "AUTOCHAAIRYN",
+    "BDNGSRVNM",
+    "BFGAMEOCPTECTCOBNM",
+    "BGROOMCNT",
+    "BGROOMYN",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CNVEFACILYN",
+    "CULPHYEDCOBNM",
+    "CULWRKRSENM",
+    "EMERSTAIRYN",
+    "EMEXYN",
+    "FACILAR",
+    "FIREFACILYN",
+    "JISGNUMLAY",
+    "LGHTFACILINILLU",
+    "LGHTFACILYN",
+    "MNFACTREARTCLCN",
+    "NEARENVNM",
+    "NOROOMCNT",
+    "PASGBRETH",
+    "PRVDGATHINNM",
+    "REGNSENM",
+    "SOUARFACILYN",
+    "SOUNDFACILYN",
+    "SPECLGHTYN",
+    "TOTGASYSCNT",
+    "TOTNUMLAY",
+    "UNDERNUMLAY",
+    "VDORETORNM"
+   ],
+   "categories": {
+    "culture": 9
+   }
+  },
+  {
+   "members": [
+    "caregiver_academy",
+    "funeral_director_academy",
+    "meter_certification",
+    "meter_import",
+    "meter_manufacturing",
+    "meter_repair",
+    "outdoor_advertising"
+   ],
+   "n": 7,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "ROPNYMD"
+   ],
+   "categories": {
+    "industry": 6,
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "barber_shop",
+    "bathhouse",
+    "beauty_shop",
+    "laundry",
+    "lodging"
+   ],
+   "n": 5,
+   "shared_noncommon": [
+    "BDNGJISGFLRCNT",
+    "BDNGOWNSENM",
+    "BDNGUNDERFLRCNT",
+    "CNDPERMENDYMD",
+    "CNDPERMNTWHY",
+    "CNDPERMSTYMD",
+    "MANEIPCNT",
+    "MULTUSNUPSOYN",
+    "SITEAREA",
+    "SNTUPTAENM",
+    "USEJISGENDFLR",
+    "USEJISGSTFLR",
+    "USEUNDERENDFLR",
+    "USEUNDERSTFLR",
+    "WMEIPCNT"
+   ],
+   "categories": {
+    "hygiene_beauty": 4,
+    "lodging": 1
+   }
+  },
+  {
+   "members": [
+    "affiliated_medical",
+    "clinic",
+    "medical_corporation"
+   ],
+   "n": 3,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "HSTRMNUM",
+    "MEDEXTRITEMSCN",
+    "MEDEXTRITEMSCNNM",
+    "METRORGASSRNM",
+    "METRPNUM",
+    "SICBNUM",
+    "TOTAR"
+   ],
+   "categories": {
+    "health_medical": 3
+   }
+  },
+  {
+   "members": [
+    "groundwater_construction",
+    "groundwater_purification",
+    "groundwater_survey"
+   ],
+   "n": 3,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "FACILEQI",
+    "OTRORGTRANSYN",
+    "SPECMPWTOTNUM"
+   ],
+   "categories": {
+    "industry": 3
+   }
+  },
+  {
+   "members": [
+    "mlm_sale",
+    "sponsored_door_sale"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "CAPTSCALE",
+    "CLGENDDT",
+    "CLGSTDT",
+    "COBGBNNM"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "door_to_door_sale",
+    "telemarketing_sale"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "ASETSCP",
+    "BCTOTAM",
+    "CAPT",
+    "CLGENDDT",
+    "CLGSTDT",
+    "ROPNYMD"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "log_production",
+    "timber_import_dist"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "CAPT",
+    "MPWKEESITU",
+    "STATESENM",
+    "TMBSENM",
+    "TMBSRNM",
+    "TRETMBRPRDT",
+    "YTPDTQY"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "free_job_agency",
+    "paid_job_agency"
+   ],
+   "n": 2,
+   "shared_noncommon": [
+    "BUPGBNNM",
+    "SENM"
+   ],
+   "categories": {
+    "industry": 2
+   }
+  },
+  {
+   "members": [
+    "postpartum_care"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BABYRGLSTNUM",
+    "BBRMAR",
+    "BDNGLAYERCNT",
+    "BTPNUM",
+    "BTRMAR",
+    "CLGENDDT",
+    "CLGSTDT",
+    "COPNUM",
+    "JISGNUMLAY",
+    "JORIWONTOILAR",
+    "MMKNURMAR",
+    "NURSAIDCNT",
+    "NURSECNT",
+    "NUTRCNT",
+    "OFEAR",
+    "PGRMAR",
+    "POMFACILAR",
+    "PWNMRGLSTNUM",
+    "UNDERNUMLAY",
+    "WARMAR"
+   ],
+   "categories": {
+    "health_medical": 1
+   }
+  },
+  {
+   "members": [
+    "medical_similar"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "ASTNEPNUM",
+    "BATRAR",
+    "CLGENDDT",
+    "CLGSTDT",
+    "EPCNT",
+    "ETCEPCNT",
+    "FACILMNGNUM",
+    "METRBOSASSRNM",
+    "QUTNOWNERNUM",
+    "SICBNUM",
+    "TOTAR",
+    "UPTAENM"
+   ],
+   "categories": {
+    "health_medical": 1
+   }
+  },
+  {
+   "members": [
+    "disinfection"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "CLGENDDT",
+    "CLGSTDT",
+    "DISFETVEHGARAR",
+    "DYNPWSPRAYNUM",
+    "GMKNUM",
+    "HDOPTDSPRAYNUM",
+    "HNDUSESTLZNUM",
+    "MICROSPKLNUM",
+    "OFEAR",
+    "PROTGLSNUM",
+    "PROTUSECLOTNUM",
+    "VACUCLERNUM"
+   ],
+   "categories": {
+    "hygiene_beauty": 1
+   }
+  },
+  {
+   "members": [
+    "optical_shop"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "CLGENDDT",
+    "CLGSTDT",
+    "DEFPTRFRTGGNUM",
+    "EYEPYONUM",
+    "GLSWASHERNUM",
+    "HEATNUM",
+    "LENSCUTNUM",
+    "MSMCHAIRNUM",
+    "PPTNUSEGRNDNUM",
+    "PUPILDISTMEASNUM",
+    "SAMPLENSNUM",
+    "TOTAR"
+   ],
+   "categories": {
+    "optical_dental": 1
+   }
+  },
+  {
+   "members": [
+    "dental_lab"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "ACETNUM",
+    "APVCANCELYMD",
+    "BURYCNT",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CRFTUSECOMPRECNT",
+    "CRFTUSELESSNUM",
+    "CRFTUSEMOTNUM",
+    "CTPLCTMCENUM",
+    "DENTIUSEPRESSNUM",
+    "EFURNUM",
+    "PCANNUM",
+    "PINDEXCNT",
+    "SBMCNT",
+    "SPWVCLERNUM",
+    "SUVYNUM",
+    "TRMNUM",
+    "VITRNUM"
+   ],
+   "categories": {
+    "optical_dental": 1
+   }
+  },
+  {
+   "members": [
+    "tourism_operator"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "AFC",
+    "APVCANCELYMD",
+    "CAPT",
+    "CLGENDDT",
+    "CLGSTDT",
+    "CULPHYEDCOBNM",
+    "FACILSCP",
+    "INSURENDDT",
+    "INSURORGNM",
+    "INSURSTDT",
+    "PLNINSURENDDT",
+    "PLNINSURSTDT",
+    "SITEAREA"
+   ],
+   "categories": {
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "traditional_temple"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "ASGNCANCEL",
+    "ASGNCANCELWHY",
+    "ASGNCANCELYMD",
+    "BELVNUM",
+    "CLGENDDT",
+    "CLGSTDT",
+    "ESTBHDATE",
+    "MONKNUM",
+    "ORIGINHIST",
+    "TDTPNM"
+   ],
+   "categories": {
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "culture_arts_corporation"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "APVCANCELYMD",
+    "BUPDISORGYMD",
+    "BUPESBMNTOBJ",
+    "BUPNM",
+    "CULPHYEDCOBNM",
+    "PERMCN",
+    "SITEAREA"
+   ],
+   "categories": {
+    "culture": 1
+   }
+  },
+  {
+   "members": [
+    "petroleum_alt_fuel_sale"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "CAPT",
+    "CLGSTDT",
+    "UPCHNM",
+    "UPTAENM"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "pressure_equipment"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "BAEESBPLC",
+    "CGPAR",
+    "CLGENDDT",
+    "CLGSTDT",
+    "INSTRSTOROOMAR",
+    "LTCHGCN",
+    "OFEAR",
+    "ROPNYMD",
+    "SAVEEQULOC",
+    "TREGASCAP"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "special_high_pressure_gas"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "BMONUSEQY",
+    "SYGRGLSTCNT",
+    "USEMET",
+    "USEOBJ"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "emission_repair_agent"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "CLGENDDT",
+    "CLGSTDT",
+    "COBGBNNM",
+    "ENVBSNSENM",
+    "JONGGBNNM",
+    "ROPNYMD",
+    "UPTAENM"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  },
+  {
+   "members": [
+    "mutual_aid_funeral"
+   ],
+   "n": 1,
+   "shared_noncommon": [
+    "CAPTSCALE",
+    "CLGENDDT",
+    "CLGSTDT",
+    "DEBTPAYISRE",
+    "DEPBANKNM",
+    "DEPUCORGETCNM",
+    "DEPUCORGNM",
+    "INSUR",
+    "MWSRNM",
+    "ROPNYMD"
+   ],
+   "categories": {
+    "industry": 1
+   }
+  }
+ ],
+ "v2@0.5": [
+  {
+   "members": [
+    "air_pollution_facility",
+    "livestock_manure_transport",
+    "manure_facility_mgmt",
+    "septic_tank_construction",
+    "sewage_transport",
+    "water_pollution_facility"
+   ],
+   "n": 6,
+   "categories": {
+    "environment": 6
+   }
+  },
+  {
+   "members": [
+    "env_construction",
+    "env_measurement"
+   ],
+   "n": 2,
+   "categories": {
+    "environment": 2
+   }
+  },
+  {
+   "members": [
+    "building_sanitation"
+   ],
+   "n": 1,
+   "categories": {
+    "environment": 1
+   }
+  },
+  {
+   "members": [
+    "construction_waste"
+   ],
+   "n": 1,
+   "categories": {
+    "environment": 1
+   }
+  },
+  {
+   "members": [
+    "garbage_bag_sale"
+   ],
+   "n": 1,
+   "categories": {
+    "environment": 1
+   }
+  },
+  {
+   "members": [
+    "water_tank_cleaning"
+   ],
+   "n": 1,
+   "categories": {
+    "environment": 1
+   }
+  },
+  {
+   "members": [
+    "env_consulting"
+   ],
+   "n": 1,
+   "categories": {
+    "environment": 1
+   }
+  }
+ ]
+}
