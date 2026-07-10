@@ -1,0 +1,38 @@
+version: 2
+
+seeds:
+  - name: kbo_seoul_schedule
+    description: KBO 서울 홈경기 일정(잠실 LG/두산·고척 키움) — 수기 seed, 월 1회 갱신(git diff=감사 로그). 원천 = 공개 KBO 일정(비저작물 사실). fetch 배제 근거는 ASAC-DAG#195.
+    columns:
+      - name: game_date
+        description: 경기일 (KST)
+        tests: [not_null]
+      - name: game_time
+        description: 경기 시각 HH:MM (KST)
+        tests: [not_null]
+      - name: stadium
+        description: 구장명
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["잠실야구장", "고척스카이돔"]
+      - name: home_team
+        description: 홈팀(서울 연고)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["LG", "두산", "키움"]
+      - name: away_team
+        description: 원정팀
+        tests: [not_null]
+  - name: kbo_stadium_location
+    description: 서울 KBO 구장 위치 차원 (2행) — silver 축 정렬용. 좌표 원천 = silver_culture_reservation(서울 공식 예약 API).
+    columns:
+      - name: stadium
+        tests: [not_null, unique]
+      - name: gu
+        tests: [not_null]
+      - name: latitude
+        tests: [not_null]
+      - name: longitude
+        tests: [not_null]
