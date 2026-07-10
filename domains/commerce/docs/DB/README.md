@@ -10,6 +10,8 @@ commerce 도메인의 **모든 테이블·뷰와 그 관계**를 레이어별로
 | gold | [gold/tables.md](gold/tables.md) | Supertype(entity)+이력 · dim(code 정규화) · detail 78(cluster 8+single 70) · marker |
 | gold | [gold/views.md](gold/views.md) | 도메인 view 8×2 · API view 152×2 (current/history) — 조회 인터페이스 |
 | gold | [gold/cluster-domain-coherence.md](gold/cluster-domain-coherence.md) | detail cluster 8개 **도메인 정합성 검증**(공식 LOCALDATA 코드·소관 법령 대조 — 오병합 0건) |
+| gold | [gold/normalization-plan.md](gold/normalization-plan.md) | **정규화 검토(제안, 미적용)** — 저카디널리티 detail 컬럼 실측 분류 + 테이블 폭증 방지 설계 |
+| gold | [gold/partitioning-indexing-plan.md](gold/partitioning-indexing-plan.md) | **파티셔닝·인덱싱 검토(제안, 미적용)** — 인덱스 실태·EXPLAIN 근거·우선순위 |
 
 각 레이어 폴더는 자체 README 로도 진입한다: [silver/](silver/README.md) · [gold/](gold/README.md).
 상위 문서 인덱스: [../README.md](../README.md).
