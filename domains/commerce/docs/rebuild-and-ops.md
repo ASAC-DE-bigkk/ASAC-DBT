@@ -106,3 +106,29 @@ gold 는 Step 9 구현 시 태스크 2개가 뒤에 추가된다.
   통과해야 한다. 실패 시 `target/compiled/.../*.sql` 을 Trino 로 직접 실행해 위반 행을 본다.
 - 타임존·결측 규약: [timestamps-and-nulls.md](timestamps-and-nulls.md) ·
   컬럼 구조: [dataset-columns.md](dataset-columns.md)
+
+## 6. 청크(부분) 백필 — 대용량 전체 재빌드 시 OOM 회피
+
+**평상시 증분은 소량**(당일 변경분)이라 문제없다. 하지만 **전체 재빌드**(테이블 drop 후 최초 빌드,
+또는 `--full-refresh`)는 `silver_license_history` 의 window 연산(dedup `lag`/정렬)이 **전 행을 한 번에**
+메모리에 올려 Trino 노드 한도(`query.max-memory-per-node`, 기본 heap 30%)를 초과할 수 있다
+(실측: 152종 290만행 전체 재빌드 → `EXCEEDED_LOCAL_MEMORY_LIMIT`).
+
+→ **`include_datasets` 화이트리스트**로 dataset 배치를 나눠 순차 적재한다(각 배치=별도 dataset 이라
+서로 격리 — insert·`delete_unmarked` pre-hook 모두 배치 범위만 처리해 이전 배치를 건드리지 않는다).
+가장 큰 단일 dataset 이 한 배치에 들어갈 정도면 절대 OOM 나지 않는다.
+
+```bash
+# 전체 백필을 행수 기준 배치로(예: 큰 것 분리). 배치마다 history+current 함께.
+dbt run --select silver_license_history silver_license_current \
+  --vars '{include_datasets: ["mail_order_sale"]}'
+dbt run --select silver_license_history silver_license_current \
+  --vars '{include_datasets: ["general_restaurant","instant_sale_mfg","rest_restaurant"]}'
+# … 나머지 배치. 배치 크기는 노드 메모리에 맞춰 조정(한 배치 총행수 ≲ 100만 권장).
+dbt test --select silver_license_history silver_license_current
+```
+
+- `include_datasets` 는 **`exclude_datasets` 와 반대**(화이트리스트). 비우면 필터 없음(평상시 동작 불변).
+- current 도 같은 배치의 grain 만 재계산(collected_at 순서 무관 — 백필이 시간순 밖으로 들어와도 누락 없음).
+- 배치 간 **마킹 불필요**(dataset 격리). 백필 완료 후 일상 운영은 marker 증분으로 자동 이어진다.
+- 대안(인프라): Trino `query.max-memory-per-node` 상향 또는 `spill-enabled=true`. 단 배치가 무설정으로 안전.
