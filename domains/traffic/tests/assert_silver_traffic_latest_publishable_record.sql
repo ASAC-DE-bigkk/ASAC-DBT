@@ -4,6 +4,9 @@
 -- watermark 이후에 수집된 bronze 배치는 비교 대상에서 제외한다(신선도는
 -- dbt_source_freshness 가 별도 감시). 상한 없이 비교하면 5분 주기 bronze 와
 -- 경합해 갓 커밋된 배치만큼 어긋난다 — 2026-07-10 03:10Z 첫 cron 런 FAIL 22 사례.
+-- publishable Bronze에만 있는 ID도 검출하려면 Bronze를 기준으로 비교해야 한다.
+-- Silver가 비어 watermark가 NULL이면 모든 publishable Bronze를 비교해 vacuous
+-- pass를 막는다.
 
 with silver_watermark as (
     select max(collected_at) as max_collected_at
@@ -37,7 +40,10 @@ bronze_candidates as (
     where cast(bronze.result_code as varchar) = 'INFO-000'
       and cast(bronze.acc_id as varchar) is not null
       and {{ asac_axes.kst_at_from_parts('cast(bronze.occr_date as varchar)', 'cast(bronze.occr_time as varchar)') }} is not null
-      and cast(bronze.collected_at as timestamp(6)) <= (select max_collected_at from silver_watermark)
+      and (
+          (select max_collected_at from silver_watermark) is null
+          or cast(bronze.collected_at as timestamp(6)) <= (select max_collected_at from silver_watermark)
+      )
 ),
 
 bronze_latest as (
@@ -47,16 +53,17 @@ bronze_latest as (
 )
 
 select
-    silver.source_record_id,
+    bronze_latest.source_record_id,
     silver.request_id as silver_request_id,
     bronze_latest.request_id as expected_request_id,
     silver.raw_object_key as silver_raw_object_key,
     bronze_latest.raw_object_key as expected_raw_object_key,
     silver.collected_at as silver_collected_at,
     bronze_latest.collected_at as expected_collected_at
-from {{ ref('silver_seoul_traffic_incident') }} as silver
-inner join bronze_latest
+from bronze_latest
+left join {{ ref('silver_seoul_traffic_incident') }} as silver
     on silver.source_record_id = bronze_latest.source_record_id
-where silver.request_id <> bronze_latest.request_id
-   or silver.raw_object_key <> bronze_latest.raw_object_key
-   or silver.collected_at <> bronze_latest.collected_at
+where silver.source_record_id is null
+   or silver.request_id is distinct from bronze_latest.request_id
+   or silver.raw_object_key is distinct from bronze_latest.raw_object_key
+   or silver.collected_at is distinct from bronze_latest.collected_at
