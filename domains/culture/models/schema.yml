@@ -243,3 +243,13 @@ models:
       - name: gu_code
         description: 자치구 코드 (#48 코드 축)
         tests: [not_null]
+
+  - name: gold_culture_sports_schedule
+    description: 서울 야구 경기 일정 질의 표면 (경기 1행). 최근접 미래 경기 = game_date>=current_date order by event_at.
+    columns:
+      - name: game_date
+        tests: [not_null]
+      - name: event_at
+        tests: [not_null]
+      - name: stadium
+        tests: [not_null]
