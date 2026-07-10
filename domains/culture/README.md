@@ -18,7 +18,7 @@
 - `admin_dong_code` — 행안부 행정동 **10자리** canonical 코드 (조인축).
 - `gu_code` — 자치구 5자리 (= admin_dong_code 앞 5자리), `gu` — 자치구 한글 라벨.
 - 좌표 보유 행은 `longitude`/`latitude`(WGS84, 서울 bbox 검증 통과분만) 동봉.
-- 코드 정본은 asac_axes 패키지의 `dim_admin_dong`(행안부 행정동 마스터 bronze 기반, 서울 426동)입니다. silver를 이 dim에 정렬하는 작업이 [PR #107](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/107)에 대기 중이며(스키마 위치 합의 [ASAC-DAG#154](https://github.com/ASAC-DE-bigkk/ASAC-DAG/issues/154)), 현재 dev의 코드도 같은 행안부 계열이라 조인은 지금도 동작합니다.
+- 코드 정본은 asac_axes 패키지의 `dim_admin_dong`(행안부 행정동 마스터 bronze `common.bronze_admin_dong_master` 기반, 서울 426동)입니다. culture silver 전체가 이 dim에 canonical 정렬돼 있어(PR #107 · 스키마 위치 합의 [ASAC-DAG#154](https://github.com/ASAC-DE-bigkk/ASAC-DAG/issues/154)) `admin_dong_code` 조인 시 타 도메인과 같은 정본 코드를 씁니다.
 
 ### 조인 예시
 
@@ -29,6 +29,13 @@ from <my_schema>.my_daily_metric m
 left join culture.gold_culture_location_daily c
   on c.gu_code = m.gu_code
  and c.event_date = m.metric_date;
+
+-- 행정동×일 grain 조인 — 426동 전체가 행으로 존재해(0건 동 포함) left join 시 null 걱정 없음
+select d.*, c.activities_count
+from <my_schema>.my_dong_metric d
+left join culture.gold_culture_activity_by_dong c
+  on c.admin_dong_code = d.admin_dong_code
+ and c.event_date = d.metric_date;
 
 -- "오늘 진행 중인 문화행사"를 silver에서 직접 (기간 겹침 질의)
 select gu, admin_dong, title, event_start_date, event_end_date
@@ -47,7 +54,7 @@ where event_start_date <= current_date and current_date <= event_end_date;
 | `gold_culture_boxoffice_daily` | snapshot_date × rank_no | 500 | 예매 상위 50 공연이 언제·어디서 |
 | `gold_culture_movie_boxoffice_daily` | boxoffice_date (날짜 1행) | 2 | 영화 관객 서울 쏠림(`seoul_audience_share`) — 시도 그레인이라 자치구 축 없음 |
 | `gold_culture_sports_schedule` | 경기 1행 | 67 | 서울 야구(잠실·고척) 홈경기 일정 |
-| `gold_culture_activity_by_dong` ⏳ | admin_dong_code × event_date | — | **행정동**별·일별 활동 (426동 전체 scaffold, 0건 동도 행 존재) — PR #107 머지 후 사용 가능 |
+| `gold_culture_activity_by_dong` | admin_dong_code × event_date | 177,216 | **행정동**별·일별 활동 — 426동 전체 scaffold(0건 동도 행 존재, `activities_count=0`), 날짜 창 [오늘−90, 오늘+365] |
 
 \* 행수는 2026-07-10 dev 실측. 스냅샷·기간 전개 특성상 매일 증가합니다.
 
