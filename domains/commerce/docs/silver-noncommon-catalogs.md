@@ -33,11 +33,14 @@
 **분류(taxonomy) ≠ 필드구조**: '문화'는 미디어/관광/체육/게임장 4개로 갈리고, 식품은 21종이 19필드
 공유 한 덩어리. → 유사도로 함부로 묶지 않고 **명확히 겹치는 것만** 공통 테이블로. 나머지 단독.
 
-| 임계 Jaccard | 클러스터 | 단독 |
-|---:|---:|---:|
-| 0.9 | 54 | 37 |
-| **0.7 (채택)** | 37 | 19 |
-| 0.5 | 26 | 13 |
+| 기준 | 클러스터 | 단독 |
+|---|---:|---:|
+| Jaccard 0.9 | 54 | 37 |
+| Jaccard 0.7 | 37 | 19 |
+| **채택(엄격): 0.7 ∧ 멤버≥3 ∧ 공유≥8** | **8** | **70** |
+| Jaccard 0.5 | 26 | 13 |
+
+→ **엄격 경계 채택**(사용자 확정): 명확히 겹치는 8개만 공통 detail, 나머지 70개는 전부 단독 detail.
 
 ## 4. 이력 보존 (필수) — 바뀌는 값은 버전으로 누적 (확인됨)
 
@@ -73,15 +76,26 @@
 | `gold_detail_amusement` · `_institution`(의료) · `_pollution` · `_manure` · `_timber` … | 2~3 | 5~24 | 소형 명확 그룹 |
 | **single 58개** | 1 | — | dental_lab·optical_shop·pharmacy·lodging·postpartum_care·groundwater_*·animal_* … |
 
-**Step B. 카탈로그로 gold 테이블 생성** — 카탈로그 각 행 = 1테이블, **history-form**:
-- **key(공통과 매핑)**: `dataset, opnsfteamcode, mgtno, collected_at, content_hash` — 공통 컬럼은 재저장
-  하지 않고 이 key로 `silver_license_history`/`current`에 조인(§2번 요구: "묶을 key값만 배치해 매핑").
-- **payload**: 그 테이블의 비공통 필드(`lf()` 추출). 값 변경은 collected_at 버전으로 남음.
-- 소스: `silver_license_history`(append-only) → 비공통도 이력.
+**Step B. 카탈로그로 gold 테이블 생성 — Supertype/Subtype** (사용자 확정 구조, 상세:
+[DB/gold/tables.md](DB/gold/tables.md)):
+- **`gold_business_entity`(공통 supertype)**: 모든 API 업소가 먼저 여기 적재(현재 1행).
+  `entity_id` = sha256(dataset|opnsfteamcode|mgtno) 결정적 서러게이트. entity_type/detail_table 로
+  어느 detail 로 갈지 분기.
+- **`gold_business_entity_history`(별도 이력 테이블)**: 공통 속성의 버전 이력
+  `(entity_id, collected_at, content_hash)` — silver history 정규화.
+- **detail 78개(cluster 8 + single 70)**: 공통 컬럼 재저장 없이 **entity_id + 버전키만 배치해 매핑**
+  (§2번 요구). payload = 비공통 필드(`lf()` 추출, 소스코드 lowercase). **전부 history-form** —
+  비공통 값 변경도 collected_at 버전으로 남음.
+- **dim(code 정규화)**: `gold_dim_region`(행정동/법정동 — 대표 사례) · `gold_dim_business_status`(v1/v2
+  분리) · `gold_dim_dataset`(152) — entity/detail 은 코드만, 이름은 dim. 반복 code값은 동일 원칙으로 추가 분리.
+- **view = 조회 인터페이스**: 도메인 8×2 + API 152×2(current/history) — 물리 테이블 비노출, 카탈로그
+  기반 jinja 생성. 상세: [DB/gold/views.md](DB/gold/views.md).
 
-### 5.3 gold 정규화 이력 테이블
-- `gold_license_change_history` — silver history를 정규화한 통합 변경 이력(업소×버전 × 상태/주소/좌표/핵심속성).
-  상태 전이·추이의 단일 원천.
+### 5.3 cluster 명명 (도메인 의미 기반 — sub_category/컬럼명 금지)
+`food_sanitation_business`(식품위생업 21) · `media_content_business`(미디어콘텐츠 16) ·
+`tourism_business`(관광사업 15) · `sports_facility`(체육시설 11) · `game_entertainment_venue`
+(게임·노래·비디오 이용업소 9) · `public_sanitation_service`(공중위생 4) · `medical_institution`(3) ·
+`amusement_park`(3). 후보/추천 근거: [DB/gold/tables.md §4](DB/gold/tables.md).
 
 ## 6. 단계별 marker & 증분 + 중단 방어 (필수)
 
@@ -101,22 +115,27 @@
      (silver `delete_unmarked_...` 대칭) 또는 그 gold 파티션/버전 전체 drop 후 재실행.
   → PROJECT.md §3 재개 표준과 정합(완료 제외·실패 이어받기·중단 시 미완성 drop).
 
-## 7. 테이블 수 결론
+## 7. 테이블/뷰 수 결론 (확정 카탈로그)
 
-| 구성 | 테이블 | 이력 |
+| 구성 | 수 | 이력 |
 |---|---:|---|
 | silver 공통(기존) | 2 (history/current) | ✅ append-only |
-| gold 명확 cluster | 13 | ✅ history |
-| gold 단독(single) | 58 | ✅ history |
-| gold 정규화 이력 | 1 (`change_history`) | ✅ |
-| gold marker | 1 (`gold_load_run_marker`) | — |
+| gold core | 2 (`business_entity` + `business_entity_history`) | ✅ 별도 이력 |
+| gold dim(code 정규화) | 3 (dataset/region/status) | 스냅샷 |
+| gold detail — **명확 cluster** | **8** | ✅ history-form |
+| gold detail — **단독(single)** | **70** | ✅ history-form |
+| gold marker | 1 (`gold_load_run_marker`, collected_at+중단방어) | — |
+| **gold view(조회 인터페이스)** | 도메인 8×2 + API 152×2 | current+history |
 
-임계(Jaccard·공유필드 하한)는 노브 — [gold-catalog.csv](gold-catalog.csv)로 조정(엄격↑ → single↑).
+전체 명세: **[DB/README.md](DB/README.md)**(ERD) · [DB/silver/tables.md](DB/silver/tables.md) ·
+[DB/gold/tables.md](DB/gold/tables.md) · [DB/gold/views.md](DB/gold/views.md) ·
+기계용 [gold-catalog.csv](gold-catalog.csv).
 
 ## 8. 다음 단계 (검증 후)
 
-1. **gold 카탈로그 확정** — 임계/이름/cluster·single 경계 검증(csv).
-2. 카탈로그로 `gold_detail_*`(history-form, key-mapped) 생성 + `gold_license_change_history`.
-3. **`gold_load_run_marker`(collected_at) + 중단 방어**(미완성 drop/DONE) 구현.
+1. ~~카탈로그 경계·이름~~ → **확정됨**(엄격 8+70, 도메인 명명). 남은 검증: cluster 이름 최종 승인.
+2. gold-catalog 를 **dbt seed 화** → jinja 루프로 entity/detail/view 생성(카탈로그=단일 소스).
+3. **`gold_load_run_marker`(collected_at) + 중단 방어**(DONE 후행 기록·미완성 drop) 구현.
 4. `detail_health` → gold 카탈로그로 마이그레이션, `dataset-columns.md` 실측 갱신.
-5. 테스트: grain unique · 인접중복 0 · gold 증분(신규 버전만) · 재적재/중단 재개.
+5. 테스트: grain unique · 인접중복 0 · entity↔detail 정합(버전 1:1) · gold 증분(신규 버전만) ·
+   재적재/중단 재개 · view 컴파일.
