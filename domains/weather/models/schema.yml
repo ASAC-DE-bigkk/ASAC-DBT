@@ -152,6 +152,58 @@ models:
         tests:
           - not_null
 
+  - name: silver_weather_forecast_by_admin_dong
+    description: KMA grid forecasts expanded to one row per mapped Seoul admin-dong place.
+    columns:
+      - name: source_id
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['kma_vilage_fcst']
+      - name: place_id
+        tests:
+          - not_null
+      - name: source_grid_place_id
+        tests:
+          - not_null
+      - name: latitude
+        tests:
+          - not_null
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lat
+      - name: longitude
+        tests:
+          - not_null
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lon
+      - name: admin_dong_code
+        tests:
+          - not_null
+          - asac_axes.axis_coverage:
+              arguments:
+                min_ratio: 1.0
+      - name: gu_code
+        tests:
+          - not_null
+      - name: issued_at
+        tests:
+          - not_null
+      - name: forecast_at
+        tests:
+          - not_null
+      - name: event_at
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: collected_at
+        tests:
+          - not_null
+
   - name: dim_weather_place
     description: Weather-owned Seoul place dimension mapped to authoritative KMA forecast grids; place_id is the dimension grain.
     columns:
@@ -215,6 +267,21 @@ models:
       - name: alias_names
         tests:
           - not_null
+      - name: latitude
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - not_null
+      - name: admin_dong_code
+        tests:
+          - not_null
+          - asac_axes.axis_coverage:
+              arguments:
+                min_ratio: 1.0
+      - name: gu_code
+        tests:
+          - not_null
       - name: nx
         tests:
           - not_null
@@ -228,6 +295,9 @@ models:
         tests:
           - not_null
       - name: forecast_at
+        tests:
+          - not_null
+      - name: event_at
         tests:
           - not_null
       - name: time_bucket

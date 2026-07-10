@@ -11,6 +11,7 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 - Bronze source: `{{ source('weather_bronze', 'kma_vilage_fcst') }}`
 - Bronze table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_kma_vilage_fcst`
 - Silver model: `silver_kma_vilage_fcst`
+- Admin-dong Silver model: `silver_weather_forecast_by_admin_dong`
 - Gold model: `gold_weather_forecast_summary`
 - Place dimension: `dim_weather_place`
 - User-facing forecast mart: `gold_weather_forecast_by_place`
@@ -169,12 +170,24 @@ issued_at desc, collected_at desc, raw_object_key desc, request_id desc
 조인한다. 따라서 한 KMA grid에 여러 행정동이 매핑될 수 있으며, 이는 KMA 격자 예보를
 장소 질의로 펼치는 의도된 중복이다. Silver 원천 grain 자체는 바꾸지 않는다.
 
+## Admin-dong Silver contract
+
+`silver_kma_vilage_fcst` preserves the native KMA grid grain. Because one
+KMA grid can serve multiple admin dongs, `silver_weather_forecast_by_admin_dong`
+fans those rows out through `dim_weather_place` on `nx`, `ny`.
+
+- Admin-dong Silver grain: `place_id, issued_at, forecast_at, category`
+- Canonical spatial axis: `latitude`, `longitude`, `admin_dong_code`, `gu_code`
+- Native grid lineage: `source_grid_place_id`, `nx`, `ny`
+- Place Gold chooses the latest `issued_at` from this admin-dong Silver.
+
 ## PR checklist
 
 weather dbt PR 본문에는 최소한 아래를 남긴다.
 
 - Source table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_kma_vilage_fcst`
 - Target table: `iceberg_dev.weather.silver_kma_vilage_fcst`
+- Target table: `iceberg_dev.weather.silver_weather_forecast_by_admin_dong`
 - Target table: `iceberg_dev.weather.gold_weather_forecast_summary`
 - Target table: `iceberg_dev.weather.dim_weather_place`
 - Target table: `iceberg_dev.weather.gold_weather_forecast_by_place`
