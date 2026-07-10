@@ -2,6 +2,8 @@
 -- dim_admin_dong(426동)을 활동 일자 spine과 cross join한 scaffold에 활동을 left join →
 -- 활동 0건 행정동도 0으로 행 존재(지도 빈칸 방지, dim 문서 권장 패턴).
 -- sports(야구)는 문화활동 축 아님 → 제외(gold_culture_location_daily 관례 유지).
+-- 주의(#111): admin_dong_code 그레인이라 정의상 quality_status='dong_precise' 활동만 포함된다.
+--   좌표 없는 활동(gu_only)은 이 gold 에서 누락 — 구 레벨 집계는 gold_culture_location_daily 참조.
 
 with dim as (
     select admin_dong_code, admin_dong, gu_code, gu, stat_region_cd

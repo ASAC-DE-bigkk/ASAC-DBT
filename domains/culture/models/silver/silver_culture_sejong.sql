@@ -37,8 +37,9 @@ placed as (
 
 dong_map as {{ culture_dong_map('placed') }},
 
-{{ culture_admin_canon() }}
+{{ culture_admin_canon() }},
 
+stamped as (
 select
     p.sejong_id, p.title, p.genre, p.venue_name,
     p.event_start_date, p.event_end_date,
@@ -51,3 +52,7 @@ from placed p
 left join dong_map d on p.longitude = d.longitude and p.latitude = d.latitude
 left join canon cd on cd.admin_dong_code = d.admin_dong_code
 left join canon_gu cg on cg.gu = p.gu
+)
+
+select *, {{ culture_quality_status() }} as quality_status
+from stamped

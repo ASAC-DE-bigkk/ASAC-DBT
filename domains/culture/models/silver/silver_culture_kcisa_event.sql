@@ -78,8 +78,9 @@ deduped as (
 
 dong_map as {{ culture_dong_map('deduped') }},
 
-{{ culture_admin_canon() }}
+{{ culture_admin_canon() }},
 
+stamped as (
 select
     d.event_id, d.title, d.venue_name, d.service_name, d.category,
     d.event_start_date, d.event_end_date,
@@ -92,3 +93,7 @@ from deduped d
 left join dong_map m on d.longitude = m.longitude and d.latitude = m.latitude
 left join canon cd on cd.admin_dong_code = m.admin_dong_code
 left join canon_gu cg on cg.gu = d.gu
+)
+
+select *, {{ culture_quality_status() }} as quality_status
+from stamped

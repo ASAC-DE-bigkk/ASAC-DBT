@@ -63,3 +63,18 @@ canon_gu as (
     group by c.longitude, c.latitude
 )
 {%- endmacro %}
+
+{#
+  culture_quality_status — 공간축 정밀도 3치 표식(#111). 최종 컬럼 null 여부로 순수 파생.
+  - dong_precise : admin_dong_code 있음(좌표 point-in-polygon 성공, 행정동까지)
+  - gu_only      : admin_dong_code 없고 gu_code 있음(좌표 없어 구 레벨 근사)
+  - unmatched    : 둘 다 없음(구도 미확정)
+  stamped CTE 뒤에서 표준 컬럼명으로 무인자 호출. #48 오배정 계측과 같은 "계측 전용" 철학.
+#}
+{% macro culture_quality_status(dong_col='admin_dong_code', gu_col='gu_code') -%}
+case
+    when {{ dong_col }} is not null then 'dong_precise'
+    when {{ gu_col }}   is not null then 'gu_only'
+    else                                'unmatched'
+end
+{%- endmacro %}

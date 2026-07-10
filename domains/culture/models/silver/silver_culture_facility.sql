@@ -63,8 +63,9 @@ joined as (
 
 dong_map as {{ culture_dong_map('joined') }},
 
-{{ culture_admin_canon() }}
+{{ culture_admin_canon() }},
 
+stamped as (
 select
     j.facility_id,
     j.facility_name,
@@ -82,3 +83,7 @@ from joined j
 left join dong_map d on j.longitude = d.longitude and j.latitude = d.latitude
 left join canon cd on cd.admin_dong_code = d.admin_dong_code
 left join canon_gu cg on cg.gu = j.gu
+)
+
+select *, {{ culture_quality_status() }} as quality_status
+from stamped

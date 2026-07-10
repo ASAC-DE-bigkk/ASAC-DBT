@@ -95,6 +95,8 @@ dim (2): 시설 마스터
 4. **sports는 문화활동 집계 미편입**: `gold_culture_location_daily`에 야구는 없습니다(축 분리). 필요하면 `gold_culture_sports_schedule`을 직접 union.
 5. **초기 구축기 각주(7/1~7/6)**: 7/1 event는 7/2 수집분 역산(proxy), 7/4 예약 상태는 저녁 상태 — 상세는 [docs/design/](docs/design/)의 재설계 문서 참조. 7/7 이후는 각주 없음.
 6. **행수 스케일 주의**: `silver_culture_event`와 `sejong`은 기간 fact라 과거~미래 수년치 포함. 최근 창으로 where 필터 권장.
+7. **`quality_status` 활용**(#111): 각 공간축 silver·`gold_culture_sports_schedule`에 `dong_precise`(좌표로 행정동 정밀)/`gu_only`(구 레벨 근사, admin_dong null)/`unmatched` 표식. **동 레벨 분석은 `where quality_status = 'dong_precise'`** 권장. gold는 `dong_precise_count`(location_daily·reservation_daily)로 롤업.
+8. **`gold_culture_activity_by_dong`는 `dong_precise`만**: admin_dong_code 그레인이라 좌표 없는 활동(`gu_only`)은 누락됩니다. 구 레벨 전체는 `gold_culture_location_daily`(+`dong_precise_count`)를 보세요.
 
 ## 신선도 — 언제 데이터가 갱신되나
 

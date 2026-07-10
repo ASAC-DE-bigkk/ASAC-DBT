@@ -13,6 +13,7 @@ select
     count(case when reservation_type = 'culture' then 1 end) as culture_services,
     count(case when reservation_type = 'sport' then 1 end)   as sport_services,
     count(case when status = '접수중' then 1 end)            as open_services,
-    round(1.0 * count(case when status = '접수중' then 1 end) / nullif(count(*), 0), 3) as availability_rate
+    round(1.0 * count(case when status = '접수중' then 1 end) / nullif(count(*), 0), 3) as availability_rate,
+    count(case when quality_status = 'dong_precise' then 1 end) as dong_precise_count
 from svc
 group by gu_code, load_date
