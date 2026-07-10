@@ -15,68 +15,92 @@ sources:
         description: KMA getVilageFcst item rows with raw lineage metadata.
         columns:
           - name: request_id
+            description: API request identifier for this parsed KMA forecast record.
             tests:
               - not_null
           - name: source_id
+            description: Fixed KMA forecast source identifier.
             tests:
               - not_null
               - accepted_values:
                   arguments:
                     values: ['kma_vilage_fcst']
           - name: place_id
+            description: Weather collection place identifier associated with the requested KMA grid.
             tests:
               - not_null
           - name: request_params_json
+            description: Redacted request parameters retained for reproducibility.
             tests:
               - not_null
           - name: base_date
+            description: KMA forecast issuance date component (YYYYMMDD).
             tests:
               - not_null
           - name: base_time
+            description: KMA forecast issuance time component.
             tests:
               - not_null
           - name: category
+            description: KMA forecast category code.
             tests:
               - not_null
           - name: fcst_date
+            description: KMA forecast target date component (YYYYMMDD).
             tests:
               - not_null
           - name: fcst_time
+            description: KMA forecast target time component.
             tests:
               - not_null
           - name: fcst_value
+            description: Raw category-specific KMA forecast value; may be numeric, unit-bearing, range, or qualitative.
             tests:
               - not_null
           - name: result_code
+            description: KMA response code; 00 rows are eligible for Silver.
             tests:
               - not_null
           - name: raw_object_key
+            description: R2 object key holding the raw KMA response.
             tests:
               - not_null
           - name: payload_hash
+            description: Raw response content fingerprint.
             tests:
               - not_null
           - name: http_status
+            description: HTTP status recorded by collection.
             tests:
               - not_null
           - name: collected_at
+            description: Bronze collection timestamp used for source freshness.
             tests:
               - not_null
           - name: result_msg
+            description: KMA response message corresponding to result_code.
             tests:
               - not_null
           - name: total_count
+            description: KMA-reported total item count for the response.
             tests:
               - not_null
           - name: item_count
+            description: Parsed forecast item count for the response.
             tests:
               - not_null
           - name: load_date
+            description: KST ingestion partition date.
             tests:
               - not_null
           - name: dag_run_id
+            description: Airflow collection run lineage.
             tests:
               - not_null
+          - name: nx
+            description: KMA forecast-grid X coordinate; part of the Silver forecast grain.
+          - name: ny
+            description: KMA forecast-grid Y coordinate; part of the Silver forecast grain.
 
       - name: collection_run_manifest
         identifier: bronze_collection_run_manifest
@@ -84,17 +108,22 @@ sources:
         loaded_at_field: event_at
         columns:
           - name: source_id
+            description: Source identifier for the publish-gate manifest.
             tests:
               - not_null
           - name: dag_run_id
+            description: Airflow run whose Bronze output is being published.
             tests:
               - not_null
           - name: status
+            description: Collection terminal status; downstream models accept SUCCESS only.
             tests:
               - not_null
           - name: is_publishable
+            description: Explicit gate permitting downstream dbt consumption.
             tests:
               - not_null
           - name: event_at
+            description: Manifest event timestamp; overrides source collected_at for manifest freshness.
             tests:
               - not_null
