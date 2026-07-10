@@ -1,0 +1,38 @@
+version: 2
+
+# gold 소비처 선언 — "이 모델을 고치면 무엇이 깨지나"를 dbt lineage 에 노출.
+# 소비처가 늘 때(타 도메인 조인, SLO 대시보드 등) 여기에 추가한다.
+exposures:
+  - name: w8_demo_dashboard
+    label: W8 데모 대시보드 (문화활동 × SLO)
+    type: dashboard
+    maturity: low   # 계획안 W8 산출물 — 착수 전 선언(스키마 변경 시 영향 추적 목적)
+    description: >
+      계획안 W8 데모 산출물. 구/행정동별 문화활동 밀도·예약 가용률·박스오피스를
+      시각화한다. SLO 지표(가용 99.5%)는 SLO 마트(ASAC-DBT#110) 완성 후
+      gold_culture_slo_daily 의존을 추가한다.
+    depends_on:
+      - ref('gold_culture_location_daily')
+      - ref('gold_culture_reservation_daily')
+      - ref('gold_culture_boxoffice_daily')
+      - ref('gold_culture_movie_boxoffice_daily')
+      - ref('gold_culture_sports_schedule')
+    owner:
+      name: yousungjin
+      email: lucas.yoo.0527@gmail.com
+
+  - name: cross_domain_join_contract
+    label: 크로스 도메인 조인 계약 (domains/culture/README.md)
+    type: analysis
+    maturity: medium
+    url: https://github.com/ASAC-DE-bigkk/ASAC-DBT/blob/dev/domains/culture/README.md
+    description: >
+      타 도메인이 culture gold 를 #48 공통축(gu_code·admin_dong_code × event_date)으로
+      조인하는 소비 계약. README 의 조인 예시가 이 모델들에 의존한다 —
+      그레인·컬럼 변경 시 README 와 소비 도메인에 공지 필요.
+    depends_on:
+      - ref('gold_culture_location_daily')
+      - ref('gold_culture_reservation_daily')
+    owner:
+      name: yousungjin
+      email: lucas.yoo.0527@gmail.com
