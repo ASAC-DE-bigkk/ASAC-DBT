@@ -16,9 +16,13 @@
 with affected as (
     -- 증분: collected_at 이 기존 current 최대보다 새로운(=이번 run 신규 유입) grain. full-refresh/최초=전체.
     -- (run 은 시간순이라 이번 run 새 history 의 collected_at 은 항상 이전 current 최대보다 크다.)
+    -- 청크 백필(include_datasets): 지정 dataset 의 grain 전체를 대상으로(collected_at 순서 무관) —
+    -- 배치가 시간순 밖으로 들어와도 누락 없이 재계산. history 와 동일 배치로 격리.
     select distinct dataset, opnsfteamcode, mgtno
     from {{ ref('silver_license_history') }}
-    {% if is_incremental() %}
+    {% if var('include_datasets', []) %}
+    where cast(dataset as varchar) in ({% for v in var('include_datasets') %}'{{ v }}'{% if not loop.last %}, {% endif %}{% endfor %})
+    {% elif is_incremental() %}
     where collected_at > (select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }})
     {% endif %}
 ),

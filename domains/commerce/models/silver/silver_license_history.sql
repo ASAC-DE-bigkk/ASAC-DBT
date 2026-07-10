@@ -46,6 +46,7 @@ bronze as (
     -- 단위 제외(삭제) — vars 목록 기반. 정책: docs/rebuild-and-ops.md
     where 1 = 1
         {{ not_in_excluded("cast(b.dataset as varchar)", 'exclude_datasets') }}
+        {{ in_included("cast(b.dataset as varchar)", 'include_datasets') }}
         {{ not_in_excluded("cast(b.observed_date as varchar)", 'exclude_observed_dates') }}
         {{ not_in_excluded("cast(b.load_date as varchar)", 'exclude_load_dates') }}
         {{ not_in_excluded("cast(b.bronze_run_id as varchar)", 'exclude_bronze_run_ids') }}
