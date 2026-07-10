@@ -10,8 +10,8 @@ commerce 도메인의 **모든 테이블·뷰와 그 관계**를 레이어별로
 | gold | [gold/tables.md](gold/tables.md) | Supertype(entity)+이력 · dim(code 정규화) · detail 78(cluster 8+single 70) · marker |
 | gold | [gold/views.md](gold/views.md) | 도메인 view 8×2 · API view 152×2 (current/history) — 조회 인터페이스 |
 | gold | [gold/cluster-domain-coherence.md](gold/cluster-domain-coherence.md) | detail cluster 8개 **도메인 정합성 검증**(공식 LOCALDATA 코드·소관 법령 대조 — 오병합 0건) |
-| gold | [gold/normalization-plan.md](gold/normalization-plan.md) | **정규화 검토(제안, 미적용)** — 저카디널리티 detail 컬럼 실측 분류 + 테이블 폭증 방지 설계 |
-| gold | [gold/partitioning-indexing-plan.md](gold/partitioning-indexing-plan.md) | **파티셔닝·인덱싱 검토(제안, 미적용)** — 인덱스 실태·EXPLAIN 근거·우선순위 |
+| gold | [gold/normalization-plan.md](gold/normalization-plan.md) | **정규화(Option 1 적용됨)** — 저카디널리티 detail 컬럼 72쌍 실측검증 → `commerce_code_value` |
+| gold | [gold/partitioning-indexing-plan.md](gold/partitioning-indexing-plan.md) | **인덱싱 적용됨 · 파티셔닝 보류** — view SQL 근거 6개 인덱스, 라이브 실측(1187ms→18ms) |
 
 각 레이어 폴더는 자체 README 로도 진입한다: [silver/](silver/README.md) · [gold/](gold/README.md).
 상위 문서 인덱스: [../README.md](../README.md).
@@ -24,8 +24,9 @@ erDiagram
     silver_license_history ||--o{ commerce_X_detail : "비공통 lf() 추출"
     silver_license_current ||--|| commerce_business_entity : "현재 1행"
 
-    commerce_business_entity ||--o{ commerce_business_entity_history : "entity_id"
-    commerce_business_entity ||--o{ commerce_X_detail : "entity_id (supertype-subtype)"
+    commerce_entity_key ||--o{ commerce_business_entity : "entity_seq 발급"
+    commerce_business_entity ||--o{ commerce_business_entity_history : "entity_seq"
+    commerce_business_entity ||--o{ commerce_X_detail : "entity_seq (supertype-subtype)"
     commerce_dim_dataset ||--o{ commerce_business_entity : "dataset"
     commerce_dim_region ||--o{ commerce_business_entity : "admin_dong_code"
     commerce_dim_business_status ||--o{ commerce_business_entity : "(fmt,status_code)"
@@ -35,16 +36,16 @@ erDiagram
 ```
 
 - `commerce_X_detail` = 78개 상세 테이블(카탈로그의 detail_cluster 8 + detail_single 70)의 대표 표기.
-- 모든 detail 은 **entity_id(공통 supertype key)** 로만 공통과 연결 — 공통 컬럼 재저장 없음.
+- 모든 detail 은 **entity_seq(공통 supertype key)** 로만 공통과 연결 — 공통 컬럼 재저장 없음.
 - 이력: silver history(append-only) → entity_history + detail(버전행). 조인 키
-  `(entity_id, collected_at, content_hash)` — 같은 silver 버전행에서 나와 1:1 정합.
+  `(entity_seq, collected_at, content_hash)` — 같은 silver 버전행에서 나와 1:1 정합.
 
 ## 키 규약
 
 | 키 | 정의 |
 |---|---|
-| `entity_id` | **결정적 서러게이트** = sha256(`dataset\|opnsfteamcode\|mgtno`) — 시퀀스 불필요, 재빌드 불변 |
-| 버전 키 | `(entity_id, collected_at, content_hash)` — silver history 의 버전 그레인과 동일 |
+| `entity_seq` | **bigint 서러게이트**(bigserial) — `commerce_entity_key(dataset,opnsfteamcode,mgtno)` 가 영구 발급. 2026-07-10 이전은 sha256 text 해시였으나 85테이블 조인/인덱스 비용 때문에 전환(근거: [gold/normalization-plan.md](gold/normalization-plan.md)) |
+| 버전 키 | `(entity_seq, collected_at, content_hash)` — silver history 의 버전 그레인과 동일 |
 | 증분 marker | `commerce_load_run_marker.watermark_collected_at` — 완료 후에만 DONE, 중단 시 미완성 drop |
 
 ## 명명·구동 규약

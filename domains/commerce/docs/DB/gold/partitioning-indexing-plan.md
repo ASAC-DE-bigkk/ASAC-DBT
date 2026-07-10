@@ -1,6 +1,12 @@
-# gold 파티셔닝·인덱싱 계획 (검토용 — 미적용)
+# gold 파티셔닝·인덱싱 계획 (2026-07-10 인덱싱 적용됨)
 
-> **상태: 제안 문서.** 아직 어떤 인덱스도 생성/변경하지 않았다. 사용자 검토 후 지침에 따라 적용한다.
+> **상태: 인덱싱 적용 완료 · 파티셔닝 보류.** §2 우선순위를 view SQL 실제 predicate 로 재검증해
+> **6개 인덱스**(entity/history × dataset·admin_dong_code·(status_code,detail_status_code))를
+> 적용했다(`ddl.create_index_sql()`). 원안의 "cluster detail 8개 dataset 인덱스"는 구현 중 재검토해
+> **제외**했다 — view JOIN/WHERE 를 다시 읽어보니 API view 는 `dataset` 필터를 entity/history 측에만
+> 걸고 detail 은 항상 (entity_seq, collected_at, content_hash) PK 로만 조인돼 detail 쪽 dataset
+> 인덱스는 실제로 안 쓰인다(과반영 회피). 라이브 검증(§9): pharmacy(선택도 0.76%) 조회 1187ms→**18ms**
+> (Bitmap Index Scan 확인). §3 파티셔닝은 트리거 조건 미충족으로 여전히 보류.
 
 ## 0. 현재 상태 (실측)
 
@@ -44,32 +50,31 @@ Finalize Aggregate (actual time=321.4..326.6ms)
 290만행 중 **18%만 필요한데 100% 스캔**. `commerce_load_gold`(매일 06:00 증분), watchdog, 향후
 "최근 N일 변경분" 류 리포트/조회가 전부 이 패턴에 해당.
 
-## 2. 인덱싱 우선순위 (즉시 적용 검토 — 저비용·고효과)
+## 2. 인덱싱 — 적용 결과 (2026-07-10, `ddl.create_index_sql()`)
 
-| 우선순위 | 대상 | 인덱스 | 근거 | 예상 효과 |
-|---:|---|---|---|---|
-| **1** | detail **cluster 8개**(food_sanitation_business·media_content_business·tourism_business·sports_facility·game_entertainment_venue·public_sanitation_service·medical_institution·amusement_park) | `CREATE INDEX ON <table>(dataset)` | §1.1 — cluster 는 여러 API 가 한 테이블에 섞여 있어 `dataset` 이 유일한 스코프 필터. API view 82종이 이 필터에 의존 | 112만행 풀스캔 → dataset 필터 인덱스 스캔(수백~수천행) |
-| **2** | `commerce_business_entity` | `CREATE INDEX ON commerce_business_entity(dataset)` | 도메인/API view(320개) 전부가 entity 를 `dataset` 으로 필터 | 289만행 풀스캔 회피 |
-| **3** | `commerce_business_entity_history` | `CREATE INDEX ON commerce_business_entity_history(collected_at)` (또는 BRIN — §2.1 참고) | §1.2 — 시간창 조회·증분 리포트·watchdog | 290만행 → 대상 구간만 |
-| **4** | `commerce_business_entity_history` | `CREATE INDEX ON commerce_business_entity_history(dataset)` | API 이력 view(152개)가 `dataset` 필터 | 좌동(entity 와 동일 이유) |
-| **5** | `commerce_business_entity` | `CREATE INDEX ON commerce_business_entity(admin_dong_code)` | `commerce_dim_region` 조인 키(320 view 전부가 LEFT JOIN) — region 쪽은 PK 있으나 entity 쪽 조인 컬럼은 미인덱스 | Nested Loop 효율화(§1.1 조인 필터 단계) |
-| **6** | `commerce_business_entity` | `CREATE INDEX ON commerce_business_entity(fmt, status_code, detail_status_code)` | `commerce_dim_business_status` 조인 키(복합) | 좌동 |
-| **7** | `commerce_business_entity`, `_history` | `CREATE INDEX ON <table>(gu_code)` | 메모리 기록: "위치데이터는 시군구·행정동 코드로 타 도메인과 매핑 예정" — 교차 도메인 조인 대비 | 향후 크로스도메인 조인 대비(현재 내부 조회에서 직접 사용 확인은 안 됨 — **선반영 여부는 사용자 판단**) |
-| — | single 70개 detail | (불필요) | 테이블 자체가 1 API 전용이라 `dataset` 값이 상수 — 필터해도 이득 없음 | — |
+**구현 중 원안을 수정**했다 — view SQL 을 다시 정밀 확인한 결과, API view 의 `dataset` 필터는
+`e.dataset`/`h.dataset`(entity/history 측)에만 걸리고, detail 은 항상 detail 자신의 PK
+`(entity_seq, collected_at, content_hash)` 로만 조인된다(entity/history 에서 넘어온 값으로 조회).
+즉 **detail 테이블의 `dataset` 컬럼은 어느 view 도 직접 predicate 로 쓰지 않는다** — 원안 우선순위
+1(cluster 8개 dataset 인덱스)은 **적용하지 않음**(과반영 회피, 실제 view SQL 근거 없음).
 
-### 2.1 `collected_at` — BRIN vs BTREE
+| 대상 | 인덱스 | 근거(view SQL) | 상태 |
+|---|---|---|---|
+| `commerce_business_entity`, `_history` | `(dataset)` | API view `where e/h.dataset = '<short>'` | ✅ 적용 |
+| `commerce_business_entity`, `_history` | `(admin_dong_code)` | `_DIM_JOIN` → `commerce_dim_region` | ✅ 적용 |
+| `commerce_business_entity`, `_history` | `(status_code, detail_status_code)` | `_DIM_JOIN` → `commerce_dim_business_status`(`fmt` 은 dim 측 PK 라 entity 측엔 불필요 — 원안 표기 `fmt,status_code,detail_status_code` 를 실제 조인식 기준으로 수정) | ✅ 적용 |
+| ~~detail cluster 8개 `(dataset)`~~ | — | view 가 detail.dataset 을 predicate 로 안 씀(위 설명) | ❌ 미적용(원안 폐기) |
+| `commerce_business_entity_history(collected_at)` | BRIN/BTREE | §1.2 시간창 조회(watchdog·리포트) — **view 조인이 아니라 별도 ad-hoc 쿼리 패턴** | 보류(§2.1, 이번 스코프 밖) |
+| `commerce_business_entity*(gu_code)` | — | 현재 어떤 view/쿼리도 직접 predicate 로 안 씀 | 보류(§2.1) |
+| single 70개 detail | (불필요) | 테이블 자체가 1 API 전용 | — |
 
-`commerce_business_entity_history` 는 **append-only**(값이 삽입 시각 순으로 물리 적재)이므로
-`collected_at` 은 **BRIN 인덱스**가 BTREE 대비 유리할 가능성이 높다(용량 대폭 작음, append-only
-데이터에 최적). 단, BRIN 은 "물리적 삽입 순서 ≈ 논리적 정렬 순서"를 전제하므로 **실제 적재 순서를
-확인 후 결정**(현재 로더는 silver 버전 순 append 이므로 전제 충족 가능성 높음 — 확정은 실측 필요).
+### 2.1 보류 항목(이번 스코프 밖 — "뷰 구성 요소"에 한정된 지침이라 미적용)
 
-```sql
--- 후보 A: BTREE(범용, range+정렬 모두 지원, 용량 큼)
-CREATE INDEX ON commerce_business_entity_history USING btree (collected_at);
--- 후보 B: BRIN(append-only 전제, 용량 1/100 수준, range 조회에 특화)
-CREATE INDEX ON commerce_business_entity_history USING brin (collected_at);
-```
+- **`collected_at`**(BRIN vs BTREE): §1.2 의 "최근 7일" 류 조회는 view 정의가 아니라 리포트/watchdog
+  ad-hoc 쿼리 패턴이라 이번 적용 범위(뷰 구성 요소) 밖. 필요해지면 BRIN(append-only 전제, 용량
+  1/100)과 BTREE 중 실측 후 선택.
+- **`gu_code`**: 메모리 기록의 "타 도메인 크로스조인 대비"는 현재 어떤 view/쿼리도 아직 참조하지
+  않아 이번 지침(뷰 구성 요소) 범위 밖. 크로스도메인 조인이 실제로 구현될 때 추가.
 
 ## 3. 파티셔닝 — 지금 할지 말지 판단
 
@@ -103,15 +108,12 @@ CREATE INDEX ON commerce_business_entity_history USING brin (collected_at);
    append-only 성격에 맞는데, entity 는 UPDATE 위주(최신 포인터 갱신)라 파티션 키 값이 바뀌는 행이
    생겨 관리가 번거로움 → entity 는 **인덱싱만**으로 대응하고 파티셔닝 대상에서 제외 권장.
 
-## 4. 적용 순서 제안 (권장 — 확정 아님, 지침 대기)
+## 4. 적용 이력
 
-1. **§2 우선순위 1~4**(cluster 8개 + entity/history 의 `dataset`, history 의 `collected_at`) —
-   즉시 적용해도 리스크 없음(순수 추가 인덱스, 쓰기 경로 영향은 INSERT 시 인덱스 갱신 비용뿐이며
-   `commerce_load_gold` 는 일 1회 배치라 영향 미미).
-2. **§2 우선순위 5~6**(region/status 조인 키) — 뷰 조회 체감 지연이 확인되면 추가.
-3. **§2 우선순위 7**(`gu_code`) — 실제 크로스도메인 조인 요구가 구체화되면 추가(현재는 선제 반영 여부
-   판단 필요).
-4. **파티셔닝**은 §3.2 트리거 전까지 보류.
+- 2026-07-10: §2 의 6개 인덱스 적용(gold 초기화 + 전면 재적재와 함께 라이브 반영). `entity_id`
+  (text 해시) → `entity_seq`(bigint) 전환도 같은 작업에서 병행(근거: [normalization-plan.md](normalization-plan.md)
+  entity_seq 절) — 인덱스 자체의 크기·조인 비용도 함께 줄었다.
+- **파티셔닝**은 §3.2 트리거 미충족으로 계속 보류.
 
 ## 5. 재현 쿼리
 
@@ -126,9 +128,16 @@ explain (analyze, buffers) select * from commerce_v_api_general_restaurant limit
 select relname, pg_size_pretty(pg_total_relation_size(relid)) from pg_catalog.pg_statio_user_tables where relname like 'commerce_%' order by pg_total_relation_size(relid) desc;
 ```
 
-## 6. 다음 단계
+## 6. 라이브 검증 결과 (2026-07-10, gold 전면 재적재 후)
 
-1. 사용자 검토 → §2 표의 어느 우선순위까지, 어떤 인덱스 타입(BTREE/BRIN)으로 적용할지 지침.
-2. (선택) region/status 조인 실측(EXPLAIN) 추가 확인 — 지침 있을 시 착수.
-3. 승인된 범위만 구현(브랜치·이슈·PR — CLAUDE.md §워크플로 준수). 인덱스는 `gold/loader.py` DDL
-   ensure 단계에 `CREATE INDEX IF NOT EXISTS`로 편입해 멱등성을 유지한다.
+| 항목 | 결과 |
+|---|---|
+| 인덱스 생성 | 6개 전부 확인(`commerce_business_entity`/`_history` × dataset·admin_dong_code·status) |
+| **선택도 낮은 API**(`commerce_v_api_pharmacy`, entity 대비 0.76%) | `Bitmap Index Scan on commerce_business_entity_dataset_idx` 사용 — **1187ms → 18ms** |
+| **선택도 높은 API**(`commerce_v_api_general_restaurant`, 18.5%) | 여전히 Parallel Seq Scan — **정상**(Postgres 플래너가 이 선택도에서는 seq scan 이 실제로 더 빠르다고 정확히 판단. 인덱스가 안 쓰인 게 아니라 안 쓰는 게 맞는 케이스) |
+| entity_seq 전환 | `commerce_entity_key` 2,891,707건, entity/entity_key 1:1 정합 확인 |
+| 전체 재적재 | 83 objects·8,681,958 rows·1,728s(build_catalog 25s + load_gold 1700s + code_values 1.3s) |
+
+**결론**: 6개 인덱스는 152개 API view 중 **선택도 낮은 대다수**(general_restaurant·mail_order_sale·
+instant_sale_mfg 등 소수 대형 API 제외)에서 실측으로 확인된 큰 개선을 제공한다. 대형 API 는 인덱스
+유무와 무관하게 seq scan 이 이론적으로도 맞는 케이스라 추가 조치 불필요.

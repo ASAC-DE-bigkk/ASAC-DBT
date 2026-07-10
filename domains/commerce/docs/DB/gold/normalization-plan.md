@@ -1,7 +1,11 @@
-# gold 정규화 계획 (검토용 — 미적용)
+# gold 정규화 계획 (2026-07-10 Option 1 적용됨)
 
-> **상태: 제안 문서.** 아래 내용은 실측 데이터 기반 분석과 설계 옵션이며, **아직 어떤 테이블도 변경하지
-> 않았다.** 사용자 검토 후 어느 항목에 어떤 옵션을 적용할지 지침을 받으면 그때 구현한다.
+> **상태: 적용 완료.** §4 Option 1(공유 코드 테이블)을 사용자 승인으로 적용했다. §3 Tier A(표본검증
+> 필요) 전 항목을 실제 값으로 재검증(109→72쌍 통과, 37쌍은 상수/결측/0·1플래그로 제외)한 뒤
+> `commerce_code_value`(72 domain·1,049 value)에 채웠다. detail 스키마는 변경하지 않았다(설계대로
+> 신규 테이블 +1개만). 구현: `include/gold/code_values.py`(`CANDIDATES`) · DAG
+> `commerce_load_gold` 신규 task `build_code_values`. Option 2(FK 전환)는 여전히 미적용 —
+> §4 트리거 조건 충족 시 재검토.
 
 ## 0. 문제의식 (사용자 제기)
 
@@ -129,8 +133,9 @@ select distinct <col> from <table> where <col> is not null limit 200;
 **이미 gold 설계 시점에 정규화 완료**(참고: [tables.md](tables.md)). 이번 분석은 그 **바깥의 detail
 payload(비공통 78테이블)** 만 다룬다.
 
-## 7. 다음 단계
+## 7. 적용 결과 (2026-07-10)
 
-1. 사용자 검토 → 어떤 Tier A 항목에 Option 1/2 중 무엇을 적용할지 지침.
-2. (선택) 표본검증 미완료 Tier A 항목 전수 확인 스크립트 실행 — 지침 있을 시 착수.
-3. 승인된 범위만 구현(브랜치·이슈·PR — CLAUDE.md §워크플로 준수).
+- 109개 후보 전수를 실제 값으로 검증 → **72쌍 채택**(37쌍 제외: 상수/결측/0·1플래그).
+- gold 초기화 후 재적재 라이브 검증: `commerce_code_value` 72 domain·1,049 value 채움 확인(skip 0).
+- Option 2(FK 전환)는 §4 트리거 조건(DB 20GB+ 또는 해당 컬럼이 실제 WHERE/GROUP BY 로 쓰이기 시작) 전
+  까지 보류.

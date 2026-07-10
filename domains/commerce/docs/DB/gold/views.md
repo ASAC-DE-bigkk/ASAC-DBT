@@ -8,13 +8,13 @@ view + API view**를 current/history 두 형태로 전부 제공한다. 목록·
 
 | 뷰 | 수 | grain | 정의 |
 |---|---:|---|---|
-| `commerce_v_<domain>` | 8 | (entity_id) 현재 | entity ⋈ `<domain>_detail`(최신 버전) ⋈ dim(코드→이름 해석) |
-| `commerce_v_<domain>_history` | 8 | (entity_id, collected_at, content_hash) | entity_history ⋈ `<domain>_detail`(버전행) |
-| `commerce_v_api_<short>` | 152 | (entity_id) 현재 | 소속 detail 기준 — cluster 멤버=`where dataset='<short>'` 필터, single=1:1 |
+| `commerce_v_<domain>` | 8 | (entity_seq) 현재 | entity ⋈ `<domain>_detail`(최신 버전) ⋈ dim(코드→이름 해석) |
+| `commerce_v_<domain>_history` | 8 | (entity_seq, collected_at, content_hash) | entity_history ⋈ `<domain>_detail`(버전행) |
+| `commerce_v_api_<short>` | 152 | (entity_seq) 현재 | 소속 detail 기준 — cluster 멤버=`where dataset='<short>'` 필터, single=1:1 |
 | `commerce_v_api_<short>_history` | 152 | 버전 | 위와 동일, entity_history 기준 |
 
 - **history 조인이 안전한 이유**: entity_history 와 detail 은 **같은 silver history 버전행**에서
-  나오므로 `(entity_id, collected_at, content_hash)` 로 1:1 정합한다.
+  나오므로 `(entity_seq, collected_at, content_hash)` 로 1:1 정합한다.
 - **생성 전략**: 320개 뷰를 손으로 만들지 않는다 — gold-catalog 를 dbt seed 로 올리고 jinja 루프로
   카탈로그 행마다 view 를 생성(카탈로그가 단일 소스, 수정=재생성).
 
@@ -23,7 +23,7 @@ view + API view**를 current/history 두 형태로 전부 제공한다. 목록·
 ```sql
 create or replace view commerce_v_food_sanitation_business as
 select
-    e.entity_id, e.dataset, dd.name_ko as api_name,
+    e.entity_seq, e.dataset, dd.name_ko as api_name,
     e.business_name, e.opened_at, e.closed_at,
     e.status_code, st.status_name,        -- 코드 + 이름(dim 해석) 둘 다 노출
     e.gu_code, e.admin_dong_code, e.legal_code,   -- ★ 위치 매핑 키(시군구·행정동) — 타 도메인 조인용
@@ -35,11 +35,11 @@ select
     e.last_collected_at
 from commerce_business_entity e
 join commerce_food_sanitation_business_detail d
-  on d.entity_id = e.entity_id
+  on d.entity_seq = e.entity_seq
  and (d.collected_at, d.content_hash) = (            -- 최신 detail 버전
      select max(collected_at), max_by(content_hash, collected_at)
      from commerce_food_sanitation_business_detail
-     where entity_id = e.entity_id)
+     where entity_seq = e.entity_seq)
 left join commerce_dim_dataset dd on dd.dataset = e.dataset
 left join commerce_dim_business_status st
   on st.fmt = dd.fmt and st.status_code = e.status_code
@@ -54,7 +54,7 @@ left join commerce_dim_region r on r.admin_dong_code = e.admin_dong_code;
 ```sql
 create or replace view commerce_v_api_pharmacy_history as
 select
-    h.entity_id, h.dataset, h.collected_at, h.content_hash,   -- 버전 키
+    h.entity_seq, h.dataset, h.collected_at, h.content_hash,   -- 버전 키
     h.business_name, h.status_code, st.status_name, h.road_address,
     h.gu_code, h.admin_dong_code, h.legal_code,                -- 위치 매핑 키
     r.gu_name, r.admin_dong_name,
@@ -62,7 +62,7 @@ select
     d.pharmtrdar, d.asgnymd                                    -- pharmacy 고유 payload
 from commerce_business_entity_history h
 join commerce_pharmacy_detail d
-  on d.entity_id = h.entity_id
+  on d.entity_seq = h.entity_seq
  and d.collected_at = h.collected_at and d.content_hash = h.content_hash
 left join commerce_dim_business_status st on st.fmt = 'v1' and st.status_code = h.status_code
 left join commerce_dim_region r on r.admin_dong_code = h.admin_dong_code
