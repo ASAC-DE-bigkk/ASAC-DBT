@@ -197,3 +197,22 @@ models:
     columns:
       - name: rank_no
         tests: [not_null]
+
+  - name: silver_culture_movie_boxoffice
+    description: KOBIS 일별 영화 박스오피스(전국+서울 한정). 그레인 region×boxoffice_date×rank, boxoffice_date=load_date-1. KOPIS 예매상황판 boxoffice와 별개 축.
+    columns:
+      - name: region
+        description: "'nation'(전국) / 'seoul'(서울 한정 wideAreaCd=0105001)"
+        tests:
+          - accepted_values:
+              values: ["nation", "seoul"]
+      - name: movie_cd
+        description: KOBIS 영화 코드(movieCd)
+        tests:
+          - not_null
+      - name: rank
+        description: 그날 region top10 순위(1~10)
+        tests:
+          - not_null
+      - name: boxoffice_date
+        description: 실제 관객일(load_date − 1일)
