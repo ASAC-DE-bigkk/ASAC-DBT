@@ -39,15 +39,16 @@ latest as (
 
 dong_map as {{ culture_dong_map('latest') }},
 
-gu_codes as (select distinct gu, gu_code from {{ ref('seoul_admin_dong_crosswalk') }})
+{{ culture_admin_canon() }}
 
 select
     l.service_id, l.reservation_type, l.service_name, l.status, l.category, l.place, l.pay_type,
     cast(try(cast(l.load_date as date)) as timestamp(6)) as event_at,   -- 스냅샷 대표 시각
     l.longitude, l.latitude, l.gu,
-    coalesce(g.gu_code, d.coord_gu_code) as gu_code,
-    d.admin_dong, d.admin_dong_code,
+    coalesce(cd.gu_code, cg.gu_code, d.coord_gu_code) as gu_code,
+    coalesce(cd.admin_dong, d.admin_dong) as admin_dong, d.admin_dong_code,
     l.source_system, l.dag_run_id, l.raw_object_key, l.collected_at, l.ingested_at, l.load_date
 from latest l
 left join dong_map d on l.longitude = d.longitude and l.latitude = d.latitude
-left join gu_codes g on g.gu = l.gu
+left join canon cd on cd.admin_dong_code = d.admin_dong_code
+left join canon_gu cg on cg.gu = l.gu

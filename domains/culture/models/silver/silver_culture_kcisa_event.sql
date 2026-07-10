@@ -78,16 +78,17 @@ deduped as (
 
 dong_map as {{ culture_dong_map('deduped') }},
 
-gu_codes as (select distinct gu, gu_code from {{ ref('seoul_admin_dong_crosswalk') }})
+{{ culture_admin_canon() }}
 
 select
     d.event_id, d.title, d.venue_name, d.service_name, d.category,
     d.event_start_date, d.event_end_date,
     cast(d.event_start_date as timestamp(6)) as event_at,
     d.longitude, d.latitude, d.gu,
-    coalesce(g.gu_code, m.coord_gu_code) as gu_code,
-    m.admin_dong, m.admin_dong_code,
+    coalesce(cd.gu_code, cg.gu_code, m.coord_gu_code) as gu_code,
+    coalesce(cd.admin_dong, m.admin_dong) as admin_dong, m.admin_dong_code,
     d.source_system, d.dag_run_id, d.raw_object_key, d.collected_at, d.ingested_at, d.load_date
 from deduped d
 left join dong_map m on d.longitude = m.longitude and d.latitude = m.latitude
-left join gu_codes g on g.gu = d.gu
+left join canon cd on cd.admin_dong_code = m.admin_dong_code
+left join canon_gu cg on cg.gu = d.gu
