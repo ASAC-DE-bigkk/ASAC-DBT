@@ -31,6 +31,24 @@ sources:
           - name: collected_at
             description: 수집 시각 UTC
 
+  # 크로스도메인 소스 (#122) — 별도 dbt 프로젝트의 published silver 를 같은 카탈로그에서
+  # 읽는다. ref 불가라 source 로 배선. prod 도 동일 스키마명(culture/traffic) 가정.
+  - name: culture
+    description: 문화 도메인 published 테이블 (ASAC-DBT domains/culture).
+    database: "{{ target.database }}"
+    schema: culture
+    tables:
+      - name: silver_culture_event
+        description: 서울 문화행사 기간 fact — admin_dong_code·event_start/end_date·category·is_free.
+
+  - name: traffic
+    description: 교통 도메인 published 테이블 (ASAC-DBT domains/traffic).
+    database: "{{ target.database }}"
+    schema: traffic
+    tables:
+      - name: silver_seoul_traffic_incident
+        description: TOPIS 돌발정보 — admin_dong_code·occurred_at·expected_clear_at·acc_type.
+
 seeds:
   - name: seoul_hotspot_area_geo
     description: >
@@ -302,3 +320,66 @@ models:
         data_tests: [not_null]
       - name: area_cd
         data_tests: [not_null]
+
+  # ── 신규 골드 (#122) ─────────────────────────────────────────────────────────
+
+  - name: gold_citydata_purchasing_power_daily
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [event_date, area_cd]
+    description: >
+      장소별 일 구매력·붐빔대비구매 — grain (event_date, area_cd). 유동인구(ppltn)와
+      결제(cmrcl)를 일집계·조인해 buy/spend_per_crowd_idx 와 rank(전체·자치구내)를 낸다.
+      ⚠ 유동인구는 동시 체류 추정이라 지수는 장소 간 상대 비교용. incremental(delete+insert).
+    columns:
+      - name: event_date
+        data_tests: [not_null]
+      - name: area_cd
+        data_tests: [not_null]
+      - name: buy_per_crowd_idx
+        description: 결제건수 / 평균 유동인구 (붐빔 대비 구매, 상대 지수)
+      - name: spend_per_crowd_idx
+        description: 결제금액 / 평균 유동인구 (구매력 proxy, 상대 지수)
+      - name: rank_spend
+        description: 그날 전체 장소 중 spend_per_crowd_idx 순위 (1=Top). 하위=구매력 약한 지역
+      - name: rank_spend_in_gu
+        description: 그날 자치구 내 순위
+
+  - name: gold_citydata_ppltn_x_culture_daily
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [event_date, admin_dong_code]
+    description: >
+      인구혼잡 × 문화행사 — grain (event_date, admin_dong_code). 우리 인구를 동×일 롤업하고
+      그날 그 동 활성 문화행사(culture.silver_culture_event) 수를 붙여 집객효과를 본다.
+      크로스도메인(source). 커버리지=우리 핫플 동 한정. incremental(delete+insert).
+    columns:
+      - name: event_date
+        data_tests: [not_null]
+      - name: admin_dong_code
+        data_tests: [not_null]
+      - name: event_count
+        description: 그날 그 동에 활성인 문화행사 수 (0 포함)
+      - name: has_event
+        description: 행사 존재 여부 (boolean)
+
+  - name: gold_citydata_transit_x_incident_hourly
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [time_bucket, admin_dong_code]
+    description: >
+      승하차 × 교통돌발 — grain (time_bucket=시, admin_dong_code). 우리 승하차를 동×시 롤업하고
+      그 시간 그 동 활성 교통돌발(traffic.silver_seoul_traffic_incident)을 붙인다. 승하차는
+      5분창 중앙값의 시간내 평균(대표 강도). 크로스도메인(source). incremental(delete+insert).
+    columns:
+      - name: time_bucket
+        data_tests: [not_null]
+      - name: admin_dong_code
+        data_tests: [not_null]
+      - name: incident_count
+        description: 그 시간 그 동에 활성인 돌발 수 (0 포함)
+      - name: has_incident
+        description: 돌발 존재 여부 (boolean)
