@@ -67,8 +67,9 @@ resolved as (
     from list_latest l
     left join detail_latest d on d.performance_id = l.performance_id
     left join fac_by_name n on n.facility_name = l.venue_name
-)
+),
 
+stamped as (
 select
     r.performance_id, r.performance_name, r.genre, r.state, r.venue_name,
     r.facility_id, r.facility_match,
@@ -78,3 +79,7 @@ select
     r.source_system, r.dag_run_id, r.raw_object_key, r.collected_at, r.ingested_at, r.load_date
 from resolved r
 left join fac f on f.facility_id = r.facility_id
+)
+
+select *, {{ culture_quality_status() }} as quality_status
+from stamped

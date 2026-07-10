@@ -39,8 +39,9 @@ fac_by_name as (
     from fac
     where facility_name is not null
     group by facility_name
-)
+),
 
+stamped as (
 select
     l.festival_id, l.festival_name, l.genre, l.venue_name,
     n.facility_id,
@@ -52,3 +53,7 @@ select
 from latest l
 left join fac_by_name n on n.facility_name = l.venue_name
 left join fac f on f.facility_id = n.facility_id
+)
+
+select *, {{ culture_quality_status() }} as quality_status
+from stamped

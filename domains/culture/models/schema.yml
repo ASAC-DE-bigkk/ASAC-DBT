@@ -30,6 +30,12 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.06}   # 실측 11.88%(detail 캡) - 5%p (Task 18 확정)
               config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_space
     description: 서울 문화공간 dim (좌표 축 스왑 처리, space_key = NUM — Task 2 실측 채택)
@@ -53,6 +59,12 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.94}   # 실측 99.06% - 5%p (Task 18 확정)
               config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_performance
     description: KOPIS 공연 기간 fact — detail(mt10id) 정밀 시설 조인, 공간축은 facility 경유
@@ -77,6 +89,12 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (Task 18 확정, 상한 보정)
               config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_festival
     description: KOPIS 축제 기간 fact — 시설 이름 매칭(미매칭 NULL)
@@ -97,6 +115,12 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (Task 18 확정, 상한 보정)
               config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_event
     description: 서울 문화행사 기간 fact. 기간 질의는 event_start_date <= D and D <= event_end_date (event_at 단독 필터 = 시작일 기준)
@@ -130,6 +154,12 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.9}   # 실측 95.59% - 5%p (Task 18 확정)
               config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_exhibition
     description: 시립미술관 전시 기간 fact — 위치는 분관 seed 매칭
@@ -150,6 +180,12 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.82}   # 실측 87.13% - 5%p (Task 18 확정)
               config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_sejong
     description: 세종문화회관 기간 fact — 위치 상수(seed)
@@ -167,6 +203,12 @@ models:
         tests: [not_null]
       - name: gu_code
         tests: [not_null]   # 상수 위치 — 항상 채워져야 함
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_reservation
     description: 공공예약 일 스냅샷 fact — 그레인 (service_id, load_date)
@@ -199,6 +241,12 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.9}
               config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_boxoffice
     description: KOPIS 예매상황판 일 스냅샷 — 그레인 (load_date, rank_no), 공간축 면제
@@ -283,6 +331,12 @@ models:
       - name: gu_code
         description: 자치구 코드 (#48 코드 축)
         tests: [not_null]
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: gold_culture_sports_schedule
     description: 서울 야구 경기 일정 질의 표면 (경기 1행). 최근접 미래 경기 = game_date>=current_date order by event_at.
@@ -293,6 +347,11 @@ models:
         tests: [not_null]
       - name: stadium
         tests: [not_null]
+      - name: quality_status
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_kcisa_event
     description: KCISA 한눈에보는문화정보 서울 행사 fact — 전 serviceName 편입, 3축(performance·event·exhibition) anti-join dedup 잔존분(#85). 그레인 event_id(=seq), 좌표 내장.
@@ -323,6 +382,12 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.91}   # 실측 96.95% - 5%p (#85 확정)
               config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: gold_culture_activity_by_dong
     description: 행정동(admin_dong_code) × 일자 문화활동 집계(#48). dim_admin_dong 426동 scaffold라 활동 0건 동도 0으로 존재. sports 제외.

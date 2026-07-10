@@ -52,8 +52,9 @@ latest as (
 
 dong_map as {{ culture_dong_map('latest') }},
 
-{{ culture_admin_canon() }}
+{{ culture_admin_canon() }},
 
+stamped as (
 select
     l.event_key, l.event_title, l.place, l.category, l.is_free,
     l.event_start_date, l.event_end_date,
@@ -66,3 +67,7 @@ from latest l
 left join dong_map d on l.longitude = d.longitude and l.latitude = d.latitude
 left join canon cd on cd.admin_dong_code = d.admin_dong_code
 left join canon_gu cg on cg.gu = l.gu
+)
+
+select *, {{ culture_quality_status() }} as quality_status
+from stamped

@@ -39,8 +39,9 @@ latest as (
 
 dong_map as {{ culture_dong_map('latest') }},
 
-{{ culture_admin_canon() }}
+{{ culture_admin_canon() }},
 
+stamped as (
 select
     l.service_id, l.reservation_type, l.service_name, l.status, l.category, l.place, l.pay_type,
     cast(try(cast(l.load_date as date)) as timestamp(6)) as event_at,   -- 스냅샷 대표 시각
@@ -52,3 +53,7 @@ from latest l
 left join dong_map d on l.longitude = d.longitude and l.latitude = d.latitude
 left join canon cd on cd.admin_dong_code = d.admin_dong_code
 left join canon_gu cg on cg.gu = l.gu
+)
+
+select *, {{ culture_quality_status() }} as quality_status
+from stamped
