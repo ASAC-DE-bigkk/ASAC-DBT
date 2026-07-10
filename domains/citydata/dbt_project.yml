@@ -7,6 +7,10 @@ profile: seoul_ppltn
 flags:
   require_certificate_validation: true
 
+vars:
+  # 행안부 행정동 마스터(#154) bronze 를 공유 common 스키마에서 읽는다 (asac_axes dim_admin_dong 소스).
+  axes_bronze_schema: common
+
 model-paths: ["models"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
@@ -23,7 +27,7 @@ models:
 
 seeds:
   seoul_ppltn:
-    seoul_ppltn_area_geo:
+    seoul_hotspot_area_geo:
       +column_types:
         area_cd: varchar
         category: varchar

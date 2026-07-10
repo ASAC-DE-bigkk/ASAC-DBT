@@ -32,7 +32,7 @@ sources:
             description: 수집 시각 UTC
 
 seeds:
-  - name: seoul_ppltn_area_geo
+  - name: seoul_hotspot_area_geo
     description: >
       서울시 주요 121장소 영역(shapefile, WGS84) 기반 위치 참조 데이터.
       원본은 R2 reference/population/area_geo/에 아카이브, 이 seed는 조인용 가공본
@@ -69,21 +69,12 @@ models:
           arguments:
             columns: [area_cd, event_at]
     description: >
-      bronze payload를 json_extract로 개별 필드 분해 후 (area_nm, ppltn_time) 기준
-      최신 1건으로 중복 제거하고 #48 공통축(asac_axes)으로 좌표·행정구역·시간축을
-      보강한 정제 테이블. incremental(merge) — 최근 수집분만(30분 lookback) 파싱해
-      (area_nm, ppltn_time) 키로 merge(멱등).
+      bronze payload를 json_extract로 개별 필드 분해 후 (area_cd, event_at) 기준 최신
+      1건으로 중복 제거한 정제 테이블. 공간축은 코드·좌표(area_cd·admin_dong_code·gu_code·
+      lon·lat)만 담고 이름은 dim_seoul_area 조인으로 얻는다(#115). incremental(delete+insert).
     columns:
-      - name: area_nm
-        description: 장소명
       - name: area_cd
-        description: 장소 코드 (POI###)
-      - name: sido
-        description: 시도 (서울특별시 고정)
-      - name: gu
-        description: 자치구명 (공용 경계 seed 조인)
-      - name: admin_dong
-        description: 행정동명 (공용 경계 seed, point-in-polygon)
+        description: 장소 코드 (POI###) — grain 축
       - name: gu_code
         description: 행안부 자치구 코드 5자리 — 구 단위 조인·롤업 키
       - name: admin_dong_code
@@ -100,8 +91,6 @@ models:
           - asac_axes.in_seoul_bbox:
               arguments:
                 kind: lat
-      - name: area_category
-        description: 장소 분류 (seed 조인)
       - name: area_congest_lvl
         description: 혼잡도 수준 (여유/보통/약간 붐빔/붐빔) — 소문자 정규화
       - name: area_congest_msg

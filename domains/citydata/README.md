@@ -34,11 +34,11 @@ bronze_seoul_citydata (source)  ─ ASAC-DAG가 적재. (장소×블록) 행 + �
 | `models/gold/gold_citydata_place_latest.sql` | 장소별 혼잡도×소비×승하차×따릉이×대기질 최신 1행 |
 | `models/gold/gold_citydata_cmrcl_daily.sql` | 일 소비 인사이트 |
 | `models/dim/dim_seoul_area.sql` | 장소 차원(좌표·행정구역) |
-| `seeds/seoul_ppltn_area_geo.csv` | ★ 121장소 위치 참조 (중심점/bbox/폴리곤 WKT, WGS84) |
+| `seeds/seoul_hotspot_area_geo.csv` | ★ 121장소 위치 참조 (중심점/bbox/폴리곤 WKT, WGS84) |
 | `macros/generate_schema_name.sql` | custom schema 를 접두사 없이 그대로 사용(seoul_ppltn / seoul_citydata) |
 | `profiles.yml` | dev/prod 프로파일 (target으로 카탈로그 분리) |
 
-## 위치 참조 seed: seoul_ppltn_area_geo
+## 위치 참조 seed: seoul_hotspot_area_geo
 
 서울시 배포 shapefile("서울시 주요 121장소 영역", WGS84)에서 추출한 조인용 참조
 테이블입니다. `dbt seed`로 적재되며(transform DAG의 `dbt_seed` 태스크), 모델이
