@@ -74,15 +74,11 @@ select
     j.longitude,
     j.latitude,
     j.gu,
-    coalesce(cd.gu_code, cg.gu_code, d.coord_gu_code) as gu_code,
-    coalesce(cd.admin_dong, d.admin_dong) as admin_dong,
-    d.admin_dong_code,
+    {{ culture_admin_stamp_cols() }},
     j.seat_scale,
     j.source_system, j.dag_run_id, j.raw_object_key, j.collected_at, j.ingested_at, j.load_date
 from joined j
-left join dong_map d on j.longitude = d.longitude and j.latitude = d.latitude
-left join canon cd on cd.admin_dong_code = d.admin_dong_code
-left join canon_gu cg on cg.gu = j.gu
+{{ culture_admin_stamp_joins('j') }}
 )
 
 select *, {{ culture_quality_status() }} as quality_status

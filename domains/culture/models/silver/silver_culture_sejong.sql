@@ -45,13 +45,10 @@ select
     p.event_start_date, p.event_end_date,
     cast(p.event_start_date as timestamp(6)) as event_at,
     p.longitude, p.latitude, p.gu,
-    coalesce(cd.gu_code, cg.gu_code, d.coord_gu_code) as gu_code,
-    coalesce(cd.admin_dong, d.admin_dong) as admin_dong, d.admin_dong_code,
+    {{ culture_admin_stamp_cols() }},
     p.source_system, p.dag_run_id, p.raw_object_key, p.collected_at, p.ingested_at, p.load_date
 from placed p
-left join dong_map d on p.longitude = d.longitude and p.latitude = d.latitude
-left join canon cd on cd.admin_dong_code = d.admin_dong_code
-left join canon_gu cg on cg.gu = p.gu
+{{ culture_admin_stamp_joins('p') }}
 )
 
 select *, {{ culture_quality_status() }} as quality_status
