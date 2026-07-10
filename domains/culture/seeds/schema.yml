@@ -36,3 +36,31 @@ seeds:
         tests: [not_null]
       - name: longitude
         tests: [not_null]
+  - name: sema_branch_location
+    description: 시립미술관(SeMA) 분관·관련 장소 위치 seed (29행) — silver_culture_exhibition 이 venue_name 부분일치(strpos)로 조인. 분관(priority 10)만 좌표 보유, 그 외는 구 레벨(좌표 null).
+    columns:
+      - name: keyword
+        description: venue_name 부분일치 키워드 (조인 키)
+        tests: [not_null, unique]
+      - name: gu
+        description: 자치구명
+        tests: [not_null]
+      - name: priority
+        description: 매칭 우선순위 — 높을수록 우선(분관=10). 다중 매칭 시 최댓값 채택.
+        tests: [not_null]
+      - name: latitude
+        description: 위도(WGS84) — 분관만, 구 레벨 행은 null
+      - name: longitude
+        description: 경도(WGS84) — 분관만, 구 레벨 행은 null
+  - name: sejong_location
+    description: 세종문화회관 단일 위치 seed (1행) — silver_culture_sejong 이 cross join 으로 붙이는 좌표 상수(단일 시설).
+    columns:
+      - name: venue
+        description: 시설명
+        tests: [not_null, unique]
+      - name: gu
+        tests: [not_null]
+      - name: latitude
+        tests: [not_null]
+      - name: longitude
+        tests: [not_null]
