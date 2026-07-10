@@ -8,7 +8,7 @@
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
-    incremental_strategy='merge',
+    incremental_strategy='delete+insert',
     unique_key=['event_date', 'area_cd'],
     on_table_exists='drop',
 ) }}

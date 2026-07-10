@@ -6,7 +6,7 @@
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
-    incremental_strategy='merge',
+    incremental_strategy='delete+insert',
     unique_key=['area_cd', 'spot_id', 'observed_at'],
     on_table_exists='drop',
 ) }}

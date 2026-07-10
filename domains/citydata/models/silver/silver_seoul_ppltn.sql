@@ -17,8 +17,8 @@
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
-    incremental_strategy='merge',
-    unique_key=['area_nm', 'event_at'],
+    incremental_strategy='delete+insert',
+    unique_key=['area_cd', 'event_at'],
     on_table_exists='drop',
 ) }}
 
@@ -65,12 +65,11 @@ ranked as (
     select
         *,
         row_number() over (
-            partition by area_nm, event_at
+            partition by area_cd, event_at
             order by collected_at desc
         ) as row_num
     from bronze
-    where area_nm is not null
-        and area_cd is not null
+    where area_cd is not null
         and event_at is not null
 ),
 

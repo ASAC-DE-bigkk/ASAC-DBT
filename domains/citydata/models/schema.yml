@@ -64,6 +64,10 @@ seeds:
 
 models:
   - name: silver_seoul_ppltn
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at]
     description: >
       bronze payload를 json_extract로 개별 필드 분해 후 (area_nm, ppltn_time) 기준
       최신 1건으로 중복 제거하고 #48 공통축(asac_axes)으로 좌표·행정구역·시간축을
@@ -112,6 +116,10 @@ models:
         description: 수집 시각 (KST, dedup 시 최신 판단 기준)
 
   - name: gold_seoul_ppltn_by_time
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [event_at, area_cd]
     description: >
       silver를 소비하는 시간별 장소 인구혼잡도. 평균 인구(avg_ppltn) 파생. 좌표·
       행정구역(행안부 코드)·시간축(event_at)은 silver에서 #48 공통축으로 보강됨.
@@ -143,6 +151,10 @@ models:
         description: 수집 시각
 
   - name: gold_seoul_ppltn_daily
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [event_date, area_code]
     description: >
       silver를 소비하는 장소별 하루 혼잡 인사이트 (평균/최대/최소 인구, 피크 시각,
       붐빔 비율, 측정 완결성). grain = (event_date, area_code). incremental(merge) —
@@ -201,6 +213,10 @@ models:
                 min_ratio: 0.99
 
   - name: silver_citydata_cmrcl
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at]
     description: >
       실시간 상권(신한카드) 요약 — grain (area_cd, event_at). event_at = CMRCL_TIME
       파싱(KST, 실측 10분 주기). incremental(merge), 30분 lookback, 배치 내 dedup.
@@ -216,6 +232,10 @@ models:
         description: 실시간 신한카드 결제 건수 (10분 창)
 
   - name: silver_citydata_cmrcl_rsb
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at, rsb_lrg_ctgr, rsb_mid_ctgr]
     description: >
       상권 업종별 상세 — grain (area_cd, event_at, 업종 대·중분류). CMRCL_RSB 배열
       UNNEST. incremental(merge).
@@ -225,6 +245,10 @@ models:
         data_tests: [not_null]
 
   - name: silver_citydata_transit_ppltn
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, mode, observed_at]
     description: >
       지하철/버스 승하차 인원 — grain (area_cd, mode, observed_at). 원천 시각 필드가
       없어 observed_at=collected_at(KST). 5/10/30분 창 + 당일 누적. incremental(merge).
@@ -236,6 +260,10 @@ models:
         data_tests: [not_null]
 
   - name: silver_citydata_sbike
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, spot_id, observed_at]
     description: >
       따릉이 대여소 현황 — grain (area_cd, spot_id, observed_at). SBIKE_STTS 배열
       UNNEST, 대여소 좌표 포함. incremental(merge).
@@ -245,6 +273,10 @@ models:
         data_tests: [not_null]
 
   - name: silver_citydata_air
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at]
     description: >
       날씨 실황 + 대기질 — grain (area_cd, event_at=WEATHER_TIME, 실측 10분).
       FCST24HOURS(예보)는 weather 도메인 canonical이라 제외. incremental(merge).
@@ -269,6 +301,10 @@ models:
         data_tests: [not_null]
 
   - name: gold_citydata_cmrcl_daily
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [event_date, area_cd]
     description: >
       장소별 일 소비 인사이트 — grain (event_date, area_cd). 결제 규모·피크 시간대·
       활성 비율·측정 완결성. incremental(merge) — 최근 2일 재집계 후 merge.
