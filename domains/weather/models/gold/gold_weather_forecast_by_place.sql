@@ -4,6 +4,7 @@
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['place_id', 'forecast_at', 'category'],
+    on_schema_change='fail',
 ) }}
 
 with ranked_forecast as (
