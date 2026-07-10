@@ -112,17 +112,42 @@ detail payload 의 저카디널리티 통제어휘 컬럼(예: `uptaenm`(업태�
 | 채움 | `commerce_load_gold` DAG `build_code_values` task — `load_gold` 이후(detail 실데이터 필요) |
 | 대상 | 실측 카디널리티 + **실제 값 표본 검증**을 통과한 72쌍(`include/gold/code_values.py` `CANDIDATES`) — 상수(distinct=1)·결측·0/1 플래그·동일 필드명이라도 준자유텍스트(예: `mail_order_sale.uptaenm`)는 제외 |
 
-## 3.2 view-구성 인덱스 (2026-07-10 추가)
+## 3.2 인덱스 — view-구성 요소 + 검색/이력 공통축 (2026-07-10)
 
-`ddl.create_index_sql()` — **뷰 정의(JOIN/WHERE)가 실제로 쓰는 컬럼만** 인덱싱(근거:
-[partitioning-indexing-plan.md](partitioning-indexing-plan.md), EXPLAIN 실측). detail↔entity 조인은
-detail 기존 PK(entity_seq, collected_at, content_hash)로 이미 충분해 detail 쪽 추가 인덱스는 없음.
+### entity/history — `ddl.create_index_sql()` (17개: 2테이블×8 + entity 전용 1)
 
-| 테이블 | 인덱스 | 근거(view SQL) |
+① **뷰 정의(JOIN/WHERE)가 실제로 쓰는 컬럼**(근거: [partitioning-indexing-plan.md](partitioning-indexing-plan.md),
+EXPLAIN 실측) + ② **검색·조건 단위로 쓰기 좋고 이력과 연결되는 공통축**(위치코드·시간축·자연키 —
+사용자 지시). detail↔entity 조인은 detail 기존 PK(entity_seq, collected_at, content_hash)로 이미
+충분해 이 목록엔 없음.
+
+| 테이블 | 인덱스 | 근거 |
 |---|---|---|
 | `commerce_business_entity`, `_history` | `(dataset)` | API view `where e/h.dataset = '<short>'` |
-| `commerce_business_entity`, `_history` | `(admin_dong_code)` | `_DIM_JOIN` → `commerce_dim_region` 조인 |
+| `commerce_business_entity`, `_history` | `(admin_dong_code)` | `_DIM_JOIN` → `commerce_dim_region` 조인(행정동) |
 | `commerce_business_entity`, `_history` | `(status_code, detail_status_code)` | `_DIM_JOIN` → `commerce_dim_business_status` 조인 |
+| `commerce_business_entity`, `_history` | `(legal_code)` | 법정동 코드 — 위치 매핑 검색축 |
+| `commerce_business_entity`, `_history` | `(updatedt_ts)` | 원천 업데이트 시각 — 시간 조건문 |
+| `commerce_business_entity`, `_history` | `(lastmodts_ts)` | 최종 수정 시각(=moddt) — 시간 조건문 |
+| `commerce_business_entity`, `_history` | `(opened_at)`, `(closed_at)` | 인허가/폐업일(=opendate/closedate) |
+| `commerce_business_entity` | `(opnsfteamcode, mgtno)` | 자연키(=id) — entity_seq 몰라도 업소 직접 조회. `commerce_business_entity_history` 는 이 두 컬럼을 안 담아(HISTORY_COLUMNS) 대상 아님 |
+
+### detail(78개) — `ddl.create_detail_index_sql()` (자동, 2026-07-10 실측 401개)
+
+새 API 가 카탈로그에 추가돼도 **payload 컬럼명 접미사**로 자동 인덱싱된다(수동 목록 유지 불필요) —
+`commerce_load_gold` 의 `build_catalog`→`load_gold` DDL ensure 단계에서 카탈로그 갱신 시 자동 반영.
+
+| 접미사 | 의미(예시) | 자동 인덱싱 |
+|---|---|---|
+| `ymd`·`dt`·`date` | 종료/시작/취소/보험 일자(예: 종업원수·평수 문서의 moddt/opendate/closedate 류가 API마다 이런 형태로 존재) | ✅ |
+| `no`·`num`·`seqno`·`asgnno` | 등록번호·지정번호(=id) | ✅ |
+| `cnt`·`epcnt`·`area`·`yarea`·`scp`·`tons`·`flr` | 종업원수·면적(평수)·규모·톤수·층수 | ✅ |
+| `nm`·`se`·`senm`·`gbn`·`gbnnm` | 업태명 등 명칭/구분(값 자체가 목적) | ❌ 정규화 대상([normalization-plan.md](normalization-plan.md) — `commerce_code_value`) |
+
+실측(2026-07-10, 78테이블/725 payload 컬럼): **401개 매칭**(테이블당 평균 5.1개, 대부분 결측 위주
+희소 컬럼이라 실제 인덱스 크기는 작음). 텍스트 컬럼 그대로 인덱싱(원문 보존 원칙 유지 — CAST 안 함)
+이라 수량류는 **정확한 값 조회는 되지만 숫자 범위 정렬은 텍스트 기준**이라는 한계가 있다(예:
+`'10' < '9'`). 범위 정렬이 필요해지면 그때 타입 컬럼 추가를 검토한다.
 
 ## 4. Detail — 비공통 영역 (cluster 8 + single 70 = 78, 전부 이력)
 
