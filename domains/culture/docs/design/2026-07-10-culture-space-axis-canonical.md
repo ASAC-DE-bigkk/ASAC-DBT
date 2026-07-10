@@ -35,9 +35,13 @@ bronze 파생 `dim_admin_dong`은 orphan(소비 0건)이다. culture가 first-co
 - boundary seed point-in-polygon **유지** → `admin_dong_code` 획득.
 - 현재 `gu_codes as (select distinct gu, gu_code from crosswalk)` + `coalesce(g.gu_code, d.coord_gu_code)` 를
   **`dim_admin_dong` 조인(admin_dong_code 기준)**으로 교체:
-  - `gu_code` = `coalesce(dim.gu_code, boundary coord_gu_code)` — **좌표→dim canonical 우선**, 폴백 boundary(재편 3개 동 등 dim 미스 대비).
+  - `gu_code` = `coalesce(dim[admin_dong_code].gu_code, dim[gu라벨].gu_code, boundary coord_gu_code)` —
+    **좌표→dim 우선, 라벨→dim 폴백, boundary 최후 폴백**. crosswalk seed 완전 은퇴(양 경로 dim 사용).
   - `admin_dong` = `coalesce(dim.admin_dong, boundary dong)` — canonical 명칭 우선.
   - `stat_region_cd` = dim (신규 노출, 통계청 alias 다리 — 선택).
+  - **회귀 방지(중요)**: `facility`는 좌표 커버리지 낮음(detail 캡 admin_dong_code ~12%) → 순수 좌표-우선이면
+    좌표 없는 시설 gu_code가 null 폭락(~100%→~12%). **라벨→dim 폴백이 좌표 없는 행을 방어**한다.
+    라벨 폴백 = `select distinct gu, gu_code from dim_admin_dong`(25 자치구) ⨝ 소스 gu 라벨.
 - **`gu`(원본 자치구 라벨)는 보존** — 소스 자기신고 값(GUNAME/AREANM/gugunnm)은 오배정 테스트의 정답 라벨이므로 유지. canonical과 별개 컬럼.
 - **설계 결정 — gu_code 유래 전환**: 현재는 라벨-우선(crosswalk[gu라벨]), 전환 후 **좌표-우선(dim[admin_dong_code←좌표])**. 라벨↔좌표 불일치 행에서 gu_code가 바뀔 수 있음 → 아래 drift/오배정 테스트가 규모를 계측. 좌표-우선이 #48 "조인은 공간축(좌표 유래 행정동)으로" 취지에 부합.
 - 편집 격리: 8개 모델의 `gu_codes` CTE 소스만 교체(공통 패턴). 가능하면 공유 CTE/매크로로 DRY.
