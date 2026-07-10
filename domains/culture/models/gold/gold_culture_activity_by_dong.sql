@@ -4,45 +4,17 @@
 -- sports(야구)는 문화활동 축 아님 → 제외(gold_culture_location_daily 관례 유지).
 -- 주의(#111): admin_dong_code 그레인이라 정의상 quality_status='dong_precise' 활동만 포함된다.
 --   좌표 없는 활동(gu_only)은 이 gold 에서 누락 — 구 레벨 집계는 gold_culture_location_daily 참조.
+-- 활동 원천·기간 전개는 int_culture_activity_days 공유. kcisa 는 activity_type 별도 유지(kcisa_count).
 
 with dim as (
     select admin_dong_code, admin_dong, gu_code, gu, stat_region_cd
     from {{ ref('asac_axes', 'dim_admin_dong') }}
 ),
 
-raw_activities as (
-    select admin_dong_code, cast(performance_id as varchar) as activity_id, 'performance' as activity_type, event_start_date, event_end_date
-    from {{ ref('silver_culture_performance') }}
-    union all
-    select admin_dong_code, event_key, 'event', event_start_date, event_end_date
-    from {{ ref('silver_culture_event') }}
-    union all
-    select admin_dong_code, cast(festival_id as varchar), 'festival', event_start_date, event_end_date
-    from {{ ref('silver_culture_festival') }}
-    union all
-    select admin_dong_code, cast(exhibition_id as varchar), 'exhibition', event_start_date, event_end_date
-    from {{ ref('silver_culture_exhibition') }}
-    union all
-    select admin_dong_code, cast(sejong_id as varchar), 'sejong', event_start_date, event_end_date
-    from {{ ref('silver_culture_sejong') }}
-    union all
-    select admin_dong_code, 'kcisa:' || event_id, 'kcisa', event_start_date, event_end_date
-    from {{ ref('silver_culture_kcisa_event') }}
-),
-
-activities as (
-    select * from raw_activities
-    where admin_dong_code is not null
-      and event_start_date is not null
-      and event_end_date is not null
-      and event_end_date >= event_start_date
-      and date_diff('day', event_start_date, event_end_date) <= 400
-),
-
 expanded as (
-    select a.admin_dong_code, a.activity_id, a.activity_type, d.activity_date
-    from activities a
-    cross join unnest(sequence(a.event_start_date, a.event_end_date, interval '1' day)) as d(activity_date)
+    select admin_dong_code, activity_id, activity_type, activity_date
+    from {{ ref('int_culture_activity_days') }}
+    where admin_dong_code is not null
 ),
 
 -- date_spine 은 최근 창 [today-90, today+365] 으로 제한 — 27년치 scaffold(3.9M행·96% 0)
