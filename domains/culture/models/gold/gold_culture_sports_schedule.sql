@@ -14,5 +14,6 @@ select
     latitude,
     longitude,
     admin_dong,
-    admin_dong_code
+    admin_dong_code,
+    quality_status
 from {{ ref('silver_culture_sports_event') }}

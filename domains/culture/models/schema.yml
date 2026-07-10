@@ -270,10 +270,16 @@ models:
         tests: [not_null]
       - name: event_date
         tests: [not_null]
+      - name: dong_precise_count
+        description: "좌표로 행정동까지 정밀한 활동 수(#111 quality_status='dong_precise')"
+        tests: [not_null]
   - name: gold_culture_reservation_daily
     description: gu_code × 스냅샷일 예약 가용 현황
     columns:
       - name: gu_code
+        tests: [not_null]
+      - name: dong_precise_count
+        description: "좌표로 행정동까지 정밀한 예약 수(#111 quality_status='dong_precise')"
         tests: [not_null]
   - name: gold_culture_boxoffice_daily
     description: 랭킹 스냅샷 (snapshot_date × rank_no)
