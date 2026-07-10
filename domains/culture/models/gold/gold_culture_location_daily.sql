@@ -1,4 +1,4 @@
--- gold: culture 활동(공연·행사·축제·전시·세종)을 gu_code × 일자로 집계 — #48 코드 축.
+-- gold: culture 활동(공연·행사·축제·전시·세종·kcisa)을 gu_code × 일자로 집계 — #48 코드 축.
 -- 기간 → 일자 전개(cross join unnest sequence). 그레인: gu_code × event_date.
 
 with raw_activities as (
@@ -16,6 +16,17 @@ with raw_activities as (
     union all
     select gu_code, gu, cast(sejong_id as varchar), 'sejong', event_start_date, event_end_date
     from {{ ref('silver_culture_sejong') }}
+    union all
+    -- kcisa(#85): 3축 dedup 잔존분만 — 기존 type에 합산(id는 sema 숫자키와 충돌 방지 프리픽스)
+    select gu_code, gu, 'kcisa:' || event_id,
+           case service_name
+               when '전시' then 'exhibition'
+               when '공연' then 'performance'
+               when '행사/축제' then 'festival'
+               else 'event'   -- 교육/체험 등
+           end,
+           event_start_date, event_end_date
+    from {{ ref('silver_culture_kcisa_event') }}
 ),
 
 activities as (

@@ -113,3 +113,12 @@ sources:
         columns:
           - name: record_json
             description: 원본 레코드(JSON) — mt20id·mt10id·prfstate 등
+      - name: bronze_kcisa_seoul_event
+        description: KCISA 한눈에보는문화정보(area2, sido=서울) 원본 — 현재 활성 행사 스냅샷. seq 자연키, 좌표(gpsX=경도·gpsY=위도)·sigungu 내장. 국립기관 전시 구멍 보강 원천(#85)
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — seq·title·place·serviceName·realmName·sigungu·startDate/endDate(YYYYMMDD)·gpsX/gpsY
+          - name: load_date
+            description: 적재 파티션 일자(KST)
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC)

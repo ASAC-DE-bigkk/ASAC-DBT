@@ -253,3 +253,28 @@ models:
         tests: [not_null]
       - name: stadium
         tests: [not_null]
+
+  - name: silver_culture_kcisa_event
+    description: KCISA 한눈에보는문화정보 서울 행사 fact — 전 serviceName 편입, 3축(performance·event·exhibition) anti-join dedup 잔존분(#85). 그레인 event_id(=seq), 좌표 내장.
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: title
+        tests: [not_null]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.91}   # 실측 96.95% - 5%p (#85 확정)
+              config: {severity: warn}

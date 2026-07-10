@@ -20,6 +20,14 @@
 load_date desc, ingest_ts desc, raw_object_key desc
 {%- endmacro %}
 
+{#
+  norm_title — 소스 간 제목 표기 차이(공백·괄호 부가어·대소문자)를 무력화한
+  dedup 매칭 키(#85). silver_culture_kcisa_event 와 assert_kcisa_no_cross_duplicate 가 공유.
+#}
+{% macro culture_norm_title(expr) -%}
+lower(regexp_replace({{ expr }}, '\s|\[.*?\]|\(.*?\)', ''))
+{%- endmacro %}
+
 {% macro culture_dong_map(src) -%}
 (
     select
