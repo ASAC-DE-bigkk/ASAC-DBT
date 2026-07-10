@@ -51,6 +51,7 @@ bronze 파생 `dim_admin_dong`은 orphan(소비 0건)이다. culture가 first-co
 - grain: **`admin_dong_code` × `event_date`**.
 - **`dim_admin_dong`을 LEFT BASE**(426개 행정동 전량) → 활동 0건 동도 행 존재(지도 빈칸 방지 — dim 문서 권장 패턴).
 - 활동 소스: `gold_culture_location_daily`와 동일 union(performance·event·festival·exhibition·sejong·kcisa) 을 **admin_dong_code로 재집계**(기간→일자 전개는 동일 방식).
+- **date_spine 바운드**: `[current_date-90, current_date+365]` — 무제한이면 활동이 2000~2027년(9,185일)에 걸쳐 426동×27년 = 3.9M행·96% 0(실측). 최근 창으로 제한해 ~18만행 유지, "0건 동 표현"은 현재~근미래 지도에만 유의미.
 - 컬럼: `admin_dong_code`·`admin_dong`·`gu_code`·`gu`·`stat_region_cd`(dim) + `event_date` + `activities_count`·type별 count. **snake_case**(팀 합의 2026-07-10).
 - 기존 `gold_culture_location_daily`(gu_code×일자)는 **존치** — 구 단위 롤업 표면 유지.
 
