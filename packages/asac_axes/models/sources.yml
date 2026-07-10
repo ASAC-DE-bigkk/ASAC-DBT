@@ -3,14 +3,15 @@ version: 2
 # bronze 원천은 ASAC-DAG(#154)가 적재한 Iceberg 테이블(행안부 행정동 마스터).
 # 도메인 프로젝트 관례(database=target.database, schema=env_var)를 따르되,
 # 공용 패키지라 소비 프로젝트가 어디서든 오버라이드할 수 있게 var()로 한 겹 감싼다.
-# 기본값은 dev 실증 위치(iceberg_dev.dev_local, DEV_SMOKE_SCHEMA 로 사용자 스키마 해석).
+# 기본값은 전용 common 스키마(iceberg_dev.common / iceberg.common) — 공유 마스터의 집(#154 코멘트).
+# 카탈로그는 dev/prod 분기, 스키마는 dev/prod 공통 이름(COMMON_SCHEMA, 기본 common).
 sources:
   - name: axes_bronze
     description: >
       공통 공간축 원천 bronze Iceberg 테이블. ASAC-DAG 가 행안부 행정동 마스터를 적재한다.
       코드·명칭의 canonical 원천이며, seed(crosswalk)는 좌표 보조 및 source 부재 환경 폴백.
     database: "{{ var('axes_bronze_catalog', env_var('TRINO_DEV_ICEBERG_CATALOG', 'iceberg_dev')) }}"
-    schema: "{{ var('axes_bronze_schema', env_var('DEV_SMOKE_SCHEMA', 'dev_local')) }}"
+    schema: "{{ var('axes_bronze_schema', env_var('COMMON_SCHEMA', 'common')) }}"
     tables:
       - name: admin_dong_master
         identifier: bronze_admin_dong_master
