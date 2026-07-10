@@ -28,6 +28,23 @@ load_date desc, ingest_ts desc, raw_object_key desc
 lower(regexp_replace({{ expr }}, '\s|\[.*?\]|\(.*?\)', ''))
 {%- endmacro %}
 
+{#
+  culture_admin_canon — bronze 행정동 canonical(dim_admin_dong) stamp용 두 CTE(#48).
+  - canon    : admin_dong_code 로 조인(좌표→행정동 결과에 canonical 코드·명칭 stamp)
+  - canon_gu : gu 라벨로 조인(좌표 없는 행 gu_code 폴백 — facility 커버리지 방어)
+  `with ... , {{ culture_admin_canon() }}` 형태로 선행 CTE 뒤에 배치.
+#}
+{% macro culture_admin_canon() -%}
+canon as (
+    select admin_dong_code, gu_code, admin_dong
+    from {{ ref('asac_axes', 'dim_admin_dong') }}
+),
+canon_gu as (
+    select distinct gu, gu_code
+    from {{ ref('asac_axes', 'dim_admin_dong') }}
+)
+{%- endmacro %}
+
 {% macro culture_dong_map(src) -%}
 (
     select
