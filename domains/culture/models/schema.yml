@@ -197,3 +197,35 @@ models:
     columns:
       - name: rank_no
         tests: [not_null]
+
+  - name: silver_culture_movie_boxoffice
+    description: KOBIS 일별 영화 박스오피스(전국+서울 한정). 그레인 region×boxoffice_date×rank, boxoffice_date=load_date-1. KOPIS 예매상황판 boxoffice와 별개 축.
+    columns:
+      - name: region
+        description: "'nation'(전국) / 'seoul'(서울 한정 wideAreaCd=0105001)"
+        tests:
+          - accepted_values:
+              values: ["nation", "seoul"]
+      - name: movie_cd
+        description: KOBIS 영화 코드(movieCd)
+        tests:
+          - not_null
+      - name: rank
+        description: 그날 region top10 순위(1~10)
+        tests:
+          - not_null
+      - name: boxoffice_date
+        description: 실제 관객일(load_date − 1일)
+
+  - name: gold_culture_movie_boxoffice_daily
+    description: 일별 서울/전국 영화 관객 비중(서울 쏠림). 그레인 boxoffice_date. 시도 그레인이라 자치구 gold 미편입.
+    columns:
+      - name: boxoffice_date
+        description: 관객일(날짜 1행)
+        tests:
+          - not_null
+          - unique
+      - name: seoul_audience_share
+        description: 서울 top10 관객합 / 전국 top10 관객합 (서울 쏠림 신호)
+        tests:
+          - not_null

@@ -74,6 +74,24 @@ sources:
           - name: record_json
           - name: load_date
           - name: ingest_ts
+      - name: bronze_kobis_boxoffice_nation
+        description: KOBIS 일별 박스오피스 — 전국 top10 스냅샷(영화 관객수). record_json=영화 1건. KOPIS 예매상황판(bronze_kopis_boxoffice)과 다른 축.
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — rank·movieCd·movieNm·openDt·audiCnt·salesAmt·scrnCnt·showCnt 등
+          - name: load_date
+            description: 적재 파티션 일자(KST). 실제 관객일 targetDt = load_date − 1일
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC)
+      - name: bronze_kobis_boxoffice_seoul
+        description: KOBIS 일별 박스오피스 — 서울 한정(wideAreaCd=0105001) top10 스냅샷. 전국과 다른 영화 집합.
+        columns:
+          - name: record_json
+            description: 원본 레코드(JSON) — 서울 상영지역 랭킹
+          - name: load_date
+            description: 적재 파티션 일자(KST). 실제 관객일 targetDt = load_date − 1일
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC)
       - name: bronze_seoul_cultural_space
         description: 서울 문화공간정보(culturalSpaceInfo) 원본 — FAC_NAME·GNGU(자치구)·ADDR·X_COORD(위도)/Y_COORD(경도)
         freshness:   # 문화공간 차원(느린 변화) → 완화
