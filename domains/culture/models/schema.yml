@@ -59,6 +59,11 @@ models:
     columns:
       - name: performance_id
         tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
       - name: load_date
         tests: [not_null]
       - name: ingested_at
@@ -78,6 +83,11 @@ models:
     columns:
       - name: festival_id
         tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
       - name: load_date
         tests: [not_null]
       - name: ingested_at
@@ -93,6 +103,11 @@ models:
     columns:
       - name: event_key
         tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
       - name: load_date
         tests: [not_null]
       - name: ingested_at
@@ -121,6 +136,11 @@ models:
     columns:
       - name: exhibition_id
         tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
       - name: load_date
         tests: [not_null]
       - name: ingested_at
@@ -136,6 +156,11 @@ models:
     columns:
       - name: sejong_id
         tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
       - name: load_date
         tests: [not_null]
       - name: ingested_at
@@ -148,6 +173,11 @@ models:
     columns:
       - name: service_id
         tests: [not_null]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
       - name: load_date
         tests: [not_null]
       - name: ingested_at
@@ -175,6 +205,11 @@ models:
     columns:
       - name: rank_no
         tests: [not_null]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
       - name: load_date
         tests: [not_null]
       - name: ingested_at
@@ -216,6 +251,11 @@ models:
           - not_null
       - name: boxoffice_date
         description: 실제 관객일(load_date − 1일)
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
 
   - name: gold_culture_movie_boxoffice_daily
     description: 일별 서울/전국 영화 관객 비중(서울 쏠림). 그레인 boxoffice_date. 시도 그레인이라 자치구 gold 미편입.
@@ -259,6 +299,11 @@ models:
     columns:
       - name: event_id
         tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
       - name: title
         tests: [not_null]
       - name: load_date
