@@ -70,6 +70,12 @@ select
     date_trunc('hour', forecast_at) as time_bucket,
     fcst_value_raw,
     fcst_value_num,
+    -- 값 의미 계층(#113): 표현 분류·정량치·범위·코드. fcst_value_num(단일 try_cast)은
+    -- 호환용으로 유지 — 신규 소비자는 value_representation + value_num 을 사용할 것.
+    {{ kma_value_semantics('category', 'fcst_value_raw') }},
+    -- 예보 리드타임(사실값). 원구간(실측 lead>=50h)에서 PCP/SNO 가 bare_numeric
+    -- 체제로 전환되는 상관이 관측됨 — 경계 불리언은 공식 문서 검증 전이라 두지 않는다.
+    date_diff('hour', issued_at, forecast_at) as forecast_lead_hours,
     raw_object_key,
     payload_hash,
     total_count,
