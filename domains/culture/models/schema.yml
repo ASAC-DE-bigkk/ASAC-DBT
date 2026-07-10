@@ -216,3 +216,16 @@ models:
           - not_null
       - name: boxoffice_date
         description: 실제 관객일(load_date − 1일)
+
+  - name: gold_culture_movie_boxoffice_daily
+    description: 일별 서울/전국 영화 관객 비중(서울 쏠림). 그레인 boxoffice_date. 시도 그레인이라 자치구 gold 미편입.
+    columns:
+      - name: boxoffice_date
+        description: 관객일(날짜 1행)
+        tests:
+          - not_null
+          - unique
+      - name: seoul_audience_share
+        description: 서울 top10 관객합 / 전국 top10 관객합 (서울 쏠림 신호)
+        tests:
+          - not_null
