@@ -6,7 +6,7 @@
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
-    incremental_strategy='merge',
+    incremental_strategy='delete+insert',
     unique_key=['area_cd', 'event_at', 'rsb_lrg_ctgr', 'rsb_mid_ctgr'],
     on_table_exists='drop',
 ) }}
