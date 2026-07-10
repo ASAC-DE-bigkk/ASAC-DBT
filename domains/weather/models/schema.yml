@@ -45,12 +45,15 @@ seeds:
               arguments:
                 values: ['kma_admin_dong_grid_20260325']
       - name: source_admin_code
+        description: KMA guide administrative-area code used as the canonical admin-dong mapping key.
         tests:
           - not_null
+      - name: grid_distance_m
+        description: Distance in metres between the mapped place and KMA grid reference point; nullable when not calculated.
 
 models:
   - name: silver_kma_vilage_fcst
-    description: Deduplicated and time-standardized KMA forecast rows.
+    description: Latest KMA forecast snapshot at place/grid, issue time, category, and forecast time grain; only publishable successful Bronze runs are included.
     columns:
       - name: source_id
         tests:
@@ -104,11 +107,30 @@ models:
         tests:
           - not_null
       - name: dag_run_id
+        description: Airflow collection run lineage for the selected forecast record.
         tests:
           - not_null
+      - name: request_id
+        description: API request identifier for the selected KMA forecast row.
+      - name: request_params_json
+        description: Redacted request parameters retained for reproducibility.
+      - name: fcst_value_num
+        description: Direct numeric cast of the raw KMA forecast value; null for unit-bearing or qualitative values.
+      - name: value_representation
+        description: "Category-aware raw-value representation: explicit_none, quantitative_exact, quantitative_range, bare_numeric, qualitative_code, missing, or unparseable."
+      - name: value_num
+        description: Semantically parsed numeric forecast value when the representation has an exact numeric meaning; null for ranges and explicit none.
+      - name: value_lower_bound
+        description: Inclusive lower bound for a quantitative range; null when the representation has no finite lower bound.
+      - name: value_upper_bound
+        description: Inclusive upper bound for a quantitative range; null when the representation has no finite upper bound.
+      - name: qualitative_code
+        description: Original categorical code for PTY or SKY; null for non-categorical forecast categories.
+      - name: forecast_lead_hours
+        description: Forecast horizon in hours from issued_at to forecast_at.
 
   - name: gold_weather_forecast_summary
-    description: Weather source-level row, raw object, and forecast time coverage summary.
+    description: One-row-per-source aggregate of the current Silver KMA forecast snapshot.
     columns:
       - name: source_id
         tests:
@@ -131,7 +153,7 @@ models:
           - not_null
 
   - name: dim_weather_place
-    description: Weather-owned Seoul admin-dong place dimension mapped to authoritative KMA forecast grids.
+    description: Weather-owned Seoul place dimension mapped to authoritative KMA forecast grids; place_id is the dimension grain.
     columns:
       - name: place_id
         tests:
@@ -165,6 +187,7 @@ models:
         tests:
           - not_null
       - name: source_admin_code
+        description: KMA guide administrative-area code used to derive canonical admin_dong_code and gu_code.
         tests:
           - not_null
       - name: admin_dong_code
@@ -174,11 +197,14 @@ models:
               arguments:
                 min_ratio: 1.0
       - name: gu_code
+        description: Canonical five-digit district code derived from admin_dong_code.
         tests:
           - not_null
+      - name: grid_distance_m
+        description: Distance in metres between the mapped place and KMA grid reference point; nullable when not calculated.
 
   - name: gold_weather_forecast_by_place
-    description: User-facing latest KMA forecast mart at place_id, forecast_at, category grain.
+    description: User-facing latest KMA forecast mart at place_id, forecast_at, category grain; a shared KMA grid may expand to multiple places.
     columns:
       - name: place_id
         tests:
@@ -214,5 +240,42 @@ models:
         tests:
           - not_null
       - name: collected_at
+        description: Bronze collection timestamp of the selected latest forecast.
         tests:
           - not_null
+      - name: gu
+        description: Seoul district name for the mapped place.
+      - name: admin_dong
+        description: Seoul administrative-dong name for the mapped place.
+      - name: latitude
+        description: WGS84 latitude of the mapped place.
+      - name: longitude
+        description: WGS84 longitude of the mapped place.
+      - name: mapping_method
+        description: Provenance of the place-to-KMA-grid mapping.
+      - name: grid_distance_m
+        description: Distance in metres between the place and grid reference point; nullable when not calculated.
+      - name: source_admin_code
+        description: KMA guide administrative-area code for the mapped place.
+      - name: source_grid_place_id
+        description: place_id carried by the source grid before the mart expands one grid to mapped places.
+      - name: request_id
+        description: API request identifier for the selected forecast record.
+      - name: source_id
+        description: Fixed KMA source identifier.
+      - name: request_params_json
+        description: Redacted request parameters retained for reproducibility.
+      - name: event_at
+        description: Cross-domain canonical event timestamp; identical to forecast_at.
+      - name: fcst_value_num
+        description: Direct numeric cast of fcst_value_raw; null for non-numeric raw representations.
+      - name: payload_hash
+        description: Content fingerprint of the raw KMA response.
+      - name: total_count
+        description: KMA-reported total item count for the source response.
+      - name: item_count
+        description: Parsed item count for the source response.
+      - name: load_date
+        description: KST Bronze ingestion partition date.
+      - name: dag_run_id
+        description: Airflow collection run lineage.

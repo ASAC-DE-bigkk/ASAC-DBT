@@ -2,25 +2,30 @@ version: 2
 
 models:
   - name: silver_seoul_traffic_incident
-    description: Deduplicated and time-standardized Seoul TOPIS AccInfo incident rows.
+    description: Deduplicated TOPIS AccInfo incident fact at source_record_id (acc_id) grain; only SUCCESS and publishable Bronze runs are included.
     columns:
       - name: source_id
+        description: Fixed TOPIS source identifier.
         tests:
           - not_null
           - accepted_values:
               arguments:
                 values: ['seoul_traffic_incident']
       - name: source_record_id
+        description: Stable TOPIS accident identifier (acc_id) and Silver merge key.
         tests:
           - not_null
           - unique
       - name: occurred_at
+        description: Incident occurrence timestamp in KST parsed from occr_date and variable-width occr_time.
         tests:
           - not_null
       - name: event_at
+        description: Cross-domain canonical event timestamp; identical to occurred_at.
         tests:
           - not_null
       - name: time_bucket
+        description: KST hourly bucket derived from occurred_at.
         tests:
           - not_null
       - name: source_coordinate_system
@@ -62,52 +67,88 @@ models:
       - name: gu
         description: Matched Seoul district name.
       - name: raw_object_key
+        description: R2 raw object lineage for the selected Bronze record.
         tests:
           - not_null
       - name: payload_hash
+        description: Content fingerprint of the selected raw payload.
         tests:
           - not_null
       - name: list_total_count
+        description: TOPIS response-wide incident count reported for the request page.
         tests:
           - not_null
       - name: row_count
+        description: Parsed incident row count for the request page.
         tests:
           - not_null
       - name: load_date
+        description: KST ingestion partition date from Bronze.
         tests:
           - not_null
       - name: collected_at
+        description: Bronze collection timestamp used for latest-record ordering and incremental watermarking.
         tests:
           - not_null
       - name: dag_run_id
+        description: Airflow collection run lineage; must be a publishable manifest run.
         tests:
           - not_null
 
+      - name: request_id
+        description: API request identifier for the selected TOPIS page.
+      - name: request_params_json
+        description: Redacted, reproducible request parameters captured by Bronze.
+      - name: acc_type
+        description: TOPIS incident type classification.
+      - name: acc_dtype
+        description: TOPIS detailed incident type classification.
+      - name: asset_id
+        description: TOPIS road-link identifier, derived from link_id; nullable when the source omits it.
+      - name: acc_road_code
+        description: TOPIS road code for the incident; nullable source attribute.
+      - name: acc_info
+        description: TOPIS incident free-text information; nullable source attribute.
+      - name: expected_clear_at
+        description: Expected incident-clear timestamp in KST; nullable when TOPIS does not provide a valid clear date/time.
+      - name: valid_from
+        description: Start of the incident validity interval; identical to occurred_at.
+      - name: valid_to
+        description: End of the incident validity interval; identical to expected_clear_at and therefore nullable.
+
   - name: gold_traffic_incident_summary
-    description: Traffic incident source-level row, raw object, and occurrence time coverage summary.
+    description: One-row-per-source full Silver aggregate; rebuilt as a table so counts do not become stale.
     columns:
       - name: source_id
+        description: TOPIS source identifier; unique summary grain.
         tests:
           - not_null
           - unique
       - name: row_count
+        description: Current deduplicated Silver incident count.
         tests:
           - not_null
       - name: raw_object_count
+        description: Distinct R2 raw objects represented by the current Silver rows.
         tests:
           - not_null
       - name: source_coordinate_row_count
+        description: Silver rows whose original GRS80 TM coordinate pair was present.
         tests:
           - not_null
       - name: missing_source_coordinate_row_count
+        description: Silver rows whose original coordinate pair was absent.
         tests:
           - not_null
       - name: first_occurred_at
+        description: Earliest retained incident occurrence timestamp in KST.
         tests:
           - not_null
       - name: last_occurred_at
+        description: Latest retained incident occurrence timestamp in KST.
         tests:
           - not_null
       - name: last_collected_at
+        description: Latest Bronze collection timestamp represented in Silver.
         tests:
           - not_null
