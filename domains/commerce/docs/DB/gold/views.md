@@ -25,11 +25,13 @@ create or replace view commerce_v_food_sanitation_business as
 select
     e.entity_id, e.dataset, dd.name_ko as api_name,
     e.business_name, e.opened_at, e.closed_at,
-    st.status_name,                       -- 코드 → 이름 (dim 해석)
+    e.status_code, st.status_name,        -- 코드 + 이름(dim 해석) 둘 다 노출
+    e.gu_code, e.admin_dong_code, e.legal_code,   -- ★ 위치 매핑 키(시군구·행정동) — 타 도메인 조인용
     r.gu_name, r.admin_dong_name, r.legal_dong_name,
     e.road_address, e.jibun_address, e.longitude, e.latitude,
     d.uptaenm, d.sntuptaenm, d.chaircnt, d.faciltotscp, d.wtrsplyfacilsenm,
     d.maneipcnt, d.wmeipcnt, d.homepage,  -- … payload(카탈로그 참조)
+    e.updatedt, e.updatedt_ts,            -- ★ 업데이트 일자 — 시간 조건문 기준
     e.last_collected_at
 from commerce_business_entity e
 join commerce_food_sanitation_business_detail d
@@ -53,8 +55,10 @@ left join commerce_dim_region r on r.admin_dong_code = e.admin_dong_code;
 create or replace view commerce_v_api_pharmacy_history as
 select
     h.entity_id, h.dataset, h.collected_at, h.content_hash,   -- 버전 키
-    h.business_name, st.status_name, h.road_address,
+    h.business_name, h.status_code, st.status_name, h.road_address,
+    h.gu_code, h.admin_dong_code, h.legal_code,                -- 위치 매핑 키
     r.gu_name, r.admin_dong_name,
+    h.updatedt, h.updatedt_ts,                                 -- 업데이트 일자(조건문 기준)
     d.pharmtrdar, d.asgnymd                                    -- pharmacy 고유 payload
 from commerce_business_entity_history h
 join commerce_pharmacy_detail d
@@ -72,4 +76,9 @@ where h.dataset = 'pharmacy';
 - **일반 분석/서빙 = view 만** 조회(도메인 우선, 필요 시 API view). detail 물리 테이블 직접 조회는
   파이프라인 내부용.
 - 현재 상태 = `commerce_v_<domain>` / 변경 추적·감사 = `_history`.
-- 코드 값(상태·행정동·API)은 view 가 dim 으로 해석해 주므로 소비자는 이름 컬럼을 그대로 쓴다.
+- 코드 값(상태·행정동·API)은 view 가 dim 으로 해석해 주되, **코드 컬럼도 항상 함께 노출**한다:
+  - **위치 매핑(크로스도메인)**: `gu_code`(시군구)·`admin_dong_code` 로 타 도메인 데이터와 조인
+    (이름 아닌 **코드 기준** — 개편/표기 변형에 안전). 마스킹 주소는 동 코드 null → 조인 시 허용 설계.
+  - **시간 조건**: `updatedt`(원천 업데이트 일자, `updatedt_ts` 파싱본) 기준으로 조건문을 건다.
+    예) `where updatedt_ts >= date '2026-01-01'` · 최근 변경분 = `updatedt_ts >= now() - interval '7' day`.
+    (수집시각 `collected_at` 은 파이프라인 계보용 — 업무 시간축은 updatedt.)

@@ -1,5 +1,9 @@
 # DB/gold — 테이블 명세 (Supertype/Subtype + code 정규화 + 이력)
 
+**물리 위치(확정)**: gold 는 **외부 서빙 DB = PostgreSQL**(sample docker compose 의 전용 컨테이너
+`serving-postgres`)에 구축한다. Iceberg(Trino) 스택은 raw~silver 용으로 기존 그대로(별도 1개) 유지 —
+gold 적재기가 Trino(silver 읽기) → Postgres(gold 쓰기)로 흘린다.
+
 gold = silver(이력 원천)를 **정규화해 DB에 증분 적재**하는 서빙 레이어. 구조는 **Supertype(공통
 entity) / Subtype(상세 detail)**: 모든 API 데이터는 먼저 `commerce_business_entity`에 들어가고,
 비공통 영역은 detail 테이블이 `entity_id`로 매핑한다(공통 컬럼 재저장 없음). code성 값(행정동/상태/
@@ -30,8 +34,9 @@ entity) / Subtype(상세 detail)**: 모든 API 데이터는 먼저 `commerce_bus
 | status_code, detail_status_code | 영업상태 코드 → `commerce_dim_business_status` |
 | opened_at, closed_at | 인허가일/폐업일 |
 | road_address, jibun_address | 주소 |
-| gu_code, legal_code, admin_dong_code | 지역 코드 → `commerce_dim_region`(code 정규화) |
+| **gu_code(=시군구코드), legal_code, admin_dong_code** | 지역 코드 → `commerce_dim_region`. **타 도메인 데이터와의 위치 매핑 키**(시군구·행정동 코드) |
 | longitude, latitude | WGS84 좌표 |
+| **updatedt, updatedt_ts, lastmodts_ts** | 원천 **업데이트 일자**(+파싱 ts) — **시간 조건문 기준 컬럼** |
 | first_collected_at, last_collected_at, content_hash | 수집 계보/현재 버전 |
 
 ### commerce_business_entity_history (공통 변경 이력 — 별도 이력 테이블)
@@ -40,7 +45,12 @@ entity) / Subtype(상세 detail)**: 모든 API 데이터는 먼저 `commerce_bus
 |---|---|
 | grain | `(entity_id, collected_at, content_hash)` — **값 변경 = 버전 1행** |
 | 소스 | `silver_license_history`(append-only) 정규화 |
-| 컬럼 | entity_id + 버전키 + 공통 속성(상호/상태코드/주소/지역코드/좌표/일자/observed_date) |
+| 컬럼 | entity_id + 버전키 + 공통 속성(상호/상태코드/주소/**지역코드(gu·legal·admin_dong)**/좌표/**updatedt·updatedt_ts·lastmodts_ts**/일자/observed_date) |
+
+> **지역 코드 계보(법정동→행정동 매핑)**: silver `ref_legal`/`ref_admin`/`dong` CTE 가 지번 동 토큰을
+> **법정동 우선 매치 → 행정동 상호 보완**으로 채운다(법정동 1개가 행정동 여러 개에 걸치면 결정적
+> 근사 — 번지 없인 정확 배정 불가). gold 는 이 결과 코드를 그대로 승계하며 **재매핑하지 않는다.**
+> 마스킹 주소(`*`)는 동 코드 null(구 수준까지만) — 크로스도메인 조인 시 null 허용 설계 필요.
 
 ### commerce_load_run_marker (증분 지시자)
 
