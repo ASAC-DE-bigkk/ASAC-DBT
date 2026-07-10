@@ -5,14 +5,11 @@ sources:
     description: Seoul TOPIS traffic Bronze Iceberg tables loaded by ASAC-DAG.
     database: "{{ target.database }}"
     schema: "{{ env_var('ASK_SEOUL_SCHEMA', 'ask_seoul') }}"
-    loaded_at_field: collected_at
-    freshness:
-      warn_after: {count: 30, period: minute}
-      error_after: {count: 2, period: hour}
     tables:
       - name: seoul_traffic_incident
         identifier: bronze_seoul_traffic_incident
         description: Seoul TOPIS AccInfo incident rows with raw lineage metadata.
+        freshness: null
         columns:
           - name: request_id
             tests:
@@ -80,6 +77,9 @@ sources:
         identifier: bronze_collection_run_manifest
         description: Bronze DAG run-level publish gate written by ASAC-DAG.
         loaded_at_field: event_at
+        freshness:
+          warn_after: {count: 30, period: minute}
+          error_after: {count: 2, period: hour}
         columns:
           - name: source_id
             tests:
@@ -100,6 +100,7 @@ sources:
       - name: seoul_traffic_incident_request_audit
         identifier: bronze_seoul_traffic_incident_request_audit
         description: Seoul TOPIS AccInfo request-level audit rows, including normal zero-row responses.
+        freshness: null
         columns:
           - name: request_id
             tests:
