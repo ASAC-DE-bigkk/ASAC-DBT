@@ -1,4 +1,7 @@
-seoul_ppltn:
+# 모노프로젝트 공용 프로파일 — dev/prod 는 카탈로그로 가른다.
+# target.schema 는 citydata 계열의 기본 스키마(폴더 +schema 없는 모델·seed 용).
+# traffic 등 타 도메인 스키마는 dbt_project.yml 의 폴더별 +schema 가 결정.
+asac_seoul:
   target: "{{ env_var('DBT_TARGET', 'dev') }}"
   outputs:
     prod:
@@ -20,8 +23,7 @@ seoul_ppltn:
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       user: "{{ env_var('TRINO_USER', 'airflow') }}"
       catalog: iceberg_dev
-      # 기본 스키마 = seoul_citydata (인구 포함 전 모델·seed 통합, #87). 개인 샌드박스는
-      # SEOUL_CITYDATA_SCHEMA 하나로 격리(예: dev_<id>) — 모델(명시)·seed(기본) 모두 이 값.
+      # 개인 샌드박스는 SEOUL_CITYDATA_SCHEMA 로 격리(예: dev_<id>) — 기존 컨벤션 유지.
       schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
       http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
       threads: 4

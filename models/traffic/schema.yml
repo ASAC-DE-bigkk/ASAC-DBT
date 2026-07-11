@@ -2,6 +2,9 @@ version: 2
 
 models:
   - name: silver_seoul_traffic_incident
+    # published 테이블 — 다른 group(citydata 등)이 ref() 가능한 유일한 통로.
+    # protected(기본) 모델을 크로스 group 에서 ref 하면 컴파일 에러 → 계약을 dbt 가 강제.
+    access: public
     description: Deduplicated and time-standardized Seoul TOPIS AccInfo incident rows.
     columns:
       - name: source_id
@@ -84,6 +87,8 @@ models:
           - not_null
 
   - name: gold_traffic_incident_summary
+    # 도메인 내부 전용 — private: 다른 group 이 ref 하면 컴파일 에러 (published 는 silver 만)
+    access: private
     description: Traffic incident source-level row, raw object, and occurrence time coverage summary.
     columns:
       - name: source_id

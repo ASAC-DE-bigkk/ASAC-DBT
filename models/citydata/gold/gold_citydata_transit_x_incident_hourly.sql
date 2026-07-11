@@ -47,7 +47,8 @@ incidents as (
         count(distinct i.source_record_id) as incident_count,
         array_join(array_distinct(array_agg(i.acc_type)), ', ') as acc_types
     from transit_dong t
-    join {{ source('traffic', 'silver_seoul_traffic_incident') }} i
+    -- 모노프로젝트: traffic 이관 완료 → ref() (빌드 순서·groups/access 계약 보장)
+    join {{ ref('silver_seoul_traffic_incident') }} i
         on i.admin_dong_code = t.admin_dong_code
         and t.time_bucket between date_trunc('hour', i.occurred_at)
             and coalesce(i.expected_clear_at, i.occurred_at)

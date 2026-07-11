@@ -1,0 +1,12 @@
+version: 2
+
+# 도메인 = group (#PoC). 소유권 경계를 dbt 가 안다:
+#  - 다른 group 의 모델은 access: public 인 것만 ref() 가능 (protected 기본값은 컴파일 에러)
+#  - "published 테이블은 함부로 안 바꾼다" 팀 계약을 도구가 강제하는 장치
+groups:
+  - name: citydata
+    owner:
+      name: kang-gyeongmin
+  - name: traffic
+    owner:
+      name: masondev1024

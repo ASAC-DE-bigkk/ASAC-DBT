@@ -1,0 +1,68 @@
+# ASAC-DBT 모노프로젝트 (PoC) — domains/* 개별 프로젝트를 폴더로 통합한다.
+#
+# 왜: 크로스도메인 참조를 source()(순서·계약 보장 없음) 대신 **ref()** 로 —
+# dbt 가 빌드 순서·계보·groups/access 계약을 강제한다. 스키마는 폴더별 +schema
+# (+ generate_schema_name 오버라이드)로 **현행 스키마명 그대로** — 데이터 이동 없음.
+#
+# PoC 범위: citydata + traffic 만 이관(ref 데모 최소 2개 도메인). 나머지 도메인은
+# domains/* 에 그대로 — 합의 후 각 소유자가 자기 일정으로 이관한다.
+name: asac_seoul
+version: "1.0.0"
+config-version: 2
+
+profile: asac_seoul
+
+flags:
+  require_certificate_validation: true
+
+vars:
+  # 행안부 행정동 마스터(#154) bronze 를 공유 common 스키마에서 읽는다 (asac_axes dim_admin_dong 소스).
+  axes_bronze_schema: common
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  asac_seoul:
+    citydata:
+      +materialized: table
+      +group: citydata
+      # 스키마는 각 모델의 inline config(schema=env SEOUL_CITYDATA_SCHEMA) 또는
+      # target.schema(같은 env)가 결정 — 기존 프로젝트와 동일 동작.
+    traffic:
+      +materialized: table
+      +group: traffic
+      # traffic 은 자기 스키마로 — 개인 샌드박스는 TRAFFIC_SCHEMA 로 격리.
+      +schema: "{{ env_var('TRAFFIC_SCHEMA', 'traffic') }}"
+
+# 싱귤러 테스트(tests/<도메인>/)는 group 을 상속하지 않으므로 명시 — private 모델을
+# 검증하는 자기 도메인 테스트가 access 에 막히지 않게 한다.
+data_tests:
+  asac_seoul:
+    citydata:
+      +group: citydata
+    traffic:
+      +group: traffic
+
+seeds:
+  asac_seoul:
+    citydata:
+      seoul_hotspot_area_geo:
+        +column_types:
+          area_cd: varchar
+          category: varchar
+          area_nm: varchar
+          center_lon: double
+          center_lat: double
+          lon_min: double
+          lat_min: double
+          lon_max: double
+          lat_max: double
+          polygon_wkt: varchar

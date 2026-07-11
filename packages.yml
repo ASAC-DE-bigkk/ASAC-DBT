@@ -1,0 +1,3 @@
+# 공용 축 패키지(asac_axes, #48/#49) — 로컬 참조. `dbt deps`로 dbt_packages/에 설치.
+packages:
+  - local: packages/asac_axes

@@ -1,6 +1,0 @@
-# 공용 축 패키지(asac_axes, #48/#49) — 로컬 참조. `dbt deps`로 dbt_packages/에 설치.
-# 시간축 매크로(kst_at)·공간 경계 seed(seoul_admin_dong_boundary)·행안부 크로스워크·
-# 제네릭 테스트(in_seoul_bbox / axis_coverage)를 제공한다.
-# ⚠ 이 패키지는 ASAC-DBT #49로 dev에 반영 예정 — population은 #49 머지 후에 머지한다.
-packages:
-  - local: ../../packages/asac_axes
