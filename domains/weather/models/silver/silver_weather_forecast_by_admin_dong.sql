@@ -2,6 +2,12 @@
 -- that grid. The source Grid Silver remains intact because one 5km grid can
 -- serve multiple admin dongs.
 
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['place_id', 'issued_at', 'forecast_at', 'category']
+) }}
+
 with grid_forecast as (
     select
         request_id,
@@ -25,6 +31,12 @@ with grid_forecast as (
         collected_at,
         dag_run_id
     from {{ ref('silver_kma_vilage_fcst') }}
+    {% if is_incremental() %}
+    where collected_at >= (
+        select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
+        from {{ this }}
+    )
+    {% endif %}
 ),
 
 place_grid as (

@@ -1,3 +1,9 @@
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['place_id', 'nx', 'ny', 'base_date', 'base_time', 'category', 'fcst_date', 'fcst_time']
+) }}
+
 with publishable_runs as (
     select distinct cast(dag_run_id as varchar) as dag_run_id
     from {{ source('weather_bronze', 'collection_run_manifest') }}
@@ -33,6 +39,12 @@ bronze as (
     from {{ source('weather_bronze', 'kma_vilage_fcst') }} as bronze
     inner join publishable_runs
         on cast(bronze.dag_run_id as varchar) = publishable_runs.dag_run_id
+    {% if is_incremental() %}
+    where cast(bronze.collected_at as timestamp(6)) >= (
+        select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
+        from {{ this }}
+    )
+    {% endif %}
 ),
 
 standardized as (

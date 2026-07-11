@@ -60,6 +60,12 @@ weather 도메인은 시간을 다음 역할로 분리한다.
 `kst_at_from_parts`로 만든다. KMA 원천 컬럼(`base_date/base_time`,
 `fcst_date/fcst_time`)은 보존하고, cross-domain 시간 조인은 `event_at`을 우선 사용한다.
 
+Grid Silver와 admin-dong Silver는 `collected_at` 기준 30분 lookback을 다시 읽는
+incremental merge로 운영한다. Grid grain은 아래 조합을 unique key로 사용하고,
+admin-dong Silver는 `place_id × issued_at × forecast_at × category`를 unique key로
+사용한다. 늦게 도착한 KMA 응답이나 발표 교정이 lookback 밖에 있으면 명시적인
+recollect/full-refresh 경로로 처리한다.
+
 ## Silver grain and dedup
 
 `silver_kma_vilage_fcst`의 grain은 아래 조합이다.
