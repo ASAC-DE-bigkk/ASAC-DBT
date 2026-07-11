@@ -1,3 +1,18 @@
+-- incremental 전환(#145, DL-013): 풀 리빌드의 전이력 window dedup가 브론즈 선형 증가로
+-- per-node 메모리 한도를 초과. 신규 publishable run 델타에만 dedup를 돌리고 배치 간
+-- 중복은 merge unique_key(grain 테스트와 동일 키)로 처리한다.
+-- views_enabled/on_table_exists 는 R2 카탈로그 유령 뷰 409 우회(#70 traffic 선례).
+-- 주의: full-refresh는 풀 리빌드 경로라 메모리 절벽 재발 — 전체 재빌드가 필요하면
+-- Trino 메모리 임시 상향 또는 base_date 배치 분할로 수행할 것.
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['place_id', 'nx', 'ny', 'issued_at', 'category', 'forecast_at'],
+    on_schema_change='fail',
+    views_enabled=false,
+    on_table_exists='drop',
+) }}
+
 with publishable_runs as (
     select distinct cast(dag_run_id as varchar) as dag_run_id
     from {{ source('weather_bronze', 'collection_run_manifest') }}
@@ -33,6 +48,14 @@ bronze as (
     from {{ source('weather_bronze', 'kma_vilage_fcst') }} as bronze
     inner join publishable_runs
         on cast(bronze.dag_run_id as varchar) = publishable_runs.dag_run_id
+    {% if is_incremental() %}
+    -- 증분 커서는 dag_run_id 가 아니라 collected_at 워터마크. run ID 앙티조인은
+    -- dedup 에서 전량 패배해 silver 에 ID 를 못 남긴 run(전량 섀도잉된 중복 수집)을
+    -- 매 run 재선택하는 순환을 만든다 — 관측: 배치당 139,360행 재머지.
+    where cast(bronze.collected_at as timestamp(6)) > (
+        select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }}
+    )
+    {% endif %}
 ),
 
 standardized as (
