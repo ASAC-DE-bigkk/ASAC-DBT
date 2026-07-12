@@ -2,6 +2,20 @@
 -- that grid. The source Grid Silver remains intact because one 5km grid can
 -- serve multiple admin dongs.
 
+-- incremental 전환(#147, DL-013 후속): 매 run 24M행 풀 리빌드를 상류(#145)와 동일한
+-- collected_at 워터마크 증분으로 교체. views_enabled/on_table_exists 는 R2 카탈로그
+-- 유령 뷰 409 우회(#70 선례). dim_weather_place 매핑 변경은 증분 경로에 소급 반영되지
+-- 않으므로 매핑 변경 시 --full-refresh 로 재빌드할 것 — 이 모델은 순수 조인이라
+-- full-refresh 가 안전하다(silver_kma_vilage_fcst 의 full-refresh 금지와 다름).
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['place_id', 'issued_at', 'forecast_at', 'category'],
+    on_schema_change='fail',
+    views_enabled=false,
+    on_table_exists='drop',
+) }}
+
 with grid_forecast as (
     select
         request_id,
@@ -25,6 +39,11 @@ with grid_forecast as (
         collected_at,
         dag_run_id
     from {{ ref('silver_kma_vilage_fcst') }}
+    {% if is_incremental() %}
+    where collected_at > (
+        select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }}
+    )
+    {% endif %}
 ),
 
 place_grid as (
