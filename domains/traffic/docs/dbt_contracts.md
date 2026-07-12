@@ -91,10 +91,18 @@ Catalog가 `__dbt_tmp` 뷰 생성에 409 AlreadyExists(리스트/exists에는 �
 레코드)를 반환한 2026-07-07 장애의 재발을 차단하고, merge 소스를 물질화된 테이블
 스캔으로 단순화하기 위함이다. `on_table_exists='drop'`은 population silver 선례를 따른다.
 
-`silver_seoul_traffic_incident_current`는 최신 complete publishable manifest run에
-포함된 행만 남기는 current snapshot table이다. 기존 Silver는 재처리·이력 추적을 위한
-incremental latest-by-acc 상태를 유지하고, current snapshot과 Gold는 API에서 사라진
-사고가 계속 노출되지 않도록 최신 complete run을 기준으로 한다.
+`silver_seoul_traffic_incident_current`는 transform DAG가
+`traffic_snapshot_dag_run_id`로 고정한 complete publishable manifest run에 포함된 행만
+남기는 current snapshot table이다. 기존 Silver는 재처리·이력 추적을 위한 incremental
+latest-by-acc 상태를 유지하고, current snapshot과 Gold는 API에서 사라진 사고가 계속
+노출되지 않도록 고정된 complete run을 기준으로 한다.
+
+`assert_traffic_current_pinned_publishable_run`은 고정 run의 유효 Bronze `acc_id` 집합과
+current `source_record_id` 집합을 양방향으로 비교하고, current의 모든 행이 같은 run을
+가리키는지 확인한다. 고정 run이 publishable manifest에 없으면 실패하며, 유효 Bronze와
+current가 모두 0행인 정상 zero-incident snapshot은 통과한다. 수집과 transform 사이의
+스케줄 경합은 correctness anchor를 live latest로 바꾸지 않고 freshness만 별도로 판정해,
+고정 run이 최신 publishable 3개 안이면 통과하고 네 번째 이하로 밀리면 실패한다.
 
 ## Coverage and completeness
 
