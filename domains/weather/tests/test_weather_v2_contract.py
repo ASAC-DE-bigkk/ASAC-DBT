@@ -130,7 +130,9 @@ def test_protected_compatibility_sql_is_byte_identical_to_gate_a_base():
         "models/gold/gold_weather_forecast_by_place.sql": "2549cfe5a0369ea0ac2fcb0bec5b59bae07d93e8",
     }
     for relative_path, expected_blob in expected.items():
-        payload = (WEATHER_DIR / relative_path).read_bytes()
+        # Normalize only a Windows CRLF checkout before comparing this source
+        # content with the LF-normalized Gate A blob.
+        payload = (WEATHER_DIR / relative_path).read_bytes().replace(b"\r\n", b"\n")
         header = f"blob {len(payload)}\0".encode()
         assert hashlib.sha1(header + payload).hexdigest() == expected_blob
 
