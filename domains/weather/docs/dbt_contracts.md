@@ -11,6 +11,9 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 - Bronze source: `{{ source('weather_bronze', 'kma_vilage_fcst') }}`
 - Bronze table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_kma_vilage_fcst`
 - Silver model: `silver_kma_vilage_fcst`
+- Observation Silver candidate: `silver_kma_vilage_fcst_observation`
+- Native Grid Silver candidate: `silver_kma_vilage_fcst_grid`
+- Canonical bridge candidate: `bridge_weather_admin_dong_grid`
 - Admin-dong Silver model: `silver_weather_forecast_by_admin_dong`
 - Gold model: `gold_weather_forecast_summary`
 - Place dimension: `dim_weather_place`
@@ -37,6 +40,7 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 | `http_status` | gateway HTTP status | `not_null` |
 | `result_msg` | KMA 응답 메시지 | `not_null` |
 | `total_count`, `item_count` | API total과 parsed item count | `not_null` |
+| `page_no` | KMA pagination page | 양수는 보존, legacy null과 invalid는 canonical `0` + 상태로 분리 |
 | `collected_at` | 수집 시각 | `not_null`, freshness 기준 |
 | `load_date`, `dag_run_id` | 적재 파티션 후보와 Airflow run lineage | `not_null` |
 
@@ -93,12 +97,13 @@ Grid Silver(`silver_kma_vilage_fcst`)와 admin-dong Silver
 - 두 모델 모두 `views_enabled=false` + `on_table_exists='drop'`으로 R2 Data Catalog의
   유령 뷰 409를 우회하고(#70 선례), `on_schema_change='fail'`로 스키마 드리프트를
   우회 에러 대신 명시적으로 실패시킨다(#137 관례).
-- full-refresh: Grid Silver는 전이력 window dedup가 다시 돌아 메모리 절벽이 재발하므로
-  **금지**(필요 시 Trino 메모리 임시 상향 또는 base_date 배치 분할). admin-dong Silver는
-  순수 조인이라 **안전** — `dim_weather_place` 매핑 변경 시 admin-dong Silver만
-  full-refresh 한다.
-- 워터마크 이전 시점으로 늦게 publishable 마킹되는 run이나 발표 교정은 증분 경로에
-  잡히지 않는다 — 명시적인 recollect/full-refresh 경로로 처리한다.
+- full-refresh: Grid Silver의 전이력 window dedup는 메모리 절벽을 재발시키므로 금지한다.
+  admin-dong Silver도 relation 전체 교체를 운영 기본값으로 삼지 않는다. legacy 문맥에서
+  순수 조인 full-refresh가 가능하다고 기록됐지만, 현재 포트폴리오는 W2의 explicit cutoff
+  non-destructive repair와 reconciliation이 병합·검증되기 전 full-refresh를 승인하지 않는다.
+- 워터마크 이전 시점으로 늦게 publishable 마킹되는 run이나 발표 교정은 평시 증분 경로에
+  잡히지 않는다. W2가 소유하는 명시적 cutoff repair로 처리하며 shared full-refresh로
+  우회하지 않는다.
 
 ## Coverage and freshness
 
@@ -131,8 +136,8 @@ weather 도메인 안으로 고정한 장소-격자 계약이다.
 | `mapping_method` | 매핑 출처/방식 | `kma_admin_dong_grid_20260325` |
 | `grid_distance_m` | 실제 POI와 grid 대표점 거리 | 현재는 계산하지 않아 null 허용 |
 | `source_admin_code` | KMA 가이드의 행정구역코드 | `not_null` |
-| `admin_dong_code` | 행안부 10자리 canonical 행정동 코드 | `source_admin_code`와 동일 |
-| `gu_code` | 행안부 5자리 canonical 자치구 코드 | `admin_dong_code` 앞 5자리 |
+| `admin_dong_code` | 기존 소비자 호환 코드 | `source_admin_code` self-copy이며 canonical 인증값이 아님 |
+| `gu_code` | 기존 소비자 호환 자치구 코드 | prefix 파생값이며 canonical 인증값이 아님 |
 
 `dim_weather_place`는 이 seed를 타입 캐스팅한 weather 전용 place dimension이다. 공통
 `dim_place`를 먼저 만들지 않고 weather 안에 둔 이유는, KMA 예보의 authoritative 단위가
@@ -166,6 +171,48 @@ weather 도메인 안으로 고정한 장소-격자 계약이다.
 hotspot 현황이나 혼잡도 enrichment로 분리하고, weather forecast mart의 예보 값은 계속
 KMA grid forecast에서만 온다.
 
+## W1 observation·Grid·canonical bridge 계약
+
+W1은 기존 네 호환 SQL을 변경하지 않고 다음 세 relation을 additive하게 둔다.
+
+| relation | 한 행의 의미 | grain | 상태 |
+|---|---|---|---|
+| `silver_kma_vilage_fcst_observation` | 한 publishable run/raw page에서 관측된 동일 KMA item signature | `dag_run_id × raw_object_key × page_no × source_item_key` | internal candidate |
+| `silver_kma_vilage_fcst_grid` | 동일 native 예보 사실에서 결정적으로 선택된 observation | `nx × ny × issued_at × forecast_at × category` | internal candidate |
+| `bridge_weather_admin_dong_grid` | versioned mapping assertion과 canonical exact-code join 결과 | `source_admin_code × bridge_version × nx × ny` | internal candidate |
+
+`source_item_key`는 `base_date, base_time, nx, ny, category, fcst_date,
+fcst_time, fcst_value` 순서의 tagged JSON 배열을 whitespace 없는 JSON으로 직렬화하고
+UTF-8 SHA-256 소문자 hex로 만든다. null은 `N:<NULL>`, 그 외는 `V:<normalized>`다.
+같은 observation grain의 Bronze 중복은 한 행으로 접되 `source_duplicate_count`에 원 행
+수를 보존한다. invalid source time은 observation에 남고 Grid eligibility에서는 제외된다.
+
+Grid winner는 다음 순서를 모두 명시한다.
+
+```text
+collected_at desc, raw_object_key desc, request_id desc,
+dag_run_id desc, page_no desc, source_item_key desc
+```
+
+Grid는 기존 `kma_value_semantics`의 raw·compatibility numeric·representation·exact/range
+bounds·qualitative code를 그대로 전파한다. `bare_numeric`은 verified unit 값으로 승격하지
+않는다.
+
+`weather_admin_dong_grid_bridge_history`는 기존 427행을 exact copy하고
+`bridge_version=weather_admin_dong_grid_bridge_v1`로 기록한다. revision label의 날짜를
+`valid_from_at`으로 사용하지 않으며 v1 validity bound는 null이다. canonical 다섯 필드
+`admin_dong_code, admin_dong, gu_code, gu, admin_dong_revision_date`는 오직
+`asac_axes.dim_admin_dong` exact-code join에서 stamp한다. unmatched candidate는 삭제하지
+않고 다섯 필드를 null로 유지한다. self-copy·prefix·centroid·이름 단독 매칭은 금지한다.
+
+observation과 Grid는 MERGE, non-null unique key, `on_schema_change='fail'`,
+`views_enabled=false`, `on_table_exists='drop'`을 사용한다. 평시 source scan은 기본 30분
+inclusive lookback이다. dbt 첫 incremental 실행은 target이 없으면 전 source를 읽으므로,
+`weather_w1_initial_build_mode=bounded_isolated_smoke`와 동일한 unique isolated dev
+source/target namespace가 아니면 compile/run 전에 fail closed한다. `--full-refresh`, shared
+namespace bootstrap, prod write는 금지한다. physical/data smoke와 두 번 실행 convergence는
+별도 DEV run 승인이 있기 전까지 `NOT_RUN`이다.
+
 ## Gold contract
 
 `gold_weather_forecast_summary`는 source-level 요약 모델이다.
@@ -192,16 +239,19 @@ issued_at desc, collected_at desc, raw_object_key desc, request_id desc
 조인한다. 따라서 한 KMA grid에 여러 행정동이 매핑될 수 있으며, 이는 KMA 격자 예보를
 장소 질의로 펼치는 의도된 중복이다. Silver 원천 grain 자체는 바꾸지 않는다.
 
-## Admin-dong Silver contract
+## 기존 Admin-dong Silver 호환 계약
 
-`silver_kma_vilage_fcst` preserves the native KMA grid grain. Because one
-KMA grid can serve multiple admin dongs, `silver_weather_forecast_by_admin_dong`
-fans those rows out through `dim_weather_place` on `nx`, `ny`.
+`silver_kma_vilage_fcst`는 기존 native KMA grid grain을 보존한다. 하나의 KMA grid가
+여러 행정동 장소를 담당할 수 있으므로 `silver_weather_forecast_by_admin_dong`은
+`dim_weather_place`를 `nx`, `ny`로 조인해 의도적으로 fan-out한다.
 
 - Admin-dong Silver grain: `place_id, issued_at, forecast_at, category`
-- Canonical spatial axis: `latitude`, `longitude`, `admin_dong_code`, `gu_code`
+- 호환 공간축: `latitude`, `longitude`, self-copy `admin_dong_code`, prefix `gu_code`
 - Native grid lineage: `source_grid_place_id`, `nx`, `ny`
 - Place Gold chooses the latest `issued_at` from this admin-dong Silver.
+
+이 호환 경로의 code를 canonical 인증으로 사용하지 않는다. W2 public Gold는 W1 bridge의
+exact common-axis stamp를 사용해야 한다.
 
 ## PR checklist
 
@@ -210,6 +260,9 @@ weather dbt PR 본문에는 최소한 아래를 남긴다.
 - Source table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_kma_vilage_fcst`
 - Target table: `iceberg_dev.weather.silver_kma_vilage_fcst`
 - Target table: `iceberg_dev.weather.silver_weather_forecast_by_admin_dong`
+- Candidate table: `<isolated_dev_schema>.silver_kma_vilage_fcst_observation`
+- Candidate table: `<isolated_dev_schema>.silver_kma_vilage_fcst_grid`
+- Candidate table: `<isolated_dev_schema>.bridge_weather_admin_dong_grid`
 - Target table: `iceberg_dev.weather.gold_weather_forecast_summary`
 - Target table: `iceberg_dev.weather.dim_weather_place`
 - Target table: `iceberg_dev.weather.gold_weather_forecast_by_place`
