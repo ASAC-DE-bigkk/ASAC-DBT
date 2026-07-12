@@ -39,6 +39,7 @@ seeds:
         grid_distance_m: double
         source_admin_code: varchar
     weather_admin_dong_grid_bridge_history:
+      +pre-hook: "{{ weather_w1_candidate_seed_guard() }}"
       +column_types:
         place_id: varchar
         place_name: varchar

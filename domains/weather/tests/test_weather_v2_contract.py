@@ -1,5 +1,6 @@
 import csv
 import hashlib
+import json
 from pathlib import Path
 
 
@@ -142,6 +143,8 @@ def test_required_singular_tests_exist_and_are_nonempty():
         "assert_weather_grid_grain_unique.sql",
         "assert_weather_grid_selected_observation_exists.sql",
         "assert_weather_grid_selection_reconciles.sql",
+        "assert_weather_grid_exclusions_accounted.sql",
+        "assert_weather_item_signature_known_vectors.sql",
         "assert_weather_bridge_candidate_grain_unique.sql",
         "assert_weather_bridge_canonical_stamp_exact.sql",
         "assert_weather_bridge_validity_non_overlapping.sql",
@@ -152,3 +155,57 @@ def test_required_singular_tests_exist_and_are_nonempty():
     test_dir = WEATHER_DIR / "tests"
     for name in names:
         assert (test_dir / name).read_text(encoding="utf-8").strip()
+
+
+def test_observation_exposes_grid_exclusion_states_and_reconciliation_test():
+    observation = read("models/silver/silver_kma_vilage_fcst_observation.sql")
+    assert "as grid_coordinate_state" in observation
+    assert "as grid_category_state" in observation
+    assert "as grid_time_state" in observation
+    assert "as grid_eligibility_state" in observation
+    assert "'eligible'" in observation
+    assert "'excluded'" in observation
+
+    reconciliation = read("tests/assert_weather_grid_exclusions_accounted.sql")
+    assert "grid_coordinate_state" in reconciliation
+    assert "grid_category_state" in reconciliation
+    assert "grid_time_state" in reconciliation
+    assert "grid_eligibility_state" in reconciliation
+    assert "excluded_in_grid" in reconciliation
+
+
+def test_item_signature_known_vector_data_test_is_independent():
+    vector_test = read("tests/assert_weather_item_signature_known_vectors.sql")
+    expected = {
+        "4d7ae418621bf4bb7ecb7e551b7b626a8415d161362baab661ebb424c45dc197": [
+            "V:20260712", "V:0500", "V:60", "V:127", "V:TMP",
+            "V:20260712", "V:0600", "V:1.5",
+        ],
+        "129834ce8c6e874985eee88f256855ddde25b8c45bc498a8414aaf063baa2c9f": [
+            "N:<NULL>", "N:<NULL>", "N:<NULL>", "N:<NULL>",
+            "N:<NULL>", "N:<NULL>", "N:<NULL>", "N:<NULL>",
+        ],
+    }
+    for expected_hash, vector in expected.items():
+        payload = json.dumps(vector, ensure_ascii=False, separators=(",", ":")).encode()
+        assert hashlib.sha256(payload).hexdigest() == expected_hash
+        assert expected_hash in vector_test
+    assert "weather_kma_item_signature(" in vector_test
+    normalized = " ".join(vector_test.split())
+    assert "where actual_hash is distinct from expected_hash" in normalized
+    assert "where actual_hash <> expected_hash" not in normalized
+
+
+def test_bridge_and_seed_require_isolated_candidate_runtime_guard():
+    macros = read("macros/weather_v2_contract.sql")
+    bridge = read("models/silver/bridge_weather_admin_dong_grid.sql")
+    project = read("dbt_project.yml")
+    assert "macro weather_w1_candidate_environment_guard" in macros
+    assert "macro weather_w1_candidate_seed_guard" in macros
+    candidate_guard = macros[
+        macros.index("macro weather_w1_candidate_environment_guard") :
+        macros.index("macro weather_w1_candidate_seed_guard")
+    ]
+    assert "flags.FULL_REFRESH" in candidate_guard
+    assert "weather_w1_candidate_environment_guard('bridge_weather_admin_dong_grid')" in bridge
+    assert "+pre-hook: \"{{ weather_w1_candidate_seed_guard() }}\"" in project

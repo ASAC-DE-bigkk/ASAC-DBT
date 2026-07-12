@@ -491,10 +491,10 @@ PCP/SNO를 포함한 KMA 표현은 다음 일곱 상태를 분리한다.
 
 W1 Issue #151의 로컬 candidate 구현 상태는 다음과 같다.
 
-- `silver_kma_vilage_fcst_observation` candidate가 publishable run/raw/page/item signature grain과 invalid-time·raw lineage를 보존한다.
+- `silver_kma_vilage_fcst_observation` candidate가 publishable run/raw/page/item signature grain과 invalid-time·격자·category의 Grid 제외 상태, raw lineage를 보존한다.
 - `silver_kma_vilage_fcst_grid` candidate가 native Grid grain에서 결정적 observation을 선택하고 `kma_value_semantics` 결과를 전파한다.
 - `bridge_weather_admin_dong_grid` candidate가 legacy 427행 assertion을 보존하고 `asac_axes.dim_admin_dong`에서 canonical 다섯 필드를 exact-code로 stamp한다.
-- 세 relation은 W2 public Gold와 A1 DAG gate 전까지 `internal_candidate`이며 approved-dev physical/data proof는 아직 `NOT_RUN`이다.
+- 세 relation과 bridge history seed는 W2 public Gold와 A1 DAG gate 전까지 `internal_candidate`이며 bridge/seed도 isolated candidate guard 밖에서는 fail closed한다. known-vector data test는 추가됐지만 approved-dev physical/data·two-run convergence proof는 아직 `NOT_RUN`이다.
 
 남은 gap은 다음과 같다.
 

@@ -1,6 +1,8 @@
 -- W1 canonical bridge: legacy assertion을 보존하고 공통 행정동 차원의 값을 exact-code로 stamp한다.
 {{ config(materialized='table') }}
 
+{{ weather_w1_candidate_environment_guard('bridge_weather_admin_dong_grid') }}
+
 with candidate as (
     select
         cast(place_id as varchar) as place_id,

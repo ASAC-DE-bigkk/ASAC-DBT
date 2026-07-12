@@ -239,7 +239,7 @@ models:
           - source_item_key
         late_arrival_policy_ko: 평시는 30분 inclusive lookback이고 더 오래된 repair는 W2가 소유한다.
         freshness_ko: manifest와 Bronze UTC 원문을 보존하고 KST collected_at·published_at을 별도로 노출한다.
-        coverage_ko: invalid time과 missing 또는 invalid page를 삭제하지 않고 상태로 보존한다.
+        coverage_ko: invalid time·격자·category와 missing 또는 invalid page를 삭제하지 않고 Grid eligibility 상태로 보존한다.
         lifecycle: internal_candidate
         downstream:
           - silver_kma_vilage_fcst_grid
@@ -307,6 +307,14 @@ models:
         description: 예보 시각 파싱 결과 valid 또는 invalid다.
       - name: time_parse_state
         description: 발표와 예보 시각이 모두 유효한지 나타내는 valid 또는 invalid 상태다.
+      - name: grid_coordinate_state
+        description: nx와 ny가 모두 양수인 valid 또는 Grid에서 제외할 invalid 좌표 상태다.
+      - name: grid_category_state
+        description: 정규화 category가 존재하는 valid 또는 Grid에서 제외할 missing 상태다.
+      - name: grid_time_state
+        description: issued_at과 forecast_at이 모두 유효한 valid 또는 Grid에서 제외할 invalid 시간 상태다.
+      - name: grid_eligibility_state
+        description: 좌표·category·시간 조건을 모두 충족한 eligible 또는 사유 상태를 observation에 보존한 excluded 값이다.
       - name: result_code
         description: KMA 응답 결과 코드이며 observation은 00만 포함한다.
       - name: result_msg

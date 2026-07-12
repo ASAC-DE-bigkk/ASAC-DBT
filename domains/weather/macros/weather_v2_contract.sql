@@ -49,3 +49,28 @@ lower(to_hex(sha256(to_utf8(json_format(cast(array[
     {%- endif -%}
 {%- endif -%}
 {%- endmacro %}
+
+{% macro weather_w1_candidate_environment_guard(candidate_name) -%}
+{%- if flags.FULL_REFRESH -%}
+    {{ exceptions.raise_compiler_error(candidate_name ~ '은 --full-refresh를 허용하지 않습니다.') }}
+{%- endif -%}
+{%- if execute -%}
+    {%- set mode = var('weather_w1_initial_build_mode', '') -%}
+    {%- set target_schema = target.schema -%}
+    {%- set namespace_pattern = '^dev_[a-z0-9_]+_weather_contract_test_[0-9a-f]{24}$' -%}
+    {%- if mode != 'bounded_isolated_smoke'
+        or target.database != 'iceberg_dev'
+        or not modules.re.fullmatch(namespace_pattern, target_schema) -%}
+        {{ exceptions.raise_compiler_error(
+            candidate_name ~ '은 unique isolated iceberg_dev namespace와 '
+            ~ 'weather_w1_initial_build_mode=bounded_isolated_smoke에서만 실행할 수 있습니다.'
+        ) }}
+    {%- endif -%}
+{%- endif -%}
+{{ return('') }}
+{%- endmacro %}
+
+{% macro weather_w1_candidate_seed_guard() -%}
+{%- do weather_w1_candidate_environment_guard('weather_admin_dong_grid_bridge_history') -%}
+select 1
+{%- endmacro %}

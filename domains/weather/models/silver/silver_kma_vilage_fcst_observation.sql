@@ -155,6 +155,17 @@ select
     case when issued_at is not null then 'valid' else 'invalid' end as issued_time_parse_state,
     case when forecast_at is not null then 'valid' else 'invalid' end as forecast_time_parse_state,
     case when issued_at is not null and forecast_at is not null then 'valid' else 'invalid' end as time_parse_state,
+    case when nx > 0 and ny > 0 then 'valid' else 'invalid' end as grid_coordinate_state,
+    case when category is not null then 'valid' else 'missing' end as grid_category_state,
+    case when issued_at is not null and forecast_at is not null then 'valid' else 'invalid' end as grid_time_state,
+    case
+        when nx > 0 and ny > 0
+         and category is not null
+         and issued_at is not null
+         and forecast_at is not null
+        then 'eligible'
+        else 'excluded'
+    end as grid_eligibility_state,
     result_code,
     result_msg,
     http_status,

@@ -185,7 +185,10 @@ W1은 기존 네 호환 SQL을 변경하지 않고 다음 세 relation을 additi
 fcst_time, fcst_value` 순서의 tagged JSON 배열을 whitespace 없는 JSON으로 직렬화하고
 UTF-8 SHA-256 소문자 hex로 만든다. null은 `N:<NULL>`, 그 외는 `V:<normalized>`다.
 같은 observation grain의 Bronze 중복은 한 행으로 접되 `source_duplicate_count`에 원 행
-수를 보존한다. invalid source time은 observation에 남고 Grid eligibility에서는 제외된다.
+수를 보존한다. invalid source time·격자·category는 observation의
+`grid_coordinate_state`, `grid_category_state`, `grid_time_state`,
+`grid_eligibility_state`에 남고 Grid에서는 제외된다. 사유별 상태와 Grid 제외 집합은
+`assert_weather_grid_exclusions_accounted`에서 함께 reconciliation한다.
 
 Grid winner는 다음 순서를 모두 명시한다.
 
@@ -210,8 +213,10 @@ observation과 Grid는 MERGE, non-null unique key, `on_schema_change='fail'`,
 inclusive lookback이다. dbt 첫 incremental 실행은 target이 없으면 전 source를 읽으므로,
 `weather_w1_initial_build_mode=bounded_isolated_smoke`와 동일한 unique isolated dev
 source/target namespace가 아니면 compile/run 전에 fail closed한다. `--full-refresh`, shared
-namespace bootstrap, prod write는 금지한다. physical/data smoke와 두 번 실행 convergence는
-별도 DEV run 승인이 있기 전까지 `NOT_RUN`이다.
+namespace bootstrap, prod write는 금지한다. bridge table과 bridge history seed도 같은
+isolated candidate guard를 통과해야 실행된다. item identity는 독립 known-vector data test를
+추가했지만 physical/data smoke와 두 번 실행 convergence는 별도 DEV run 승인이 있기 전까지
+`NOT_RUN`이다.
 
 ## Gold contract
 

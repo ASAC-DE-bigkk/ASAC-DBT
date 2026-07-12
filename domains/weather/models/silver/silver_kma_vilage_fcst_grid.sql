@@ -14,12 +14,7 @@
 with eligible as (
     select *
     from {{ ref('silver_kma_vilage_fcst_observation') }}
-    where nx > 0
-      and ny > 0
-      and category is not null
-      and issued_at is not null
-      and forecast_at is not null
-      and time_parse_state = 'valid'
+    where grid_eligibility_state = 'eligible'
     {% if is_incremental() %}
       and collected_at >= (
           select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00')
