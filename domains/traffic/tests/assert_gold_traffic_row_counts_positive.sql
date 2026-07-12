@@ -6,7 +6,7 @@ where not exists (
 
 union all
 
-select concat('non_positive_counts:', source_id) as failure_reason
+select concat('negative_counts:', source_id) as failure_reason
 from {{ ref('gold_traffic_incident_summary') }}
-where row_count <= 0
-   or raw_object_count <= 0
+where row_count < 0
+   or raw_object_count < 0

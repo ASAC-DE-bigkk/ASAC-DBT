@@ -12,6 +12,7 @@ coverage 계약을 정리한다. 시간/공간 공통축은 `asac_axes` package�
 - Bronze table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_seoul_traffic_incident`
 - Bronze audit table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_seoul_traffic_incident_request_audit`
 - Silver model: `silver_seoul_traffic_incident`
+- Current Silver model: `silver_seoul_traffic_incident_current`
 - Gold model: `gold_traffic_incident_summary`
 
 ## Source contract
@@ -90,6 +91,11 @@ Catalog가 `__dbt_tmp` 뷰 생성에 409 AlreadyExists(리스트/exists에는 �
 레코드)를 반환한 2026-07-07 장애의 재발을 차단하고, merge 소스를 물질화된 테이블
 스캔으로 단순화하기 위함이다. `on_table_exists='drop'`은 population silver 선례를 따른다.
 
+`silver_seoul_traffic_incident_current`는 최신 complete publishable manifest run에
+포함된 행만 남기는 current snapshot table이다. 기존 Silver는 재처리·이력 추적을 위한
+incremental latest-by-acc 상태를 유지하고, current snapshot과 Gold는 API에서 사라진
+사고가 계속 노출되지 않도록 최신 complete run을 기준으로 한다.
+
 ## Coverage and completeness
 
 traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 coverage가 오도될 수 있다.
@@ -105,12 +111,13 @@ traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 c
 
 ## Gold contract
 
-`gold_traffic_incident_summary`는 source/time 요약 모델이다.
+`gold_traffic_incident_summary`는 current snapshot 기준 source/time 요약 모델이다.
 
 - `source_id`는 unique.
 - `row_count`, `raw_object_count`, `source_coordinate_row_count`,
   `missing_source_coordinate_row_count`는 null 허용 불가.
-- `first_occurred_at`, `last_occurred_at`, `last_collected_at`는 null 허용 불가.
+- `first_occurred_at`, `last_occurred_at`, `last_collected_at`는 정상 zero-incident
+  snapshot에서는 null일 수 있다.
 - 좌표 존재율은 `source_location_quality`를 통해 추적한다.
 - 현재 Gold summary는 table materialization을 유지한다. Silver 전체를 읽어 source 단위
   1행으로 집계하는 작은 모델이라 incremental로 부분 집계하면 stale count 위험이 더 크다.
@@ -122,6 +129,7 @@ traffic dbt PR 본문에는 최소한 아래 항목을 남긴다.
 - Source table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_seoul_traffic_incident`
 - Audit table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_seoul_traffic_incident_request_audit`
 - Target table: `iceberg_dev.traffic.silver_seoul_traffic_incident`
+- Target table: `iceberg_dev.traffic.silver_seoul_traffic_incident_current`
 - Target table: `iceberg_dev.traffic.gold_traffic_incident_summary`
 - Event time 컬럼: `occurred_at`
 - Common event time 컬럼: `event_at`

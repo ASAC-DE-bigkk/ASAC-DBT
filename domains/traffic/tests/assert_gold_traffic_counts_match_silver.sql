@@ -3,7 +3,7 @@ with silver_counts as (
         source_id,
         count(*) as row_count,
         count(distinct raw_object_key) as raw_object_count
-    from {{ ref('silver_seoul_traffic_incident') }}
+    from {{ ref('silver_seoul_traffic_incident_current') }}
     group by source_id
 ),
 
@@ -24,5 +24,5 @@ select
 from silver_counts s
 full outer join gold_counts g
     on s.source_id = g.source_id
-where coalesce(s.row_count, -1) != coalesce(g.row_count, -1)
-   or coalesce(s.raw_object_count, -1) != coalesce(g.raw_object_count, -1)
+where coalesce(s.row_count, 0) != coalesce(g.row_count, 0)
+   or coalesce(s.raw_object_count, 0) != coalesce(g.raw_object_count, 0)
