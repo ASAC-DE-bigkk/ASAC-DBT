@@ -95,7 +95,9 @@ Catalog가 `__dbt_tmp` 뷰 생성에 409 AlreadyExists(리스트/exists에는 �
 `traffic_snapshot_dag_run_id`로 고정한 complete publishable manifest run에 포함된 행만
 남기는 current snapshot table이다. 기존 Silver는 재처리·이력 추적을 위한 incremental
 latest-by-acc 상태를 유지하고, current snapshot과 Gold는 API에서 사라진 사고가 계속
-노출되지 않도록 고정된 complete run을 기준으로 한다.
+노출되지 않도록 고정된 complete run을 기준으로 한다. `assert_silver_traffic_latest_publishable_record`
+역시 history Silver와 같은 pinned run만 검증하며, transform이 소비하지 않은 5분 Bronze
+중간 run을 watermark로 섞어 요구하지 않는다. 해당 원본 이력은 Bronze에 그대로 보존한다.
 
 `assert_traffic_current_pinned_publishable_run`은 고정 run의 유효 Bronze `acc_id` 집합과
 current `source_record_id` 집합을 양방향으로 비교하고, current의 모든 행이 같은 run을
