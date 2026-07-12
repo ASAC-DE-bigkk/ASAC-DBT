@@ -489,14 +489,22 @@ PCP/SNO를 포함한 KMA 표현은 다음 일곱 상태를 분리한다.
 
 최신 publishable 발표 자체가 없는 상태는 `explicit_none`, 유효한 numeric zero, 정상 empty 결과와 다르다. 새 publishable 발표가 존재하더라도 이전 발표에 있던 `admin_dong_code × forecast_at × category` key가 새 발표에서 사라졌다면, 완전한 발표에서 의도적으로 제외된 것인지 수집·적재 누락인지 manifest/audit 근거로 판별해야 한다. expected→target 검사는 새 발표의 누락을, target→expected 검사는 이전 발표에서 남은 stale extra를 검출한다. stale extra 제거는 이 양방향 차이가 확인된 뒤 승인된 repair 경계에서 수행한다.
 
-현행 코드에는 다음 gap이 있다.
+W1 Issue #151의 로컬 candidate 구현 상태는 다음과 같다.
 
-- grid Silver는 `value_representation`, `value_num`, bounds, `qualitative_code`, `forecast_lead_hours`를 만든다.
-- admin-dong Silver는 그 의미 컬럼을 projection하지 않으며, 현재 place Gold도 노출하지 않는다.
-- 현재 공간축은 `dim_weather_place`의 후보 code를 사용하고, 직접 `dim_admin_dong` dependency와 `admin_dong_revision_date` stamp가 없다.
-- 현재 reconciliation은 expected Silver에서 Gold 누락·차이를 찾지만 Gold에만 남은 stale extra row까지 양방향으로 증명하지 않으며, incremental merge의 명시적 삭제 경로도 확인되지 않는다.
+- `silver_kma_vilage_fcst_observation` candidate가 publishable run/raw/page/item signature grain과 invalid-time·격자·category의 Grid 제외 상태, raw lineage를 보존한다.
+- `silver_kma_vilage_fcst_grid` candidate가 native Grid grain에서 결정적 observation을 선택하고 `kma_value_semantics` 결과를 전파한다.
+- `bridge_weather_admin_dong_grid` candidate가 legacy 427행 assertion을 보존하고 `asac_axes.dim_admin_dong`에서 canonical 다섯 필드를 exact-code로 stamp한다.
+- 세 relation과 bridge history seed는 W2 public Gold와 A1 DAG gate 전까지 `internal_candidate`이며 bridge/seed도 isolated candidate guard 밖에서는 fail closed한다. known-vector data test는 추가됐지만 approved-dev physical/data·two-run convergence proof는 아직 `NOT_RUN`이다.
 
-따라서 위 Weather shape는 목표 계약이다. 현재 relation에 대해 PCP/SNO 의미 전파, exact common-axis stamp, physical/data proof가 완료되었다고 표현하지 않는다.
+남은 gap은 다음과 같다.
+
+- 기존 `silver_weather_forecast_by_admin_dong`과 `gold_weather_forecast_by_place`는 호환 표면으로 유지되어 W1 candidate로 재배선되지 않았다.
+- 목표 grain `admin_dong_code × forecast_at × category`의 public Gold, 최신 `issued_at` 선택, stale extra 양방향 reconciliation, explicit cutoff no-downgrade repair는 W2가 소유한다.
+- selector ordering과 failure injection에서 Silver/Gold 0건·`upstream_failed`를 증명하는 실행 차단은 A1이 소유한다.
+- local declaration/static PASS는 catalog column/type/order 또는 실제 데이터 정합성 PASS를 뜻하지 않는다.
+
+따라서 위 Weather shape는 여전히 목표 public 계약이다. W1 candidate 구현을 public Gold,
+physical/data proof, repair 또는 DAG 운영 완료로 표현하지 않는다.
 
 
 ## 8. 공통 공간축과 reconciliation
@@ -675,6 +683,8 @@ v1 설명에는 “원천 시간대를 서울 기준 시각으로 변환한 값�
 - [PR #109 — common schema 전환](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/109)
 - [PR #138 — Weather Gold on_schema_change fail](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/138)
 - [Issue #144 — 공용 한국어 AI Gold 계약](https://github.com/ASAC-DE-bigkk/ASAC-DBT/issues/144)
+- [PR #150 — Weather·Traffic 도메인별 한국어 계약 도구 병합](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/150)
+- [Issue #151 — Weather observation·Grid·canonical bridge](https://github.com/ASAC-DE-bigkk/ASAC-DBT/issues/151)
 - [PR #142 — Weather incremental Silver WIP 문맥](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/142)
 
 ### ASAC-DAG

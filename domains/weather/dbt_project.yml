@@ -38,3 +38,26 @@ seeds:
         mapping_method: varchar
         grid_distance_m: double
         source_admin_code: varchar
+    weather_admin_dong_grid_bridge_history:
+      +pre-hook: "{{ weather_w1_candidate_seed_guard() }}"
+      +column_types:
+        place_id: varchar
+        place_name: varchar
+        alias_names: varchar
+        legacy_gu: varchar
+        legacy_admin_dong: varchar
+        latitude: double
+        longitude: double
+        source_admin_code: varchar
+        bridge_version: varchar
+        nx: integer
+        ny: integer
+        legacy_mapping_method: varchar
+        mapping_revision_label: varchar
+        recorded_at: timestamp(6)
+        valid_from_at: timestamp(6)
+        valid_to_at: timestamp(6)
+        effective_from_basis: varchar
+        mapping_method: varchar
+        temporal_quality: varchar
+        grid_distance_m: double
