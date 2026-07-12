@@ -1,13 +1,13 @@
 # 공용 Gold AI 데이터 계약 v1
 
-이 문서는 Weather·Traffic을 포함한 공용 Gold를 사람과 AI가 같은 의미로 읽기 위한 한국어 우선 선언 계약이다. SQL 식별자, 컬럼명, metadata key, enum token, relation ID, 명령은 안정적인 English token을 유지하고, 제품 질문·행 의미·사용 조건·시간·공간·단위·품질·조인·수명주기 설명은 한국어로 작성한다.
+이 문서는 Weather Gold를 사람과 AI가 같은 의미로 읽기 위한 한국어 우선 선언 계약이다. SQL 식별자, 컬럼명, metadata key, enum token, relation ID, 명령은 안정적인 English token을 유지하고, 제품 질문·행 의미·사용 조건·시간·공간·단위·품질·조인·수명주기 설명은 한국어로 작성한다.
 
-> **규범과 배포 현황은 다르다.** 아래 YAML은 안전한 v1 선언 형태를 보여 주는 규범 예시이며, 실제 Weather·Traffic relation이 이 계약대로 배포되었다는 증거가 아니다. 기본 `contract_status`는 `dev_pending`이다. 이 문서 작성 시점에는 approved-dev physical proof와 data correctness proof를 수행하지 않았고, Snowflake 게시·Gold API·실제 application exposure도 배포하지 않았다.
+> **규범과 배포 현황은 다르다.** 아래 YAML은 안전한 v1 선언 형태를 보여 주는 규범 예시이며, 실제 Weather relation이 이 계약대로 배포되었다는 증거가 아니다. 기본 `contract_status`는 `dev_pending`이다. 이 문서 작성 시점에는 approved-dev physical proof와 data correctness proof를 수행하지 않았고, Snowflake 게시·Gold API·실제 application exposure도 배포하지 않았다.
 
 | 구분 | v1 규범 | 이 문서 작성 시점의 실제 상태 |
 | --- | --- | --- |
 | 선언 기본값 | `contract_status: dev_pending` | 문서 예시에만 적용 |
-| Weather·Traffic 목표 제품 | 아래 의미·grain·품질 경계를 충족 | 현행 모델에는 명시한 propagation·제품 분리 gap이 있음 |
+| Weather 목표 제품 | 아래 의미·grain·품질 경계를 충족 | 현행 모델에는 명시한 propagation·제품 분리 gap이 있음 |
 | 물리 relation 증거 | approved-dev 동일 invocation의 `manifest.json`·`catalog.json` 비교 필요 | `NOT_RUN` |
 | 데이터 정합성 증거 | scoped SQL/data test와 수동 의미 리뷰 필요 | `NOT_RUN` |
 | 소비 표면 | 실제 소비자가 있을 때만 `served` | Snowflake/API/application exposure 미배포 |
@@ -498,48 +498,8 @@ PCP/SNO를 포함한 KMA 표현은 다음 일곱 상태를 분리한다.
 
 따라서 위 Weather shape는 목표 계약이다. 현재 relation에 대해 PCP/SNO 의미 전파, exact common-axis stamp, physical/data proof가 완료되었다고 표현하지 않는다.
 
-## 8. Traffic 목표 제품과 zero-incident 경계
 
-Traffic은 서로 다른 row meaning을 한 relation에 섞지 않는다.
-
-| 목표 제품 | 한 행의 의미 | 필수 근거 |
-| --- | --- | --- |
-| observation | 한 publishable collection에서 관측한 source incident 한 건 | `acc_id`, request/run/raw, `collected_at`, source 상태 보존 |
-| episode | 재사용 가능성을 방어한 하나의 논리적 사고 episode | 검증된 episode identity와 시작·종료 규칙 |
-| current | 최신 complete publishable snapshot에 존재하는 사고 한 건 | snapshot `as_of`, completeness state, expected↔target reconciliation |
-| hourly | `admin_dong_code × hour_at` cell의 사고 상태·건수 | 완전한 snapshot, hour spine, five-field stamp, fan-out 방지 |
-
-Traffic 시간 역할은 서로 대체하지 않는다.
-
-| column | 시간 의미 |
-| --- | --- |
-| `occurred_at` | source가 제공한 사고 시작 시각 |
-| `collected_at` | 해당 source row를 수집한 시각이며, 향후 별도 `observed_at`이 생기면 관측 역할을 명시적으로 분리 |
-| `expected_clear_at` | source가 예상한 해제 시각으로 실제 종료 시각이 아님 |
-| `ended_at` | episode의 실제 또는 명시된 규칙으로 추론한 종료 시각 |
-| `snapshot_as_of_at` | current snapshot이 완전하다고 판정한 기준 시각 |
-| `hour_at` | hourly cell의 서울 기준 시간 bucket |
-
-episode의 `ended_at`을 `expected_clear_at`으로 단순 복사하지 않고, 추론 여부와 규칙을 품질 metadata와 data proof에 남긴다. current의 `snapshot_as_of_at`과 hourly의 `hour_at`도 사고 발생·수집 시각으로 재해석하지 않는다.
-
-TOPIS의 `grs80tm_x`·`grs80tm_y`는 WGS84 위경도가 아니라 GRS80 TM source coordinate다. observation은 source coordinate와 `source_coordinate_system`을 보존하고, 좌표 변환 방법·실패 상태·boundary match 근거를 함께 추적한다. boundary 후보가 생겼다는 사실만으로 canonical five-field stamp를 완료했다고 주장하지 않는다.
-
-`incident_count=0`은 최신 complete snapshot의 request-audit와 publishable run이 해당 cell에 사고가 없음을 증명할 때만 허용한다. 다음 상태는 0이 아니다.
-
-- 요청 또는 page evidence가 없음
-- partial response
-- API failure
-- publishable 판단이 없음
-- 공간 매핑 실패
-- expected row와 target row reconciliation 미완료
-
-이 경우 count를 null로 두거나 `missing|partial` 같은 명시적 quality state로 분리한다. retained Silver에 matching row가 없다는 사실만으로 zero incident를 만들지 않는다.
-
-latest complete snapshot에서 사라진 사고는 더 이상 current가 아니며 stale current row로 남아서는 안 된다. expected→current와 current→expected 양방향 reconciliation이 누락과 stale row를 각각 검출해야 한다. 반대로 request-audit와 publishable 근거가 완전한 정상 zero snapshot은 성공 상태다. current relation의 사고 row가 0개여도 snapshot evidence와 명시적 completeness state는 남아야 한다.
-
-현행 Traffic은 `acc_id`별 최신 1행 Silver와 `source_id`별 요약 Gold다. `expected_clear_at`은 source 예상 해제시각이며 실제 episode 종료가 아니다. `acc_id` 재사용을 분리하는 episode identity, observation history product, latest complete current snapshot, `admin_dong_code × hour_at` Gold, zero-vs-missing completeness state는 아직 구현되지 않았다. 관련 WIP도 실제 dev 배포나 완전한 data proof로 간주하지 않는다.
-
-## 9. 공통 공간축과 reconciliation
+## 8. 공통 공간축과 reconciliation
 
 공간 producer는 다음 세 조건을 함께 만족해야 한다.
 
@@ -551,7 +511,7 @@ manifest `depends_on`은 그래프 선언 근거일 뿐이다. dependency가 존
 
 공개 join은 canonical dim 방향의 `many_to_one` 또는 `one_to_one`만 허용한다. grid-to-admin 또는 boundary mapping 내부 fan-out은 transformation의 별도 문제이며, 공개 consumer join의 안전한 cardinality로 승격하지 않는다. data correctness gate에서 expected→target과 target→expected 양방향 차이, stamp 값, revision, duplicate/fan-out을 확인한다.
 
-## 10. 세 CLI와 정확한 proof 해석
+## 9. 세 CLI와 정확한 proof 해석
 
 세 도구의 JSON stdout은 process text encoding과 무관한 UTF-8 bytes로 전달되고, 한국어를 Unicode escape로 바꾸지 않으며, deterministic key order와 한 개의 trailing newline을 사용한다. 입력 mapping order, catalog comment, runtime `generated_at`은 stable contract bytes의 근거가 아니다.
 
@@ -561,10 +521,10 @@ manifest `depends_on`은 그래프 선언 근거일 뿐이다. dependency가 존
 mkdir -p target/contracts
 ```
 
-### 10.1 source declaration linter
+### 9.1 source declaration linter
 
 ```bash
-python3 scripts/contracts/lint_schema_contract_source.py \
+python3 domains/weather/contracts/scripts/lint_schema_contract_source.py \
   --schema-root domains/weather/models/schema.yml \
   --schema-root domains/weather/models/sources.yml \
   --resource gold_weather_forecast_by_place \
@@ -586,10 +546,10 @@ python3 scripts/contracts/lint_schema_contract_source.py \
 
 source report는 가능한 오류를 `file`, `resource_kind`, `resource_name`, `field`, `column`, source line에 연결하고, file/resource/description field별 deterministic coverage count를 제공한다. unaccounted 구조가 있으면 일부 description 결과만으로 성공 판정을 만들지 않는다.
 
-### 10.2 manifest declaration validator
+### 9.2 manifest declaration validator
 
 ```bash
-python3 scripts/contracts/validate_public_gold_manifest.py \
+python3 domains/weather/contracts/scripts/validate_public_gold_manifest.py \
   --manifest target/manifest.json \
   --resource gold_weather_forecast_by_place \
   --require-language ko-KR \
@@ -610,12 +570,12 @@ stdout은 validation report다. `--output` catalog는 declaration `PASS`일 때�
 
 manifest 오류는 `nodes.<unique_id>.config.meta.public_gold...` 또는 `nodes.<unique_id>.columns.<column>...`의 exact JSON path를 사용한다. 이 path가 정확하더라도 description의 도메인 진실성을 자동 증명하지 않는다.
 
-### 10.3 manifest와 dbt catalog 비교
+### 9.3 manifest와 dbt catalog 비교
 
 fixture 비교는 물리 증거로 승격하지 않는다.
 
 ```bash
-python3 scripts/contracts/compare_public_gold_catalog.py \
+python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
   --resource gold_weather_forecast_by_place \
@@ -627,7 +587,7 @@ python3 scripts/contracts/compare_public_gold_catalog.py \
 승인된 dev 비교는 외부에서 실제 run으로 해소할 수 있는 비밀이 아닌 evidence ID를 사용한다. 값은 `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`를 만족해야 한다.
 
 ```bash
-python3 scripts/contracts/compare_public_gold_catalog.py \
+python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
   --resource gold_weather_forecast_by_place \
@@ -651,7 +611,7 @@ python3 scripts/contracts/compare_public_gold_catalog.py \
 
 comparator는 같은 dbt invocation의 `manifest.metadata.invocation_id`와 `catalog.metadata.invocation_id`가 정확히 같아야 한다. missing/extra column, type, 1부터 N까지 연속인 physical `index`, `public_gold.column_order`와의 순서를 비교한다. type 정규화는 대소문자·공백과 `int -> integer`, `double precision -> double`만 허용하고 precision·length·timezone 차이는 보존한다.
 
-### 10.4 approved-dev consumer gate
+### 9.4 approved-dev consumer gate
 
 `approved_dev_catalog`는 `operator_supplied_unverified` attestation이다. consumer는 `physical_contract` 하나만 읽으면 안 된다. 다음 전체 tuple이 동시에 성립하고 evidence ID가 외부 실행 기록으로 실제 해소될 때만 physical gate를 통과시킨다.
 
@@ -670,9 +630,9 @@ evidence.evidence_id는 allowlist와 일치하고 외부 run ledger에서 해소
 
 이 tuple은 comparator 자체의 physical gate다. 전체 publication gate는 별도 source linter의 top-level `PASS`, `proof.declared_contract: PASS`, `proof.source_yaml_uniqueness: PASS`도 요구한다. output delivery가 실패하면 이미 계산한 `catalog_comparison`·`physical_contract`가 남아도 top-level `status`가 `ERROR`가 될 수 있다. 이 경우 consumer gate는 실패다. operator 승인 진위, warehouse 실행, SQL projection, 데이터 값은 comparator가 암호학적으로 확인하지 않는다.
 
-## 11. 물리·데이터 proof 절차
+## 10. 물리·데이터 proof 절차
 
-approved-dev 검증은 개인 소유의 고유 run-scoped smoke schema에서만 수행한다. schema 이름은 `dev_<owner_slug>_weather_traffic_test_<run_token>` 형식을 사용한다. `owner_slug`는 인증된 GitHub ID를 lowercase로 바꾸고 `[a-z0-9_]` 밖의 문자를 `_`로 치환한 1~39자 값이다. `run_token`은 실행마다 새 UUID4에서 얻은 24자리 lowercase hexadecimal 값으로 고정하며 `^[a-f0-9]{24}$`를 만족해야 한다. 최종 schema 이름은 96자를 넘지 않아야 한다. 외부 evidence ID를 단순 치환해 `run_token`으로 사용하지 않는다. `run-a`, `run.a`, `run_a`처럼 서로 다른 ID가 같은 namespace로 충돌할 수 있기 때문이다.
+approved-dev 검증은 개인 소유의 고유 run-scoped smoke schema에서만 수행한다. schema 이름은 `dev_<owner_slug>_weather_contract_test_<run_token>` 형식을 사용한다. `owner_slug`는 인증된 GitHub ID를 lowercase로 바꾸고 `[a-z0-9_]` 밖의 문자를 `_`로 치환한 1~39자 값이다. `run_token`은 실행마다 새 UUID4에서 얻은 24자리 lowercase hexadecimal 값으로 고정하며 `^[a-f0-9]{24}$`를 만족해야 한다. 최종 schema 이름은 96자를 넘지 않아야 한다. 외부 evidence ID를 단순 치환해 `run_token`으로 사용하지 않는다. `run-a`, `run.a`, `run_a`처럼 서로 다른 ID가 같은 namespace로 충돌할 수 있기 때문이다.
 
 writer 시작 전 namespace가 없음을 확인한다. 이미 존재하면 동일한 owner·`run_token`·evidence ID가 외부 run ledger에 연결된 명시적 retry인 경우만 재사용하고, 그 외에는 fail closed한다. 기존 namespace를 자동 삭제하거나 다른 실행의 namespace를 재사용하지 않는다. comparator report에는 allowlist를 통과한 외부 evidence ID 원문을 보존하고, ledger에 schema 이름·owner·`run_token`·evidence ID·dbt invocation ID의 mapping을 기록한다. 이 규칙으로 회사 스케줄 DAG와 writer가 사용하는 공유·운영 relation과 격리한다. prod write는 금지한다. teardown은 검증 실행과 분리해 별도 승인과 삭제 증거를 남긴다. 이 G0 문서 작업에서는 실제 smoke를 실행하지 않았으므로 physical/data smoke는 `NOT_RUN`이다.
 
@@ -685,13 +645,13 @@ writer 시작 전 namespace가 없음을 확인한다. 이미 존재하면 동�
 
 오래된 manifest와 새 catalog를 조합하거나, fixture comparison을 approved-dev physical proof로 표현하지 않는다. 승인된 warehouse 실행이 없으면 physical/data proof는 `NOT_RUN`이다.
 
-## 12. UTC description WATCH
+## 11. UTC description WATCH
 
 현재 manifest validator는 `Asia/Seoul` governed timestamp description에서 ASCII identifier boundary의 독립 `UTC` token을 보수적으로 거절한다. “원천 UTC를 서울 기준 시각으로 변환했다”처럼 사실인 문장도 false positive가 될 수 있다. 한국어와 붙어 있는 token도 ASCII boundary 규칙상 탐지될 수 있다.
 
 v1 설명에는 “원천 시간대를 서울 기준 시각으로 변환한 값”처럼 작성하되, 이 문구 회피를 시간 의미 증명으로 간주하지 않는다. 수동 semantic review는 계속 `REQUIRED`다. 후속 계약은 prose heuristic 대신 structured `source_timezone`와 `conversion_policy`를 검토할 수 있지만, 두 key는 v1 field가 아니며 현재 예시에 추가하지 않는다.
 
-## 13. dev·consumer gate 뒤에 남기는 기능
+## 12. dev·consumer gate 뒤에 남기는 기능
 
 다음 항목은 문서가 존재하거나 validator가 `PASS`했다는 이유만으로 활성화하지 않는다.
 
@@ -706,17 +666,15 @@ v1 설명에는 “원천 시간대를 서울 기준 시각으로 변환한 값�
 
 `late_repair_policy`는 정책 선언이지 repair 실행 권한이 아니다. destructive full refresh, backfill, cutoff repair, Airflow DAG gate는 후속 소유 이슈에서 별도로 승인·검증한다. 이 v1 문서는 DAG를 실행하거나 repair 경로를 구현하지 않는다.
 
-## 14. reference ledger
+## 13. reference ledger
 
 ### ASAC-DBT
 
 - [Issue #48 — Silver 공통축](https://github.com/ASAC-DE-bigkk/ASAC-DBT/issues/48)
 - [PR #49 — asac_axes 공용 패키지](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/49)
 - [PR #109 — common schema 전환](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/109)
-- [Issue #117 — Traffic Silver repair 계약](https://github.com/ASAC-DE-bigkk/ASAC-DBT/issues/117)
 - [PR #138 — Weather Gold on_schema_change fail](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/138)
 - [Issue #144 — 공용 한국어 AI Gold 계약](https://github.com/ASAC-DE-bigkk/ASAC-DBT/issues/144)
-- [PR #141 — Traffic current snapshot WIP 문맥](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/141)
 - [PR #142 — Weather incremental Silver WIP 문맥](https://github.com/ASAC-DE-bigkk/ASAC-DBT/pull/142)
 
 ### ASAC-DAG
@@ -724,9 +682,8 @@ v1 설명에는 “원천 시간대를 서울 기준 시각으로 변환한 값�
 - [Issue #154 — 공통 행정동 마스터 수집](https://github.com/ASAC-DE-bigkk/ASAC-DAG/issues/154)
 - [PR #159 — 행정동 마스터 수집 DAG](https://github.com/ASAC-DE-bigkk/ASAC-DAG/pull/159)
 - [PR #160 — 수집 주기 weekly 조정](https://github.com/ASAC-DE-bigkk/ASAC-DAG/pull/160)
-- [Issue #168 — Weather·Traffic late/backfill 안전장치](https://github.com/ASAC-DE-bigkk/ASAC-DAG/issues/168)
+- [Issue #168 — Weather late/backfill 안전장치](https://github.com/ASAC-DE-bigkk/ASAC-DAG/issues/168)
 - [PR #255 — Bronze common schema 전환](https://github.com/ASAC-DE-bigkk/ASAC-DAG/pull/255)
-- [Issue #266 — Traffic Bronze·행정동 gate](https://github.com/ASAC-DE-bigkk/ASAC-DAG/issues/266)
 
 ### dbt 공식 계약 근거
 

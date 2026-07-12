@@ -12,14 +12,33 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from scripts.contracts import lint_schema_contract_source as lint
+from domains.weather.contracts.scripts import lint_schema_contract_source as lint
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-SCRIPT = REPO_ROOT / "scripts" / "contracts" / "lint_schema_contract_source.py"
-MANIFEST_SCRIPT = REPO_ROOT / "scripts" / "contracts" / "validate_public_gold_manifest.py"
+REPO_ROOT = Path(__file__).resolve().parents[4]
+SCRIPT = (
+    REPO_ROOT
+    / "domains"
+    / "weather"
+    / "contracts"
+    / "scripts"
+    / "lint_schema_contract_source.py"
+)
+MANIFEST_SCRIPT = (
+    REPO_ROOT
+    / "domains"
+    / "weather"
+    / "contracts"
+    / "scripts"
+    / "validate_public_gold_manifest.py"
+)
 CATALOG_COMPARE_SCRIPT = (
-    REPO_ROOT / "scripts" / "contracts" / "compare_public_gold_catalog.py"
+    REPO_ROOT
+    / "domains"
+    / "weather"
+    / "contracts"
+    / "scripts"
+    / "compare_public_gold_catalog.py"
 )
 OWNER_MISSING = object()
 CANONICAL_TIMEZONE = "Asia/Seoul"
@@ -48,7 +67,7 @@ BASE_COLUMN_ORDER = [
 VALID_MIXED_SCHEMA = """
 version: 2
 models:
-  - name: gold_orders
+  - name: gold_weather_orders
     description: 주문 골드 모델
     config:
       contract:
@@ -169,7 +188,7 @@ def public_gold_metadata(
                 "request": {"columns": ["request_id"]},
                 "run": {"columns": ["dag_run_id"]},
             },
-            "source_relations": ["source.ask_seoul.raw_public_metric"],
+            "source_relations": ["source.weather.raw_public_metric"],
         },
         "maturity": "medium",
         "metrics": {
@@ -305,7 +324,7 @@ def valid_manifest_node(
                 )
             }
         },
-        "depends_on": {"nodes": ["model.ask_seoul.silver_source", "source.ask.raw"]},
+        "depends_on": {"nodes": ["model.weather.silver_source", "source.weather.raw"]},
         "description": "서울 자치구별 공개 지표를 제공하는 골드 모델입니다.",
         "name": resolved_name,
         "resource_type": "model",
@@ -338,7 +357,7 @@ def valid_reconciliation_test(
     model_uid: str,
     *,
     name: str = "reconcile_district_join",
-    unique_id: str = "test.ask_seoul.unstable_hash_9f31",
+    unique_id: str = "test.weather.unstable_hash_9f31",
 ) -> tuple[str, dict[str, object]]:
     return (
         unique_id,
@@ -358,7 +377,7 @@ def valid_join_metadata() -> dict[str, object]:
         "purpose": "서울 자치구 기준 정보를 연결합니다.",
         "reconciliation_test": "reconcile_district_join",
         "source_keys": ["district_id"],
-        "target": "model.ask_seoul.dim_district",
+        "target": "model.weather.dim_district",
     }
 
 
@@ -400,19 +419,19 @@ def enable_valid_space_contract(
         valid_reconciliation_test(
             node["unique_id"],
             name="reconcile_admin_dong_stamp",
-            unique_id="test.ask.space_stamp_hash",
+            unique_id="test.weather.space_stamp_hash",
         ),
         valid_reconciliation_test(
             node["unique_id"],
             name="reconcile_admin_dong_revision",
-            unique_id="test.ask.space_revision_hash",
+            unique_id="test.weather.space_revision_hash",
         ),
     ]
 
 
 def valid_manifest(*nodes: tuple[str, dict[str, object]]) -> dict[str, object]:
     if not nodes:
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         nodes = ((uid, valid_manifest_node(uid)),)
     manifest_nodes = dict(nodes)
     exposures: dict[str, object] = {}
@@ -421,7 +440,7 @@ def valid_manifest(*nodes: tuple[str, dict[str, object]]) -> dict[str, object]:
             continue
         public_gold = node.get("config", {}).get("meta", {}).get("public_gold", {})
         if public_gold.get("visibility") == "served":
-            exposure_uid = f"exposure.ask_seoul.{node.get('name', uid.rsplit('.', 1)[-1])}"
+            exposure_uid = f"exposure.weather.{node.get('name', uid.rsplit('.', 1)[-1])}"
             exposures[exposure_uid] = valid_manifest_exposure(uid)
     return {
         "exposures": exposures,
@@ -498,11 +517,11 @@ def write_escaped_json_artifact(root: Path, name: str, value: object) -> Path:
 
 
 def manifest_validator_module():
-    return importlib.import_module("scripts.contracts.validate_public_gold_manifest")
+    return importlib.import_module("domains.weather.contracts.scripts.validate_public_gold_manifest")
 
 
 def catalog_comparator_module():
-    return importlib.import_module("scripts.contracts.compare_public_gold_catalog")
+    return importlib.import_module("domains.weather.contracts.scripts.compare_public_gold_catalog")
 
 
 def errors_with_code(report: dict[str, object], code: str) -> list[dict[str, object]]:
@@ -537,7 +556,7 @@ class ContractCliUtf8StdoutTests(unittest.TestCase):
             invalid_catalog_path.write_text("{not json", encoding="utf-8")
 
             failing_catalog = copy.deepcopy(catalog)
-            failing_catalog["nodes"]["model.ask_seoul.gold_public_metric"][
+            failing_catalog["nodes"]["model.weather.gold_weather_public_metric"][
                 "columns"
             ].pop("request_id")
             failing_catalog_path = write_json_artifact(
@@ -666,7 +685,7 @@ class ContractCliUtf8StdoutTests(unittest.TestCase):
                         self.assertNotIn("Traceback", rendered)
 
     def test_utf8_stdout_helper_supports_string_io_fallback(self) -> None:
-        artifact_io = importlib.import_module("scripts.contracts.artifact_io")
+        artifact_io = importlib.import_module("domains.weather.contracts.scripts.artifact_io")
         stream = io.StringIO()
 
         artifact_io.write_utf8_stdout("한글 계약\n", stream=stream)
@@ -705,7 +724,7 @@ class SchemaContractSourceLinterTests(unittest.TestCase):
             self.assertEqual("PASS", report["files"][0]["scan_status"])
             self.assertEqual(
                 [
-                    ("model", "gold_orders"),
+                    ("model", "gold_weather_orders"),
                     ("model", "quoted_model"),
                     ("seed", "area_seed"),
                     ("source", "source:public_api"),
@@ -1317,8 +1336,8 @@ class SchemaContractSourceLinterTests(unittest.TestCase):
             root = Path(temporary_directory)
             first = root / "first"
             second = root / "second"
-            write_yaml(second, "z.yaml", VALID_MIXED_SCHEMA.replace("gold_orders", "gold_orders_z"))
-            write_yaml(first, "a.yml", VALID_MIXED_SCHEMA.replace("gold_orders", "gold_orders_a"))
+            write_yaml(second, "z.yaml", VALID_MIXED_SCHEMA.replace("gold_weather_orders", "gold_weather_orders_z"))
+            write_yaml(first, "a.yml", VALID_MIXED_SCHEMA.replace("gold_weather_orders", "gold_weather_orders_a"))
 
             forward = lint.render_report(
                 lint.lint_schema_contracts([first, second], required_language="ko-KR")
@@ -2058,7 +2077,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
         validator = manifest_validator_module()
         manifest = valid_manifest()
         manifest["future_additive_field"] = {"accepted": True}
-        node = manifest["nodes"]["model.ask_seoul.gold_public_metric"]
+        node = manifest["nodes"]["model.weather.gold_weather_public_metric"]
         node["config"]["meta"]["public_gold"]["future_additive_contract_field"] = "허용"
 
         report, catalog = validator.validate_manifest(manifest, required_language="ko-KR")
@@ -2080,7 +2099,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
         self.assertIn("실제 컬럼", report["claim_limitations_ko"])
         self.assertEqual("public-gold-ai-contract/v1", catalog["catalog_schema_version"])
         self.assertEqual(
-            ["model.ask_seoul.gold_public_metric"],
+            ["model.weather.gold_weather_public_metric"],
             [resource["unique_id"] for resource in catalog["resources"]],
         )
         rendered = validator.render_json(catalog)
@@ -2107,7 +2126,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_required_model_language_and_prose_fail_at_exact_paths(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         cases = (
             (
                 "missing_product_question",
@@ -2153,7 +2172,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_column_contract_and_metric_fields_fail_at_exact_paths(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         base = f"nodes.{uid}.columns.metric_value"
         cases = (
             ("description", lambda column: column.pop("description"), f"{base}.description"),
@@ -2197,7 +2216,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_dev_pending_allows_missing_enforcement_but_enforced_status_requires_it(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         pending = valid_manifest_node(uid, contract_status="dev_pending")
         pending_report, _ = validator.validate_manifest(valid_manifest((uid, pending)))
         self.assertEqual("PASS", pending_report["status"], pending_report)
@@ -2224,7 +2243,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_canonical_and_legacy_metadata_fallbacks_pass_but_conflicts_fail(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
 
         fallback = valid_manifest_node(uid)
         fallback["meta"] = fallback["config"].pop("meta")
@@ -2260,12 +2279,12 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
         validator = manifest_validator_module()
         nodes = []
         for visibility in ("internal", "candidate", "published_producer", "served"):
-            uid = f"model.ask_seoul.gold_{visibility}"
+            uid = f"model.weather.gold_{visibility}"
             nodes.append((uid, valid_manifest_node(uid, visibility=visibility)))
         report, catalog = validator.validate_manifest(valid_manifest(*nodes))
         self.assertEqual("PASS", report["status"], report)
         self.assertEqual(
-            ["model.ask_seoul.gold_published_producer", "model.ask_seoul.gold_served"],
+            ["model.weather.gold_published_producer", "model.weather.gold_served"],
             [resource["unique_id"] for resource in catalog["resources"]],
         )
 
@@ -2276,8 +2295,8 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_manifest_order_does_not_change_catalog_bytes(self) -> None:
         validator = manifest_validator_module()
-        first_uid = "model.ask_seoul.gold_a"
-        second_uid = "model.ask_seoul.gold_b"
+        first_uid = "model.weather.gold_a"
+        second_uid = "model.weather.gold_b"
         first_node = valid_manifest_node(first_uid, visibility="served")
         second_node = valid_manifest_node(second_uid)
         forward = valid_manifest((first_uid, first_node), (second_uid, second_node))
@@ -2307,7 +2326,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_column_order_is_required_distinct_and_matches_declared_columns_exactly(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         base_path = f"nodes.{uid}.config.meta.public_gold.column_order"
 
         def missing(value: dict[str, object]) -> None:
@@ -2347,7 +2366,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_column_order_controls_exported_columns_without_mapping_order_inference(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         declared_order = list(reversed(BASE_COLUMN_ORDER))
         node["config"]["meta"]["public_gold"]["column_order"] = declared_order
@@ -2369,7 +2388,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_selectors_resolve_uniquely_and_missing_or_ambiguous_are_contract_failures(self) -> None:
         validator = manifest_validator_module()
-        first_uid = "model.ask_seoul.package_a"
+        first_uid = "model.weather.package_a"
         second_uid = "model.other.package_b"
         first = valid_manifest_node(first_uid, name="shared")
         second = valid_manifest_node(second_uid, name="shared")
@@ -2432,7 +2451,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_recursive_export_boundary_rejects_forbidden_keys_and_absolute_paths(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         base = f"nodes.{uid}.config.meta.public_gold.quality"
         cases = (
             ("generated_at", {"checks": [{"generated_at": "2026-07-12T00:00:00Z"}]}, f"{base}.checks[0].generated_at"),
@@ -2463,7 +2482,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_conflict_equality_distinguishes_json_booleans_from_numbers_deeply(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
 
         node = valid_manifest_node(uid)
         node["config"]["meta"]["public_gold"]["quality"]["future_rules"] = [
@@ -2494,7 +2513,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_fallback_validation_errors_retain_actual_metadata_and_contract_paths(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
 
         legacy_column_node = valid_manifest_node(uid)
         legacy_metric = legacy_column_node["columns"]["metric_value"]
@@ -2571,7 +2590,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_json_preflight_rejects_nonfinite_depth_and_container_limits_without_output_mutation(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
 
         nonfinite = valid_manifest((uid, valid_manifest_node(uid)))
         nonfinite["nodes"][uid]["config"]["meta"]["public_gold"]["quality"] = {
@@ -2668,7 +2687,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_catalog_omits_structured_metadata_not_yet_validated_by_task_2b1(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         public_gold = node["config"]["meta"]["public_gold"]
         public_gold["quality"]["future_unvalidated"] = {
@@ -2701,7 +2720,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_node_legacy_public_gold_fallback_requires_config_meta_key_to_be_absent(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         legacy_meta = node["config"]["meta"]
         node["config"]["meta"] = {"unrelated": "canonical metadata exists"}
@@ -2728,7 +2747,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_non_primary_column_nullable_must_be_boolean_when_present(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         meta = node["columns"]["metric_value"]["config"]["meta"]
         meta["semantic_role"] = "label"
@@ -2747,7 +2766,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_nonmetric_optional_semantic_fields_reject_structured_values(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         cases = (
             ("unit", {"name": "건"}),
             ("zero_meaning", ["값이 없음"]),
@@ -2773,7 +2792,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_nonmetric_valid_optional_scalars_export_only_validated_scalars(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         meta = node["columns"]["metric_value"]["config"]["meta"]
         meta.update(
@@ -2809,7 +2828,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_published_producer_requires_truthful_publication_metadata_and_no_exposure(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid, visibility="published_producer")
         report, catalog = validator.validate_manifest(valid_manifest((uid, node)))
         self.assertEqual("PASS", report["status"], report)
@@ -2840,7 +2859,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
                 )
 
         invented = valid_manifest((uid, valid_manifest_node(uid)))
-        invented["exposures"]["exposure.ask_seoul.invented_app"] = valid_manifest_exposure(uid)
+        invented["exposures"]["exposure.weather.invented_app"] = valid_manifest_exposure(uid)
         invented_report, invented_catalog = validator.validate_manifest(invented)
         self.assertEqual("FAIL", invented_report["status"], invented_report)
         self.assertIsNone(invented_catalog)
@@ -2849,10 +2868,10 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
         validator = manifest_validator_module()
         for visibility in ("internal", "candidate"):
             with self.subTest(visibility=visibility):
-                uid = f"model.ask_seoul.gold_{visibility}"
+                uid = f"model.weather.gold_{visibility}"
                 node = valid_manifest_node(uid, visibility=visibility)
                 manifest = valid_manifest((uid, node))
-                manifest["exposures"][f"exposure.ask_seoul.{visibility}"] = valid_manifest_exposure(uid)
+                manifest["exposures"][f"exposure.weather.{visibility}"] = valid_manifest_exposure(uid)
                 report, catalog = validator.validate_manifest(manifest)
                 self.assertEqual("FAIL", report["status"], report)
                 self.assertIsNone(catalog)
@@ -2860,7 +2879,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_served_requires_real_valid_exposure_and_exports_stable_declaration(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_served"
+        uid = "model.weather.gold_served"
         node = valid_manifest_node(uid, visibility="served")
         manifest = valid_manifest((uid, node))
         exposure_uid = next(iter(manifest["exposures"]))
@@ -2902,7 +2921,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_join_policy_resolves_reconciliation_test_by_name_and_exports_allowlist(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         join = valid_join_metadata()
         join["source_keys"] = ["metric_value", "district_id"]
@@ -2922,7 +2941,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
                     "purpose": "서울 자치구 기준 정보를 연결합니다.",
                     "reconciliation_test": "reconcile_district_join",
                     "source_keys": ["metric_value", "district_id"],
-                    "target": "model.ask_seoul.dim_district",
+                    "target": "model.weather.dim_district",
                 }
             },
             catalog["resources"][0]["public_gold"]["joins"],
@@ -2931,7 +2950,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_join_policy_rejects_missing_unsafe_or_unresolved_declarations(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         cases = []
         for field in ("target", "source_keys", "purpose", "cardinality", "fan_out_policy", "reconciliation_test"):
             cases.append((f"missing_{field}", lambda join, field=field: join.pop(field), field, None))
@@ -2962,18 +2981,18 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_lifecycle_active_and_deprecated_rules_export_only_validated_fields(self) -> None:
         validator = manifest_validator_module()
-        active_uid = "model.ask_seoul.gold_active"
+        active_uid = "model.weather.gold_active"
         active = valid_manifest_node(active_uid)
         active["config"]["meta"]["public_gold"]["lifecycle"] = {
             "replacement_is_future": True,
-            "replacement_relation": "model.ask_seoul.gold_future",
+            "replacement_relation": "model.weather.gold_future",
             "status": "active",
         }
-        deprecated_uid = "model.ask_seoul.gold_deprecated"
+        deprecated_uid = "model.weather.gold_deprecated"
         deprecated = valid_manifest_node(deprecated_uid)
         deprecated["config"]["meta"]["public_gold"]["lifecycle"] = {
             "compatibility_window_guidance": "두 번의 월간 배포 동안 기존 계약을 함께 제공합니다.",
-            "replacement_relation": "model.ask_seoul.gold_replacement",
+            "replacement_relation": "model.weather.gold_replacement",
             "status": "deprecated",
         }
         report, catalog = validator.validate_manifest(
@@ -2993,13 +3012,13 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_lifecycle_rejects_invalid_deprecation_and_unmarked_active_replacement(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         cases = (
             ("status", {"status": "retired"}, "status"),
             ("deprecated_relation", {"status": "deprecated", "compatibility_window_guidance": "두 번의 배포 동안 호환합니다."}, "replacement_relation"),
-            ("deprecated_guidance", {"status": "deprecated", "replacement_relation": "model.ask.new"}, "compatibility_window_guidance"),
-            ("deprecated_english", {"status": "deprecated", "replacement_relation": "model.ask.new", "compatibility_window_guidance": "Two releases"}, "compatibility_window_guidance"),
-            ("active_replacement", {"status": "active", "replacement_relation": "model.ask.future"}, "replacement_is_future"),
+            ("deprecated_guidance", {"status": "deprecated", "replacement_relation": "model.weather.new"}, "compatibility_window_guidance"),
+            ("deprecated_english", {"status": "deprecated", "replacement_relation": "model.weather.new", "compatibility_window_guidance": "Two releases"}, "compatibility_window_guidance"),
+            ("active_replacement", {"status": "active", "replacement_relation": "model.weather.future"}, "replacement_is_future"),
         )
         for name, lifecycle, field in cases:
             with self.subTest(name=name):
@@ -3015,16 +3034,16 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_reconciliation_uniqueness_is_scoped_to_same_name_dependent_tests(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         node["config"]["meta"]["public_gold"]["joins"] = {
             "district_lookup": valid_join_metadata()
         }
         dependent_uid, dependent = valid_reconciliation_test(
-            uid, unique_id="test.ask.random_hash_dependent"
+            uid, unique_id="test.weather.random_hash_dependent"
         )
         unrelated_uid, unrelated = valid_reconciliation_test(
-            "model.other.unrelated", unique_id="test.ask.random_hash_unrelated"
+            "model.other.unrelated", unique_id="test.weather.random_hash_unrelated"
         )
 
         report, catalog = validator.validate_manifest(
@@ -3041,7 +3060,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
                 "ambiguous",
                 [
                     (dependent_uid, dependent),
-                    valid_reconciliation_test(uid, unique_id="test.ask.second_dependent"),
+                    valid_reconciliation_test(uid, unique_id="test.weather.second_dependent"),
                 ],
                 "RECONCILIATION_TEST_AMBIGUOUS",
             ),
@@ -3059,7 +3078,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_served_exposure_projection_rejects_paths_and_runtime_timestamps_at_exact_paths(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_served"
+        uid = "model.weather.gold_served"
         cases = (
             ("uid_path", "uid", "/private/tmp/exposure", None),
             ("name_path", "name", "/private/tmp/application", ".name"),
@@ -3098,14 +3117,14 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_served_exposure_valid_projection_is_byte_stable_across_mapping_order(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_served"
+        uid = "model.weather.gold_served"
         forward = valid_manifest((uid, valid_manifest_node(uid, visibility="served")))
         first_uid = next(iter(forward["exposures"]))
         forward["exposures"][first_uid]["owner"] = {
             "email": ["ops@example.com", "data@example.com"],
             "name": "서비스 운영팀",
         }
-        second_uid = "exposure.ask_seoul.second_app"
+        second_uid = "exposure.weather.second_app"
         forward["exposures"][second_uid] = valid_manifest_exposure(
             uid,
             name="second_application",
@@ -3127,7 +3146,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_exposure_timestamp_detector_covers_naive_and_compact_offsets_without_version_false_positive(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_served"
+        uid = "model.weather.gold_served"
         cases = (
             ("naive", "name", "application-2026-07-12T12:34:56", ".name"),
             ("compact_offset", "type", "app-2026-07-12T12:34:56.123+0900-live", ".type"),
@@ -3154,7 +3173,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_time_contract_projects_valid_roles_and_rejects_timezone_or_role_conflicts(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         valid = valid_manifest((uid, valid_manifest_node(uid)))
         report, catalog = validator.validate_manifest(valid)
         self.assertEqual("PASS", report["status"], report)
@@ -3199,7 +3218,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_explicit_utc_detection_uses_ascii_identifier_boundaries(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         expected_path = f"nodes.{uid}.columns.product_as_of_at.description"
         descriptions = (
             "UTC기준으로 계산한 제품 시각입니다.",
@@ -3219,7 +3238,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_timestamp_data_type_and_time_role_contract_is_bidirectional(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         data_type_path = f"nodes.{uid}.columns.product_as_of_at.data_type"
 
         for data_type in (
@@ -3290,7 +3309,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_space_contract_requires_exact_axis_stamp_dependency_and_named_tests(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_spatial"
+        uid = "model.weather.gold_spatial"
         node = valid_manifest_node(uid)
         test_nodes = enable_valid_space_contract(node)
         manifest = valid_manifest((uid, node), *test_nodes)
@@ -3338,7 +3357,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_metric_contract_matches_declared_metric_column_and_projects_allowlist(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         report, catalog = validator.validate_manifest(valid_manifest((uid, node)))
         self.assertEqual("PASS", report["status"], report)
@@ -3368,7 +3387,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_metric_axes_reject_internal_duplicates_and_cross_axis_overlap(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
 
         def duplicate_additive(metric: dict[str, object]) -> None:
             metric["additive_axes"] = ["admin_dong", "admin_dong"]
@@ -3405,7 +3424,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_quality_state_contract_validates_tokens_explanations_and_declared_columns(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_quality"
+        uid = "model.weather.gold_quality"
         node = valid_manifest_node(uid)
         node["columns"]["quality_state"] = {
             "config": {"meta": {"null_meaning": "품질 상태를 계산하지 못한 경우입니다.", "semantic_role": "quality_state"}},
@@ -3450,7 +3469,7 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
 
     def test_lineage_requires_five_identifier_classes_and_declared_columns_or_relation_level(self) -> None:
         validator = manifest_validator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         node = valid_manifest_node(uid)
         node["config"]["meta"]["public_gold"]["lineage"]["future_unvalidated"] = {"ignored": "value"}
         report, catalog = validator.validate_manifest(valid_manifest((uid, node)))
@@ -3566,7 +3585,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
 
     def test_catalog_differences_fail_with_stable_codes_and_exact_paths(self) -> None:
         comparator = catalog_comparator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
 
         def missing_relation(catalog: dict[str, object]) -> None:
             catalog["sources"][uid] = catalog["nodes"].pop(uid)
@@ -3641,7 +3660,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
 
     def test_type_normalization_is_case_whitespace_and_exact_aliases_only(self) -> None:
         comparator = catalog_comparator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         passing_pairs = (
             ("int", " INTEGER "),
             ("double precision", " DOUBLE "),
@@ -3693,7 +3712,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
                 self.assertEqual(physical_type, matches[0]["physical_type"])
 
     def test_invalid_catalog_and_invocation_shapes_exit_two_without_output(self) -> None:
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
 
         def wrong_version(
             manifest: dict[str, object], catalog: dict[str, object]
@@ -3859,7 +3878,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
 
     def test_index_shape_errors_are_distinct_from_comparison_failures(self) -> None:
         comparator = catalog_comparator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         manifest, duplicate_catalog = valid_catalog_pair()
         duplicate_columns = duplicate_catalog["nodes"][uid]["columns"]
         duplicate_columns["metric_value"]["index"] = 1
@@ -3895,7 +3914,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
     def test_declared_failure_stops_catalog_and_physical_proof(self) -> None:
         comparator = catalog_comparator_module()
         manifest, catalog = valid_catalog_pair()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         manifest["nodes"][uid]["description"] = "English only"
 
         report = comparator.compare_public_gold_catalog(
@@ -3949,7 +3968,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
         self.assertIn("암호학적으로", approved["claim_limitations_ko"])
 
         failing_catalog = copy.deepcopy(catalog)
-        failing_catalog["nodes"].pop("model.ask_seoul.gold_public_metric")
+        failing_catalog["nodes"].pop("model.weather.gold_weather_public_metric")
         approved_failure = comparator.compare_public_gold_catalog(
             manifest,
             failing_catalog,
@@ -4078,7 +4097,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
 
     def test_catalog_errors_may_be_absent_or_empty_and_column_name_is_optional(self) -> None:
         comparator = catalog_comparator_module()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         absent = object()
         for errors_value in (absent, None, []):
             with self.subTest(errors_value=repr(errors_value)):
@@ -4096,8 +4115,8 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
     ) -> None:
         comparator = catalog_comparator_module()
         manifest, catalog = valid_catalog_pair()
-        uid = "model.ask_seoul.gold_public_metric"
-        second_uid = "model.ask_seoul.gold_second_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
+        second_uid = "model.weather.gold_second_public_metric"
         second_node = valid_manifest_node(second_uid)
         manifest["nodes"][second_uid] = second_node
         second_catalog_node = copy.deepcopy(catalog["nodes"][uid])
@@ -4166,14 +4185,14 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
         self,
     ) -> None:
         comparator = catalog_comparator_module()
-        public_uid = "model.ask_seoul.gold_public_metric"
-        served_uid = "model.ask_seoul.gold_served_metric"
-        internal_uid = "model.ask_seoul.gold_internal_metric"
-        candidate_uid = "model.ask_seoul.gold_candidate_metric"
+        public_uid = "model.weather.gold_weather_public_metric"
+        served_uid = "model.weather.gold_served_metric"
+        internal_uid = "model.weather.gold_internal_metric"
+        candidate_uid = "model.weather.gold_candidate_metric"
         manifest, catalog = valid_catalog_pair()
         served_node = valid_manifest_node(served_uid, visibility="served")
         manifest["nodes"][served_uid] = served_node
-        manifest["exposures"]["exposure.ask_seoul.gold_served_metric"] = (
+        manifest["exposures"]["exposure.weather.gold_served_metric"] = (
             valid_manifest_exposure(served_uid)
         )
         served_catalog_node = copy.deepcopy(catalog["nodes"][public_uid])
@@ -4189,7 +4208,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
 
         default_report = comparator.compare_public_gold_catalog(manifest, catalog)
         self.assertEqual("PASS", default_report["status"], default_report)
-        self.assertEqual([public_uid, served_uid], default_report["resources"])
+        self.assertEqual(sorted([public_uid, served_uid]), default_report["resources"])
 
         selected_public = comparator.compare_public_gold_catalog(
             manifest, catalog, resources=[public_uid]
@@ -4266,7 +4285,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
     def test_comparator_rejects_lone_surrogate_manifest_and_catalog_values_and_keys(
         self,
     ) -> None:
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             cases = []
@@ -4330,7 +4349,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
 
     def test_output_is_atomic_and_cannot_alias_either_input(self) -> None:
         manifest, catalog = valid_catalog_pair()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             manifest_path = write_json_artifact(root, "manifest.json", manifest)
@@ -4406,7 +4425,7 @@ class PublicGoldCatalogComparatorTests(unittest.TestCase):
         self,
     ) -> None:
         manifest, catalog = valid_catalog_pair()
-        uid = "model.ask_seoul.gold_public_metric"
+        uid = "model.weather.gold_weather_public_metric"
         catalog["nodes"][uid]["columns"].pop("request_id")
         catalog["nodes"][uid]["columns"]["metric_value"]["type"] = "varchar"
         with tempfile.TemporaryDirectory() as temporary_directory:

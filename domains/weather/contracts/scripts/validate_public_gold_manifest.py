@@ -14,12 +14,12 @@ from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
 try:
-    from scripts.contracts.artifact_io import write_utf8_stdout
+    from domains.weather.contracts.scripts.artifact_io import write_utf8_stdout
 except ModuleNotFoundError:  # Direct execution from scripts/contracts.
     from artifact_io import write_utf8_stdout
 
 try:
-    from scripts.contracts import lint_schema_contract_source as source_lint
+    from domains.weather.contracts.scripts import lint_schema_contract_source as source_lint
 except ModuleNotFoundError:  # Direct execution from scripts/contracts.
     import lint_schema_contract_source as source_lint
 

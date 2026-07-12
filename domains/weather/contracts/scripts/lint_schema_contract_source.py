@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 try:
-    from scripts.contracts.artifact_io import write_utf8_stdout
+    from domains.weather.contracts.scripts.artifact_io import write_utf8_stdout
 except ModuleNotFoundError:  # Direct execution from scripts/contracts.
     from artifact_io import write_utf8_stdout
 

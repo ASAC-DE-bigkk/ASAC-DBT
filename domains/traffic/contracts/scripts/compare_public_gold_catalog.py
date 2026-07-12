@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
 try:
-    from scripts.contracts.artifact_io import write_utf8_stdout
+    from domains.traffic.contracts.scripts.artifact_io import write_utf8_stdout
 except ModuleNotFoundError:  # Direct execution from scripts/contracts.
     from artifact_io import write_utf8_stdout
 
 try:
-    from scripts.contracts import validate_public_gold_manifest as manifest_validator
+    from domains.traffic.contracts.scripts import validate_public_gold_manifest as manifest_validator
 except ModuleNotFoundError:  # Direct execution from scripts/contracts.
     import validate_public_gold_manifest as manifest_validator
 
