@@ -78,6 +78,28 @@ collected_at desc, raw_object_key desc, request_id desc
 이 기준은 forecast 시계열의 각 발표/예보시각/항목별 최신 snapshot을 만들기 위한
 계약이다. 발표 이력 전체를 보존하는 모델이 필요하면 별도 Silver 모델로 분리한다.
 
+## Silver materialization (incremental merge)
+
+Grid Silver(`silver_kma_vilage_fcst`)와 admin-dong Silver
+(`silver_weather_forecast_by_admin_dong`)는 `collected_at` 워터마크
+(`> max(collected_at)`) 기준 incremental merge로 운영한다(#145, #147; 배경은 DL-013).
+
+- unique key: Grid Silver는 `place_id × nx × ny × issued_at × category × forecast_at`,
+  admin-dong Silver는 `place_id × issued_at × forecast_at × category` — 각 grain
+  테스트와 동일한 키다.
+- 증분 커서로 `dag_run_id`를 쓰지 않는다. dedup에서 전량 패배한 run은 silver에
+  ID를 남기지 못해 매 run 재선택되는 순환이 생긴다(DL-013에서 배치당 139,360행
+  재머지로 관측).
+- 두 모델 모두 `views_enabled=false` + `on_table_exists='drop'`으로 R2 Data Catalog의
+  유령 뷰 409를 우회하고(#70 선례), `on_schema_change='fail'`로 스키마 드리프트를
+  우회 에러 대신 명시적으로 실패시킨다(#137 관례).
+- full-refresh: Grid Silver는 전이력 window dedup가 다시 돌아 메모리 절벽이 재발하므로
+  **금지**(필요 시 Trino 메모리 임시 상향 또는 base_date 배치 분할). admin-dong Silver는
+  순수 조인이라 **안전** — `dim_weather_place` 매핑 변경 시 admin-dong Silver만
+  full-refresh 한다.
+- 워터마크 이전 시점으로 늦게 publishable 마킹되는 run이나 발표 교정은 증분 경로에
+  잡히지 않는다 — 명시적인 recollect/full-refresh 경로로 처리한다.
+
 ## Coverage and freshness
 
 weather coverage는 "row가 존재하는지"가 아니라 "최신 발표시각에서 서울 격자 범위를
