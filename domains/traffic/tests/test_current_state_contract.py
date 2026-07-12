@@ -16,6 +16,20 @@ def test_history_model_uses_transform_pinned_publishable_manifest_run():
     assert "var('traffic_snapshot_dag_run_id')" in sql
 
 
+def test_history_latest_record_contract_uses_the_same_transform_pinned_run():
+    sql = (
+        TRAFFIC_DIR / "tests/assert_silver_traffic_latest_publishable_record.sql"
+    ).read_text(encoding="utf-8")
+    compact_sql = " ".join(sql.split())
+
+    assert "var('traffic_snapshot_dag_run_id')" in sql
+    assert "requested_run" in sql
+    assert "configured_run" in sql
+    assert "cast(bronze.dag_run_id as varchar) = configured_run.dag_run_id" in compact_sql
+    assert "missing_pinned_run" in sql
+    assert "silver_watermark" not in sql
+
+
 def test_current_snapshot_contract_test_uses_transform_pinned_run():
     sql = (TRAFFIC_DIR / "tests/assert_traffic_current_pinned_publishable_run.sql").read_text()
 

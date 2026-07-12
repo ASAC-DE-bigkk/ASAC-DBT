@@ -1,24 +1,23 @@
--- silver 는 자신이 처리한 시점(watermark = max(collected_at))까지의 최신 publishable
--- 레코드를 정확히 골랐는지 검증한다. transform 이 hourly cron 으로 돌면서(2026-07-10)
--- silver 가 bronze 절대 최신보다 최대 1시간 뒤처지는 것은 의도된 계약이므로,
--- watermark 이후에 수집된 bronze 배치는 비교 대상에서 제외한다(신선도는
--- dbt_source_freshness 가 별도 감시). 상한 없이 비교하면 5분 주기 bronze 와
--- 경합해 갓 커밋된 배치만큼 어긋난다 — 2026-07-10 03:10Z 첫 cron 런 FAIL 22 사례.
--- publishable Bronze에만 있는 ID도 검출하려면 Bronze를 기준으로 비교해야 한다.
--- Silver가 비어 watermark가 NULL이면 모든 publishable Bronze를 비교해 vacuous
--- pass를 막는다.
+-- Verify that history Silver selected the latest valid record per acc_id from
+-- the publishable Bronze run pinned by this transform invocation. The model
+-- and this test must use the same snapshot: comparing unconsumed five-minute
+-- Bronze runs would reintroduce a structural dbt run/test race. Bronze keeps
+-- the complete collection history independently.
 
-with silver_watermark as (
-    select max(collected_at) as max_collected_at
-    from {{ ref('silver_seoul_traffic_incident') }}
+{% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}
+
+with requested_run as (
+    select '{{ snapshot_dag_run_id | replace("'", "''") }}' as dag_run_id
 ),
 
-publishable_runs as (
-    select distinct cast(dag_run_id as varchar) as dag_run_id
-    from {{ source('traffic_bronze', 'collection_run_manifest') }}
-    where source_id = 'seoul_traffic_incident'
-      and status = 'SUCCESS'
-      and is_publishable
+configured_run as (
+    select distinct cast(manifest.dag_run_id as varchar) as dag_run_id
+    from {{ source('traffic_bronze', 'collection_run_manifest') }} as manifest
+    inner join requested_run
+        on cast(manifest.dag_run_id as varchar) = requested_run.dag_run_id
+    where manifest.source_id = 'seoul_traffic_incident'
+      and manifest.status = 'SUCCESS'
+      and manifest.is_publishable
 ),
 
 bronze_candidates as (
@@ -35,23 +34,36 @@ bronze_candidates as (
                 cast(bronze.request_id as varchar) desc
         ) as row_num
     from {{ source('traffic_bronze', 'seoul_traffic_incident') }} as bronze
-    inner join publishable_runs
-        on cast(bronze.dag_run_id as varchar) = publishable_runs.dag_run_id
+    inner join configured_run
+        on cast(bronze.dag_run_id as varchar) = configured_run.dag_run_id
     where cast(bronze.result_code as varchar) = 'INFO-000'
       and cast(bronze.acc_id as varchar) is not null
       and {{ asac_axes.kst_at_from_parts('cast(bronze.occr_date as varchar)', 'cast(bronze.occr_time as varchar)') }} is not null
-      and (
-          (select max_collected_at from silver_watermark) is null
-          or cast(bronze.collected_at as timestamp(6)) <= (select max_collected_at from silver_watermark)
-      )
 ),
 
 bronze_latest as (
     select *
     from bronze_candidates
     where row_num = 1
+),
+
+missing_pinned_run as (
+    select
+        cast('__manifest__' as varchar) as source_record_id,
+        cast(null as varchar) as silver_request_id,
+        requested_run.dag_run_id as expected_request_id,
+        cast(null as varchar) as silver_raw_object_key,
+        cast(null as varchar) as expected_raw_object_key,
+        cast(null as timestamp(6)) as silver_collected_at,
+        cast(null as timestamp(6)) as expected_collected_at
+    from requested_run
+    left join configured_run
+        on requested_run.dag_run_id = configured_run.dag_run_id
+    where configured_run.dag_run_id is null
 )
 
+select * from missing_pinned_run
+union all
 select
     bronze_latest.source_record_id,
     silver.request_id as silver_request_id,
