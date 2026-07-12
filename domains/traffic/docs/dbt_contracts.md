@@ -101,8 +101,10 @@ latest-by-acc 상태를 유지하고, current snapshot과 Gold는 API에서 사�
 current `source_record_id` 집합을 양방향으로 비교하고, current의 모든 행이 같은 run을
 가리키는지 확인한다. 고정 run이 publishable manifest에 없으면 실패하며, 유효 Bronze와
 current가 모두 0행인 정상 zero-incident snapshot은 통과한다. 수집과 transform 사이의
-스케줄 경합은 correctness anchor를 live latest로 바꾸지 않고 freshness만 별도로 판정해,
-고정 run이 최신 publishable 3개 안이면 통과하고 네 번째 이하로 밀리면 실패한다.
+스케줄 경합은 correctness anchor를 live latest로 바꾸지 않고 freshness만 별도로 판정한다.
+고정 run이 최신 publishable 네 번째 이하일 때 current에 행이 있거나 더 최신 publishable
+run에 유효 Bronze 행이 있으면 실패한다. 연속 zero-incident run만 새로 쌓인 경우에는
+정상 zero snapshot을 stale로 처리하지 않는다.
 
 ## Coverage and completeness
 
