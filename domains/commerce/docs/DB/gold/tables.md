@@ -92,7 +92,7 @@ gold는 "카탈로그를 만들고, 그 카탈로그로 테이블을 만든다"�
 
 | 테이블 | grain | 컬럼 | 소스 |
 |---|---|---|---|
-| `commerce_dim_dataset` | (dataset) 152행 | oa_id, name_ko, service_name, fmt, major/category/sub_category, **entity_type, detail_table** | seed(taxonomy)+registry+카탈로그 |
+| `commerce_dim_dataset` | (dataset) 152행 | oa_id, name_ko, service_name, fmt, major/category/sub_category, **entity_type, detail_table** | registry+카탈로그(`loader.load_dims` — seed 미사용) |
 | `commerce_dim_region` | (admin_dong_code) 서울 ~425행 | admin_dong_name, legal_code, legal_dong_name, gu_code, gu_name, sido_name | bronze_ref_admin_dong |
 | `commerce_dim_business_status` | (fmt, status_code) | status_name, detail_status_code/name | silver history distinct — **v1/v2 코드 네임스페이스 분리(fmt)** |
 

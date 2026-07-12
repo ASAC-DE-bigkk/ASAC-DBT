@@ -54,8 +54,9 @@ KST 원문 시각(UPDATEDT/LASTMODTS)은 파싱만 하고, UTC 로 기록된 `co
 | `district` 미매칭(서울 외/주소 결측) | `regexp_extract` 미매칭 → null | null |
 | 좌표 `X`/`Y` 의 `0`·자릿수 오류 등 **품질 불량값** | **보존**(null 처리하지 않음) | 좌표 품질 판정은 Step 8 geocode 파이프라인(bbox 검증·`location_quality`)의 책임 |
 
-미정(후속 결정 필요): `DCBYMD`(폐업일) 등 날짜 문자열의 형식 통일(`date` 형변환) 여부 —
-현재는 문자열 그대로 두고 gold 에서 필요 시 변환한다.
+해소됨: `DCBYMD`(폐업일)·`APVPERMYMD`(허가일) 등 원천 날짜의 형식 통일(`date` 형변환)은
+**gold 에서 규격화**된다(`include/gold/ddl._DATE` + `loader._to_date` — opened_at/closed_at/observed_date,
+무효·오포맷 값은 NULL). silver 는 원문 문자열을 그대로 보존(소스 충실), 형변환은 서빙(gold) 계층에서 수행.
 
 ---
 

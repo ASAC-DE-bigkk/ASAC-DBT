@@ -7,6 +7,10 @@
 > 걸고 detail 은 항상 (entity_seq, collected_at, content_hash) PK 로만 조인돼 detail 쪽 dataset
 > 인덱스는 실제로 안 쓰인다(과반영 회피). 라이브 검증(§9): pharmacy(선택도 0.76%) 조회 1187ms→**18ms**
 > (Bitmap Index Scan 확인). §3 파티셔닝은 트리거 조건 미충족으로 여전히 보류.
+>
+> **[갱신 — 현재 정본]** 이후 인덱스가 더 늘었다: entity/history 공통 **17개**(`ddl.create_index_sql`)
+> + detail payload **자동 401개**(`ddl.create_detail_index_sql`, 날짜/식별번호/수량 접미사 — change-log #53).
+> 아래 "6개" 서술은 당시 1차 적용분이다. **최신 인덱스 정본은 [tables.md](tables.md) §3.2**.
 
 ## 0. 현재 상태 (실측)
 
