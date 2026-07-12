@@ -117,7 +117,7 @@ models:
         description: End of the incident validity interval; identical to expected_clear_at and therefore nullable.
 
   - name: silver_seoul_traffic_incident_current
-    description: Current TOPIS incident snapshot from the latest complete publishable Bronze run; incidents absent from that snapshot are intentionally excluded.
+    description: Current TOPIS incident snapshot from the publishable Bronze run pinned when the transform starts; incidents absent from that snapshot are intentionally excluded.
     columns:
       - name: source_record_id
         description: Stable TOPIS accident identifier at current snapshot grain.
