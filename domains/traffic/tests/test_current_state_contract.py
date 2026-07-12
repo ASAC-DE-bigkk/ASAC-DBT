@@ -10,6 +10,12 @@ def test_current_model_requires_transform_pinned_publishable_manifest_run():
     assert "silver_seoul_traffic_incident" in sql
 
 
+def test_history_model_uses_transform_pinned_publishable_manifest_run():
+    sql = (TRAFFIC_DIR / "models/silver/silver_seoul_traffic_incident.sql").read_text(encoding="utf-8")
+
+    assert "var('traffic_snapshot_dag_run_id')" in sql
+
+
 def test_current_snapshot_contract_test_uses_transform_pinned_run():
     sql = (TRAFFIC_DIR / "tests/assert_traffic_current_pinned_publishable_run.sql").read_text()
 
