@@ -145,11 +145,33 @@ manifest_before_cutoff as (
     cross join params
     where event_at <= cutoff_at
 ),
-manifest_ambiguous_ties as (
-    select source_id, dag_run_id, event_at, dag_id
+manifest_order_key_counts as (
+    select
+        source_id,
+        dag_run_id,
+        event_at,
+        dag_id,
+        count(*) as state_count
     from manifest_before_cutoff
     group by source_id, dag_run_id, event_at, dag_id
-    having count(*) > 1
+),
+manifest_order_key_ranked as (
+    select
+        manifest_order_key_counts.*,
+        row_number() over (
+            partition by source_id, dag_run_id
+            order by event_at desc, dag_id desc
+        ) as order_key_num
+    from manifest_order_key_counts
+),
+manifest_ambiguous_ties as (
+    select manifest_order_key_ranked.*
+    from manifest_order_key_ranked
+    cross join params
+    where order_key_num = 1
+      and state_count > 1
+      and event_at >= start_at
+      and event_at <= cutoff_at
 ),
 manifest_state_ranked as (
     select
