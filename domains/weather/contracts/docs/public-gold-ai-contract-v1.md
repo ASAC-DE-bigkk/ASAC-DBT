@@ -494,17 +494,19 @@ W1 Issue #151의 로컬 candidate 구현 상태는 다음과 같다.
 - `silver_kma_vilage_fcst_observation` candidate가 publishable run/raw/page/item signature grain과 invalid-time·격자·category의 Grid 제외 상태, raw lineage를 보존한다.
 - `silver_kma_vilage_fcst_grid` candidate가 native Grid grain에서 결정적 observation을 선택하고 `kma_value_semantics` 결과를 전파한다.
 - `bridge_weather_admin_dong_grid` candidate가 legacy 427행 assertion을 보존하고 `asac_axes.dim_admin_dong`에서 canonical 다섯 필드를 exact-code로 stamp한다.
-- 세 relation과 bridge history seed는 W2 public Gold와 A1 DAG gate 전까지 `internal_candidate`이며 bridge/seed도 isolated candidate guard 밖에서는 fail closed한다. known-vector data test는 추가됐지만 approved-dev physical/data·two-run convergence proof는 아직 `NOT_RUN`이다.
+- 세 relation과 bridge history seed는 공개 소비 표면이 아닌 내부 producer로 유지되며 shared 실행은 검증된 bounded DEV repair에서만 열린다. known-vector data test는 추가됐지만 approved-dev physical/data·two-run convergence proof는 실제 검증 전까지 `NOT_RUN`이다.
 
 남은 gap은 다음과 같다.
 
 - 기존 `silver_weather_forecast_by_admin_dong`과 `gold_weather_forecast_by_place`는 호환 표면으로 유지되어 W1 candidate로 재배선되지 않았다.
-- 목표 grain `admin_dong_code × forecast_at × category`의 public Gold, 최신 `issued_at` 선택, stale extra 양방향 reconciliation, explicit cutoff no-downgrade repair는 W2가 소유한다.
+- W2의 `gold_weather_forecast_by_admin_dong`은 목표 grain, 최신 `issued_at` 선택, stale extra 양방향 reconciliation, explicit cutoff no-downgrade repair를 선언하고 구현한다.
+- 이 Gold는 실행 시점 latest canonical 행정동 차원에서 다섯 필드를 stamp하고 `admin_dong_revision_date`로 명시적 revision stamp를 남긴다. 현재 bridge v1 427개 후보 중 최신 정본과 결합되는 공간축은 425개 코드이며 426개 전체 coverage를 주장하지 않는다.
 - selector ordering과 failure injection에서 Silver/Gold 0건·`upstream_failed`를 증명하는 실행 차단은 A1이 소유한다.
-- local declaration/static PASS는 catalog column/type/order 또는 실제 데이터 정합성 PASS를 뜻하지 않는다.
+- `contract_status: dev_pending`과 `exposure_status: none_no_live_consumer`를 유지하며 local declaration/static PASS는 catalog column/type/order 또는 실제 데이터 정합성 PASS를 뜻하지 않는다.
 
-따라서 위 Weather shape는 여전히 목표 public 계약이다. W1 candidate 구현을 public Gold,
-physical/data proof, repair 또는 DAG 운영 완료로 표현하지 않는다.
+따라서 W2 선언과 SQL 구현을 physical/data proof 또는 DAG 운영 완료로 표현하지 않는다.
+승인된 DEV catalog 비교와 scoped data test 및 같은 cutoff 두 번째 실행의 convergence가 모두
+확인되기 전에는 `dev_pending`을 `enforced`로 승격하지 않는다.
 
 
 ## 8. 공통 공간축과 reconciliation
@@ -535,7 +537,7 @@ mkdir -p target/contracts
 python3 domains/weather/contracts/scripts/lint_schema_contract_source.py \
   --schema-root domains/weather/models/schema.yml \
   --schema-root domains/weather/models/sources.yml \
-  --resource gold_weather_forecast_by_place \
+  --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --output target/contracts/weather-source-declaration.json
 ```
@@ -559,7 +561,7 @@ source report는 가능한 오류를 `file`, `resource_kind`, `resource_name`, `
 ```bash
 python3 domains/weather/contracts/scripts/validate_public_gold_manifest.py \
   --manifest target/manifest.json \
-  --resource gold_weather_forecast_by_place \
+  --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --output target/contracts/public-gold-declared-catalog.json
 ```
@@ -586,7 +588,7 @@ fixture 비교는 물리 증거로 승격하지 않는다.
 python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
-  --resource gold_weather_forecast_by_place \
+  --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --evidence-kind fixture \
   --output target/contracts/weather-fixture-comparison.json
@@ -598,7 +600,7 @@ python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
 python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
-  --resource gold_weather_forecast_by_place \
+  --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --evidence-kind approved_dev_catalog \
   --evidence-id "$APPROVED_DEV_EVIDENCE_ID" \

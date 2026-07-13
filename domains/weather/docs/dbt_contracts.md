@@ -14,6 +14,7 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 - Observation Silver candidate: `silver_kma_vilage_fcst_observation`
 - Native Grid Silver candidate: `silver_kma_vilage_fcst_grid`
 - Canonical bridge candidate: `bridge_weather_admin_dong_grid`
+- Canonical public Gold: `gold_weather_forecast_by_admin_dong`
 - Admin-dong Silver model: `silver_weather_forecast_by_admin_dong`
 - Gold model: `gold_weather_forecast_summary`
 - Place dimension: `dim_weather_place`
@@ -221,6 +222,70 @@ isolated candidate guard를 통과해야 실행된다. item identity는 독립 k
 추가했지만 physical/data smoke와 두 번 실행 convergence는 별도 DEV run 승인이 있기 전까지
 `NOT_RUN`이다.
 
+## W2 canonical public Gold 및 bounded repair
+
+`gold_weather_forecast_by_admin_dong`은 다른 도메인이 공통 행정동 코드로 조인할 수 있는
+additive 공개 producer다. natural grain은 다음 세 컬럼이다.
+
+```text
+admin_dong_code × forecast_at × category
+```
+
+공간축은 `silver_kma_vilage_fcst_grid`, 명시적
+`weather_admin_dong_grid_bridge_v1`, 실행 시점 최신 `asac_axes.dim_admin_dong`의
+교집합이다. 정본의 `admin_dong_code`, `admin_dong`, `gu_code`, `gu`, `revision_date`를
+직접 가져오고 `revision_date`는 `admin_dong_revision_date`로 명시적 stamp한다. 현재 DEV
+근거는 bridge v1 427개 후보 중 최신 정본과 결합되는 425개 코드다. legacy 신설동·용두동
+후보는 결합되지 않고 최신 용신동에는 v1 후보가 없으므로 서울 최신 426개 행정동 전체
+coverage로 해석하지 않는다.
+
+같은 natural grain의 승자는 아래 prefix와 안정적인 terminal tie-break를 사용한다.
+
+```text
+issued_at desc, collected_at desc, raw_object_key desc, request_id desc
+```
+
+평시 증분은 30분 inclusive lookback을 유지한다. 최신 정본의 설명 stamp가 달라진 기존
+target 행은 예보·값·raw lineage를 그대로 보존하면서 최신 canonical 설명과 revision만
+다시 stamp한다. 값 컬럼은 category별 단위가 달라 공통 metric으로 선언하지 않으며,
+`value_representation`과 `value_num`·bounds·`qualitative_code`를 함께 해석한다.
+
+공유 DEV repair는 아래 네 변수를 모두 같은 실행에 전달한다.
+
+```text
+weather_w2_repair_mode=bounded_reconcile
+weather_w2_repair_start_at=YYYY-MM-DD HH:MM:SS.ffffff
+weather_w2_publishable_cutoff_at=YYYY-MM-DD HH:MM:SS.ffffff
+weather_w2_bridge_version=weather_admin_dong_grid_bridge_v1
+```
+
+시각은 서울 기준 timestamp(6)이고 `start <= cutoff`, 최대 24시간, 미래 cutoff 금지를
+모두 만족해야 한다. 실행 위치는 `dev/iceberg_dev/weather`로 제한하며 partial var,
+다른 bridge 버전, 다른 catalog/schema, prod, `--full-refresh`는 DML 전에 실패한다.
+cutoff 이전의 manifest 상태를 `(source_id, dag_run_id)`별로 먼저 최신화한 다음
+`SUCCESS`와 `is_publishable=true`를 적용한다. 최신 정렬키가 같은 상태가 repair window에
+둘 이상이면 임의로 성공을 고르지 않고 실패한다.
+
+각 anchor는 다음 evidence를 DML 전에 증명한다.
+
+- `expected_rows = actual_rows > 0`
+- `expected_raw_objects = actual_raw_objects > 0`
+- Bronze row 수와 distinct `raw_object_key` 수가 manifest actual 값과 일치
+- repair window 안 eligible anchor와 expected Gold 행이 각각 1개 이상 존재
+
+W1 observation·Grid, bridge table, bridge seed, Gold를 개별 selector로 실행해도 같은
+evidence gate를 우회할 수 없다. Gold incremental은 temp의 null·duplicate grain과 target
+duplicate grain을 먼저 검사한 뒤 한 개의 Iceberg `MERGE`에서 bounded stale delete와 upsert를
+처리한다. repair 후보가 target보다 오래되면 forecast·value·mapping·run/raw/request lineage는
+target 값을 유지하고 최신 canonical 설명과 revision stamp만 갱신한다. 같은 cutoff의 두 번째
+실행은 row 수·grain·winner·stamp·fingerprint가 바뀌지 않아야 한다.
+
+A1은 cutoff 캡처와 네 변수 전달, writer 직렬화, seed→bridge→observation→Grid→Gold→test
+순서, retry/callback, failure injection, 운영 rollout을 소유한다. W2 SQL의 no-downgrade는
+동시 writer 직렬화를 대신하지 않는다. DEV 실행 기록에는 DAG run id, cutoff, 성공·실패
+task, manifest/Bronze evidence count, 생성 relation, 최종 row count, 425축 reconciliation,
+두 번째 실행 fingerprint를 남긴다.
+
 ## Gold contract
 
 `gold_weather_forecast_summary`는 source-level 요약 모델이다.
@@ -274,6 +339,7 @@ weather dbt PR 본문에는 최소한 아래를 남긴다.
 - Target table: `iceberg_dev.weather.gold_weather_forecast_summary`
 - Target table: `iceberg_dev.weather.dim_weather_place`
 - Target table: `iceberg_dev.weather.gold_weather_forecast_by_place`
+- Target table: `iceberg_dev.weather.gold_weather_forecast_by_admin_dong`
 - Event time 컬럼: `forecast_at`
 - Common event time 컬럼: `event_at`
 - Issued time 컬럼: `issued_at`
