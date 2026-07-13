@@ -6,6 +6,7 @@ profile: traffic
 
 flags:
   require_certificate_validation: true
+  static_parser: false
 
 model-paths: ["models"]
 macro-paths: ["macros"]

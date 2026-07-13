@@ -8,6 +8,12 @@ from domains.traffic.contracts.scripts.validate_singular_test_dependency_manifes
 TRAFFIC_DIR = Path(__file__).parents[1]
 
 
+def test_dbt_project_disables_static_parser_for_deterministic_dependency_edges():
+    project = (TRAFFIC_DIR / "dbt_project.yml").read_text(encoding="utf-8")
+
+    assert "static_parser: false" in project
+
+
 def test_current_model_requires_transform_pinned_publishable_manifest_run():
     sql = (TRAFFIC_DIR / "models/silver/silver_seoul_traffic_incident_current.sql").read_text()
     assert "var('traffic_snapshot_dag_run_id')" in sql
