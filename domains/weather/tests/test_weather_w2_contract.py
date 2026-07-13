@@ -1,10 +1,12 @@
-import hashlib
+import subprocess
 from pathlib import Path
 
 import yaml
 
 
 WEATHER_DIR = Path(__file__).parents[1]
+REPO_DIR = WEATHER_DIR.parents[1]
+BASE_COMMIT = "4e67f0ab9f6e276cfcf8bae77eb460b75d43ca7e"
 
 MODEL_NAME = "gold_weather_forecast_by_admin_dong"
 BRIDGE_VERSION = "weather_admin_dong_grid_bridge_v1"
@@ -65,28 +67,41 @@ def model_contract() -> dict:
     return next(model for model in schema["models"] if model["name"] == MODEL_NAME)
 
 
+def git_blob(revision: str, relative_path: str) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", f"{revision}:{relative_path}"],
+        cwd=REPO_DIR,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 def test_legacy_compatibility_sql_remains_byte_identical():
     expected = {
         "models/silver/silver_kma_vilage_fcst.sql": (
-            "890e1f938ffe47f010f023aff24e579a99c93a5184b79a7b05bde75ba83b18cb"
+            "ff327bccb7d88072c6364511eaee27a1dae7fdf2"
         ),
         "models/silver/silver_weather_forecast_by_admin_dong.sql": (
-            "66dcd5b4a3fa50f66ff74d295ff007c53de4bb98a00242a331731a5585f7bbbb"
+            "63c0de6b758ea02c9687c289472a18ca93854aca"
         ),
         "models/gold/dim_weather_place.sql": (
-            "eba54dedea0fd686d346b1cbcb6465651fc2d7503ec3dcd9fb64c5fa4698157f"
+            "42f13fc04b38df096c308e07cb636342e13e89c4"
         ),
         "models/gold/gold_weather_forecast_by_place.sql": (
-            "31465a74b03bb5058e8951cfb5922d99c23ffe3519fc2c4728712c7678dfda87"
+            "2549cfe5a0369ea0ac2fcb0bec5b59bae07d93e8"
         ),
     }
-    for relative_path, expected_hash in expected.items():
-        payload = (WEATHER_DIR / relative_path).read_bytes().replace(b"\r\n", b"\n")
-        assert hashlib.sha256(payload).hexdigest() == expected_hash
+    for weather_relative_path, expected_blob in expected.items():
+        repo_relative_path = f"domains/weather/{weather_relative_path}"
+        assert git_blob(BASE_COMMIT, repo_relative_path) == expected_blob
+        assert git_blob("HEAD", repo_relative_path) == expected_blob
 
 
 def test_repair_inputs_and_shared_dev_guard_fail_closed():
-    macro = compact(read("macros/weather_w2_contract.sql"))
+    raw_macro = read("macros/weather_w2_contract.sql")
+    macro = compact(raw_macro)
     for token in (
         "weather_w2_repair_mode",
         "bounded_reconcile",
@@ -104,7 +119,18 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed():
     ):
         assert token in macro
     assert "target.name != 'dev'" in macro or "target.name == 'dev'" in macro
-    assert "start" in macro and "cutoff" in macro
+    assert "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}$" in raw_macro
+    for condition in (
+        "raw_start is none",
+        "raw_cutoff is none",
+        "raw_bridge_version is none",
+        "start_at > cutoff_at",
+        "date_diff('hour', start_at, cutoff_at) > 24",
+        "cutoff_at > current_timestamp",
+        "target.database != 'iceberg_dev'",
+        "target.schema != 'weather'",
+    ):
+        assert condition in macro
 
     w1_macro = compact(read("macros/weather_v2_contract.sql"))
     assert "bounded_isolated_smoke" in w1_macro
@@ -126,11 +152,24 @@ def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze():
         "actual_raw_objects",
         "count(distinct raw_object_key)",
         "bronze_kma_vilage_fcst",
+        "partition by cast(source_id as varchar), cast(dag_run_id as varchar)",
+        "where manifest_row_num = 1",
+        "manifest_published_at >= start_at",
+        "manifest_published_at <= cutoff_at",
+        "expected_rows = actual_rows",
+        "expected_rows > 0",
+        "expected_raw_objects = actual_raw_objects",
+        "expected_raw_objects > 0",
+        "anchor_count = 0",
     ):
         assert token in macro
-    ranked = macro.index("row_number() over")
-    publishable_filter = macro.index("is_publishable", ranked)
-    assert ranked < publishable_filter
+    cutoff_filter = macro.index("event_at <= cutoff_at")
+    ranked = macro.index("row_number() over", cutoff_filter)
+    latest_filter = macro.index("where manifest_row_num = 1", ranked)
+    success_filter = macro.index("manifest_status = 'success'", latest_filter)
+    publishable_filter = macro.index("is_publishable", latest_filter)
+    assert cutoff_filter < ranked < latest_filter < success_filter
+    assert latest_filter < publishable_filter
 
 
 def test_w1_keeps_normal_lookback_and_adds_bounded_repair_no_downgrade():
@@ -162,8 +201,26 @@ def test_custom_strategy_is_one_atomic_merge_with_bounded_delete_and_no_downgrad
     assert "weather_w2_publishable_cutoff_at" in strategy
     assert "is distinct from" in strategy
     assert "weather_w2_gold_winner_is_not_older" in strategy
-    assert "count(*)" in strategy
-    assert "group by admin_dong_code, forecast_at, category" in strategy
+    for preflight in (
+        "in_window_expected_count = 0",
+        "admin_dong_code is null",
+        "forecast_at is null",
+        "category is null",
+        "group by admin_dong_code, forecast_at, category",
+        "target_duplicate_count > 0",
+    ):
+        assert preflight in strategy
+    assert "{% if weather_w2_is_repair() %}" in strategy
+    assert "dbt_internal_dest.published_at >= start_at" in strategy
+    assert "dbt_internal_dest.published_at <= cutoff_at" in strategy
+    assert "not exists ( select 1 from" in strategy
+    for key in ("admin_dong_code", "forecast_at", "category"):
+        assert f"dbt_internal_expected.{key} = dbt_internal_dest.{key}" in strategy
+    assert "when matched and dbt_internal_source.__w2_delete then delete" in strategy
+    assert "case when" in strategy
+    assert "dbt_internal_source.admin_dong_revision_date" in strategy
+    assert "dbt_internal_dest.raw_object_key" in strategy
+    assert "dbt_internal_dest.request_id" in strategy
     assert "when matched" in strategy
     delete_clause = strategy.index("then delete")
     update_clause = strategy.index("then update")
@@ -194,8 +251,13 @@ def test_gold_sql_has_exact_refs_grain_winner_row_id_and_latest_restamp():
         "issued_at desc, collected_at desc, raw_object_key desc, request_id desc"
     )
     assert required_prefix in sql
-    for column in EXPECTED_COLUMNS:
-        assert column in sql
+    expected_row_id = (
+        "concat(admin_dong_code, '|', "
+        "to_iso8601(cast(forecast_at as timestamp(6))), '|', category)"
+    )
+    assert expected_row_id in sql
+    assert "select *" not in sql
+    assert sql.endswith(f"select {', '.join(EXPECTED_COLUMNS)} from product_rows")
 
 
 def test_public_contract_declares_exact_schema_latest_axis_and_truthful_status():
