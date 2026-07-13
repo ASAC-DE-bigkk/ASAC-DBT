@@ -44,7 +44,13 @@ manifest_ranked as (
             order by
                 manifest_event_at_utc desc nulls last,
                 manifest_status desc nulls last,
-                is_publishable desc nulls last
+                is_publishable desc nulls last,
+                expected_rows desc nulls last,
+                actual_rows desc nulls last,
+                expected_raw_objects desc nulls last,
+                actual_raw_objects desc nulls last,
+                failure_reason desc nulls last,
+                manifest_dag_run_id desc nulls last
         ) as manifest_row_num,
         count(*) over (partition by manifest_event_at_utc) as manifest_latest_tie_count
     from manifest_candidates

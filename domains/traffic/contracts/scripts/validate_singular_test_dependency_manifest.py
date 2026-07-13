@@ -18,6 +18,9 @@ REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES = {
     "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql": (
         "gold_traffic_incident_current_by_admin_dong_hourly",
     ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
     "assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql": (
         "silver_seoul_traffic_incident_current",
         "gold_traffic_incident_current_by_admin_dong_hourly",
@@ -26,6 +29,9 @@ REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES = {
         "gold_traffic_incident_current_by_admin_dong_hourly",
     ),
     "assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_product_row_id_reproducible.sql": (
         "gold_traffic_incident_current_by_admin_dong_hourly",
     ),
     "assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql": (
@@ -47,6 +53,24 @@ REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES = {
     ),
     "assert_traffic_current_pinned_publishable_run.sql": (
         "silver_seoul_traffic_incident_current",
+    ),
+}
+
+REQUIRED_SINGULAR_TEST_EXTERNAL_MODEL_DEPENDENCIES = {
+    "assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql": (
+        "model.asac_axes.dim_admin_dong",
     ),
 }
 
@@ -77,7 +101,7 @@ def _dependency_error(filename: str, expected: list[str], actual: object, detail
 
 
 def validate_manifest(manifest: object) -> None:
-    """Fail unless every required singular test has exactly its traffic model edges."""
+    """Validate exact Traffic edges and required external-model subsets."""
     if not isinstance(manifest, Mapping):
         raise ManifestDependencyError("manifest: expected an object with a nodes mapping")
 
@@ -111,6 +135,31 @@ def validate_manifest(manifest: object) -> None:
         )
         if set(actual) != set(expected):
             raise _dependency_error(filename, sorted(expected), actual, "traffic model dependencies differ")
+
+        required_external = REQUIRED_SINGULAR_TEST_EXTERNAL_MODEL_DEPENDENCIES.get(
+            filename,
+            (),
+        )
+        dependency_node_ids = {
+            node_id for node_id in dependency_nodes if isinstance(node_id, str)
+        }
+        missing_external = sorted(set(required_external) - dependency_node_ids)
+        if missing_external:
+            actual_external = sorted(
+                {
+                    node_id
+                    for node_id in dependency_nodes
+                    if isinstance(node_id, str)
+                    and node_id.startswith("model.")
+                    and not node_id.startswith("model.traffic.")
+                }
+            )
+            raise _dependency_error(
+                filename,
+                sorted(required_external),
+                actual_external,
+                f"required external model dependencies missing {missing_external}",
+            )
 
 
 def _argument_parser() -> argparse.ArgumentParser:

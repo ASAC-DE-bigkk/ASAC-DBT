@@ -25,7 +25,9 @@
 - Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_grain_unique.sql`
 - Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql`
 - Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql`
+- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql`
 - Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql`
+- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_product_row_id_reproducible.sql`
 - Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_zero_requires_complete.sql`
 - Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql`
 - Modify: `domains/traffic/contracts/scripts/validate_singular_test_dependency_manifest.py`
@@ -56,13 +58,50 @@ Expected: FAIL because the model does not exist.
 
 - [ ] **Step 3: Add singular SQL gates and validator mappings**
 
-Each test returns violation rows and declares its model refs in `-- depends_on`. The graph validator must expect the new Gold and current model edges; canonical tests also depend on `model.asac_axes.dim_admin_dong` through SQL.
+Each test returns violation rows and declares its model refs in `-- depends_on`. Snapshot reconciliation independently reads the pinned manifest, request audit, Bronze IDs, current relation, and canonical dim; it derives the expected state/evidence rather than trusting Gold's own state. The graph validator requires the exact Traffic-model edge set and separately requires `model.asac_axes.dim_admin_dong` as a subset edge for canonical tests while allowing other source/external nodes.
 
 - [ ] **Step 4: Run graph RED**
 
-Run: `dbt parse --target dev --no-partial-parse --vars '{"traffic_snapshot_dag_run_id":"contract-red"}'`
+Run:
 
-Expected: FAIL because the referenced Gold model is absent.
+```text
+dbt parse --target dev --no-partial-parse --target-path target/contract-red --vars '{"traffic_snapshot_dag_run_id":"contract-red"}'
+python contracts/scripts/validate_singular_test_dependency_manifest.py --manifest target/contract-red/manifest.json
+```
+
+Expected: bare `dbt parse` may warn about the absent Gold ref and still exit 0. The manifest dependency validator is the graph RED assertion and must exit nonzero because the required singular-test node/edges cannot be present until the Gold model exists.
+
+Observed in an isolated scheduler `/tmp` copy on 2026-07-14 (no relation run/query):
+
+```text
+dbt deps
+exit 0 — Installed from <local @ ../../packages/asac_axes>
+
+dbt parse ... --target-path target/contract-red-final-review3
+exit 0 — WARNING: ... depends on a node named
+'gold_traffic_incident_current_by_admin_dong_hourly' ... which was not found
+
+python contracts/scripts/validate_singular_test_dependency_manifest.py \
+  --manifest target/contract-red-final-review3/manifest.json
+exit 1 — ERROR: assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql:
+traffic model dependencies differ; expected
+['model.traffic.gold_traffic_incident_current_by_admin_dong_hourly']; actual []
+
+isolated static model-existence contract
+exit 1 — missing canonical Gold model
+
+Trino 482 empty-current scalar aggregate probe
+1 evidence row, 0 row-level mismatches
+
+scoped local pytest
+27 passed
+
+after adding the current Gold model to the same isolated copy
+dbt parse + dependency validator: exit 0 / PASS
+dbt compile --no-populate-cache --no-introspect \
+  --select assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles
+exit 0 — compiled without relation execution
+```
 
 ### Task 2: Minimal canonical Gold implementation
 
@@ -80,22 +119,36 @@ Add `expected_rows`, `actual_rows`, `expected_raw_objects`, `actual_raw_objects`
 
 - [ ] **Step 2: Implement state selection**
 
-Use the ordered predicate below before any count coalesce:
+Independently derive the following evidence before any count coalesce:
+
+- latest manifest event count and tie count;
+- request count, HTTP/result failures, audited rows, reported total, max page end, raw-object parity;
+- valid Bronze incident IDs and current bidirectional/null/duplicate/wrong-run/wrong-source differences;
+- canonical dim nonempty/non-null/unique contract and unmapped current incidents.
+
+Use the ordered predicate below:
 
 ```sql
 case
-  when manifest_dag_run_id is null or audit_request_count = 0 then 'missing'
-  when api_failure_count > 0 then 'api_failure'
-  when not (status = 'SUCCESS' and is_publishable) then 'partial'
-  when expected_rows is distinct from actual_rows then 'partial'
-  when expected_raw_objects is distinct from actual_raw_objects then 'partial'
-  when audited_row_count is distinct from expected_rows then 'partial'
-  when missing_current_count > 0 or extra_current_count > 0 then 'current_mismatch'
-  when unmapped_incident_count > 0 then 'spatial_mapping_incomplete'
-  when expected_rows = 0 then 'complete_zero'
+  when manifest_event_count = 0 then 'missing'
+  when latest_manifest_event_count <> 1 then 'partial'
+  when clear_api_failure_count > 0 then 'api_failure'
+  when terminal_non_api_failure_count > 0 then 'partial'
+  when audit_request_count = 0 then 'missing'
+  when parity_failure_count > 0 then 'partial'
+  when current_mismatch_count > 0 then 'current_mismatch'
+  when canonical_failure_count > 0 or unmapped_incident_count > 0
+    then 'spatial_mapping_incomplete'
+  when expected_incident_count = 0 then 'complete_zero'
   else 'complete'
 end as quality_state
 ```
+
+`clear_api_failure_count`는 audit HTTP/result failure 또는 latest manifest의 정확한 `HttpProblemError in land_seoul_traffic_raw` / `ParseError in land_seoul_traffic_raw`만 포함한다. terminal failure 판정에서는 `nullif(trim(coalesce(failure_reason, '')), '')`로 빈 문자열을 실패에서 제외한다. 현재 DAG `failure_reason`은 예외 class와 task만 저장하고 일부 TOPIS result/pagination/parse 실패를 모두 `RuntimeError`로 기록하므로, ambiguous `RuntimeError`는 `api_failure`로 추정하지 않고 `partial`로 둔다. 정확한 API 분류에는 ASAC-DAG가 redacted `failure_kind`를 구조화해 manifest에 추가하는 후속 계약이 필요하다.
+
+latest manifest tie는 항상 `partial`이지만, 게시 evidence는 모델과 같은 `event_at`, `status`, `is_publishable`, `expected_rows`, `actual_rows`, `expected_raw_objects`, `actual_raw_objects`, `failure_reason`, `dag_run_id`의 `DESC NULLS LAST` 순위 첫 행에서 결정한다. 모든 게시 evidence가 같을 때만 선택 결과도 같으므로 모델과 oracle이 동일한 deterministic tie-break를 유지한다. audit parity는 `request_params_json`, `payload_hash`, `result_msg`, `load_date`, `dag_run_id` 필수값, positive `start_index`, page range, duplicate `(start_index, end_index)`까지 독립 검사한다.
+
+모든 Gold row는 selected latest manifest의 nullable `expected_rows`를 `expected_incident_count`로, audit `row_count` 합계를 `audited_row_count`로, audit 최대 `end_index`를 `max_page_end_index`로, deterministic dedup current가 canonical dim에 exact join되지 않은 행 수를 `unmapped_incident_count`로 동일하게 게시한다. raw current의 null/duplicate/run/source mismatch 검사는 별도로 유지한다. 정상 unique latest에서는 이 값이 곧 unique latest manifest evidence다. `snapshot_as_of_at`은 `complete|complete_zero`에서만 audit의 최신 `collected_at`을 UTC에서 KST로 변환해 게시하고, 나머지 상태에서는 null이다. `status_observed_at`은 manifest event KST 또는 manifest가 없을 때 공통 `published_at`이고, `hour_at`은 그 값의 hour truncation이며 모든 Gold row가 동일한 non-null `published_at`/`hour_at` 한 값을 가져야 한다. current mismatch 증거는 `GROUP BY` 없는 scalar aggregate로 계산하여 current가 비어 있어도 정확히 1행을 유지하고, cross join 양쪽의 동명 컬럼은 relation-qualified reference만 사용한다.
 
 - [ ] **Step 3: Scaffold and publish counts**
 
