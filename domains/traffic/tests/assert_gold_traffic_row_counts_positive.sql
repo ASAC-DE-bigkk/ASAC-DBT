@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('gold_traffic_incident_summary') }}
 select 'gold_traffic_incident_summary_empty' as failure_reason
 where not exists (
     select 1

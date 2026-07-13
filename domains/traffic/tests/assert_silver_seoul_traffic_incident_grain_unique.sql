@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('silver_seoul_traffic_incident') }}
 select
     source_record_id,
     count(*) as row_count

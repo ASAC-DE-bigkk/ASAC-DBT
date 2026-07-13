@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('silver_seoul_traffic_incident_current') }}
 {% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}
 
 with publishable_runs as (

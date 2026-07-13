@@ -1,3 +1,5 @@
+-- depends_on: {{ ref('silver_seoul_traffic_incident_current') }}
+-- depends_on: {{ ref('gold_traffic_incident_summary') }}
 with silver_counts as (
     select
         source_id,
