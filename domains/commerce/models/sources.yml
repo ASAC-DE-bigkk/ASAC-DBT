@@ -32,7 +32,12 @@ sources:
             tests:
               - not_null
           - name: content_hash
-            description: 키 정렬 canonical JSON sha256(내용 동일성/변경 감지).
+            description: >
+              키 정렬 canonical JSON sha256(내용 동일성/변경 감지). **좌표(v1 X/Y·v2 XCRD/YCRD)
+              제외** — LOCALDATA 가 UPDATEDT 갱신 없이 좌표만 채우는 배치가 있어, 좌표 포함 시
+              무변경 재수집이 변경으로 오판돼 silver/gold 재적재를 유발(dags change-log #63).
+              파생컬럼(행정동/법정동/위경도)은 raw 에 없어 해시와 무관. record_json 은 좌표 포함
+              원본 그대로 보존. 정의: dags include/bronze/warehouse.py content_hash_input.
             tests:
               - not_null
           - name: observed_date

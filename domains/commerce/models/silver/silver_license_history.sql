@@ -297,6 +297,9 @@ ordered as (
 
 -- 연속(인접) 중복만 제거 → diff 재유입/reconcile 재방출은 걸러내고 정당한 원복(A→B→A)은 보존.
 -- 동일 content 재방출은 UPDATEDT/LASTMODTS 도 동일(해시가 두 필드를 포함)이라 항상 인접 정렬된다.
+-- content_hash 는 **좌표(X/Y·XCRD/YCRD) 제외** 해시(bronze warehouse.content_hash_input) —
+-- LOCALDATA 가 UPDATEDT 갱신 없이 좌표만 채우는 배치로 재방출해도 여기서 인접 중복으로 제거된다
+-- (파생컬럼(행정동/법정동/위경도)은 raw 에 없어 해시와 무관 — dags change-log #63).
 deduped as (
     select *
     from ordered
