@@ -7,8 +7,8 @@ sources:
     schema: "{{ env_var('ASK_SEOUL_SCHEMA', 'ask_seoul') }}"
     loaded_at_field: collected_at
     freshness:
-      warn_after: {count: 30, period: hour}
-      error_after: {count: 48, period: hour}
+      warn_after: {count: 4, period: hour}
+      error_after: {count: 6, period: hour}
     tables:
       - name: kma_vilage_fcst
         identifier: bronze_kma_vilage_fcst
