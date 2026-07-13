@@ -172,7 +172,7 @@ artifact가 재사용되면 manifest graph가 잘못 생성될 수 있다. 따�
 dbt deps
 dbt parse --no-partial-parse --target-path <fresh-target> \
   --vars '{"traffic_snapshot_dag_run_id":"<publishable-run-id>"}'
-python domains/traffic/contracts/scripts/validate_singular_test_dependency_manifest.py \
+python contracts/scripts/validate_singular_test_dependency_manifest.py \
   --manifest <fresh-target>/manifest.json
 dbt test --select gold_traffic_incident_summary \
   assert_gold_traffic_counts_match_silver \
