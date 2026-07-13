@@ -20,6 +20,18 @@ def test_history_model_uses_transform_pinned_publishable_manifest_run():
     assert "var('traffic_snapshot_dag_run_id')" in sql
 
 
+def test_silver_models_declare_conditional_model_dependencies():
+    history_sql = (
+        TRAFFIC_DIR / "models/silver/silver_seoul_traffic_incident.sql"
+    ).read_text(encoding="utf-8")
+    current_sql = (
+        TRAFFIC_DIR / "models/silver/silver_seoul_traffic_incident_current.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_boundary') }}" in history_sql
+    assert "-- depends_on: {{ ref('silver_seoul_traffic_incident') }}" in current_sql
+
+
 def test_history_latest_record_contract_uses_the_same_transform_pinned_run():
     sql = (
         TRAFFIC_DIR / "tests/assert_silver_traffic_latest_publishable_record.sql"
