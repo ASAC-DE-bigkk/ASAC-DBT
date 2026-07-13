@@ -1,4 +1,7 @@
--- W2 public Gold: latest canonical admin-dong forecast at product grain.
+-- W2 public Gold: latest forecast at product grain stamped by an approved canonical revision.
+-- depends_on: {{ ref('bridge_weather_admin_dong_grid') }}
+-- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
+-- depends_on: {{ ref('silver_kma_vilage_fcst_grid') }}
 {{ config(
     materialized='incremental',
     incremental_strategy='weather_w2_reconcile',
@@ -9,6 +12,8 @@
     full_refresh=false,
 ) }}
 
+{{ weather_w2_assert_gold_dev_target() }}
+{% set canonical_contract = weather_w2_canonical_contract() %}
 {{ weather_w2_gold_initial_build_guard() }}
 {{ weather_w2_assert_repair_evidence() }}
 {{ weather_w2_assert_gold_source_contract() }}
@@ -21,6 +26,7 @@ with canonical as (
         cast(gu as varchar) as gu,
         cast(canonical.revision_date as date) as admin_dong_revision_date
     from {{ ref('asac_axes', 'dim_admin_dong') }} as canonical
+    where cast(canonical.revision_date as date) = date '{{ canonical_contract['revision_date'] }}'
 ),
 
 active_bridge as (
@@ -32,6 +38,110 @@ active_bridge as (
     from {{ ref('bridge_weather_admin_dong_grid') }}
     where cast(bridge_version as varchar) = 'weather_admin_dong_grid_bridge_v1'
 ),
+
+canonical_summary as (
+    select
+        count(*) as canonical_row_count,
+        count(distinct admin_dong_code) as canonical_code_count,
+        count(distinct admin_dong_revision_date) as canonical_revision_count,
+        min(admin_dong_revision_date) as min_canonical_revision,
+        max(admin_dong_revision_date) as max_canonical_revision,
+        count_if(
+            admin_dong_code is null
+            or admin_dong is null
+            or gu_code is null
+            or gu is null
+            or admin_dong_revision_date is null
+        ) as canonical_null_count
+    from canonical
+),
+
+active_bridge_summary as (
+    select
+        count(*) as bridge_row_count,
+        count(distinct source_admin_code) as bridge_admin_code_count,
+        count_if(
+            source_admin_code is null
+            or bridge_version is null
+            or nx is null
+            or ny is null
+        ) as bridge_null_count
+    from active_bridge
+),
+
+mapped_canonical_summary as (
+    select
+        count(*) as mapped_canonical_row_count,
+        count(distinct active_bridge.source_admin_code) as mapped_canonical_code_count
+    from active_bridge
+    inner join canonical
+        on active_bridge.source_admin_code = canonical.admin_dong_code
+),
+
+validated_canonical_contract as (
+    select
+        (
+            canonical_summary.canonical_row_count = {{ canonical_contract['canonical_count'] }}
+            and canonical_summary.canonical_code_count = {{ canonical_contract['canonical_count'] }}
+            and canonical_summary.canonical_revision_count = 1
+            and canonical_summary.min_canonical_revision = date '{{ canonical_contract['revision_date'] }}'
+            and canonical_summary.max_canonical_revision = date '{{ canonical_contract['revision_date'] }}'
+            and canonical_summary.canonical_null_count = 0
+            and active_bridge_summary.bridge_row_count = {{ canonical_contract['bridge_count'] }}
+            and active_bridge_summary.bridge_admin_code_count = {{ canonical_contract['bridge_count'] }}
+            and active_bridge_summary.bridge_null_count = 0
+            and mapped_canonical_summary.mapped_canonical_row_count = {{ canonical_contract['mapped_canonical_count'] }}
+            and mapped_canonical_summary.mapped_canonical_code_count = {{ canonical_contract['mapped_canonical_count'] }}
+        ) as canonical_contract_guard
+    from canonical_summary
+    cross join active_bridge_summary
+    cross join mapped_canonical_summary
+),
+
+canonical_contract_failure_rows as (
+    select
+        cast(
+            if(
+                canonical_contract_guard,
+                cast(null as integer),
+                1 / cast(0 as integer)
+            ) as varchar
+        ) as product_row_id,
+        cast(null as varchar) as admin_dong_code,
+        cast(null as timestamp(6)) as forecast_at,
+        cast(null as varchar) as category,
+        cast(null as varchar) as admin_dong,
+        cast(null as varchar) as gu_code,
+        cast(null as varchar) as gu,
+        cast(null as date) as admin_dong_revision_date,
+        cast(null as varchar) as bridge_version,
+        cast(null as integer) as nx,
+        cast(null as integer) as ny,
+        cast(null as varchar) as source_grid_place_id,
+        cast(null as timestamp(6)) as issued_at,
+        cast(null as timestamp(6)) as collected_at,
+        cast(null as timestamp(6)) as published_at,
+        cast(null as varchar) as fcst_value_raw,
+        cast(null as double) as fcst_value_num,
+        cast(null as varchar) as value_representation,
+        cast(null as double) as value_num,
+        cast(null as double) as value_lower_bound,
+        cast(null as double) as value_upper_bound,
+        cast(null as varchar) as qualitative_code,
+        cast(null as bigint) as forecast_lead_hours,
+        cast(null as varchar) as source_id,
+        cast(null as varchar) as dag_run_id,
+        cast(null as varchar) as raw_object_key,
+        cast(null as varchar) as request_id
+    from validated_canonical_contract
+    where not canonical_contract_guard
+),
+
+{% if weather_w2_is_repair() %}
+eligible_manifest_anchors as (
+    {{ weather_w2_latest_publishable_anchors_sql() }}
+),
+{% endif %}
 
 grid_candidates as (
     select
@@ -55,10 +165,13 @@ grid_candidates as (
         cast(selected_dag_run_id as varchar) as dag_run_id,
         cast(raw_object_key as varchar) as raw_object_key,
         cast(request_id as varchar) as request_id
-    from {{ ref('silver_kma_vilage_fcst_grid') }}
+    from {{ ref('silver_kma_vilage_fcst_grid') }} as grid
     {% if weather_w2_is_repair() %}
-    where published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
-      and published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+    inner join eligible_manifest_anchors as anchor
+        on cast(grid.source_id as varchar) = anchor.anchor_source_id
+       and cast(grid.selected_dag_run_id as varchar) = anchor.anchor_dag_run_id
+    where grid.published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
+      and grid.published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
     {% elif is_incremental() %}
     where collected_at >= (
         select
@@ -103,6 +216,8 @@ joined_candidates as (
        and grid_candidates.ny = active_bridge.ny
     inner join canonical
         on active_bridge.source_admin_code = canonical.admin_dong_code
+    cross join validated_canonical_contract
+    where validated_canonical_contract.canonical_contract_guard
 ),
 
 ranked_candidates as (
@@ -183,7 +298,7 @@ expected_rows as (
 
 {% if is_incremental() %}
 ,
-restamp_rows as (
+canonical_retained_rows as (
     select
         target.product_row_id,
         target.admin_dong_code,
@@ -215,12 +330,8 @@ restamp_rows as (
     from {{ this }} as target
     inner join canonical
         on target.admin_dong_code = canonical.admin_dong_code
-    where (
-        target.admin_dong is distinct from canonical.admin_dong
-        or target.gu_code is distinct from canonical.gu_code
-        or target.gu is distinct from canonical.gu
-        or target.admin_dong_revision_date is distinct from canonical.admin_dong_revision_date
-    )
+    cross join validated_canonical_contract
+    where validated_canonical_contract.canonical_contract_guard
     {% if weather_w2_is_repair() %}
       and not (
           target.published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
@@ -297,7 +408,7 @@ product_rows as (
         dag_run_id,
         raw_object_key,
         request_id
-    from restamp_rows
+    from canonical_retained_rows
     {% endif %}
 )
 
@@ -330,3 +441,33 @@ select
     raw_object_key,
     request_id
 from product_rows
+union all
+select
+    product_row_id,
+    admin_dong_code,
+    forecast_at,
+    category,
+    admin_dong,
+    gu_code,
+    gu,
+    admin_dong_revision_date,
+    bridge_version,
+    nx,
+    ny,
+    source_grid_place_id,
+    issued_at,
+    collected_at,
+    published_at,
+    fcst_value_raw,
+    fcst_value_num,
+    value_representation,
+    value_num,
+    value_lower_bound,
+    value_upper_bound,
+    qualitative_code,
+    forecast_lead_hours,
+    source_id,
+    dag_run_id,
+    raw_object_key,
+    request_id
+from canonical_contract_failure_rows

@@ -1,4 +1,6 @@
 -- W1 native Grid: eligible observation 중 결정적으로 선택된 KMA 예보 사실 한 행.
+-- depends_on: {{ ref('silver_kma_vilage_fcst_observation') }}
+-- depends_on: {{ source('weather_bronze', 'collection_run_manifest') }}
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
@@ -12,15 +14,26 @@
 {{ weather_w1_initial_build_guard() }}
 {{ weather_w2_assert_repair_evidence() }}
 
-with eligible as (
-    select *
-    from {{ ref('silver_kma_vilage_fcst_observation') }}
-    where grid_eligibility_state = 'eligible'
+with
+{% if weather_w2_is_repair() %}
+eligible_manifest_anchors as (
+    {{ weather_w2_latest_publishable_anchors_sql() }}
+),
+{% endif %}
+eligible as (
+    select observation.*
+    from {{ ref('silver_kma_vilage_fcst_observation') }} as observation
     {% if weather_w2_is_repair() %}
-      and published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
-      and published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+    inner join eligible_manifest_anchors as anchor
+        on observation.source_id = anchor.anchor_source_id
+       and observation.dag_run_id = anchor.anchor_dag_run_id
+    {% endif %}
+    where observation.grid_eligibility_state = 'eligible'
+    {% if weather_w2_is_repair() %}
+      and observation.published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
+      and observation.published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
     {% elif is_incremental() %}
-      and collected_at >= (
+      and observation.collected_at >= (
           select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00')
                  - interval '{{ weather_w1_lookback_minutes() }}' minute
           from {{ this }}
@@ -85,11 +98,19 @@ from selected as candidate
 where not exists (
     select 1
     from {{ this }} as current
+    left join eligible_manifest_anchors as current_anchor
+        on current.source_id = current_anchor.anchor_source_id
+       and current.selected_dag_run_id = current_anchor.anchor_dag_run_id
     where current.nx = candidate.nx
       and current.ny = candidate.ny
       and current.issued_at = candidate.issued_at
       and current.forecast_at = candidate.forecast_at
       and current.category = candidate.category
       and {{ weather_w2_grid_winner_is_newer('current', 'candidate') }}
+      and not (
+          current.published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
+          and current.published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+          and current_anchor.anchor_source_id is null
+      )
 )
 {% endif %}

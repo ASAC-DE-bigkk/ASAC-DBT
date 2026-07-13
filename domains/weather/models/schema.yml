@@ -548,7 +548,7 @@ models:
       - name: canonical_join_eligible
         description: canonical 다섯 필드를 사용할 수 있는 matched 여부다.
   - name: gold_weather_forecast_by_admin_dong
-    description: 최신 공통 행정동 개정과 명시적 bridge v1을 사용해 행정동·예보시각·항목별 최신 KMA 예보를 게시하는 공개 Gold다.
+    description: 승인된 공통 행정동 revision 2025-04-01과 명시적 bridge v1을 사용해 행정동·예보시각·항목별 최신 KMA 예보를 게시하는 공개 Gold다.
     config:
       meta:
         public_gold:
@@ -567,12 +567,12 @@ models:
             - 교통과 생활인구 지표를 같은 행정동 코드와 예보 대상 시각으로 결합해 날씨 맥락을 비교합니다.
             - 문화와 상권 분석에서 같은 행정동의 항목별 최신 예보 표현을 설명 변수로 사용합니다.
           product_question: 각 공통 행정동과 예보 대상 시각 및 KMA 항목에서 최신 발표가 제공한 예보 표현과 값은 무엇입니까?
-          row_meaning: 명시적 bridge v1과 최신 공통 행정동 개정에 결합된 한 행정동·예보시각·항목의 최신 KMA 예보 한 행입니다.
+          row_meaning: 명시적 bridge v1과 승인된 공통 행정동 revision 2025-04-01에 결합된 한 행정동·예보시각·항목의 최신 KMA 예보 한 행입니다.
           grain: admin_dong_code와 forecast_at 및 category 조합마다 한 행입니다.
-          anchor_universe: 게시 가능한 Grid 예보와 bridge v1 및 최신 공통 행정동 차원이 모두 만나는 행정동만 포함하며 현재 근거는 425개 코드입니다.
+          anchor_universe: bridge v1 427개 코드와 revision 2025-04-01의 canonical 426개 코드가 만나는 425개 코드 중 게시 가능한 Grid 예보가 있는 grain만 포함합니다.
           usage_guidance: 행정동 코드와 예보 대상 시각 및 항목을 함께 사용하고 값은 value_representation과 범위 컬럼을 같이 해석합니다.
-          do_not_use_for: 서울 426개 최신 행정동의 완전 모집단이나 실시간 관측값 또는 개인 위치를 추정하는 데 사용하지 않습니다.
-          semantic_caveats: bridge v1에 없는 용신동과 최신 정본에 결합되지 않는 legacy 후보는 제외되며 행정동 설명 필드는 실행 시점 최신 개정으로 다시 stamp됩니다.
+          do_not_use_for: revision 2025-04-01의 서울 426개 행정동 전체 모집단이나 실시간 관측값 또는 개인 위치를 추정하는 데 사용하지 않습니다.
+          semantic_caveats: bridge v1에 없는 용신동과 승인 revision에 결합되지 않는 legacy 후보는 제외됩니다. weather_w2_canonical_revision_date는 2025-04-01이어야 하고 Gold normal·repair는 dev/iceberg_dev/weather 전용이며 fixed temp writer는 직렬화해야 합니다.
           primary_key:
             - product_row_id
           column_order:
@@ -607,7 +607,7 @@ models:
             canonical_timezone: Asia/Seoul
             freshness_slo: 게시 가능한 최신 KMA 실행을 다음 승인된 증분 실행에서 반영하는 것을 목표로 합니다.
             as_of_meaning: forecast_at은 예보가 대상으로 삼는 서울 기준 시각이며 수집이나 게시 시각을 대신하지 않습니다.
-            late_repair_policy: 늦게 게시 가능한 실행은 최대 24시간의 승인된 명시적 cutoff repair로 비파괴 재처리합니다.
+            late_repair_policy: 늦게 게시 가능한 실행은 최대 24시간의 승인된 명시적 cutoff에서 desired snapshot으로 재조정하며 최신 eligible winner와 lineage의 downgrade를 금지합니다.
             roles:
               forecast_at:
                 time_role: event
@@ -628,16 +628,17 @@ models:
               - asac_axes.dim_admin_dong
             canonical_key: admin_dong_code
             revision_field: admin_dong_revision_date
+            approved_revision_date: "2025-04-01"
             stamp_fields:
               - admin_dong_code
               - admin_dong
               - gu_code
               - gu
               - admin_dong_revision_date
-            candidate_key_explanation: bridge의 source_admin_code는 최신 공통 행정동 차원에 exact join하기 전 후보 키로만 사용합니다.
+            candidate_key_explanation: bridge의 source_admin_code는 revision 2025-04-01 공통 행정동 차원에 exact join하기 전 후보 키이며 W2 active v1에서는 코드마다 정확히 한 격자 assertion만 허용합니다.
             mapping_version_explanation: bridge_version은 weather_admin_dong_grid_bridge_v1로 고정하고 정본 개정일은 별도 필드에 명시합니다.
             null_location_explanation: 정본 다섯 필드에 결합되지 않은 bridge 후보는 내부 bridge에 남기되 공개 Gold에서는 제외합니다.
-            fan_out_explanation: 격자 하나의 의도된 여러 행정동 매핑은 허용하지만 공개 natural grain 중복은 게시 전에 차단합니다.
+            fan_out_explanation: 격자 하나의 의도된 여러 행정동 매핑은 허용하지만 한 행정동의 다중 격자 assertion과 공개 natural grain 중복은 게시 전에 차단합니다.
             reconciliation_tests:
               - assert_gold_weather_forecast_by_admin_dong_admin_stamp_exact
               - assert_gold_weather_forecast_by_admin_dong_admin_revision_exact
@@ -647,14 +648,14 @@ models:
               target: model.asac_axes.dim_admin_dong
               source_keys:
                 - admin_dong_code
-              purpose: 행정동 코드의 최신 정본 명칭과 자치구 및 개정일을 검증합니다.
+              purpose: 행정동 코드의 승인 revision 2025-04-01 명칭과 자치구 및 개정일을 검증합니다.
               cardinality: many_to_one
               fan_out_policy: 공통 행정동 차원에서 같은 코드가 중복되면 공개 게시를 중단합니다.
               reconciliation_test: assert_gold_weather_forecast_by_admin_dong_admin_join_reconciles
           quality:
             completeness_explanation: publishable manifest와 Bronze 완전성 및 Grid·bridge·정본 교집합을 함께 확인합니다.
             freshness_explanation: issued_at과 collected_at 및 published_at을 분리해 최신 발표와 적재 지연을 해석합니다.
-            coverage_explanation: 전체 426개 정본이 아니라 bridge v1과 결합되는 현재 425개 코드가 공간 모집단입니다.
+            coverage_explanation: bridge v1 427개와 revision 2025-04-01 canonical 426개의 교집합인 425개 코드가 공간 모집단입니다.
             state_fields:
               value_representation:
                 allowed_values:
@@ -706,7 +707,7 @@ models:
             nullable: false
             null_meaning: 공개 제품 기본 키이므로 null을 허용하지 않습니다.
       - name: admin_dong_code
-        description: 최신 공통 행정동 차원에서 확인한 행안부 10자리 행정동 코드입니다.
+        description: 승인 revision 2025-04-01 공통 행정동 차원에서 확인한 행안부 10자리 행정동 코드입니다.
         data_type: varchar
         config:
           meta:
@@ -732,7 +733,7 @@ models:
             nullable: false
             null_meaning: 예보 항목을 식별할 수 없는 행은 공개하지 않습니다.
       - name: admin_dong
-        description: 최신 공통 행정동 차원에서 가져온 행정동명입니다.
+        description: 승인 revision 2025-04-01 공통 행정동 차원에서 가져온 행정동명입니다.
         data_type: varchar
         config:
           meta:
@@ -740,7 +741,7 @@ models:
             nullable: false
             null_meaning: 정본 행정동명이 없는 후보는 공개 Gold에서 제외합니다.
       - name: gu_code
-        description: 최신 공통 행정동 차원에서 가져온 행안부 자치구 5자리 코드입니다.
+        description: 승인 revision 2025-04-01 공통 행정동 차원에서 가져온 행안부 자치구 5자리 코드입니다.
         data_type: varchar
         config:
           meta:
@@ -748,7 +749,7 @@ models:
             nullable: false
             null_meaning: 정본 자치구 코드가 없는 후보는 공개 Gold에서 제외합니다.
       - name: gu
-        description: 최신 공통 행정동 차원에서 가져온 자치구명입니다.
+        description: 승인 revision 2025-04-01 공통 행정동 차원에서 가져온 자치구명입니다.
         data_type: varchar
         config:
           meta:
@@ -756,7 +757,7 @@ models:
             nullable: false
             null_meaning: 정본 자치구명이 없는 후보는 공개 Gold에서 제외합니다.
       - name: admin_dong_revision_date
-        description: 현재 행에 stamp한 최신 공통 행정동 정본의 개정일입니다.
+        description: 현재 행에 명시적으로 stamp한 승인 공통 행정동 revision 2025-04-01입니다.
         data_type: date
         config:
           meta:

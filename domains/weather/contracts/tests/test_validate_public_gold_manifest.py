@@ -42,6 +42,7 @@ CATALOG_COMPARE_SCRIPT = (
 )
 OWNER_MISSING = object()
 CANONICAL_TIMEZONE = "Asia/Seoul"
+CANONICAL_SPACE_APPROVED_REVISION_DATE = "2025-04-01"
 CANONICAL_SPACE_SOURCE_CHAIN = [
     "iceberg_dev.common.bronze_admin_dong_master",
     "asac_axes.dim_admin_dong",
@@ -411,6 +412,7 @@ def enable_valid_space_contract(
             "reconcile_admin_dong_stamp",
             "reconcile_admin_dong_revision",
         ],
+        "approved_revision_date": CANONICAL_SPACE_APPROVED_REVISION_DATE,
         "revision_field": "admin_dong_revision_date",
         "source_chain": list(CANONICAL_SPACE_SOURCE_CHAIN),
         "stamp_fields": list(CANONICAL_SPACE_STAMP),
@@ -2617,8 +2619,15 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
         self.assertEqual("ERROR", depth_report["status"], depth_report)
         self.assertIn("JSON_LIMIT_EXCEEDED", [error["code"] for error in depth_report["errors"]])
 
+        production_sized = valid_manifest()
+        production_sized["future_many"] = [{} for _ in range(11_500)]
+        production_sized_report, _ = validator.validate_manifest(production_sized)
+        self.assertEqual("PASS", production_sized_report["status"], production_sized_report)
+
         too_many = valid_manifest()
-        too_many["future_many"] = [{} for _ in range(10_100)]
+        too_many["future_many"] = [
+            {} for _ in range(validator.MAX_JSON_CONTAINERS + 100)
+        ]
         count_report, _ = validator.validate_manifest(too_many)
         self.assertEqual("ERROR", count_report["status"], count_report)
         self.assertIn("JSON_LIMIT_EXCEEDED", [error["code"] for error in count_report["errors"]])
@@ -3338,6 +3347,8 @@ class PublicGoldManifestValidatorTests(unittest.TestCase):
         cases = (
             ("chain", lambda value, tests: value["config"]["meta"]["public_gold"]["space"].__setitem__("source_chain", list(reversed(CANONICAL_SPACE_SOURCE_CHAIN))), "source_chain"),
             ("key", lambda value, tests: value["config"]["meta"]["public_gold"]["space"].__setitem__("canonical_key", "source_admin_code"), "canonical_key"),
+            ("missing_approved_revision", lambda value, tests: value["config"]["meta"]["public_gold"]["space"].pop("approved_revision_date"), "approved_revision_date"),
+            ("wrong_approved_revision", lambda value, tests: value["config"]["meta"]["public_gold"]["space"].__setitem__("approved_revision_date", "1900-01-01"), "approved_revision_date"),
             ("stamp", lambda value, tests: value["config"]["meta"]["public_gold"]["space"].__setitem__("stamp_fields", CANONICAL_SPACE_STAMP[:-1]), "stamp_fields"),
             ("dependency", lambda value, tests: value["depends_on"]["nodes"].remove("model.asac_axes.dim_admin_dong"), "dependency"),
             ("test", lambda value, tests: tests.pop(), "reconciliation_tests"),
