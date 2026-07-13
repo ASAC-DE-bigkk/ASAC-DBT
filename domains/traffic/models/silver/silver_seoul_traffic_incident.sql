@@ -14,6 +14,7 @@
 --    avoids the catalog view endpoint entirely.
 -- on_table_exists='drop': full-refresh rebuild without rename, matching the
 -- population silver precedent on this catalog.
+-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_boundary') }}
 
 {{ config(
     materialized='incremental',

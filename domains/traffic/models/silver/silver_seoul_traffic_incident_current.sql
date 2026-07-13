@@ -1,6 +1,7 @@
 -- Current TOPIS snapshot: the publishable collection run pinned by the transform DAG.
 -- The history Silver remains incremental; this table removes incidents that
 -- disappeared from the latest complete API snapshot without losing Bronze history.
+-- depends_on: {{ ref('silver_seoul_traffic_incident') }}
 
 {{ config(materialized='table') }}
 
