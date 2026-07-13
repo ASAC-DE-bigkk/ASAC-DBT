@@ -216,6 +216,35 @@ traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 c
 - 현재 Gold summary는 table materialization을 유지한다. Silver 전체를 읽어 source 단위
   1행으로 집계하는 작은 모델이라 incremental로 부분 집계하면 stale count 위험이 더 크다.
 
+### Canonical 행정동·평가시간 Gold
+
+`gold_traffic_incident_current_by_admin_dong_hourly`는 변환 시작 시
+`traffic_snapshot_dag_run_id`로 고정한 최신 complete publishable snapshot의 사용자용 현재
+상태 mart다. 기존 source-level `gold_traffic_incident_summary`와 recovery 모델의 의미나
+materialization은 변경하지 않는다.
+
+- grain은 `admin_dong_code × hour_at`이며 `hour_at`은 사고 발생 시간이 아니라 manifest
+  상태를 관측한 서울 기준 평가 시간의 hour bucket이다.
+- 행정동 universe와 `admin_dong`, `gu_code`, `gu`, `admin_dong_revision_date` stamp는
+  `asac_axes.dim_admin_dong`만 사용한다. Silver의 행정동 코드는 exact join 후보일 뿐이며
+  이름 추정, 좌표 추정, self-copy fallback을 허용하지 않는다.
+- GRS80 TM 원천 좌표를 이 Gold에서 WGS84 위경도로 해석하지 않는다. 좌표 변환과 공간
+  후보 생성은 기존 Silver 계약의 책임이다.
+- `complete`와 `complete_zero`에서만 `incident_count`와 `has_incident`를 게시한다.
+  `incident_count = 0`은 manifest, request audit, Bronze, current, canonical mapping의 완전성
+  근거가 모두 일치할 때만 가능하다.
+- `missing`, `partial`, `api_failure`, `current_mismatch`,
+  `spatial_mapping_incomplete`에서는 사고 건수와 `snapshot_as_of_at`을 null로 두어 정상
+  0건과 근거 부재를 구분한다.
+- `snapshot_as_of_at`은 complete 계열에서 최신 request-audit `collected_at`을 서울 기준으로
+  변환한 값이고, `status_observed_at` 및 `published_at`과 역할이 다르다.
+- freshness는 이 mart의 품질 상태로 재해석하지 않고
+  `collection_run_manifest.event_at`의 source freshness 계약으로 별도 검증한다.
+
+사고 episode는 현재 snapshot만으로 실제 종료 시각, snapshot 사이 재등장·재사용 ID,
+종료 판정 규칙을 안전하게 확정할 수 없다. `expected_clear_at`을 실제 `ended_at`으로
+간주하지 않으며, observation history와 명시적 종료 규칙이 생길 때 후속 모델로 분리한다.
+
 ## PR checklist
 
 traffic dbt PR 본문에는 최소한 아래 항목을 남긴다.
@@ -225,6 +254,7 @@ traffic dbt PR 본문에는 최소한 아래 항목을 남긴다.
 - Target table: `iceberg_dev.traffic.silver_seoul_traffic_incident`
 - Target table: `iceberg_dev.traffic.silver_seoul_traffic_incident_current`
 - Target table: `iceberg_dev.traffic.gold_traffic_incident_summary`
+- Target table: `iceberg_dev.<run-scoped-schema>.gold_traffic_incident_current_by_admin_dong_hourly`
 - Event time 컬럼: `occurred_at`
 - Common event time 컬럼: `event_at`
 - Issued/예보시간 컬럼: 없음(incident 기준)
