@@ -51,6 +51,7 @@ bronze as (
         {{ not_in_excluded("cast(b.observed_date as varchar)", 'exclude_observed_dates') }}
         {{ not_in_excluded("cast(b.load_date as varchar)", 'exclude_load_dates') }}
         {{ not_in_excluded("cast(b.bronze_run_id as varchar)", 'exclude_bronze_run_ids') }}
+        {{ content_bucket_filter('cast(b.content_hash as varchar)') }}
         {% if is_incremental() %}
         -- DONE marker 기반 증분: dbt test 통과 후 Airflow 가 기록한 run 만 완료로 간주한다.
         -- target table 이 없거나 --full-refresh 이면 is_incremental() 이 false 라 전체 백필된다.

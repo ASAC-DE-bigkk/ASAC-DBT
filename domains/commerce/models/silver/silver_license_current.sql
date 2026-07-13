@@ -22,6 +22,7 @@ with affected as (
     from {{ ref('silver_license_history') }}
     {% if var('include_datasets', []) %}
     where cast(dataset as varchar) in ({% for v in var('include_datasets') %}'{{ v }}'{% if not loop.last %}, {% endif %}{% endfor %})
+        {{ key_bucket_filter("coalesce(cast(opnsfteamcode as varchar), '') || '|' || coalesce(cast(mgtno as varchar), '')") }}
     {% elif is_incremental() %}
     where collected_at > (select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }})
     {% endif %}
@@ -39,6 +40,11 @@ ranked as (
     {% if is_incremental() %}
     inner join affected a
         on h.dataset = a.dataset and h.opnsfteamcode = a.opnsfteamcode and h.mgtno = a.mgtno
+    {% elif var('include_datasets', []) %}
+    -- cold build(테이블 부재)엔 affected 조인이 없어 include_datasets/key_bucket 스코프가 무력화된다
+    -- → 여기서 직접 스코프(무제한 전체-history 윈도우로 노드 한도 초과 방지 — 저메모리 seed 경로).
+    where cast(h.dataset as varchar) in ({% for v in var('include_datasets') %}'{{ v }}'{% if not loop.last %}, {% endif %}{% endfor %})
+        {{ key_bucket_filter("coalesce(cast(h.opnsfteamcode as varchar), '') || '|' || coalesce(cast(h.mgtno as varchar), '')") }}
     {% endif %}
 )
 

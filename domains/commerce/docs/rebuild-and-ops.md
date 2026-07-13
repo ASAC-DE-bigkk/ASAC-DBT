@@ -134,6 +134,23 @@ dbt test --select silver_license_history silver_license_current
 - 배치 간 **마킹 불필요**(dataset 격리). 백필 완료 후 일상 운영은 marker 증분으로 자동 이어진다.
 - 대안(인프라): Trino `query.max-memory-per-node` 상향 또는 `spill-enabled=true`. 단 배치가 무설정으로 안전.
 
+### 6.1 자동화·저메모리 확장 (2026-07-13, change-log ASAC-DAG #60)
+
+seed(`commerce_load_silver.seed_silver_if_empty` → `silver/chunked_run.py`)가 위 절차를 자동화하며,
+저메모리 노드까지 커버하도록 확장됐다:
+
+- **동적 배치 사이징**: 배치 행수는 Trino 가용 heap(`/v1/status`)에서 실시간 산정(`commerce_core.trino_mem`
+  — silver·gold 공용 정책). 큰 노드=큰 배치(빠름), 작은 노드=작게(안전). env(`COMMERCE_SILVER_BATCH_ROWS`)는
+  상한/프로브 실패 폴백.
+- **비-json 컬럼 버킷(대형 단일 dataset)**: dataset 하나가 배치 예산을 넘으면(예: mail_order_sale 934K
+  단일 스냅샷 run) — history 는 `content_bucket`(content_hash 해시, 동일 레코드=같은 버킷 →
+  adjacent-dedup 보존), current 는 `key_bucket`(grain 키, 키의 전 버전=같은 버킷 → latest 정확)으로
+  K 분할해 record_json 읽기를 1/K 로 바운드(`macros/key_bucket.sql`, var 없으면 컴파일 SQL 불변).
+- **pace**: 쿼리 사이 heap 회복 대기 — 백투백 실행의 garbage 누적 OOM 을 차단.
+- **마커 기반 재개**: seed 의 skip/재개 판정은 행수>0 프록시가 아니라 **DONE 마커 커버리지 + current
+  정합**(`chunked_run.seed_state`)이다. 중단 시 미완 dataset 만 부분행 선삭제 후 재빌드 — 부분 상태가
+  Cosmos 무스코프 증분(전량, OOM 클래스)으로 새는 결함을 막는다.
+
 ## 7. 공유 R2 · 멀티 로컬 환경 운영/복구 계약 (2026-07-12 실측 검증)
 
 > 두 개 이상의 로컬 환경(PC)이 **R2 만 공유**하는 구성에서의 경계·복구·수칙.
@@ -185,3 +202,20 @@ dbt test --select silver_license_history silver_license_current
    읽으므로 최종 승자 무해. 동시 실행만 피한다.
 5. **스냅샷 위생**: 검증/재시도가 만든 no-op 스냅샷도 누적된다 — §5 의 스냅샷 만료/컴팩션
    유지보수에 포함시킨다.
+
+### 6.2 저메모리 노드 인프라 노브 (2026-07-13)
+
+- **Trino heap cap + spill + GC**: [trino/jvm.config](../../../trino/jvm.config)(MaxRAMPercentage=55 —
+  비율이라 머신 RAM 에 자동 비례, IHOP=30·주기 GC) + [trino/config.properties](../../../trino/config.properties)
+  (spill-enabled, `task.concurrency=${ENV:TRINO_TASK_CONCURRENCY}`). compose 가 마운트·주입한다.
+  **고사양 노드**: host `.env` 에 `TRINO_TASK_CONCURRENCY=16` 상향(기본 2 = 공유 VM 안전값).
+- **OS 스왑(파일시스템=스왑, 최후 안전망)**: Docker Desktop VM 의 기본 스왑(1GB)이 소진되면 컨테이너가
+  OS OOM-kill 된다(exit 137). VM에 스왑파일 추가:
+  ```bash
+  docker run --rm --privileged --pid=host alpine nsenter -t 1 -m -u -n -i sh -c '
+    [ -f /var/lib/swapfile-commerce ] || { dd if=/dev/zero of=/var/lib/swapfile-commerce bs=1M count=8192;
+      chmod 600 /var/lib/swapfile-commerce; mkswap /var/lib/swapfile-commerce; }
+    swapon /var/lib/swapfile-commerce'
+  ```
+  ⚠ **VM 재시작(Docker Desktop 재시작) 시 swapon 은 풀린다** — 파일은 남으므로 위 명령 재실행.
+  스왑이 있으면 메모리 초과는 kill 대신 감속으로 흡수된다(from-scratch 4h 무사망 실측).
