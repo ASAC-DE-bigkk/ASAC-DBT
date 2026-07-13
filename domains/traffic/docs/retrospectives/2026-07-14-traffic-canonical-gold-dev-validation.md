@@ -14,9 +14,10 @@ snapshot 1개를 고정해 `admin_dong_code × hour_at` 426행을 게시했고, 
 대리 지표**다. 기존 source-level 요약 Gold와 새 사용자용 canonical Gold는 grain과 역할이
 달라 완전한 동종 비교가 아니며, 수치는 상대적인 실행 특성을 파악하는 용도로만 해석한다.
 
-Issue #172의 dbt Traffic 범위는 검증했지만, 실행 중인 DAG checkout의 환경변수 계약과
-Weather 소유 테스트 정리는 이 저장소의 Traffic 전용 파일 경계 밖이어서 후속 blocker로
-남겼다. 따라서 이 PR은 Issue #172를 자동 종료하지 않는다.
+Issue #172의 dbt Traffic 범위를 검증했고, 사용자에게 Weather 소유 범위를 명시적으로
+확인한 뒤 Weather 테스트의 Traffic raw-YAML assertion도 제거했다. Weather focused test와
+Traffic resolved-manifest test가 각각 1/1, 2/2 PASS해 Issue #172의 테스트 소유권 blocker를
+해소했다. 실행 DAG의 canonical Gold selector 통합은 별도 ASAC-DAG #333에서 추적한다.
 
 ## 검증한 계약
 
@@ -86,12 +87,12 @@ prod schedule은 사용하지 않았다. 검증 schema teardown은 destructive d
 | 기존 Silver selector | DAG parity selector | 35/35 | PASS |
 | 기존 Gold selector | 기존 Traffic Gold selector | 8/8 | PASS |
 | canonical Gold test | fresh parse artifact와 동일 target로 대상 test | 25/25 | PASS |
-| Weather 소유 교차 테스트 | `pytest domains/weather/tests/test_source_freshness_slo.py -q` | raw YAML literal assertion 1건 실패 | FAIL (범위 blocker) |
+| Weather 소유 테스트 | `pytest domains/weather/tests/test_source_freshness_slo.py -q` | Weather-only freshness 1/1 | PASS |
 | physical catalog | `dbt docs generate` + approved catalog 비교 | 선언·physical contract 차이 0 | PASS |
 | recovery run/test | recovery selector | Silver 7행, metadata 1행, Gold 1행; 17/17 | PASS |
 | fixture 상태 | partial / complete_zero / api_failure / missing | 각 상태 run 및 snapshot·zero test 통과 | PASS |
 | stale 음성 검증 | stale fixture `dbt source freshness` | 의도한 `ERROR STALE`, non-zero exit 확인 | PASS |
-| scope | tracked diff와 untracked 회고를 합산한 범위 검사 | 변경 21개, Traffic 밖 0개 | PASS |
+| scope | branch 변경 파일 범위 검사 | Traffic 21개 + Weather 소유 테스트 1개, 그 밖 0개 | PASS |
 | whitespace | `git diff --check` | 오류 0 | PASS |
 | secret 휴리스틱 | 변경 파일의 private key·provider token·literal secret 패턴 검사 | hit 파일 0개, 값 출력 없음 | PASS |
 | 전용 secret scanner | `gitleaks`, `trufflehog` | 로컬 실행 파일 없음 | NOT_RUN |
@@ -133,6 +134,10 @@ prod schedule은 사용하지 않았다. 검증 schema teardown은 destructive d
 - 최종 읽기 전용 대사 SQL의 첫 실행은 dim revision과 기존 summary count 컬럼명을 잘못
   추정해 실패했다. `DESCRIBE`로 실제 컬럼을 확인한 뒤 재조회해 canonical 426행, 사고 6건,
   invalid zero 0, stamp mismatch 0, 기존 summary·recovery 각 6건을 재확인했다.
+- Weather와 Traffic의 동일한 테스트 basename을 한 pytest process에서 함께 지정하면 module
+  import mismatch가 발생했다. 두 도메인을 별도 pytest process로 실행해 Weather 1/1과
+  Traffic 2/2를 확인했다. Linux ephemeral 첫 시도는 `PyYAML`이 없어 수집 오류가 났고,
+  ephemeral 컨테이너에만 `PyYAML`을 추가한 재실행에서 각각 1/1, 2/2 PASS했다.
 
 ## canonical Gold 데이터 결과
 
@@ -210,23 +215,19 @@ artifact 문제였다.
 
 ## 남은 blocker와 후속 작업
 
-1. Weather 테스트에 남아 있는 Traffic assertion 제거는 다른 도메인 파일 수정 금지 경계 때문에
-   이 PR에서 수행하지 않았다. 해당 테스트는 Jinja 환경변수 표현을 raw YAML로 읽은 뒤 정수
-   literal 15/30과 비교하므로 focused 실행에서 1건 실패했다. Traffic 소유 resolved manifest
-   검증은 통과했지만, Weather 소유자가 별도 변경하거나 명시적인 gate waiver가 필요하다.
-2. 현재 실행 중인 로컬 DAG checkout은 단일
+1. 현재 실행 중인 로컬 DAG checkout은 단일
    `ASK_SEOUL_REPORT_TRAFFIC_FRESHNESS_MINUTES` 계약을 사용한다. `dags/origin/dev`에는 dbt와
    같은 warn/error 두 key가 있으므로 DAG dev 배포 checkout 동기화가 필요하다.
-3. 현재 DAG selector는 새 canonical Gold의 run/test를 schedule하지 않는다. DAG 저장소의
-   Traffic selector 갱신과 fresh parse artifact 재사용을 포함한 통합이 필요하다.
-4. dbt 1.10.22에서 대상 모델 test selection이 fresh parse artifact 없이 다르게 해석되는
+2. 현재 DAG selector는 새 canonical Gold의 run/test를 schedule하지 않는다. ASAC-DAG #333에서
+   Traffic selector 갱신과 fresh parse artifact 재사용을 통합한다.
+3. dbt 1.10.22에서 대상 모델 test selection이 fresh parse artifact 없이 다르게 해석되는
    문제가 있어 DAG command shape를 명시적으로 고정해야 한다.
-5. manifest의 자유문자열 `RuntimeError`만으로는 구조적인 API failure를 안전하게 단정할 수
+4. manifest의 자유문자열 `RuntimeError`만으로는 구조적인 API failure를 안전하게 단정할 수
    없다. 구조화된 failure type이 없으면 보수적으로 `partial`로 분류한다.
-6. 사고 episode는 현재 snapshot 계약만으로 실제 종료 시각, snapshot 사이 재등장,
+5. 사고 episode는 현재 snapshot 계약만으로 실제 종료 시각, snapshot 사이 재등장,
    source ID 재사용을 안전하게 판정할 수 없다. observation history와 명시적 종료 규칙을
    먼저 정의한 뒤 별도 모델로 진행한다.
-7. 전용 secret scanner는 로컬에 없어 실행하지 못했다. 변경 파일 대상 값 비노출 휴리스틱
+6. 전용 secret scanner는 로컬에 없어 실행하지 못했다. 변경 파일 대상 값 비노출 휴리스틱
    검사는 통과했으며 CI의 전용 scanner 결과를 추가 확인해야 한다.
-8. 검증용 격리 schema 3개는 삭제하지 않고 남겼다. 사용자 확인 후 dev 운영 절차에 따라
+7. 검증용 격리 schema 3개는 삭제하지 않고 남겼다. 사용자 확인 후 dev 운영 절차에 따라
    수동 정리해야 한다.
