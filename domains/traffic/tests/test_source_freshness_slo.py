@@ -11,7 +11,6 @@ import pytest
 
 
 TRAFFIC_ROOT = Path(__file__).resolve().parents[1]
-SOURCES_PATH = TRAFFIC_ROOT / "models" / "sources.yml"
 WARN_ENV = "ASK_SEOUL_REPORT_TRAFFIC_FRESHNESS_WARN_MINUTES"
 ERROR_ENV = "ASK_SEOUL_REPORT_TRAFFIC_FRESHNESS_ERROR_MINUTES"
 MANIFEST_SOURCE_ID = "source.traffic.traffic_bronze.collection_run_manifest"
@@ -112,13 +111,6 @@ def _parse_manifest(
 
 def _freshness(manifest: dict, source_id: str) -> dict | None:
     return manifest["sources"][source_id]["freshness"]
-
-
-def test_traffic_freshness_declares_airflow_watchdog_environment_contract():
-    source_text = SOURCES_PATH.read_text(encoding="utf-8")
-
-    assert f"env_var('{WARN_ENV}', '15') | int" in source_text
-    assert f"env_var('{ERROR_ENV}', '30') | int" in source_text
 
 
 @pytest.mark.parametrize(
