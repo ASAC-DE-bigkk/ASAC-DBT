@@ -145,13 +145,19 @@ manifest_before_cutoff as (
     cross join params
     where event_at <= cutoff_at
 ),
+manifest_ambiguous_ties as (
+    select source_id, dag_run_id, event_at, dag_id
+    from manifest_before_cutoff
+    group by source_id, dag_run_id, event_at, dag_id
+    having count(*) > 1
+),
 manifest_state_ranked as (
     select
         manifest_before_cutoff.*,
         event_at as manifest_published_at,
         row_number() over (
             partition by cast(source_id as varchar), cast(dag_run_id as varchar)
-            order by event_at desc, dag_id desc, manifest_status desc
+            order by event_at desc, dag_id desc
         ) as manifest_row_num
     from manifest_before_cutoff
 ),
@@ -172,6 +178,7 @@ eligible_anchors as (
 manifest_summary as (
     select
         count(*) as anchor_count,
+        (select count(*) from manifest_ambiguous_ties) as ambiguous_state_count,
         count_if(
             expected_rows is null
             or actual_rows is null
@@ -210,12 +217,16 @@ bronze_counts as (
 evidence_summary as (
     select
         manifest_summary.anchor_count,
+        manifest_summary.ambiguous_state_count,
         manifest_summary.invalid_manifest_count,
         coalesce(sum(case when bronze_row_count != actual_rows then 1 else 0 end), 0) as bronze_row_mismatch_count,
         coalesce(sum(case when bronze_raw_object_count != actual_raw_objects then 1 else 0 end), 0) as bronze_raw_mismatch_count
     from manifest_summary
     left join bronze_counts on true
-    group by manifest_summary.anchor_count, manifest_summary.invalid_manifest_count
+    group by
+        manifest_summary.anchor_count,
+        manifest_summary.ambiguous_state_count,
+        manifest_summary.invalid_manifest_count
 )
 select
     case
@@ -225,6 +236,7 @@ select
         then 1 else 0
     end as invalid_window_count,
     case when anchor_count = 0 then 1 else 0 end as empty_anchor_count,
+    ambiguous_state_count,
     invalid_manifest_count,
     bronze_row_mismatch_count,
     bronze_raw_mismatch_count
@@ -240,7 +252,8 @@ cross join params
     or (row[1] | int) != 0
     or (row[2] | int) != 0
     or (row[3] | int) != 0
-    or (row[4] | int) != 0 -%}
+    or (row[4] | int) != 0
+    or (row[5] | int) != 0 -%}
     {{ exceptions.raise_compiler_error(
         'Weather W2 repair evidence가 window, anchor, manifest 또는 Bronze completeness 검증에 실패했습니다.'
     ) }}
@@ -249,37 +262,41 @@ cross join params
 {%- endmacro %}
 
 {% macro weather_w2_grid_winner_is_newer(left_alias, right_alias) -%}
+{# Equal winners also block a repair rewrite; NULL is total-ordered last, matching Trino DESC. #}
+{%- set winner_columns = [
+    'collected_at',
+    'raw_object_key',
+    'request_id',
+    'selected_dag_run_id',
+    'selected_page_no',
+    'selected_source_item_key',
+] -%}
 (
-    {{ left_alias }}.collected_at > {{ right_alias }}.collected_at
-    or (
-        {{ left_alias }}.collected_at = {{ right_alias }}.collected_at
-        and {{ left_alias }}.raw_object_key > {{ right_alias }}.raw_object_key
+    {%- for column_name in winner_columns %}
+    (
+        {%- for prior_column in winner_columns[:loop.index0] %}
+        {{ left_alias }}.{{ prior_column }} is not distinct from {{ right_alias }}.{{ prior_column }}
+        and
+        {%- endfor %}
+        (
+            (
+                {{ left_alias }}.{{ column_name }} is not null
+                and {{ right_alias }}.{{ column_name }} is null
+            )
+            or (
+                {{ left_alias }}.{{ column_name }} is not null
+                and {{ right_alias }}.{{ column_name }} is not null
+                and {{ left_alias }}.{{ column_name }} > {{ right_alias }}.{{ column_name }}
+            )
+        )
     )
-    or (
-        {{ left_alias }}.collected_at = {{ right_alias }}.collected_at
-        and {{ left_alias }}.raw_object_key = {{ right_alias }}.raw_object_key
-        and {{ left_alias }}.request_id > {{ right_alias }}.request_id
-    )
-    or (
-        {{ left_alias }}.collected_at = {{ right_alias }}.collected_at
-        and {{ left_alias }}.raw_object_key = {{ right_alias }}.raw_object_key
-        and {{ left_alias }}.request_id = {{ right_alias }}.request_id
-        and {{ left_alias }}.selected_dag_run_id > {{ right_alias }}.selected_dag_run_id
-    )
-    or (
-        {{ left_alias }}.collected_at = {{ right_alias }}.collected_at
-        and {{ left_alias }}.raw_object_key = {{ right_alias }}.raw_object_key
-        and {{ left_alias }}.request_id = {{ right_alias }}.request_id
-        and {{ left_alias }}.selected_dag_run_id = {{ right_alias }}.selected_dag_run_id
-        and {{ left_alias }}.selected_page_no > {{ right_alias }}.selected_page_no
-    )
-    or (
-        {{ left_alias }}.collected_at = {{ right_alias }}.collected_at
-        and {{ left_alias }}.raw_object_key = {{ right_alias }}.raw_object_key
-        and {{ left_alias }}.request_id = {{ right_alias }}.request_id
-        and {{ left_alias }}.selected_dag_run_id = {{ right_alias }}.selected_dag_run_id
-        and {{ left_alias }}.selected_page_no = {{ right_alias }}.selected_page_no
-        and {{ left_alias }}.selected_source_item_key > {{ right_alias }}.selected_source_item_key
+    or
+    {%- endfor %}
+    (
+        {%- for column_name in winner_columns %}
+        {{ left_alias }}.{{ column_name }} is not distinct from {{ right_alias }}.{{ column_name }}
+        {{ 'and' if not loop.last }}
+        {%- endfor %}
     )
 )
 {%- endmacro %}

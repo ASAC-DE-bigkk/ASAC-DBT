@@ -28,7 +28,6 @@ with publishable_manifest_ranked as (
         row_number() over (
             partition by cast(source_id as varchar), cast(dag_run_id as varchar)
             order by cast(event_at as timestamp(6)) desc, cast(dag_id as varchar) desc
-            {% if weather_w2_is_repair() %}, cast(status as varchar) desc{% endif %}
         ) as manifest_row_num
     from {{ source('weather_bronze', 'collection_run_manifest') }}
     where cast(source_id as varchar) = 'kma_vilage_fcst'

@@ -143,6 +143,7 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed():
     w1_macro = compact(read("macros/weather_v2_contract.sql"))
     assert "bounded_isolated_smoke" in w1_macro
     assert "weather_w2_shared_dev_build_allowed" in w1_macro
+    assert "weather_w2_assert_repair_evidence" in w1_macro
     assert "flags.full_refresh" in w1_macro
 
 
@@ -171,6 +172,9 @@ def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze():
         "anchor_count = 0",
         "bronze_row_count != actual_rows",
         "bronze_raw_object_count != actual_raw_objects",
+        "manifest_ambiguous_ties",
+        "having count(*) > 1",
+        "ambiguous_state_count",
     ):
         assert token in macro
     cutoff_filter = macro.index("event_at <= cutoff_at")
@@ -196,7 +200,14 @@ def test_w1_keeps_normal_lookback_and_adds_bounded_repair_no_downgrade():
     assert "weather_w2_is_repair" in grid
     assert "published_at" in grid
     assert "weather_w2_grid_winner_is_newer" in grid
+    assert "weather_w2_assert_repair_evidence" in grid
     assert "not exists" in grid
+
+    repair_macro = compact(read("macros/weather_w2_contract.sql"))
+    comparator = repair_macro[repair_macro.index("macro weather_w2_grid_winner_is_newer") :]
+    assert "is not distinct from" in comparator
+    assert "is not null" in comparator
+    assert "is null" in comparator
 
 
 def test_custom_strategy_is_one_atomic_merge_with_bounded_delete_and_no_downgrade():

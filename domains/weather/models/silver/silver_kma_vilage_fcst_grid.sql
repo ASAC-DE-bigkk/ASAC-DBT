@@ -10,6 +10,7 @@
 ) }}
 
 {{ weather_w1_initial_build_guard() }}
+{{ weather_w2_assert_repair_evidence() }}
 
 with eligible as (
     select *
