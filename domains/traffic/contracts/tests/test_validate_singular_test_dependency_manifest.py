@@ -25,6 +25,26 @@ REQUIRED_DEPENDENCIES = {
         "gold_traffic_incident_summary",
     ),
     "assert_gold_traffic_row_counts_positive.sql": ("gold_traffic_incident_summary",),
+    "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql": (
+        "silver_seoul_traffic_incident_current",
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_grain_unique.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql": (
+        "silver_seoul_traffic_incident_current",
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_zero_requires_complete.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
     "assert_silver_seoul_traffic_incident_grain_unique.sql": ("silver_seoul_traffic_incident",),
     "assert_silver_traffic_admin_axis_consistent.sql": ("silver_seoul_traffic_incident",),
     "assert_silver_traffic_admin_axis_coverage.sql": ("silver_seoul_traffic_incident",),
@@ -78,6 +98,12 @@ class ValidateSingularTestDependencyManifestTest(unittest.TestCase):
 
     def test_valid_manifest_passes(self) -> None:
         self.validator.validate_manifest(valid_manifest())
+
+    def test_required_dependency_mapping_matches_validator(self) -> None:
+        self.assertEqual(
+            self.validator.REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES,
+            REQUIRED_DEPENDENCIES,
+        )
 
     def test_empty_dependency_array_fails_with_filename_and_node_ids(self) -> None:
         manifest = valid_manifest()
