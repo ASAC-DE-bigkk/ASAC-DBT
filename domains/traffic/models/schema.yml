@@ -159,3 +159,63 @@ models:
         description: Latest current incident occurrence timestamp in KST; null for a valid zero-incident snapshot.
       - name: last_collected_at
         description: Latest Bronze collection timestamp represented in the current snapshot; null for a valid zero-incident snapshot.
+
+  - name: recovery_silver_seoul_traffic_incident
+    description: Isolated, reproducible TOPIS incident snapshot for the explicit publishable `traffic_snapshot_dag_run_id`; it never updates the canonical incremental Silver or Current relation.
+    columns:
+      - name: source_record_id
+        description: Stable TOPIS accident identifier at the requested snapshot grain.
+        tests:
+          - not_null
+          - unique
+      - name: dag_run_id
+        description: Explicit publishable Bronze collection run represented by this recovery relation.
+        tests:
+          - not_null
+      - name: raw_object_key
+        description: R2 raw object lineage for the selected Bronze record.
+        tests:
+          - not_null
+      - name: collected_at
+        description: Bronze collection timestamp used for deterministic snapshot deduplication.
+        tests:
+          - not_null
+      - name: is_snapshot_marker
+        description: True only for the one atomic snapshot-identity marker row. Consumers of incident facts must filter it out.
+        tests:
+          - not_null
+
+  - name: recovery_traffic_snapshot_metadata
+    description: One-row identity anchor for the requested publishable snapshot, retained even when a valid snapshot has zero incident rows.
+    columns:
+      - name: source_id
+        description: Fixed TOPIS source identifier for the recovery snapshot.
+        tests:
+          - not_null
+          - unique
+      - name: snapshot_dag_run_id
+        description: Explicit publishable Bronze collection run used by recovery Silver and Gold.
+        tests:
+          - not_null
+          - unique
+
+  - name: recovery_gold_traffic_incident_summary
+    description: Isolated Gold summary produced only from recovery_silver_seoul_traffic_incident for one requested Bronze snapshot.
+    columns:
+      - name: source_id
+        description: TOPIS source identifier; unique recovery summary grain.
+        tests:
+          - not_null
+          - unique
+      - name: snapshot_dag_run_id
+        description: Publishable Bronze collection run represented by this recovery result.
+        tests:
+          - not_null
+      - name: row_count
+        description: Deduplicated recovery Silver incident count.
+        tests:
+          - not_null
+      - name: raw_object_count
+        description: Distinct R2 raw objects represented by recovery Silver rows.
+        tests:
+          - not_null

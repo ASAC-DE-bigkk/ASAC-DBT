@@ -89,3 +89,51 @@ def test_current_snapshot_contract_allows_continued_zero_incident_runs_inside_fr
 def test_gold_summary_reads_current_incidents_not_history():
     sql = (TRAFFIC_DIR / "models/gold/gold_traffic_incident_summary.sql").read_text()
     assert "silver_seoul_traffic_incident_current" in sql
+
+
+def test_snapshot_recovery_models_are_isolated_from_current_relations():
+    metadata_sql = (
+        TRAFFIC_DIR / "models/recovery/recovery_traffic_snapshot_metadata.sql"
+    ).read_text(encoding="utf-8")
+    silver_sql = (
+        TRAFFIC_DIR / "models/recovery/recovery_silver_seoul_traffic_incident.sql"
+    ).read_text(encoding="utf-8")
+    gold_sql = (
+        TRAFFIC_DIR / "models/recovery/recovery_gold_traffic_incident_summary.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "ref('recovery_silver_seoul_traffic_incident')" in metadata_sql
+    assert "cast(dag_run_id as varchar) as snapshot_dag_run_id" in metadata_sql
+    assert "where is_snapshot_marker" in metadata_sql
+    assert "var('traffic_snapshot_dag_run_id')" in silver_sql
+    assert "snapshot_marker as" in silver_sql
+    assert "true as is_snapshot_marker" in silver_sql
+    assert "false as is_snapshot_marker" in silver_sql
+    assert "source('traffic_bronze', 'seoul_traffic_incident')" in silver_sql
+    assert "silver_seoul_traffic_incident_current" not in silver_sql
+    assert "ref('recovery_traffic_snapshot_metadata')" in gold_sql
+    assert "ref('recovery_silver_seoul_traffic_incident')" in gold_sql
+    assert "where not is_snapshot_marker" in gold_sql
+    assert "silver_seoul_traffic_incident_current" not in gold_sql
+
+
+def test_snapshot_recovery_contract_validates_the_requested_publishable_run():
+    sql = (
+        TRAFFIC_DIR / "tests/assert_recovery_silver_traffic_snapshot_matches_bronze.sql"
+    ).read_text(encoding="utf-8")
+    compact_sql = " ".join(sql.split())
+
+    assert "var('traffic_snapshot_dag_run_id')" in sql
+    assert "requested_run" in sql
+    assert "configured_run" in sql
+    assert "metadata_run" in sql
+    assert "missing_pinned_run" in sql
+    assert "metadata_run_mismatch" in sql
+    assert "silver_marker_run" in sql
+    assert "silver_marker_run_mismatch" in sql
+    assert "{{ target.database }}.{{ target.schema }}.recovery_traffic_snapshot_metadata" in sql
+    assert "{{ target.database }}.{{ target.schema }}.recovery_silver_seoul_traffic_incident" in sql
+    assert "where exists (select 1 from configured_run)" in compact_sql
+    assert "select * from expected_deduped except select * from actual_current" in compact_sql
+    assert "select * from actual_current except select * from expected_deduped" in compact_sql
+    assert "where not is_snapshot_marker" in sql

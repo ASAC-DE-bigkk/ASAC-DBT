@@ -108,6 +108,54 @@ current가 모두 0행인 정상 zero-incident snapshot은 통과한다. 수집�
 run에 유효 Bronze 행이 있으면 실패한다. 연속 zero-incident run만 새로 쌓인 경우에는
 정상 zero snapshot을 stale로 처리하지 않는다.
 
+## Snapshot recovery contract
+
+과거 Bronze snapshot의 계약 위반을 재현·검증할 때는 canonical incremental Silver나
+운영 Gold를 다시 빌드하지 않는다. recovery는 다음 세 table만 사용한다.
+
+- `recovery_silver_seoul_traffic_incident`: `traffic_snapshot_dag_run_id`가 가리키는
+  `SUCCESS + is_publishable` manifest run의 Bronze만 직접 읽어 같은 `acc_id` dedup 규칙을
+  적용한다. 이 table은 incident row와 함께 `is_snapshot_marker=true`인 1개 marker row를 같은
+  CTAS로 기록한다. marker는 incident가 아니므로 분석/Gold 집계에서는 반드시 제외한다.
+  이 원자적 marker 덕분에 유효한 zero-incident snapshot도 실제로 Silver가 만든 run ID를 남긴다.
+- `recovery_traffic_snapshot_metadata`: Silver marker만 읽는 완료 anchor다. Silver가 실패하거나
+  중단되면 이후 요청 snapshot으로 advance하지 않으므로, stale empty Silver를 새 empty snapshot으로
+  잘못 검증하지 않는다.
+- `recovery_gold_traffic_incident_summary`: recovery Silver만 집계하고
+  `snapshot_dag_run_id`를 결과에 남긴다.
+
+입력 run이 없거나 publishable이 아니면 recovery Silver/metadata는 0행이 되고,
+`assert_recovery_silver_traffic_snapshot_matches_bronze`가 `missing_pinned_run`으로 실패한다.
+이 test는 요청 run, Silver marker에서 읽은 metadata, 선택된 Bronze incident record를 양방향 비교한다.
+
+dev에서의 명시적 실행 순서는 다음과 같다. 이 경로는 recovery table만 갱신하며
+`silver_seoul_traffic_incident`, `silver_seoul_traffic_incident_current`,
+`gold_traffic_incident_summary`를 변경하지 않는다.
+
+```bash
+dbt run --select recovery_silver_seoul_traffic_incident \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+dbt run --select recovery_traffic_snapshot_metadata \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+dbt test --select recovery_traffic_snapshot_metadata recovery_silver_seoul_traffic_incident \
+  assert_recovery_silver_traffic_snapshot_matches_bronze \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+dbt run --select recovery_traffic_snapshot_metadata recovery_silver_seoul_traffic_incident \
+  recovery_gold_traffic_incident_summary \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+dbt test --select recovery_traffic_snapshot_metadata recovery_silver_seoul_traffic_incident \
+  recovery_gold_traffic_incident_summary assert_recovery_gold_traffic_counts_match_silver \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+```
+
+recovery table은 운영 Current/Gold가 아니며, 해당 snapshot 조사와 수동 recovery의 작업
+증적이다. 생성·보존 기간과 정리 실행은 후속 Airflow recovery DAG가 기록·관리한다.
+
 ## Coverage and completeness
 
 traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 coverage가 오도될 수 있다.
