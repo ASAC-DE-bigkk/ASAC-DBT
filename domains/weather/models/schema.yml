@@ -547,6 +547,381 @@ models:
         description: canonical exact join 결과인 matched 또는 unmatched 상태다.
       - name: canonical_join_eligible
         description: canonical 다섯 필드를 사용할 수 있는 matched 여부다.
+  - name: gold_weather_forecast_by_admin_dong
+    description: 승인된 공통 행정동 revision 2025-04-01과 명시적 bridge v1을 사용해 행정동·예보시각·항목별 최신 KMA 예보를 게시하는 공개 Gold다.
+    config:
+      meta:
+        public_gold:
+          contract_version: "1.0"
+          documentation_language: ko-KR
+          owner: 서울 데이터 제품 운영팀
+          maturity: low
+          visibility: published_producer
+          contract_status: dev_pending
+          exposure_status: none_no_live_consumer
+          intended_consumer_types:
+            - analyst
+            - ai_catalog
+            - cross_domain_dbt
+          cross_domain_usage_examples:
+            - 교통과 생활인구 지표를 같은 행정동 코드와 예보 대상 시각으로 결합해 날씨 맥락을 비교합니다.
+            - 문화와 상권 분석에서 같은 행정동의 항목별 최신 예보 표현을 설명 변수로 사용합니다.
+          product_question: 각 공통 행정동과 예보 대상 시각 및 KMA 항목에서 최신 발표가 제공한 예보 표현과 값은 무엇입니까?
+          row_meaning: 명시적 bridge v1과 승인된 공통 행정동 revision 2025-04-01에 결합된 한 행정동·예보시각·항목의 최신 KMA 예보 한 행입니다.
+          grain: admin_dong_code와 forecast_at 및 category 조합마다 한 행입니다.
+          anchor_universe: bridge v1 427개 코드와 revision 2025-04-01의 canonical 426개 코드가 만나는 425개 코드 중 게시 가능한 Grid 예보가 있는 grain만 포함합니다.
+          usage_guidance: 행정동 코드와 예보 대상 시각 및 항목을 함께 사용하고 값은 value_representation과 범위 컬럼을 같이 해석합니다.
+          do_not_use_for: revision 2025-04-01의 서울 426개 행정동 전체 모집단이나 실시간 관측값 또는 개인 위치를 추정하는 데 사용하지 않습니다.
+          semantic_caveats: bridge v1에 없는 용신동과 승인 revision에 결합되지 않는 legacy 후보는 제외됩니다. weather_w2_canonical_revision_date는 2025-04-01이어야 하고 Gold normal·repair는 dev/iceberg_dev/weather 전용이며 fixed temp writer는 직렬화해야 합니다.
+          primary_key:
+            - product_row_id
+          column_order:
+            - product_row_id
+            - admin_dong_code
+            - forecast_at
+            - category
+            - admin_dong
+            - gu_code
+            - gu
+            - admin_dong_revision_date
+            - bridge_version
+            - nx
+            - ny
+            - source_grid_place_id
+            - issued_at
+            - collected_at
+            - published_at
+            - fcst_value_raw
+            - fcst_value_num
+            - value_representation
+            - value_num
+            - value_lower_bound
+            - value_upper_bound
+            - qualitative_code
+            - forecast_lead_hours
+            - source_id
+            - dag_run_id
+            - raw_object_key
+            - request_id
+          time:
+            canonical_timezone: Asia/Seoul
+            freshness_slo: 게시 가능한 최신 KMA 실행을 다음 승인된 증분 실행에서 반영하는 것을 목표로 합니다.
+            as_of_meaning: forecast_at은 예보가 대상으로 삼는 서울 기준 시각이며 수집이나 게시 시각을 대신하지 않습니다.
+            late_repair_policy: 늦게 게시 가능한 실행은 최대 24시간의 승인된 명시적 cutoff에서 desired snapshot으로 재조정하며 최신 eligible winner와 lineage의 downgrade를 금지합니다.
+            roles:
+              forecast_at:
+                time_role: event
+                timezone: Asia/Seoul
+              issued_at:
+                time_role: issue
+                timezone: Asia/Seoul
+              collected_at:
+                time_role: collection
+                timezone: Asia/Seoul
+              published_at:
+                time_role: publication
+                timezone: Asia/Seoul
+          space:
+            enabled: true
+            source_chain:
+              - iceberg_dev.common.bronze_admin_dong_master
+              - asac_axes.dim_admin_dong
+            canonical_key: admin_dong_code
+            revision_field: admin_dong_revision_date
+            approved_revision_date: "2025-04-01"
+            stamp_fields:
+              - admin_dong_code
+              - admin_dong
+              - gu_code
+              - gu
+              - admin_dong_revision_date
+            candidate_key_explanation: bridge의 source_admin_code는 revision 2025-04-01 공통 행정동 차원에 exact join하기 전 후보 키이며 W2 active v1에서는 코드마다 정확히 한 격자 assertion만 허용합니다.
+            mapping_version_explanation: bridge_version은 weather_admin_dong_grid_bridge_v1로 고정하고 정본 개정일은 별도 필드에 명시합니다.
+            null_location_explanation: 정본 다섯 필드에 결합되지 않은 bridge 후보는 내부 bridge에 남기되 공개 Gold에서는 제외합니다.
+            fan_out_explanation: 격자 하나의 의도된 여러 행정동 매핑은 허용하지만 한 행정동의 다중 격자 assertion과 공개 natural grain 중복은 게시 전에 차단합니다.
+            reconciliation_tests:
+              - assert_gold_weather_forecast_by_admin_dong_admin_stamp_exact
+              - assert_gold_weather_forecast_by_admin_dong_admin_revision_exact
+          metrics: {}
+          joins:
+            admin_dong_dimension:
+              target: model.asac_axes.dim_admin_dong
+              source_keys:
+                - admin_dong_code
+              purpose: 행정동 코드의 승인 revision 2025-04-01 명칭과 자치구 및 개정일을 검증합니다.
+              cardinality: many_to_one
+              fan_out_policy: 공통 행정동 차원에서 같은 코드가 중복되면 공개 게시를 중단합니다.
+              reconciliation_test: assert_gold_weather_forecast_by_admin_dong_admin_join_reconciles
+          quality:
+            completeness_explanation: publishable manifest와 Bronze 완전성 및 Grid·bridge·정본 교집합을 함께 확인합니다.
+            freshness_explanation: issued_at과 collected_at 및 published_at을 분리해 최신 발표와 적재 지연을 해석합니다.
+            coverage_explanation: bridge v1 427개와 revision 2025-04-01 canonical 426개의 교집합인 425개 코드가 공간 모집단입니다.
+            state_fields:
+              value_representation:
+                allowed_values:
+                  - explicit_none
+                  - quantitative_exact
+                  - quantitative_range
+                  - bare_numeric
+                  - qualitative_code
+                  - missing
+                  - unparseable
+                state_explanations:
+                  explicit_none: 원천이 강수나 적설이 없다고 명시한 표현입니다.
+                  quantitative_exact: 단위가 있는 확정 수치 표현입니다.
+                  quantitative_range: 미만이나 이상 또는 구간으로 제공된 범위 표현입니다.
+                  bare_numeric: 단위 없이 숫자만 제공되어 공식 의미가 확정되지 않은 표현입니다.
+                  qualitative_code: PTY 또는 SKY의 정성 상태 코드 표현입니다.
+                  missing: 원천 예보 값이 비어 있거나 결측 표식인 상태입니다.
+                  unparseable: 현재 분류 규칙으로 의미를 안전하게 해석할 수 없는 표현입니다.
+          lineage:
+            source_relations:
+              - model.weather.silver_kma_vilage_fcst_grid
+              - model.weather.bridge_weather_admin_dong_grid
+              - model.asac_axes.dim_admin_dong
+            identifiers:
+              as_of:
+                columns:
+                  - forecast_at
+              publication:
+                columns:
+                  - published_at
+              raw:
+                columns:
+                  - raw_object_key
+              request:
+                columns:
+                  - request_id
+              run:
+                columns:
+                  - dag_run_id
+          lifecycle:
+            status: active
+    columns:
+      - name: product_row_id
+        description: 행정동 코드와 예보 대상 timestamp(6) 및 항목을 구분자로 연결한 결정적 제품 행 식별자입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: primary_key
+            nullable: false
+            null_meaning: 공개 제품 기본 키이므로 null을 허용하지 않습니다.
+      - name: admin_dong_code
+        description: 승인 revision 2025-04-01 공통 행정동 차원에서 확인한 행안부 10자리 행정동 코드입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: false
+            null_meaning: natural grain과 다른 도메인 조인에 필수이므로 null을 허용하지 않습니다.
+      - name: forecast_at
+        description: 예보가 대상으로 삼는 서울 기준 timestamp(6)이며 natural grain의 시간축입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 예보 대상 시각이 없는 행은 제품 grain을 만들 수 없습니다.
+            time_role: event
+            timezone: Asia/Seoul
+      - name: category
+        description: KMA 단기예보 항목 코드이며 natural grain의 질문 축입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: false
+            null_meaning: 예보 항목을 식별할 수 없는 행은 공개하지 않습니다.
+      - name: admin_dong
+        description: 승인 revision 2025-04-01 공통 행정동 차원에서 가져온 행정동명입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: 정본 행정동명이 없는 후보는 공개 Gold에서 제외합니다.
+      - name: gu_code
+        description: 승인 revision 2025-04-01 공통 행정동 차원에서 가져온 행안부 자치구 5자리 코드입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: 정본 자치구 코드가 없는 후보는 공개 Gold에서 제외합니다.
+      - name: gu
+        description: 승인 revision 2025-04-01 공통 행정동 차원에서 가져온 자치구명입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: 정본 자치구명이 없는 후보는 공개 Gold에서 제외합니다.
+      - name: admin_dong_revision_date
+        description: 현재 행에 명시적으로 stamp한 승인 공통 행정동 revision 2025-04-01입니다.
+        data_type: date
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: 정본 개정일이 없는 후보는 공개 Gold에서 제외합니다.
+      - name: bridge_version
+        description: 격자와 행정동 연결에 사용한 명시적 bridge assertion 버전입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: mapping_version
+            nullable: false
+            null_meaning: 승인된 bridge 버전을 확인할 수 없는 행은 공개하지 않습니다.
+      - name: nx
+        description: 선택한 KMA 예보의 격자 X 좌표입니다.
+        data_type: integer
+        config:
+          meta:
+            semantic_role: source_coordinate
+            nullable: false
+            null_meaning: 원천 격자 X 좌표가 없는 행은 bridge에 결합할 수 없습니다.
+      - name: ny
+        description: 선택한 KMA 예보의 격자 Y 좌표입니다.
+        data_type: integer
+        config:
+          meta:
+            semantic_role: source_coordinate
+            nullable: false
+            null_meaning: 원천 격자 Y 좌표가 없는 행은 bridge에 결합할 수 없습니다.
+      - name: source_grid_place_id
+        description: 선택한 Grid 예보가 보존한 원천 수집 장소 식별자입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: source_identifier
+            nullable: false
+            null_meaning: 원천 Grid 장소를 추적할 수 없는 행은 공개하지 않습니다.
+      - name: issued_at
+        description: KMA가 예보를 발표한 서울 기준 timestamp(6)입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 발표 시각이 없는 행은 최신 예보를 결정할 수 없습니다.
+            time_role: issue
+            timezone: Asia/Seoul
+      - name: collected_at
+        description: 원천 응답을 수집한 서울 기준 timestamp(6)입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 수집 시각이 없으면 최신성 tie-break와 적재 지연을 검증할 수 없습니다.
+            time_role: collection
+            timezone: Asia/Seoul
+      - name: published_at
+        description: manifest가 실행을 게시 가능하다고 확정한 서울 기준 timestamp(6)입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 게시 시각이 없는 행은 bounded reconciliation 경계를 확인할 수 없습니다.
+            time_role: publication
+            timezone: Asia/Seoul
+      - name: fcst_value_raw
+        description: KMA가 제공한 예보 값 표현의 원문입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: source_value
+            nullable: true
+            null_meaning: 원천 값이 실제로 비어 있으며 value_representation이 missing으로 구분합니다.
+      - name: fcst_value_num
+        description: 원문을 직접 double로 변환할 수 있을 때만 채운 호환 수치입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: compatibility_value
+            nullable: true
+            null_meaning: 단위나 범위 또는 정성 표현이라 직접 수치 변환이 불가능한 상태입니다.
+      - name: value_representation
+        description: 예보 값 원문의 없음과 점값 및 범위와 코드와 결측을 구분한 표현 상태입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: false
+            null_meaning: 값 표현 상태를 분류하지 못한 행은 공개하지 않습니다.
+      - name: value_num
+        description: 확정 수치 또는 단위 미확정 bare numeric에서 보존한 double 값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 명시적 없음과 범위 및 정성 코드와 결측에는 단일 수치가 없습니다.
+      - name: value_lower_bound
+        description: 범위 예보 표현의 포함 하한이며 해당하지 않으면 null입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 범위 표현이 아니거나 안전한 하한을 만들 수 없는 상태입니다.
+      - name: value_upper_bound
+        description: 범위 예보 표현의 상한이며 이상 표현의 무상한과 비범위 값은 null입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 상한이 없거나 범위 표현이 아니어서 적용할 값이 없습니다.
+      - name: qualitative_code
+        description: PTY 또는 SKY가 제공한 정성 상태 코드 원문입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: categorical_value
+            nullable: true
+            null_meaning: 해당 예보 항목이 정성 코드 항목이 아닙니다.
+      - name: forecast_lead_hours
+        description: 발표 시각부터 예보 대상 시각까지의 시간 차이입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: derived_value
+            nullable: false
+            null_meaning: 발표와 예보 시각이 모두 있어야 하므로 null을 허용하지 않습니다.
+      - name: source_id
+        description: KMA 단기예보 원천을 식별하는 안정 식별자입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: 원천 시스템을 추적할 수 없는 행은 공개하지 않습니다.
+      - name: dag_run_id
+        description: 선택한 예보 행을 만든 수집 DAG 실행 식별자입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: 수집 실행으로 역추적할 수 없는 행은 공개하지 않습니다.
+      - name: raw_object_key
+        description: 선택한 예보 행의 원본 객체를 추적하는 안정 식별자입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: 원본 객체로 역추적할 수 없는 행은 공개하지 않습니다.
+      - name: request_id
+        description: 선택한 예보 행의 외부 API 요청 식별자입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: 외부 요청으로 역추적할 수 없는 행은 공개하지 않습니다.
   - name: gold_weather_forecast_summary
     description: 기존 최신 Weather Silver snapshot을 source_id별로 집계한 원천 수준 호환 요약이며 question-grain 조인 Gold가 아니다.
     columns:

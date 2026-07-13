@@ -58,6 +58,7 @@ VALID_CONTRACT_STATUSES = {"dev_pending", "enforced"}
 SAFE_KEY_ROLES = {"key", "primary_key", "join_key", "dimension_key", "foreign_key", "identifier"}
 SAFE_JOIN_CARDINALITIES = {"one_to_one", "many_to_one"}
 CANONICAL_TIMEZONE = "Asia/Seoul"
+CANONICAL_SPACE_APPROVED_REVISION_DATE = "2025-04-01"
 CANONICAL_SPACE_SOURCE_CHAIN = (
     "iceberg_dev.common.bronze_admin_dong_master",
     "asac_axes.dim_admin_dong",
@@ -80,7 +81,7 @@ TIMESTAMP_DATA_TYPE_RE = re.compile(
     re.IGNORECASE,
 )
 MAX_JSON_DEPTH = 64
-MAX_JSON_CONTAINERS = 10_000
+MAX_JSON_CONTAINERS = 50_000
 RUNTIME_TIMESTAMP_RE = re.compile(
     r"(?<!\d)\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?(?!\d)"
 )
@@ -1013,6 +1014,25 @@ def _validate_space(
             )
         )
     projection["revision_field"] = revision_field or ""
+
+    approved_revision_date = _nonempty_string(
+        value,
+        "approved_revision_date",
+        f"{path}.approved_revision_date",
+        errors,
+    )
+    if (
+        approved_revision_date is not None
+        and approved_revision_date != CANONICAL_SPACE_APPROVED_REVISION_DATE
+    ):
+        errors.append(
+            _error(
+                "INVALID_SPACE_APPROVED_REVISION",
+                f"{path}.approved_revision_date",
+                "approved_revision_date must equal the approved canonical revision 2025-04-01",
+            )
+        )
+    projection["approved_revision_date"] = approved_revision_date or ""
 
     stamp_fields = value.get("stamp_fields", MISSING)
     if stamp_fields != list(CANONICAL_SPACE_STAMP_FIELDS):

@@ -38,14 +38,20 @@ lower(to_hex(sha256(to_utf8(json_format(cast(array[
     {%- set source_schema = env_var('ASK_SEOUL_SCHEMA', 'ask_seoul') -%}
     {%- set target_schema = target.schema -%}
     {%- set namespace_pattern = '^dev_[a-z0-9_]+_weather_contract_test_[0-9a-f]{24}$' -%}
-    {%- if mode != 'bounded_isolated_smoke'
-        or target.database != 'iceberg_dev'
-        or source_schema != target_schema
-        or not modules.re.fullmatch(namespace_pattern, target_schema) -%}
-        {{ exceptions.raise_compiler_error(
-            'Weather W1 최초 빌드는 동일한 unique isolated dev source/target와 '
-            ~ 'weather_w1_initial_build_mode=bounded_isolated_smoke에서만 허용됩니다.'
-        ) }}
+    {%- set isolated_smoke = (
+        mode == 'bounded_isolated_smoke'
+        and target.database == 'iceberg_dev'
+        and source_schema == target_schema
+        and modules.re.fullmatch(namespace_pattern, target_schema)
+    ) -%}
+    {%- if not isolated_smoke -%}
+        {%- if not weather_w2_shared_dev_build_allowed() -%}
+            {{ exceptions.raise_compiler_error(
+                'Weather W1 최초 빌드는 동일한 unique isolated dev source/target와 '
+                ~ 'weather_w1_initial_build_mode=bounded_isolated_smoke 또는 검증된 W2 bounded DEV repair에서만 허용됩니다.'
+            ) }}
+        {%- endif -%}
+        {%- do weather_w2_assert_repair_evidence() -%}
     {%- endif -%}
 {%- endif -%}
 {%- endmacro %}
@@ -58,13 +64,19 @@ lower(to_hex(sha256(to_utf8(json_format(cast(array[
     {%- set mode = var('weather_w1_initial_build_mode', '') -%}
     {%- set target_schema = target.schema -%}
     {%- set namespace_pattern = '^dev_[a-z0-9_]+_weather_contract_test_[0-9a-f]{24}$' -%}
-    {%- if mode != 'bounded_isolated_smoke'
-        or target.database != 'iceberg_dev'
-        or not modules.re.fullmatch(namespace_pattern, target_schema) -%}
-        {{ exceptions.raise_compiler_error(
-            candidate_name ~ '은 unique isolated iceberg_dev namespace와 '
-            ~ 'weather_w1_initial_build_mode=bounded_isolated_smoke에서만 실행할 수 있습니다.'
-        ) }}
+    {%- set isolated_smoke = (
+        mode == 'bounded_isolated_smoke'
+        and target.database == 'iceberg_dev'
+        and modules.re.fullmatch(namespace_pattern, target_schema)
+    ) -%}
+    {%- if not isolated_smoke -%}
+        {%- if not weather_w2_shared_dev_build_allowed() -%}
+            {{ exceptions.raise_compiler_error(
+                candidate_name ~ '은 unique isolated iceberg_dev namespace와 '
+                ~ 'weather_w1_initial_build_mode=bounded_isolated_smoke 또는 검증된 W2 bounded DEV repair에서만 실행할 수 있습니다.'
+            ) }}
+        {%- endif -%}
+        {%- do weather_w2_assert_repair_evidence() -%}
     {%- endif -%}
 {%- endif -%}
 {{ return('') }}

@@ -10,6 +10,7 @@
 ) }}
 
 {{ weather_w1_initial_build_guard() }}
+{{ weather_w2_assert_repair_evidence() }}
 
 with publishable_manifest_ranked as (
     select
@@ -30,14 +31,27 @@ with publishable_manifest_ranked as (
         ) as manifest_row_num
     from {{ source('weather_bronze', 'collection_run_manifest') }}
     where cast(source_id as varchar) = 'kma_vilage_fcst'
+    {% if weather_w2_is_repair() %}
+      and cast(event_at as timestamp(6)) + interval '9' hour
+          <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+    {% else %}
       and cast(status as varchar) = 'SUCCESS'
       and cast(is_publishable as boolean)
+    {% endif %}
 ),
 
 publishable_manifest as (
     select *
     from publishable_manifest_ranked
     where manifest_row_num = 1
+    {% if weather_w2_is_repair() %}
+      and manifest_status = 'SUCCESS'
+      and is_publishable
+      and manifest_event_at_utc + interval '9' hour
+          >= timestamp '{{ weather_w2_repair_start_at() }}'
+      and manifest_event_at_utc + interval '9' hour
+          <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+    {% endif %}
 ),
 
 bronze_typed as (
@@ -90,7 +104,7 @@ bronze_typed as (
         on cast(bronze.source_id as varchar) = manifest.source_id
        and cast(bronze.dag_run_id as varchar) = manifest.dag_run_id
     where cast(bronze.result_code as varchar) = '00'
-    {% if is_incremental() %}
+    {% if is_incremental() and not weather_w2_is_repair() %}
       and cast(bronze.collected_at as timestamp(6)) >= (
           select coalesce(max(bronze_collected_at_utc), timestamp '1970-01-01 00:00:00')
                  - interval '{{ weather_w1_lookback_minutes() }}' minute

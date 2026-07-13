@@ -2,12 +2,12 @@
 
 이 문서는 Weather Gold를 사람과 AI가 같은 의미로 읽기 위한 한국어 우선 선언 계약이다. SQL 식별자, 컬럼명, metadata key, enum token, relation ID, 명령은 안정적인 English token을 유지하고, 제품 질문·행 의미·사용 조건·시간·공간·단위·품질·조인·수명주기 설명은 한국어로 작성한다.
 
-> **규범과 배포 현황은 다르다.** 아래 YAML은 안전한 v1 선언 형태를 보여 주는 규범 예시이며, 실제 Weather relation이 이 계약대로 배포되었다는 증거가 아니다. 기본 `contract_status`는 `dev_pending`이다. 이 문서 작성 시점에는 approved-dev physical proof와 data correctness proof를 수행하지 않았고, Snowflake 게시·Gold API·실제 application exposure도 배포하지 않았다.
+> **규범과 배포 현황은 다르다.** 아래 YAML은 안전한 v1 선언 형태를 보여 주는 규범 예시다. Weather shared DEV relation의 scoped smoke는 별도로 수행했지만, 고유 run-scoped schema와 외부 ledger를 요구하는 formal approved-dev physical/data proof는 아직 수행하지 않았다. 기본 `contract_status`는 `dev_pending`이며 Snowflake 게시·Gold API·실제 application exposure도 배포하지 않았다.
 
 | 구분 | v1 규범 | 이 문서 작성 시점의 실제 상태 |
 | --- | --- | --- |
 | 선언 기본값 | `contract_status: dev_pending` | 문서 예시에만 적용 |
-| Weather 목표 제품 | 아래 의미·grain·품질 경계를 충족 | 현행 모델에는 명시한 propagation·제품 분리 gap이 있음 |
+| Weather 목표 제품 | 아래 의미·grain·품질 경계를 충족 | additive shared DEV relation 존재, `dev_pending` |
 | 물리 relation 증거 | approved-dev 동일 invocation의 `manifest.json`·`catalog.json` 비교 필요 | `NOT_RUN` |
 | 데이터 정합성 증거 | scoped SQL/data test와 수동 의미 리뷰 필요 | `NOT_RUN` |
 | 소비 표면 | 실제 소비자가 있을 때만 `served` | Snowflake/API/application exposure 미배포 |
@@ -102,12 +102,17 @@ timestamp data type, `_at` suffix, `semantic_role: timestamp`, 또는 column의 
 - exact `source_chain`
 - `canonical_key: admin_dong_code`
 - `revision_field: admin_dong_revision_date`
+- `approved_revision_date: "2025-04-01"`
 - exact `stamp_fields`
 - 한국어 `candidate_key_explanation`, `mapping_version_explanation`, `null_location_explanation`, `fan_out_explanation`
 - 서로 다른 이름의 `reconciliation_tests` 두 개 이상
 - model의 직접 `dim_admin_dong` dependency
 
 exact chain과 stamp는 다음과 같다.
+
+`approved_revision_date`는 동적으로 latest를 선택하는 힌트가 아니라 공개 공간축이 승인받은
+정본 revision이다. 현재 v1 값은 정확히 `2025-04-01`이며 다른 날짜는 validator가 거절한다.
+새 revision 채택은 metadata, SQL source contract, count 근거를 함께 검토하는 계약 변경이다.
 
 ```text
 iceberg_dev.common.bronze_admin_dong_master
@@ -260,6 +265,7 @@ models:
               - asac_axes.dim_admin_dong
             canonical_key: admin_dong_code
             revision_field: admin_dong_revision_date
+            approved_revision_date: "2025-04-01"
             stamp_fields:
               - admin_dong_code
               - admin_dong
@@ -493,18 +499,25 @@ W1 Issue #151의 로컬 candidate 구현 상태는 다음과 같다.
 
 - `silver_kma_vilage_fcst_observation` candidate가 publishable run/raw/page/item signature grain과 invalid-time·격자·category의 Grid 제외 상태, raw lineage를 보존한다.
 - `silver_kma_vilage_fcst_grid` candidate가 native Grid grain에서 결정적 observation을 선택하고 `kma_value_semantics` 결과를 전파한다.
-- `bridge_weather_admin_dong_grid` candidate가 legacy 427행 assertion을 보존하고 `asac_axes.dim_admin_dong`에서 canonical 다섯 필드를 exact-code로 stamp한다.
-- 세 relation과 bridge history seed는 W2 public Gold와 A1 DAG gate 전까지 `internal_candidate`이며 bridge/seed도 isolated candidate guard 밖에서는 fail closed한다. known-vector data test는 추가됐지만 approved-dev physical/data·two-run convergence proof는 아직 `NOT_RUN`이다.
+- `bridge_weather_admin_dong_grid` candidate가 legacy 427행 assertion을 보존하고 `asac_axes.dim_admin_dong`의 승인 revision `2025-04-01`에서 canonical 다섯 필드를 exact-code로 stamp한다.
+- 세 relation과 bridge history seed는 공개 소비 표면이 아닌 내부 producer다. 기존 target을 가진 observation·Grid의 normal incremental은 기존 30분 lookback으로 계속 허용하고, shared bootstrap과 bounded historical recovery만 검증된 DEV repair로 제한한다. scoped shared DEV smoke에서는 427행 bridge, 426행 canonical, 425개 mapped code와 동일 cutoff 두 번 실행 convergence를 관찰했지만, 이는 formal approved-dev physical/data proof나 운영 DAG·live consumer 증거가 아니다.
 
 남은 gap은 다음과 같다.
 
 - 기존 `silver_weather_forecast_by_admin_dong`과 `gold_weather_forecast_by_place`는 호환 표면으로 유지되어 W1 candidate로 재배선되지 않았다.
-- 목표 grain `admin_dong_code × forecast_at × category`의 public Gold, 최신 `issued_at` 선택, stale extra 양방향 reconciliation, explicit cutoff no-downgrade repair는 W2가 소유한다.
-- selector ordering과 failure injection에서 Silver/Gold 0건·`upstream_failed`를 증명하는 실행 차단은 A1이 소유한다.
-- local declaration/static PASS는 catalog column/type/order 또는 실제 데이터 정합성 PASS를 뜻하지 않는다.
+- W2의 `gold_weather_forecast_by_admin_dong`은 목표 grain, 최신 `issued_at` 선택, stale extra 양방향 reconciliation, explicit cutoff no-downgrade repair를 선언하고 구현한다.
+- 이 Gold는 latest revision을 자동 선택하지 않고 승인 revision `2025-04-01`의 다섯 필드를 stamp한다. bridge v1 427행, 해당 revision 정본 426행, mapped canonical code 425개를 exact source contract로 검증하며 426개 전체 coverage를 주장하지 않는다.
+- W1 bridge 저장 grain은 좌표 assertion을 보존하지만 W2 active v1은 `source_admin_code`당 한 격자만 허용한다. v1 seed는 immutable이고 mapping 변경은 새 version으로 발행한다.
+- normal Gold도 `weather_w2_canonical_revision_date=2025-04-01`을 명시적으로 요구한다. bounded repair는 이 revision과 `weather_w2_repair_mode`, `weather_w2_repair_start_at`, `weather_w2_publishable_cutoff_at`, `weather_w2_bridge_version` 네 recovery 제어를 함께 요구한다.
+- Gold temp는 delta가 아니라 완전한 desired relation이다. normal은 승인 정본의 기존 target을 보존하고 repair는 경계 밖만 보존한 뒤 경계 안을 expected set으로 재구성한다. MERGE는 desired temp에 없는 target grain만 단일 sentinel로 삭제하며 live dimension을 다시 조회하지 않는다.
+- 최초 target 부재 시 dbt-trino의 atomic CTAS가 custom MERGE를 우회하므로 typed failure branch를 최종 SQL에 union해 product 0건에서도 revision·427/426/425 count·non-null·중복·anchor 조건을 검증한다.
+- Grid repair는 cutoff 시점 latest eligible manifest anchor에 observation을 결합한다. 더 최신인 현재 winner가 retract/non-publishable run이면 no-downgrade 보호를 적용하지 않고 authoritative eligible winner로 교체한다.
+- selector ordering, fixed `__dbt_tmp` 이름을 사용하는 normal/repair writer 직렬화, failure injection에서 Silver/Gold 0건·`upstream_failed`를 증명하는 실행 차단은 A1이 소유한다.
+- `contract_status: dev_pending`과 `exposure_status: none_no_live_consumer`를 유지한다. scoped shared DEV smoke의 catalog shape·data tests·two-run convergence는 통과했지만 formal approved-dev proof, effective dbt contract enforcement, live consumer가 아직 없기 때문이다.
 
-따라서 위 Weather shape는 여전히 목표 public 계약이다. W1 candidate 구현을 public Gold,
-physical/data proof, repair 또는 DAG 운영 완료로 표현하지 않는다.
+따라서 scoped shared DEV smoke를 formal approved-dev physical/data proof, 운영 DAG 완료,
+live consumer proof로 확대 해석하지 않는다. effective dbt contract enforcement, A1 직렬화·failure injection, 실제 consumer 검증이
+완료되기 전에는 `dev_pending`을 `enforced`로 승격하지 않는다.
 
 
 ## 8. 공통 공간축과 reconciliation
@@ -535,7 +548,7 @@ mkdir -p target/contracts
 python3 domains/weather/contracts/scripts/lint_schema_contract_source.py \
   --schema-root domains/weather/models/schema.yml \
   --schema-root domains/weather/models/sources.yml \
-  --resource gold_weather_forecast_by_place \
+  --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --output target/contracts/weather-source-declaration.json
 ```
@@ -559,7 +572,7 @@ source report는 가능한 오류를 `file`, `resource_kind`, `resource_name`, `
 ```bash
 python3 domains/weather/contracts/scripts/validate_public_gold_manifest.py \
   --manifest target/manifest.json \
-  --resource gold_weather_forecast_by_place \
+  --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --output target/contracts/public-gold-declared-catalog.json
 ```
@@ -586,7 +599,7 @@ fixture 비교는 물리 증거로 승격하지 않는다.
 python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
-  --resource gold_weather_forecast_by_place \
+  --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --evidence-kind fixture \
   --output target/contracts/weather-fixture-comparison.json
@@ -598,7 +611,7 @@ python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
 python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
-  --resource gold_weather_forecast_by_place \
+  --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --evidence-kind approved_dev_catalog \
   --evidence-id "$APPROVED_DEV_EVIDENCE_ID" \
@@ -672,7 +685,7 @@ v1 설명에는 “원천 시간대를 서울 기준 시각으로 변환한 값�
 | Gold API·AI serving | 미배포 | 실제 consumer, 접근 정책, versioning, 운영 SLO |
 | application exposure | 계획 소비처는 등록하지 않음 | 실제 dependent application이 있을 때 `served`로 promotion |
 
-`late_repair_policy`는 정책 선언이지 repair 실행 권한이 아니다. destructive full refresh, backfill, cutoff repair, Airflow DAG gate는 후속 소유 이슈에서 별도로 승인·검증한다. 이 v1 문서는 DAG를 실행하거나 repair 경로를 구현하지 않는다.
+`late_repair_policy` 자체는 실행 권한이 아니다. W2는 `dev/iceberg_dev/weather` 전용 bounded repair SQL을 구현했지만 scheduled backfill 권한, cutoff 캡처·전달, normal/repair writer 직렬화, task ordering, failure injection, Airflow DAG gate는 A1이 별도로 승인·검증한다. destructive full refresh는 계속 금지하며 이 문서는 DAG 실행 권한을 부여하지 않는다.
 
 ## 13. reference ledger
 
