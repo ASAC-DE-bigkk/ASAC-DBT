@@ -137,6 +137,16 @@ sources:
             description: Manifest event timestamp used for freshness monitoring.
             tests:
               - not_null
+          - name: expected_rows
+            description: Source-reported incident row total expected for this collection run; zero is valid only with complete request-audit evidence.
+          - name: actual_rows
+            description: Incident rows verified in Bronze for this collection run.
+          - name: expected_raw_objects
+            description: Raw response objects expected from the resolved TOPIS page plan.
+          - name: actual_raw_objects
+            description: Raw response objects successfully landed for this collection run.
+          - name: failure_reason
+            description: Redacted failure class and task identifier for a failed collection event; it does not contain a structured failure stage.
 
       - name: seoul_traffic_incident_request_audit
         identifier: bronze_seoul_traffic_incident_request_audit
