@@ -110,8 +110,12 @@ sources:
         description: Bronze DAG run-level publish gate written by ASAC-DAG.
         loaded_at_field: event_at
         freshness:
-          warn_after: {count: 15, period: minute}
-          error_after: {count: 30, period: minute}
+          warn_after:
+            count: "{{ env_var('ASK_SEOUL_REPORT_TRAFFIC_FRESHNESS_WARN_MINUTES', '15') | int }}"
+            period: minute
+          error_after:
+            count: "{{ env_var('ASK_SEOUL_REPORT_TRAFFIC_FRESHNESS_ERROR_MINUTES', '30') | int }}"
+            period: minute
         columns:
           - name: source_id
             description: Source identifier for the publish-gate manifest.
