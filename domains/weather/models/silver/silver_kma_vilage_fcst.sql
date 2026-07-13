@@ -52,8 +52,10 @@ bronze as (
     -- 증분 커서는 dag_run_id 가 아니라 collected_at 워터마크. run ID 앙티조인은
     -- dedup 에서 전량 패배해 silver 에 ID 를 못 남긴 run(전량 섀도잉된 중복 수집)을
     -- 매 run 재선택하는 순환을 만든다 — 관측: 배치당 139,360행 재머지.
-    where cast(bronze.collected_at as timestamp(6)) > (
-        select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }}
+    where cast(bronze.collected_at as timestamp(6)) >= (
+        select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00')
+               - interval '{{ weather_w1_lookback_minutes() }}' minute
+        from {{ this }}
     )
     {% endif %}
 ),

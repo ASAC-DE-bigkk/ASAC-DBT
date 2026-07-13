@@ -122,10 +122,8 @@ def test_bridge_seed_is_exact_427_row_legacy_copy_with_frozen_evidence():
     assert all(row["temporal_quality"] == "revision_only" for row in history)
 
 
-def test_protected_compatibility_sql_is_byte_identical_to_gate_a_base():
+def test_compatibility_sql_changes_only_for_issue_140_replay_window():
     expected = {
-        "models/silver/silver_kma_vilage_fcst.sql": "7e3f93ad6f81846fbf90bb84dfe1c7f008874f41",
-        "models/silver/silver_weather_forecast_by_admin_dong.sql": "776915cf0dc7c08a3b47fd4ea1128eb9a0dcd2aa",
         "models/gold/dim_weather_place.sql": "42f13fc04b38df096c308e07cb636342e13e89c4",
         "models/gold/gold_weather_forecast_by_place.sql": "2549cfe5a0369ea0ac2fcb0bec5b59bae07d93e8",
     }

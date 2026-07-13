@@ -40,8 +40,10 @@ with grid_forecast as (
         dag_run_id
     from {{ ref('silver_kma_vilage_fcst') }}
     {% if is_incremental() %}
-    where collected_at > (
-        select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }}
+    where collected_at >= (
+        select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00')
+               - interval '{{ weather_w1_lookback_minutes() }}' minute
+        from {{ this }}
     )
     {% endif %}
 ),
