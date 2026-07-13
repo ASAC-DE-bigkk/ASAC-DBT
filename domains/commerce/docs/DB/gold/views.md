@@ -15,8 +15,9 @@ view + API view**를 current/history 두 형태로 전부 제공한다. 목록·
 
 - **history 조인이 안전한 이유**: entity_history 와 detail 은 **같은 silver history 버전행**에서
   나오므로 `(entity_seq, collected_at, content_hash)` 로 1:1 정합한다.
-- **생성 전략**: 320개 뷰를 손으로 만들지 않는다 — gold-catalog 를 dbt seed 로 올리고 jinja 루프로
-  카탈로그 행마다 view 를 생성(카탈로그가 단일 소스, 수정=재생성).
+- **생성 전략**: 320개 뷰를 손으로 만들지 않는다 — **Python**(`include/gold/ddl.py` 의
+  `view_domain_sql`/`view_api_sql`)이 카탈로그 행마다 `create or replace view` 문을 생성하고 loader 가
+  실행한다(카탈로그가 단일 소스, 수정=재생성). ※ "dbt seed + jinja 루프"는 폐기된 초기 구상 — 실제는 Python.
 
 ## 2. 도메인 view 예 — commerce_v_food_sanitation_business (현재)
 

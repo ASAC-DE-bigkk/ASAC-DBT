@@ -1,0 +1,19 @@
+version: 2
+
+# gold 소비처 선언 — silver 를 "누가 소비하는지"를 dbt lineage 에 노출(C5, lineage 사각 해소 1단계).
+# commerce gold 는 Python→서빙 Postgres 라 dbt 그래프에 모델로 존재하지 않는다 → exposure 로
+# 소비 계약을 문서화한다. Marquez(OpenLineage) 실엣지는 V1(gold DAG inlets/outlets)에서 잇는다.
+exposures:
+  - name: commerce_gold_serving
+    label: commerce gold 서빙 DB (serving-postgres)
+    type: application
+    maturity: high
+    owner:
+      name: data-eng
+    description: >
+      commerce_load_gold DAG(ASAC-DAG) 가 silver 를 읽어 서빙 Postgres 의 commerce_* 객체
+      (core entity/history · detail 78 · dim 3 · view 320)로 증분 적재한다. 카탈로그 구동 —
+      규칙: dags/domains/commerce/include/gold/ · 명세: docs/DB/gold/.
+    depends_on:
+      - ref('silver_license_history')
+      - ref('silver_license_current')

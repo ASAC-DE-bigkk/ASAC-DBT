@@ -22,6 +22,7 @@ with affected as (
     from {{ ref('silver_license_history') }}
     {% if var('include_datasets', []) %}
     where cast(dataset as varchar) in ({% for v in var('include_datasets') %}'{{ v }}'{% if not loop.last %}, {% endif %}{% endfor %})
+        {{ key_bucket_filter("coalesce(cast(opnsfteamcode as varchar), '') || '|' || coalesce(cast(mgtno as varchar), '')") }}
     {% elif is_incremental() %}
     where collected_at > (select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }})
     {% endif %}
@@ -39,6 +40,11 @@ ranked as (
     {% if is_incremental() %}
     inner join affected a
         on h.dataset = a.dataset and h.opnsfteamcode = a.opnsfteamcode and h.mgtno = a.mgtno
+    {% elif var('include_datasets', []) %}
+    -- cold build(테이블 부재)엔 affected 조인이 없어 include_datasets/key_bucket 스코프가 무력화된다
+    -- → 여기서 직접 스코프(무제한 전체-history 윈도우로 노드 한도 초과 방지 — 저메모리 seed 경로).
+    where cast(h.dataset as varchar) in ({% for v in var('include_datasets') %}'{{ v }}'{% if not loop.last %}, {% endif %}{% endfor %})
+        {{ key_bucket_filter("coalesce(cast(h.opnsfteamcode as varchar), '') || '|' || coalesce(cast(h.mgtno as varchar), '')") }}
     {% endif %}
 )
 
@@ -62,26 +68,10 @@ select
     jibun_address_norm,
     gu,
     gu_code,
-    case
-        when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
-            then null
-        else legal_dong
-    end as legal_dong,
-    case
-        when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
-            then null
-        else legal_code
-    end as legal_code,
-    case
-        when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
-            then null
-        else admin_dong
-    end as admin_dong,
-    case
-        when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
-            then null
-        else admin_dong_code
-    end as admin_dong_code,
+    {{ null_if_masked_address('legal_dong') }} as legal_dong,
+    {{ null_if_masked_address('legal_code') }} as legal_code,
+    {{ null_if_masked_address('admin_dong') }} as admin_dong,
+    {{ null_if_masked_address('admin_dong_code') }} as admin_dong_code,
     address_key_road,
     address_key_jibun,
     source_coord_x,
