@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('silver_seoul_traffic_incident') }}
 -- Verify that history Silver selected the latest valid record per acc_id from
 -- the publishable Bronze run pinned by this transform invocation. The model
 -- and this test must use the same snapshot: comparing unconsumed five-minute

@@ -1,5 +1,9 @@
 from pathlib import Path
 
+from domains.traffic.contracts.scripts.validate_singular_test_dependency_manifest import (
+    REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES,
+)
+
 
 TRAFFIC_DIR = Path(__file__).parents[1]
 
@@ -137,3 +141,15 @@ def test_snapshot_recovery_contract_validates_the_requested_publishable_run():
     assert "select * from expected_deduped except select * from actual_current" in compact_sql
     assert "select * from actual_current except select * from expected_deduped" in compact_sql
     assert "where not is_snapshot_marker" in sql
+
+
+def test_singular_tests_declare_required_model_dependencies():
+    for filename, model_names in REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES.items():
+        sql = (TRAFFIC_DIR / "tests" / filename).read_text(encoding="utf-8")
+        sql_body = "\n".join(
+            line for line in sql.splitlines() if not line.strip().startswith("--")
+        )
+
+        for model_name in model_names:
+            assert f"-- depends_on: {{{{ ref('{model_name}') }}}}" in sql
+            assert f"ref('{model_name}')" in sql_body

@@ -156,6 +156,40 @@ dbt test --select recovery_traffic_snapshot_metadata recovery_silver_seoul_traff
 recovery table은 운영 Current/Gold가 아니며, 해당 snapshot 조사와 수동 recovery의 작업
 증적이다. 생성·보존 기간과 정리 실행은 후속 Airflow recovery DAG가 기록·관리한다.
 
+## Singular-test dependency graph verification (#164)
+
+singular test의 `ref()`는 SQL 안에 있어도 task별 target artifact가 분리되거나 오래된
+artifact가 재사용되면 manifest graph가 잘못 생성될 수 있다. 따라서 `dbt parse`가
+성공했다는 로그만으로 test의 manifest dependency가 유효하다고 판단하지 않는다.
+
+아래 절차는 **dev 전용**이며, dev profile을 사용하는 dbt/Airflow runtime에서 실행한다.
+`<fresh-target>`은 tracked project 파일 밖의 새 경로여야 한다. 예를 들어
+`/tmp/traffic-graph-$(date +%s)`를 사용하고, Airflow가 사용한 기존 `target/`은 절대
+재사용하지 않는다. `<publishable-run-id>`에는 검증할 publishable Bronze snapshot의
+`traffic_snapshot_dag_run_id`를 넣는다.
+
+```bash
+dbt deps
+dbt parse --no-partial-parse --target-path <fresh-target> \
+  --vars '{"traffic_snapshot_dag_run_id":"<publishable-run-id>"}'
+python contracts/scripts/validate_singular_test_dependency_manifest.py \
+  --manifest <fresh-target>/manifest.json
+dbt test --select gold_traffic_incident_summary \
+  assert_gold_traffic_counts_match_silver \
+  assert_gold_traffic_row_counts_positive \
+  --target-path <fresh-target>-gold-test \
+  --vars '{"traffic_snapshot_dag_run_id":"<publishable-run-id>"}'
+```
+
+manifest validator는 explicit singular-test-to-model edge가 존재하는지 확인하는
+**graph/deployment gate**다. 마지막 selected Gold dbt test는 해당 pinned snapshot의
+row/count 계약을 확인하는 **data-contract gate**다. 둘 중 하나가 다른 하나를 대체하지
+않는다.
+
+#164의 범위는 dbt declaration과 manifest validator까지다. Airflow preflight와 dbt
+runtime upgrade는 별도 작업으로 관리한다. 이 경계는 graph 실패를 Gold data failure로
+오인하거나, runtime 변경으로 기존 snapshot/recovery 계약을 바꾸지 않기 위한 것이다.
+
 ## Coverage and completeness
 
 traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 coverage가 오도될 수 있다.
