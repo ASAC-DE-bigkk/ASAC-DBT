@@ -1,3 +1,4 @@
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -67,36 +68,41 @@ def model_contract() -> dict:
     return next(model for model in schema["models"] if model["name"] == MODEL_NAME)
 
 
-def git_blob(revision: str, relative_path: str) -> str:
+def git_blob_bytes(revision: str, relative_path: str) -> bytes:
     result = subprocess.run(
-        ["git", "rev-parse", f"{revision}:{relative_path}"],
+        ["git", "show", f"{revision}:{relative_path}"],
         cwd=REPO_DIR,
         check=True,
         capture_output=True,
-        text=True,
     )
-    return result.stdout.strip()
+    return result.stdout
 
 
 def test_legacy_compatibility_sql_remains_byte_identical():
     expected = {
         "models/silver/silver_kma_vilage_fcst.sql": (
-            "ff327bccb7d88072c6364511eaee27a1dae7fdf2"
+            "890e1f938ffe47f010f023aff24e579a99c93a5184b79a7b05bde75ba83b18cb"
         ),
         "models/silver/silver_weather_forecast_by_admin_dong.sql": (
-            "63c0de6b758ea02c9687c289472a18ca93854aca"
+            "66dcd5b4a3fa50f66ff74d295ff007c53de4bb98a00242a331731a5585f7bbbb"
         ),
         "models/gold/dim_weather_place.sql": (
-            "42f13fc04b38df096c308e07cb636342e13e89c4"
+            "eba54dedea0fd686d346b1cbcb6465651fc2d7503ec3dcd9fb64c5fa4698157f"
         ),
         "models/gold/gold_weather_forecast_by_place.sql": (
-            "2549cfe5a0369ea0ac2fcb0bec5b59bae07d93e8"
+            "31465a74b03bb5058e8951cfb5922d99c23ffe3519fc2c4728712c7678dfda87"
         ),
     }
-    for weather_relative_path, expected_blob in expected.items():
+    for weather_relative_path, expected_sha256 in expected.items():
         repo_relative_path = f"domains/weather/{weather_relative_path}"
-        assert git_blob(BASE_COMMIT, repo_relative_path) == expected_blob
-        assert git_blob("HEAD", repo_relative_path) == expected_blob
+        assert hashlib.sha256(git_blob_bytes(BASE_COMMIT, repo_relative_path)).hexdigest() == expected_sha256
+        assert hashlib.sha256(git_blob_bytes("HEAD", repo_relative_path)).hexdigest() == expected_sha256
+        unchanged = subprocess.run(
+            ["git", "diff", "--quiet", BASE_COMMIT, "--", repo_relative_path],
+            cwd=REPO_DIR,
+            check=False,
+        )
+        assert unchanged.returncode == 0
 
 
 def test_repair_inputs_and_shared_dev_guard_fail_closed():
@@ -110,6 +116,7 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed():
         "weather_w2_bridge_version",
         BRIDGE_VERSION,
         "timestamp(6)",
+        "asia/seoul",
         "24",
         "flags.full_refresh",
         "target.name",
@@ -125,7 +132,7 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed():
         "raw_cutoff is none",
         "raw_bridge_version is none",
         "start_at > cutoff_at",
-        "date_diff('hour', start_at, cutoff_at) > 24",
+        "cutoff_at > start_at + interval '24' hour",
         "cutoff_at > current_timestamp",
         "target.database != 'iceberg_dev'",
         "target.schema != 'weather'",
@@ -161,6 +168,8 @@ def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze():
         "expected_raw_objects = actual_raw_objects",
         "expected_raw_objects > 0",
         "anchor_count = 0",
+        "bronze_row_count != actual_rows",
+        "bronze_raw_object_count != actual_raw_objects",
     ):
         assert token in macro
     cutoff_filter = macro.index("event_at <= cutoff_at")
@@ -207,6 +216,7 @@ def test_custom_strategy_is_one_atomic_merge_with_bounded_delete_and_no_downgrad
         "forecast_at is null",
         "category is null",
         "group by admin_dong_code, forecast_at, category",
+        "having count(*) > 1",
         "target_duplicate_count > 0",
     ):
         assert preflight in strategy
@@ -221,6 +231,16 @@ def test_custom_strategy_is_one_atomic_merge_with_bounded_delete_and_no_downgrad
     assert "dbt_internal_source.admin_dong_revision_date" in strategy
     assert "dbt_internal_dest.raw_object_key" in strategy
     assert "dbt_internal_dest.request_id" in strategy
+    assert (
+        "raw_object_key = case when" in strategy
+        and "then dbt_internal_source.raw_object_key else dbt_internal_dest.raw_object_key end"
+        in strategy
+    )
+    assert (
+        "request_id = case when" in strategy
+        and "then dbt_internal_source.request_id else dbt_internal_dest.request_id end"
+        in strategy
+    )
     assert "when matched" in strategy
     delete_clause = strategy.index("then delete")
     update_clause = strategy.index("then update")
