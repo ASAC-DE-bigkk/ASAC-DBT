@@ -133,7 +133,8 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed():
         "raw_bridge_version is none",
         "start_at > cutoff_at",
         "cutoff_at > start_at + interval '24' hour",
-        "cutoff_at > current_timestamp",
+        "cast(current_timestamp at time zone 'asia/seoul' as timestamp(6)) as current_kst_at",
+        "cutoff_at > current_kst_at",
         "target.database != 'iceberg_dev'",
         "target.schema != 'weather'",
     ):
