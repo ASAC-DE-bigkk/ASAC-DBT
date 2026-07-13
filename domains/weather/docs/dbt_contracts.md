@@ -85,12 +85,15 @@ collected_at desc, raw_object_key desc, request_id desc
 ## Silver materialization (incremental merge)
 
 Grid Silver(`silver_kma_vilage_fcst`)와 admin-dong Silver
-(`silver_weather_forecast_by_admin_dong`)는 `collected_at` 워터마크
-(`> max(collected_at)`) 기준 incremental merge로 운영한다(#145, #147; 배경은 DL-013).
+(`silver_weather_forecast_by_admin_dong`)는 `collected_at` 워터마크의 최근 30분을
+inclusive하게 다시 읽는 incremental merge로 운영한다(#145, #147; 배경은 DL-013).
 
 - unique key: Grid Silver는 `place_id × nx × ny × issued_at × category × forecast_at`,
   admin-dong Silver는 `place_id × issued_at × forecast_at × category` — 각 grain
   테스트와 동일한 키다.
+- 증분 커서는 `>= max(collected_at) - 30분`이며 `weather_w1_lookback_minutes`로
+  검증된 값을 사용한다. 30분 창의 동일 grain은 MERGE unique key로 갱신하므로 중복을
+  append하지 않는다.
 - 증분 커서로 `dag_run_id`를 쓰지 않는다. dedup에서 전량 패배한 run은 silver에
   ID를 남기지 못해 매 run 재선택되는 순환이 생긴다(DL-013에서 배치당 139,360행
   재머지로 관측).
@@ -101,7 +104,7 @@ Grid Silver(`silver_kma_vilage_fcst`)와 admin-dong Silver
   admin-dong Silver도 relation 전체 교체를 운영 기본값으로 삼지 않는다. legacy 문맥에서
   순수 조인 full-refresh가 가능하다고 기록됐지만, 현재 포트폴리오는 W2의 explicit cutoff
   non-destructive repair와 reconciliation이 병합·검증되기 전 full-refresh를 승인하지 않는다.
-- 워터마크 이전 시점으로 늦게 publishable 마킹되는 run이나 발표 교정은 평시 증분 경로에
+- 30분 창보다 오래된 시점으로 늦게 publishable 마킹되는 run이나 발표 교정은 평시 증분 경로에
   잡히지 않는다. W2가 소유하는 명시적 cutoff repair로 처리하며 shared full-refresh로
   우회하지 않는다.
 
