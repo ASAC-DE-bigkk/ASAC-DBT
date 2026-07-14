@@ -261,6 +261,22 @@ def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze():
     assert latest_filter < publishable_filter
 
 
+def test_observation_reconciliation_uses_explicit_trino_join_aliases():
+    reconciliation = compact(
+        read("tests/assert_weather_observation_publishable_and_counts_reconcile.sql")
+    )
+
+    assert "from manifest as manifest_run" in reconciliation
+    assert "left join source_actual as source_actual_run" in reconciliation
+    assert "left join actual as actual_run" in reconciliation
+    assert "on manifest_run.source_id = source_actual_run.source_id" in reconciliation
+    assert "and manifest_run.dag_run_id = source_actual_run.dag_run_id" in reconciliation
+    assert "on manifest_run.source_id = actual_run.source_id" in reconciliation
+    assert "and manifest_run.dag_run_id = actual_run.dag_run_id" in reconciliation
+    assert "manifest_run.dag_run_id" in reconciliation
+    assert "using (source_id, dag_run_id)" not in reconciliation
+
+
 def test_w1_keeps_normal_lookback_and_adds_bounded_repair_no_downgrade():
     observation = compact(read("models/silver/silver_kma_vilage_fcst_observation.sql"))
     grid_raw = read("models/silver/silver_kma_vilage_fcst_grid.sql")

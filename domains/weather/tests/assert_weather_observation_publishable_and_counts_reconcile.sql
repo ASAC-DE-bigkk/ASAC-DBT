@@ -48,16 +48,20 @@ orphan as (
     where manifest.dag_run_id is null
 ),
 count_mismatch as (
-    select manifest.dag_run_id
-    from manifest
-    left join source_actual using (source_id, dag_run_id)
-    left join actual using (source_id, dag_run_id)
-    where coalesce(actual.observation_rows, 0) is distinct from coalesce(source_actual.source_rows, 0)
-       or coalesce(actual.observation_raw_objects, 0) is distinct from coalesce(source_actual.source_raw_objects, 0)
-       or manifest.actual_rows is distinct from coalesce(source_actual.source_rows, 0)
-       or manifest.actual_raw_objects is distinct from coalesce(source_actual.source_raw_objects, 0)
-       or manifest.expected_rows is distinct from manifest.actual_rows
-       or manifest.expected_raw_objects is distinct from manifest.actual_raw_objects
+    select manifest_run.dag_run_id
+    from manifest as manifest_run
+    left join source_actual as source_actual_run
+      on manifest_run.source_id = source_actual_run.source_id
+     and manifest_run.dag_run_id = source_actual_run.dag_run_id
+    left join actual as actual_run
+      on manifest_run.source_id = actual_run.source_id
+     and manifest_run.dag_run_id = actual_run.dag_run_id
+    where coalesce(actual_run.observation_rows, 0) is distinct from coalesce(source_actual_run.source_rows, 0)
+       or coalesce(actual_run.observation_raw_objects, 0) is distinct from coalesce(source_actual_run.source_raw_objects, 0)
+       or manifest_run.actual_rows is distinct from coalesce(source_actual_run.source_rows, 0)
+       or manifest_run.actual_raw_objects is distinct from coalesce(source_actual_run.source_raw_objects, 0)
+       or manifest_run.expected_rows is distinct from manifest_run.actual_rows
+       or manifest_run.expected_raw_objects is distinct from manifest_run.actual_raw_objects
 )
 select * from orphan
 union all
