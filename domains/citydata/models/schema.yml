@@ -40,6 +40,16 @@ sources:
     tables:
       - name: silver_culture_event
         description: 서울 문화행사 기간 fact — admin_dong_code·event_start/end_date·category·is_free.
+      - name: silver_culture_festival
+        description: 축제 기간 fact — admin_dong_code·event_start/end_date.
+      - name: silver_culture_performance
+        description: 공연 기간 fact — admin_dong_code·event_start/end_date.
+      - name: silver_culture_exhibition
+        description: 전시 기간 fact — admin_dong_code·event_start/end_date.
+      - name: silver_culture_sejong
+        description: 세종문화회관 공연 기간 fact — admin_dong_code·event_start/end_date.
+      - name: silver_culture_kcisa_event
+        description: KCISA 문화행사 기간 fact — admin_dong_code·event_start/end_date.
 
   - name: traffic
     description: 교통 도메인 published 테이블 (ASAC-DBT domains/traffic).
@@ -48,6 +58,22 @@ sources:
     tables:
       - name: silver_seoul_traffic_incident
         description: TOPIS 돌발정보 — admin_dong_code·occurred_at·expected_clear_at·acc_type.
+
+  - name: weather
+    description: 날씨 도메인 published 테이블 (ASAC-DBT domains/weather).
+    database: "{{ target.database }}"
+    schema: weather
+    tables:
+      - name: silver_weather_forecast_by_admin_dong
+        description: 기상청 단기예보(행정동 매핑) long 포맷 — admin_dong_code·forecast_at·category·fcst_value_num.
+
+  - name: commerce
+    description: 상권 도메인 published 테이블 (ASAC-DBT domains/commerce).
+    database: "{{ target.database }}"
+    schema: commerce
+    tables:
+      - name: silver_license_current
+        description: 서울 인허가 명부(현재) — admin_dong_code·trdstatenm(영업상태)·dataset(업종).
 
 seeds:
   - name: seoul_hotspot_area_geo
@@ -81,7 +107,7 @@ seeds:
         description: 영역 폴리곤 WKT (POLYGON/MULTIPOLYGON, WGS84)
 
 models:
-  - name: silver_seoul_ppltn
+  - name: silver_citydata_ppltn
     data_tests:
       - unique_grain:
           arguments:
@@ -122,7 +148,7 @@ models:
       - name: collected_at
         description: 수집 시각 (KST, dedup 시 최신 판단 기준)
 
-  - name: gold_seoul_ppltn_by_time
+  - name: gold_citydata_ppltn_by_time
     data_tests:
       - unique_grain:
           arguments:
@@ -157,7 +183,7 @@ models:
       - name: collected_at
         description: 수집 시각
 
-  - name: gold_seoul_ppltn_daily
+  - name: gold_citydata_ppltn_daily
     data_tests:
       - unique_grain:
           arguments:
@@ -297,7 +323,7 @@ models:
 
   - name: gold_citydata_place_latest
     description: >
-      장소별 최신 크로스 신호 스냅샷 (장소당 1행) — 혼잡도(silver_seoul_ppltn) ×
+      장소별 최신 크로스 신호 스냅샷 (장소당 1행) — 혼잡도(silver_citydata_ppltn) ×
       소비 × 승하차 × 따릉이 × 대기질. 실시간 지도/현황판 마트. incremental(merge,
       key=area_cd) — 최근 6시간 창에서 신호별 최신값을 merge, 전체 재생성 없음.
     columns:
@@ -352,18 +378,26 @@ models:
           arguments:
             columns: [event_date, admin_dong_code]
     description: >
-      인구혼잡 × 문화행사 — grain (event_date, admin_dong_code). 우리 인구를 동×일 롤업하고
-      그날 그 동 활성 문화행사(culture.silver_culture_event) 수를 붙여 집객효과를 본다.
-      크로스도메인(source). 커버리지=우리 핫플 동 한정. incremental(delete+insert).
+      인구혼잡 × 문화활동(통합) — grain (event_date, admin_dong_code). 우리 인구를 동×일
+      롤업하고 그날 그 동 활성 문화활동 6종(행사·축제·공연·전시·세종·KCISA)을 UNION 해
+      붙인다. 크로스도메인(source). 커버리지=우리 핫플 동 한정. incremental(delete+insert).
     columns:
       - name: event_date
         data_tests: [not_null]
       - name: admin_dong_code
         data_tests: [not_null]
       - name: event_count
-        description: 그날 그 동에 활성인 문화행사 수 (0 포함)
+        description: 그날 그 동에 활성인 문화활동 총수 6종 합 (0 포함)
       - name: has_event
-        description: 행사 존재 여부 (boolean)
+        description: 문화활동 존재 여부 (boolean)
+      - name: performance_count
+        description: 그중 공연 수
+      - name: exhibition_count
+        description: 그중 전시 수
+      - name: festival_count
+        description: 그중 축제 수
+      - name: event_types
+        description: 존재하는 문화활동 유형 목록 (예 '행사, 공연, 전시')
 
   - name: gold_citydata_transit_x_incident_hourly
     data_tests:
@@ -383,3 +417,41 @@ models:
         description: 그 시간 그 동에 활성인 돌발 수 (0 포함)
       - name: has_incident
         description: 돌발 존재 여부 (boolean)
+
+  - name: gold_citydata_ppltn_x_weather_hourly
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [time_bucket, admin_dong_code]
+    description: >
+      인구혼잡 × 날씨(예보) — grain (time_bucket=시, admin_dong_code). 우리 인구를 동×시 롤업하고
+      기상청 단기예보(weather, 최신 발표분)를 피벗해 붙인다. 크로스도메인(source=weather).
+      예보값(관측 아님). incremental(delete+insert).
+    columns:
+      - name: time_bucket
+        data_tests: [not_null]
+      - name: admin_dong_code
+        data_tests: [not_null]
+      - name: temp_c
+        description: 기온(°C) 예보
+      - name: precip_prob
+        description: 강수확률(%) 예보
+      - name: is_raining
+        description: 강수형태 예보로 판단한 비/눈 여부 (boolean)
+
+  - name: gold_citydata_ppltn_x_commerce_dong
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [admin_dong_code]
+    description: >
+      인구혼잡 × 상권밀도 — grain admin_dong_code(동 단위). 우리 인구를 동 평균내고 그 동의
+      상가 밀도(commerce 인허가 명부, 영업중 개수)를 붙인다. 크로스도메인(source=commerce).
+      명부는 시계열 아닌 현재 상태라 밀도로 집계. materialized=table.
+    columns:
+      - name: admin_dong_code
+        data_tests: [unique, not_null]
+      - name: license_active
+        description: 그 동의 영업중 인허가 수 (상가 밀도)
+      - name: restaurant_active
+        description: 그중 음식점(일반/휴게) 영업중 수

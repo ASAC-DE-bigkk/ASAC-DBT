@@ -1,6 +1,6 @@
 -- gold: 장소별 최신 크로스 신호 스냅샷 (#69). grain = area_cd (장소당 1행).
 --
--- #192 의 핵심 가치 실현 — 같은 장소의 **혼잡도(silver_seoul_ppltn) × 소비 × 승하차 ×
+-- #192 의 핵심 가치 실현 — 같은 장소의 **혼잡도(silver_citydata_ppltn) × 소비 × 승하차 ×
 -- 따릉이 × 대기질**을 최신 1행으로 붙인 실시간 지도/현황판 마트.
 --
 -- incremental(merge, key=area_cd): 최근 6시간 창에서 신호별 최신값을 뽑아 장소 단위로
@@ -30,7 +30,7 @@ with ppltn as (
     select area_cd, area_congest_lvl, area_ppltn_min, area_ppltn_max, event_at as ppltn_at
     from (
         select *, row_number() over (partition by area_cd order by event_at desc) as rn
-        from {{ ref('silver_seoul_ppltn') }}
+        from {{ ref('silver_citydata_ppltn') }}
         where event_at >= {{ lookback }}
     ) where rn = 1
 ),
