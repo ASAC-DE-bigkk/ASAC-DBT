@@ -21,6 +21,9 @@ clean-targets:
 models:
   culture:
     +materialized: table
+    # Iceberg CREATE OR REPLACE(원자적 메타데이터 교체) — 재빌드 중 소비자 조회 공백 0.
+    # 기본 rename은 교체 창이 서브초로 남음(7/14 실측, "does not exist" 1회 목격). #180
+    +on_table_exists: replace
 
 seeds:
   culture:
