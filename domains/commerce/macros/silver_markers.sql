@@ -22,7 +22,10 @@ not exists (
 {%- endmacro %}
 
 {% macro delete_unmarked_silver_history_runs() -%}
-{% if is_incremental() %}
+{#- seed 서브청크(content_bucket/key_bucket) 중에는 삭제 스킵 — 버킷은 disjoint(content_bucket=history,
+    key_bucket=current)이고 빈 테이블에서 시작하므로 삭제 대상이 없다(run 단위 삭제는 앞 버킷을 지운다).
+    실패 시 테이블 drop 후 재빌드로 복구. -#}
+{% if is_incremental() and not var('content_bucket', none) and not var('key_bucket', none) %}
 delete from {{ this }}
 where exists (
     select 1

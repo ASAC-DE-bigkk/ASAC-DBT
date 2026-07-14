@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('silver_seoul_traffic_incident') }}
 with coverage as (
     select
         count(*) as coordinate_row_count,

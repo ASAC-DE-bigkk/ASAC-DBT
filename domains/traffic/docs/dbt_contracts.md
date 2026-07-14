@@ -12,6 +12,7 @@ coverage 계약을 정리한다. 시간/공간 공통축은 `asac_axes` package�
 - Bronze table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_seoul_traffic_incident`
 - Bronze audit table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_seoul_traffic_incident_request_audit`
 - Silver model: `silver_seoul_traffic_incident`
+- Current Silver model: `silver_seoul_traffic_incident_current`
 - Gold model: `gold_traffic_incident_summary`
 
 ## Source contract
@@ -90,6 +91,146 @@ Catalog가 `__dbt_tmp` 뷰 생성에 409 AlreadyExists(리스트/exists에는 �
 레코드)를 반환한 2026-07-07 장애의 재발을 차단하고, merge 소스를 물질화된 테이블
 스캔으로 단순화하기 위함이다. `on_table_exists='drop'`은 population silver 선례를 따른다.
 
+`silver_seoul_traffic_incident_current`는 transform DAG가
+`traffic_snapshot_dag_run_id`로 고정한 complete publishable manifest run에 포함된 행만
+남기는 current snapshot table이다. 기존 Silver는 재처리·이력 추적을 위한 incremental
+latest-by-acc 상태를 유지하고, current snapshot과 Gold는 API에서 사라진 사고가 계속
+노출되지 않도록 고정된 complete run을 기준으로 한다. `assert_silver_traffic_latest_publishable_record`
+역시 history Silver와 같은 pinned run만 검증하며, transform이 소비하지 않은 5분 Bronze
+중간 run을 watermark로 섞어 요구하지 않는다. 해당 원본 이력은 Bronze에 그대로 보존한다.
+
+`assert_traffic_current_pinned_publishable_run`은 고정 run의 유효 Bronze `acc_id` 집합과
+current `source_record_id` 집합을 양방향으로 비교하고, current의 모든 행이 같은 run을
+가리키는지 확인한다. 고정 run이 publishable manifest에 없으면 실패하며, 유효 Bronze와
+current가 모두 0행인 정상 zero-incident snapshot은 통과한다. 수집과 transform 사이의
+스케줄 경합은 correctness anchor를 live latest로 바꾸지 않고 freshness만 별도로 판정한다.
+고정 run이 최신 publishable 네 번째 이하일 때 current에 행이 있거나 더 최신 publishable
+run에 유효 Bronze 행이 있으면 실패한다. 연속 zero-incident run만 새로 쌓인 경우에는
+정상 zero snapshot을 stale로 처리하지 않는다.
+
+## Snapshot recovery contract
+
+과거 Bronze snapshot의 계약 위반을 재현·검증할 때는 canonical incremental Silver나
+운영 Gold를 다시 빌드하지 않는다. recovery는 다음 세 table만 사용한다.
+
+- `recovery_silver_seoul_traffic_incident`: `traffic_snapshot_dag_run_id`가 가리키는
+  `SUCCESS + is_publishable` manifest run의 Bronze만 직접 읽어 같은 `acc_id` dedup 규칙을
+  적용한다. 이 table은 incident row와 함께 `is_snapshot_marker=true`인 1개 marker row를 같은
+  CTAS로 기록한다. marker는 incident가 아니므로 분석/Gold 집계에서는 반드시 제외한다.
+  이 원자적 marker 덕분에 유효한 zero-incident snapshot도 실제로 Silver가 만든 run ID를 남긴다.
+- `recovery_traffic_snapshot_metadata`: Silver marker만 읽는 완료 anchor다. Silver가 실패하거나
+  중단되면 이후 요청 snapshot으로 advance하지 않으므로, stale empty Silver를 새 empty snapshot으로
+  잘못 검증하지 않는다.
+- `recovery_gold_traffic_incident_summary`: recovery Silver만 집계하고
+  `snapshot_dag_run_id`를 결과에 남긴다.
+
+입력 run이 없거나 publishable이 아니면 recovery Silver/metadata는 0행이 되고,
+`assert_recovery_silver_traffic_snapshot_matches_bronze`가 `missing_pinned_run`으로 실패한다.
+이 test는 요청 run, Silver marker에서 읽은 metadata, 선택된 Bronze incident record를 양방향 비교한다.
+
+dev에서의 명시적 실행 순서는 다음과 같다. 이 경로는 recovery table만 갱신하며
+`silver_seoul_traffic_incident`, `silver_seoul_traffic_incident_current`,
+`gold_traffic_incident_summary`를 변경하지 않는다.
+
+```bash
+dbt run --select recovery_silver_seoul_traffic_incident \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+dbt run --select recovery_traffic_snapshot_metadata \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+dbt test --select recovery_traffic_snapshot_metadata recovery_silver_seoul_traffic_incident \
+  assert_recovery_silver_traffic_snapshot_matches_bronze \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+dbt run --select recovery_traffic_snapshot_metadata recovery_silver_seoul_traffic_incident \
+  recovery_gold_traffic_incident_summary \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+dbt test --select recovery_traffic_snapshot_metadata recovery_silver_seoul_traffic_incident \
+  recovery_gold_traffic_incident_summary assert_recovery_gold_traffic_counts_match_silver \
+  --vars '{"traffic_snapshot_dag_run_id": "<publishable-bronze-run-id>"}' \
+  --target dev --no-partial-parse
+```
+
+recovery table은 운영 Current/Gold가 아니며, 해당 snapshot 조사와 수동 recovery의 작업
+증적이다. 생성·보존 기간과 정리 실행은 후속 Airflow recovery DAG가 기록·관리한다.
+
+## Singular-test dependency graph verification (#164)
+
+singular test의 `ref()`는 SQL 안에 있어도 task별 target artifact가 분리되거나 오래된
+artifact가 재사용되면 manifest graph가 잘못 생성될 수 있다. 따라서 `dbt parse`가
+성공했다는 로그만으로 test의 manifest dependency가 유효하다고 판단하지 않는다.
+
+아래 절차는 **dev 전용**이며, dev profile을 사용하는 dbt/Airflow runtime에서 실행한다.
+`<fresh-target>`은 tracked project 파일 밖의 새 경로여야 한다. 예를 들어
+`/tmp/traffic-graph-$(date +%s)`를 사용하고, Airflow가 사용한 기존 `target/`은 절대
+재사용하지 않는다. `<publishable-run-id>`에는 검증할 publishable Bronze snapshot의
+`traffic_snapshot_dag_run_id`를 넣는다.
+
+```bash
+dbt deps
+dbt parse --no-partial-parse --target-path <fresh-target> \
+  --vars '{"traffic_snapshot_dag_run_id":"<publishable-run-id>"}'
+python contracts/scripts/validate_singular_test_dependency_manifest.py \
+  --manifest <fresh-target>/manifest.json
+dbt test --select gold_traffic_incident_summary \
+  assert_gold_traffic_counts_match_silver \
+  assert_gold_traffic_row_counts_positive \
+  --target-path <fresh-target>-gold-test \
+  --vars '{"traffic_snapshot_dag_run_id":"<publishable-run-id>"}'
+```
+
+manifest validator는 explicit singular-test-to-model edge가 존재하는지 확인하는
+**graph/deployment gate**다. 마지막 selected Gold dbt test는 해당 pinned snapshot의
+row/count 계약을 확인하는 **data-contract gate**다. 둘 중 하나가 다른 하나를 대체하지
+않는다.
+
+#164의 범위는 dbt declaration과 manifest validator까지다. Airflow preflight와 dbt
+runtime upgrade는 별도 작업으로 관리한다. 이 경계는 graph 실패를 Gold data failure로
+오인하거나, runtime 변경으로 기존 snapshot/recovery 계약을 바꾸지 않기 위한 것이다.
+
+### PR 전 자동 manifest 검증 (#178)
+
+`dev`를 대상으로 하는 **모든** pull request에서는
+`traffic-manifest-premerge-gate` GitHub Actions가 동일한
+`validate-traffic-manifest` check를 생성한다. workflow trigger나 job 자체에는 path filter를
+두지 않으므로, Traffic과 무관한 PR도 이 check context를 일관되게 남긴다.
+
+runner는 base/head diff에서 다음 중 하나가 바뀐 Traffic 영향 PR에만 repository root에서
+실행한다.
+
+- `domains/traffic/**`
+- `packages/asac_axes/**`
+- `.github/workflows/traffic-manifest-premerge-gate.yml`
+
+해당 범위에서는 기존 runner가 `dbt deps` → fresh target의
+`dbt parse --no-partial-parse` → manifest validator 순서로 실행한다.
+
+```bash
+python domains/traffic/contracts/scripts/run_traffic_manifest_premerge_gate.py \
+  --project-dir domains/traffic \
+  --target-path "$RUNNER_TEMP/traffic-manifest-gate"
+```
+
+runner는 `dbt deps` 뒤에 synthetic
+`traffic_snapshot_dag_run_id=ci__traffic-manifest-premerge-gate`를 사용해 새 target에서
+`dbt parse --no-partial-parse`를 수행하고, 생성된 `manifest.json`을 기존 singular-test
+dependency validator로 검사한다. Traffic 영향 runner가 실패해도 target artifact는
+`if: always()`로 수집하므로 배포 전 graph 오류의 원인을 확인할 수 있다.
+
+Weather 전용 변경처럼 위 범위 밖의 PR은 dbt를 실행하지 않고 skip step을 거쳐 성공 종료한다.
+Weather는 이번 #178 검증 범위가 아니다.
+
+첫 PR 실행에서 GitHub가 실제로 만든 `validate-traffic-manifest` check context를 확인한 뒤,
+`dev-protect` ruleset의 required status check로 등록해야 한다. 이 등록이 완료되어야 Traffic
+영향 PR에서 check 실패가 실제 merge 차단으로 동작한다.
+
+이 CI gate는 parse-only/read-only 검증이다. `dbt test`나 `dbt run`을 실행하지 않고,
+Trino·R2에 접속하거나 warehouse에 쓰지 않는다. 따라서 이 gate의 통과는 실제 Airflow run의
+data-contract test 또는 recovery 성공을 보장하거나 대체하지 않는다. 운영성 수동 검증은 바로
+위의 publishable Bronze snapshot 절차를 계속 사용한다.
+
 ## Coverage and completeness
 
 traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 coverage가 오도될 수 있다.
@@ -105,15 +246,45 @@ traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 c
 
 ## Gold contract
 
-`gold_traffic_incident_summary`는 source/time 요약 모델이다.
+`gold_traffic_incident_summary`는 current snapshot 기준 source/time 요약 모델이다.
 
 - `source_id`는 unique.
 - `row_count`, `raw_object_count`, `source_coordinate_row_count`,
   `missing_source_coordinate_row_count`는 null 허용 불가.
-- `first_occurred_at`, `last_occurred_at`, `last_collected_at`는 null 허용 불가.
+- `first_occurred_at`, `last_occurred_at`, `last_collected_at`는 정상 zero-incident
+  snapshot에서는 null일 수 있다.
 - 좌표 존재율은 `source_location_quality`를 통해 추적한다.
 - 현재 Gold summary는 table materialization을 유지한다. Silver 전체를 읽어 source 단위
   1행으로 집계하는 작은 모델이라 incremental로 부분 집계하면 stale count 위험이 더 크다.
+
+### Canonical 행정동·평가시간 Gold
+
+`gold_traffic_incident_current_by_admin_dong_hourly`는 변환 시작 시
+`traffic_snapshot_dag_run_id`로 고정한 최신 complete publishable snapshot의 사용자용 현재
+상태 mart다. 기존 source-level `gold_traffic_incident_summary`와 recovery 모델의 의미나
+materialization은 변경하지 않는다.
+
+- grain은 `admin_dong_code × hour_at`이며 `hour_at`은 사고 발생 시간이 아니라 manifest
+  상태를 관측한 서울 기준 평가 시간의 hour bucket이다.
+- 행정동 universe와 `admin_dong`, `gu_code`, `gu`, `admin_dong_revision_date` stamp는
+  `asac_axes.dim_admin_dong`만 사용한다. Silver의 행정동 코드는 exact join 후보일 뿐이며
+  이름 추정, 좌표 추정, self-copy fallback을 허용하지 않는다.
+- GRS80 TM 원천 좌표를 이 Gold에서 WGS84 위경도로 해석하지 않는다. 좌표 변환과 공간
+  후보 생성은 기존 Silver 계약의 책임이다.
+- `complete`와 `complete_zero`에서만 `incident_count`와 `has_incident`를 게시한다.
+  `incident_count = 0`은 manifest, request audit, Bronze, current, canonical mapping의 완전성
+  근거가 모두 일치할 때만 가능하다.
+- `missing`, `partial`, `api_failure`, `current_mismatch`,
+  `spatial_mapping_incomplete`에서는 사고 건수와 `snapshot_as_of_at`을 null로 두어 정상
+  0건과 근거 부재를 구분한다.
+- `snapshot_as_of_at`은 complete 계열에서 최신 request-audit `collected_at`을 서울 기준으로
+  변환한 값이고, `status_observed_at` 및 `published_at`과 역할이 다르다.
+- freshness는 이 mart의 품질 상태로 재해석하지 않고
+  `collection_run_manifest.event_at`의 source freshness 계약으로 별도 검증한다.
+
+사고 episode는 현재 snapshot만으로 실제 종료 시각, snapshot 사이 재등장·재사용 ID,
+종료 판정 규칙을 안전하게 확정할 수 없다. `expected_clear_at`을 실제 `ended_at`으로
+간주하지 않으며, observation history와 명시적 종료 규칙이 생길 때 후속 모델로 분리한다.
 
 ## PR checklist
 
@@ -122,7 +293,9 @@ traffic dbt PR 본문에는 최소한 아래 항목을 남긴다.
 - Source table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_seoul_traffic_incident`
 - Audit table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_seoul_traffic_incident_request_audit`
 - Target table: `iceberg_dev.traffic.silver_seoul_traffic_incident`
+- Target table: `iceberg_dev.traffic.silver_seoul_traffic_incident_current`
 - Target table: `iceberg_dev.traffic.gold_traffic_incident_summary`
+- Target table: `iceberg_dev.<run-scoped-schema>.gold_traffic_incident_current_by_admin_dong_hourly`
 - Event time 컬럼: `occurred_at`
 - Common event time 컬럼: `event_at`
 - Issued/예보시간 컬럼: 없음(incident 기준)

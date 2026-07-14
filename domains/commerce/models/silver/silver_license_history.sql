@@ -1,6 +1,7 @@
 -- 인허가 변경 이력(정제된 변경로그). bronze 변경로그 → publishable run 필터 → 파싱/파생 →
 -- 연속 중복 제거(diff 재유입·reconcile 재방출 제거, 정당한 원복 A→B→A 보존).
 {{ config(pre_hook="{{ delete_unmarked_silver_history_runs() }}") }}
+{%- set h_cols = silver_history_column_list() %}
 
 -- materialized=incremental(append): 첫 실행/--full-refresh 는 전체 publishable run 을 백필하고,
 -- 이후 실행은 silver_load_run_marker 의 DONE marker 가 없는 bronze_run_id 만 증분 처리한다.
@@ -50,6 +51,7 @@ bronze as (
         {{ not_in_excluded("cast(b.observed_date as varchar)", 'exclude_observed_dates') }}
         {{ not_in_excluded("cast(b.load_date as varchar)", 'exclude_load_dates') }}
         {{ not_in_excluded("cast(b.bronze_run_id as varchar)", 'exclude_bronze_run_ids') }}
+        {{ content_bucket_filter('cast(b.content_hash as varchar)') }}
         {% if is_incremental() %}
         -- DONE marker 기반 증분: dbt test 통과 후 Airflow 가 기록한 run 만 완료로 간주한다.
         -- target table 이 없거나 --full-refresh 이면 is_incremental() 이 false 라 전체 백필된다.
@@ -138,11 +140,7 @@ normalized as (
 dong_token as (
     select
         *,
-        case
-            when coalesce(road_address, '') like '%*%' or coalesce(jibun_address, '') like '%*%'
-                then null
-            else nullif(regexp_extract(coalesce(jibun_address_norm, ''), '서울(?:특별시|시)?\s*[가-힣]+?구\s*([가-힣]+\d*(?:동|가))', 1), '')
-        end as dong_raw
+        {{ null_if_masked_address("nullif(regexp_extract(coalesce(jibun_address_norm, ''), '서울(?:특별시|시)?\\s*[가-힣]+?구\\s*([가-힣]+\\d*(?:동|가))', 1), '')") }} as dong_raw
     from normalized
 ),
 
@@ -224,123 +222,7 @@ dong as (
         and n.gu = ra.sgg_name and n.dong_raw = ra.admin_dong_name
 ),
 
--- ── 좌표 변환: 중부원점 TM(EPSG:5174, Bessel1841 · lat0 38° · lon0 127°0'10.405" ·
---    FE 200000 · FN 500000) → WGS84 위경도. 순수 계산(외부 보정 없음).
---    판별 근거·파라미터·검증(시청/GFC 랜드마크): docs/address-and-geo.md
---    상수는 사전 계산 수치 리터럴(Bessel e²=0.006674372231802, e'²=0.006719218799175,
---    M0(38°)=4207077.707850479, 직화계수 RECT=6366742.520369791, footpoint 급수 C2~C8).
-geo_mu as (
-    select
-        *,
-        try_cast(source_coord_x as double) as gx,
-        try_cast(source_coord_y as double) as gy,
-        (4207077.707850479 + (try_cast(source_coord_y as double) - 500000.0))
-            / 6366742.520369791 as g_mu
-    from dong
-),
-
-geo_fp as (  -- footpoint 위도(급수 전개 — 반복 없음)
-    select
-        *,
-        g_mu + 2.511273242321781e-3 * sin(2 * g_mu)
-             + 3.678785854246945e-6 * sin(4 * g_mu)
-             + 7.381011789501251e-9 * sin(6 * g_mu)
-             + 1.683256291024713e-11 * sin(8 * g_mu) as g_phi1
-    from geo_mu
-),
-
-geo_t as (
-    select
-        *,
-        sin(g_phi1) as g_sp,
-        cos(g_phi1) as g_cp,
-        tan(g_phi1) as g_tp,
-        6377397.155 / sqrt(1 - 0.006674372231802 * sin(g_phi1) * sin(g_phi1)) as g_n1,
-        6377397.155 * (1 - 0.006674372231802)
-            / power(1 - 0.006674372231802 * sin(g_phi1) * sin(g_phi1), 1.5) as g_r1
-    from geo_fp
-),
-
-geo_d as (
-    select
-        *,
-        (gx - 200000.0) / g_n1 as g_d,
-        0.006719218799175 * g_cp * g_cp as g_c1,
-        g_tp * g_tp as g_t1
-    from geo_t
-),
-
-geo_bl as (  -- Bessel 타원체 위경도(라디안). lon0(127°0'10.405")=2.216618594896318 rad
-    select
-        *,
-        g_phi1 - (g_n1 * g_tp / g_r1) * (
-            g_d * g_d / 2
-            - (5 + 3 * g_t1 + 10 * g_c1 - 4 * g_c1 * g_c1 - 9 * 0.006719218799175)
-              * power(g_d, 4) / 24
-            + (61 + 90 * g_t1 + 298 * g_c1 + 45 * g_t1 * g_t1
-               - 252 * 0.006719218799175 - 3 * g_c1 * g_c1) * power(g_d, 6) / 720
-        ) as g_phib,
-        2.216618594896318 + (
-            g_d - (1 + 2 * g_t1 + g_c1) * power(g_d, 3) / 6
-            + (5 - 2 * g_c1 + 28 * g_t1 - 3 * g_c1 * g_c1
-               + 8 * 0.006719218799175 + 24 * g_t1 * g_t1) * power(g_d, 5) / 120
-        ) / g_cp as g_lamb
-    from geo_d
-),
-
-geo_ecef as (  -- Bessel 타원체 위경도 → 지심직교(ECEF, h=0)
-    select
-        *,
-        (6377397.155 / sqrt(1 - 0.006674372231802 * sin(g_phib) * sin(g_phib)))
-            * cos(g_phib) * cos(g_lamb) as g_ex,
-        (6377397.155 / sqrt(1 - 0.006674372231802 * sin(g_phib) * sin(g_phib)))
-            * cos(g_phib) * sin(g_lamb) as g_ey,
-        (6377397.155 / sqrt(1 - 0.006674372231802 * sin(g_phib) * sin(g_phib)))
-            * (1 - 0.006674372231802) * sin(g_phib) as g_ez
-    from geo_bl
-),
-
-geo_xyz as (  -- 7-parameter Helmert(한국 표준: ΔX -115.80 ΔY 474.99 ΔZ 674.11 ·
-              -- rx 1.16" ry -2.31" rz -1.63" · s 6.43ppm, position-vector) → WGS84 ECEF
-    select
-        *,
-        -115.80 + 1.00000643 * (g_ex - (-7.902463002085436e-6) * g_ey + (-1.119919603363028e-5) * g_ez) as g_wx,
-        474.99 + 1.00000643 * ((-7.902463002085436e-6) * g_ex + g_ey - 5.623838700870617e-6 * g_ez) as g_wy,
-        674.11 + 1.00000643 * (-(-1.119919603363028e-5) * g_ex + 5.623838700870617e-6 * g_ey + g_ez) as g_wz
-    from geo_ecef
-),
-
-geo_pb as (  -- Bowring 보조항: 적도면 거리 p, 보조각 theta. a=6378137, b=6356752.314245179
-    select
-        *,
-        sqrt(g_wx * g_wx + g_wy * g_wy) as g_p,
-        atan2(g_wz * 6378137.0, sqrt(g_wx * g_wx + g_wy * g_wy) * 6356752.314245179) as g_theta
-    from geo_xyz
-),
-
-geo_wgs as (  -- WGS84 ECEF → 위경도(Bowring 비반복식). e²=0.006694379990141, e'²=0.006739496742276
-    select
-        *,
-        degrees(atan2(
-            g_wz + 0.006739496742276 * 6356752.314245179 * power(sin(g_theta), 3),
-            g_p - 0.006694379990141 * 6378137.0 * power(cos(g_theta), 3)
-        )) as g_lat,
-        degrees(atan2(g_wy, g_wx)) as g_lon
-    from geo_pb
-),
-
--- 좌표 유효성: 한반도 bbox 밖(원천 오류·타지역 지점·0/음수)은 null (원문 X/Y 는 보존).
-geo as (
-    select
-        *,
-        case when gx is not null and gy is not null
-                  and g_lat between 33.0 and 39.5 and g_lon between 124.0 and 132.0
-             then round(g_lat, 7) end as latitude,
-        case when gx is not null and gy is not null
-                  and g_lat between 33.0 and 39.5 and g_lon between 124.0 and 132.0
-             then round(g_lon, 7) end as longitude
-    from geo_wgs
-),
+{{ tm5174_to_wgs84_ctes('dong') }},
 
 keyed as (
     select
@@ -366,49 +248,7 @@ affected_keys as (
 ),
 
 projected_new as (
-    select
-        dataset,
-        opnsfteamcode,
-        mgtno,
-        record_json,
-        bplcnm,
-        trdstategbn,
-        trdstatenm,
-        dtlstategbn,
-        dtlstatenm,
-        apvpermymd,
-        dcbymd,
-        sitetel,
-        road_address,
-        jibun_address,
-        jibun_address_source,
-        road_address_norm,
-        jibun_address_norm,
-        gu,
-        gu_code,
-        legal_dong,
-        legal_code,
-        admin_dong,
-        admin_dong_code,
-        address_key_road,
-        address_key_jibun,
-        source_coord_x,
-        source_coord_y,
-        latitude,
-        longitude,
-        content_hash,
-        updatedt,
-        updatedt_ts,
-        updatedt_sort,
-        lastmodts,
-        lastmodts_ts,
-        lastmodts_sort,
-        observed_date,
-        collected_at,
-        bronze_run_id,
-        dag_run_id,
-        raw_object_key,
-        load_date,
+    select {{ h_cols | join(',\n        ') }},
         'new' as _silver_source
     from keyed
 ),
@@ -417,49 +257,7 @@ prior_tail as (
     {% if is_incremental() %}
     -- 새 batch 의 첫 행이 직전 silver 행과 같은 content_hash 인지 판정하기 위한
     -- key별 최신 1행만 붙인다. 전체 기존 history 를 재스캔하지 않는다.
-    select
-        dataset,
-        opnsfteamcode,
-        mgtno,
-        record_json,
-        bplcnm,
-        trdstategbn,
-        trdstatenm,
-        dtlstategbn,
-        dtlstatenm,
-        apvpermymd,
-        dcbymd,
-        sitetel,
-        road_address,
-        jibun_address,
-        jibun_address_source,
-        road_address_norm,
-        jibun_address_norm,
-        gu,
-        gu_code,
-        legal_dong,
-        legal_code,
-        admin_dong,
-        admin_dong_code,
-        address_key_road,
-        address_key_jibun,
-        source_coord_x,
-        source_coord_y,
-        latitude,
-        longitude,
-        content_hash,
-        updatedt,
-        updatedt_ts,
-        updatedt_sort,
-        lastmodts,
-        lastmodts_ts,
-        lastmodts_sort,
-        observed_date,
-        collected_at,
-        bronze_run_id,
-        dag_run_id,
-        raw_object_key,
-        load_date,
+    select {{ h_cols | join(',\n        ') }},
         'prior' as _silver_source
     from (
         select
@@ -499,6 +297,9 @@ ordered as (
 
 -- 연속(인접) 중복만 제거 → diff 재유입/reconcile 재방출은 걸러내고 정당한 원복(A→B→A)은 보존.
 -- 동일 content 재방출은 UPDATEDT/LASTMODTS 도 동일(해시가 두 필드를 포함)이라 항상 인접 정렬된다.
+-- content_hash 입력 = **raw 원본 전체**(원천 좌표 X/Y·XCRD/YCRD 포함 — 좌표 채움도 원천 변경
+-- = 버전 이력). 파생컬럼(행정동/법정동/위경도)은 silver 파생이라 해시에 구조적으로 유입 불가
+-- (사용자 확정 — dags change-log #63).
 deduped as (
     select *
     from ordered
@@ -506,47 +307,5 @@ deduped as (
       and (prev_content_hash is null or prev_content_hash <> content_hash)
 )
 
-select
-    dataset,
-    opnsfteamcode,
-    mgtno,
-    record_json,
-    bplcnm,
-    trdstategbn,
-    trdstatenm,
-    dtlstategbn,
-    dtlstatenm,
-    apvpermymd,
-    dcbymd,
-    sitetel,
-    road_address,
-    jibun_address,
-    jibun_address_source,
-    road_address_norm,
-    jibun_address_norm,
-    gu,
-    gu_code,
-    legal_dong,
-    legal_code,
-    admin_dong,
-    admin_dong_code,
-    address_key_road,
-    address_key_jibun,
-    source_coord_x,
-    source_coord_y,
-    latitude,
-    longitude,
-    content_hash,
-    updatedt,
-    updatedt_ts,
-    updatedt_sort,
-    lastmodts,
-    lastmodts_ts,
-    lastmodts_sort,
-    observed_date,
-    collected_at,
-    bronze_run_id,
-    dag_run_id,
-    raw_object_key,
-    load_date
+select {{ h_cols | join(',\n    ') }}
 from deduped

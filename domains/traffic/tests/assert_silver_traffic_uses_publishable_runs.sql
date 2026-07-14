@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('silver_seoul_traffic_incident') }}
 select silver.dag_run_id
 from {{ ref('silver_seoul_traffic_incident') }} as silver
 left join {{ source('traffic_bronze', 'collection_run_manifest') }} as manifest

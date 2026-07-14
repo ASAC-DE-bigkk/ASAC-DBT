@@ -3,4 +3,4 @@
 # 제네릭 테스트(in_seoul_bbox / axis_coverage)를 제공한다.
 # ⚠ 이 패키지는 ASAC-DBT #49로 dev에 반영 예정 — population은 #49 머지 후에 머지한다.
 packages:
-  - local: ../../packages/asac_axes
+  - local: /opt/airflow/dbt/packages/asac_axes

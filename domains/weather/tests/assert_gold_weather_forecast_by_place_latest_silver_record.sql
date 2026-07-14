@@ -1,15 +1,6 @@
-with place_grid as (
+with ranked_silver as (
     select
         place_id,
-        nx,
-        ny
-    from {{ ref('dim_weather_place') }}
-),
-
-ranked_silver as (
-    select
-        nx,
-        ny,
         category,
         forecast_at,
         issued_at,
@@ -17,30 +8,27 @@ ranked_silver as (
         raw_object_key,
         collected_at,
         row_number() over (
-            partition by nx, ny, forecast_at, category
+            partition by place_id, forecast_at, category
             order by
                 issued_at desc,
                 collected_at desc,
                 raw_object_key desc,
                 request_id desc
         ) as row_num
-    from {{ ref('silver_kma_vilage_fcst') }}
+    from {{ ref('silver_weather_forecast_by_admin_dong') }}
 ),
 
 expected_gold as (
     select
-        place_grid.place_id,
-        ranked_silver.category,
-        ranked_silver.forecast_at,
-        ranked_silver.issued_at,
-        ranked_silver.request_id,
-        ranked_silver.raw_object_key,
-        ranked_silver.collected_at
+        place_id,
+        category,
+        forecast_at,
+        issued_at,
+        request_id,
+        raw_object_key,
+        collected_at
     from ranked_silver
-    inner join place_grid
-        on ranked_silver.nx = place_grid.nx
-       and ranked_silver.ny = place_grid.ny
-    where ranked_silver.row_num = 1
+    where row_num = 1
 )
 
 select

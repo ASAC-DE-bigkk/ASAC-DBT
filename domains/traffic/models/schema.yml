@@ -2,25 +2,30 @@ version: 2
 
 models:
   - name: silver_seoul_traffic_incident
-    description: Deduplicated and time-standardized Seoul TOPIS AccInfo incident rows.
+    description: Deduplicated TOPIS AccInfo incident fact at source_record_id (acc_id) grain; only SUCCESS and publishable Bronze runs are included.
     columns:
       - name: source_id
+        description: Fixed TOPIS source identifier.
         tests:
           - not_null
           - accepted_values:
               arguments:
                 values: ['seoul_traffic_incident']
       - name: source_record_id
+        description: Stable TOPIS accident identifier (acc_id) and Silver merge key.
         tests:
           - not_null
           - unique
       - name: occurred_at
+        description: Incident occurrence timestamp in KST parsed from occr_date and variable-width occr_time.
         tests:
           - not_null
       - name: event_at
+        description: Cross-domain canonical event timestamp; identical to occurred_at.
         tests:
           - not_null
       - name: time_bucket
+        description: KST hourly bucket derived from occurred_at.
         tests:
           - not_null
       - name: source_coordinate_system
@@ -62,52 +67,533 @@ models:
       - name: gu
         description: Matched Seoul district name.
       - name: raw_object_key
+        description: R2 raw object lineage for the selected Bronze record.
         tests:
           - not_null
       - name: payload_hash
+        description: Content fingerprint of the selected raw payload.
         tests:
           - not_null
       - name: list_total_count
+        description: TOPIS response-wide incident count reported for the request page.
         tests:
           - not_null
       - name: row_count
+        description: Parsed incident row count for the request page.
         tests:
           - not_null
       - name: load_date
+        description: KST ingestion partition date from Bronze.
         tests:
           - not_null
       - name: collected_at
+        description: Bronze collection timestamp used for latest-record ordering and incremental watermarking.
         tests:
           - not_null
       - name: dag_run_id
+        description: Airflow collection run lineage; must be a publishable manifest run.
+        tests:
+          - not_null
+
+      - name: request_id
+        description: API request identifier for the selected TOPIS page.
+      - name: request_params_json
+        description: Redacted, reproducible request parameters captured by Bronze.
+      - name: acc_type
+        description: TOPIS incident type classification.
+      - name: acc_dtype
+        description: TOPIS detailed incident type classification.
+      - name: asset_id
+        description: TOPIS road-link identifier, derived from link_id; nullable when the source omits it.
+      - name: acc_road_code
+        description: TOPIS road code for the incident; nullable source attribute.
+      - name: acc_info
+        description: TOPIS incident free-text information; nullable source attribute.
+      - name: expected_clear_at
+        description: Expected incident-clear timestamp in KST; nullable when TOPIS does not provide a valid clear date/time.
+      - name: valid_from
+        description: Start of the incident validity interval; identical to occurred_at.
+      - name: valid_to
+        description: End of the incident validity interval; identical to expected_clear_at and therefore nullable.
+
+  - name: silver_seoul_traffic_incident_current
+    description: Current TOPIS incident snapshot from the publishable Bronze run pinned when the transform starts; incidents absent from that snapshot are intentionally excluded.
+    columns:
+      - name: source_record_id
+        description: Stable TOPIS accident identifier at current snapshot grain.
+        tests:
+          - not_null
+          - unique
+      - name: dag_run_id
+        description: Latest complete publishable collection run represented by this snapshot.
         tests:
           - not_null
 
   - name: gold_traffic_incident_summary
-    description: Traffic incident source-level row, raw object, and occurrence time coverage summary.
+    description: One-row-per-source full Silver aggregate; rebuilt as a table so counts do not become stale.
     columns:
       - name: source_id
+        description: TOPIS source identifier; unique summary grain.
         tests:
           - not_null
           - unique
       - name: row_count
+        description: Current deduplicated Silver incident count.
         tests:
           - not_null
       - name: raw_object_count
+        description: Distinct R2 raw objects represented by the current Silver rows.
         tests:
           - not_null
       - name: source_coordinate_row_count
+        description: Silver rows whose original GRS80 TM coordinate pair was present.
         tests:
           - not_null
       - name: missing_source_coordinate_row_count
+        description: Silver rows whose original coordinate pair was absent.
         tests:
           - not_null
       - name: first_occurred_at
-        tests:
-          - not_null
+        description: Earliest current incident occurrence timestamp in KST; null for a valid zero-incident snapshot.
       - name: last_occurred_at
+        description: Latest current incident occurrence timestamp in KST; null for a valid zero-incident snapshot.
+      - name: last_collected_at
+        description: Latest Bronze collection timestamp represented in the current snapshot; null for a valid zero-incident snapshot.
+
+  - name: gold_traffic_incident_current_by_admin_dong_hourly
+    description: 최신 고정 Traffic snapshot을 서울 정본 행정동과 평가 시간별 현재 돌발정보 건수 및 품질 상태로 제공하는 공개 Gold 모델입니다.
+    config:
+      meta:
+        public_gold:
+          contract_version: "1.0"
+          documentation_language: ko-KR
+          owner: Traffic 데이터 제품 운영팀
+          maturity: low
+          visibility: published_producer
+          contract_status: dev_pending
+          exposure_status: none_no_live_consumer
+          intended_consumer_types:
+            - analyst
+            - ai_catalog
+            - cross_domain_dbt
+          cross_domain_usage_examples:
+            - 생활인구 분석에서 같은 행정동과 평가 시간의 현재 교통 돌발정보 건수를 지역 맥락으로 결합합니다.
+            - 문화 시설 분석에서 같은 행정동의 현재 교통 장애 유무와 데이터 품질 상태를 함께 비교합니다.
+          product_question: 최신 게시 가능 Traffic snapshot에서 각 서울 행정동의 현재 돌발정보는 몇 건이며 그 판단 근거는 완전합니까?
+          row_meaning: 서울 정본 행정동 한 곳과 하나의 평가 시간에 대한 현재 돌발정보 건수 및 snapshot 품질 상태 한 행입니다.
+          grain: admin_dong_code와 hour_at 조합마다 정확히 한 행입니다.
+          anchor_universe: 선택한 snapshot을 평가한 한 시간과 asac_axes.dim_admin_dong의 정본 서울 행정동 전체 조합입니다.
+          usage_guidance: quality_state가 complete 또는 complete_zero인 행만 현재 사고 건수 분석에 사용하고 다른 상태는 원천 증거 부족으로 해석합니다.
+          do_not_use_for: 사고 발생시각별 이력이나 episode 종료 판정 또는 개인 위치 추정이나 실시간 긴급 경보에 사용하지 않습니다.
+          semantic_caveats: hour_at은 사고 발생시각이 아니라 snapshot 상태 평가 시간이며 불완전 상태의 incident_count는 의도적으로 null입니다. 현재 manifest는 일부 API 응답 오류와 내부 RuntimeError를 구조적으로 구분하지 못하므로 ambiguous RuntimeError는 partial로 처리합니다.
+          primary_key:
+            - product_row_id
+          column_order:
+            - product_row_id
+            - admin_dong_code
+            - hour_at
+            - admin_dong
+            - gu_code
+            - gu
+            - admin_dong_revision_date
+            - incident_count
+            - has_incident
+            - quality_state
+            - snapshot_as_of_at
+            - status_observed_at
+            - published_at
+            - snapshot_dag_run_id
+            - source_id
+            - expected_incident_count
+            - audited_row_count
+            - max_page_end_index
+            - unmapped_incident_count
+          time:
+            canonical_timezone: Asia/Seoul
+            freshness_slo: Traffic manifest freshness 계약은 기본 경고 15분과 오류 30분으로 최신 게시 상태의 지연을 감시합니다.
+            as_of_meaning: snapshot_as_of_at은 complete publishable run의 최신 request audit 수집 시각이며 hour_at은 manifest 상태를 평가한 시간 bucket입니다.
+            late_repair_policy: 지연 자료는 별도의 고정 run으로 비파괴 재실행하고 같은 completeness 및 reconciliation 검증을 다시 통과해야 합니다.
+            roles:
+              hour_at:
+                time_role: evaluation_bucket
+                timezone: Asia/Seoul
+              snapshot_as_of_at:
+                time_role: as_of
+                timezone: Asia/Seoul
+              status_observed_at:
+                time_role: observation
+                timezone: Asia/Seoul
+              published_at:
+                time_role: publication
+                timezone: Asia/Seoul
+          space:
+            enabled: true
+            source_chain:
+              - iceberg_dev.common.bronze_admin_dong_master
+              - asac_axes.dim_admin_dong
+            canonical_key: admin_dong_code
+            revision_field: admin_dong_revision_date
+            stamp_fields:
+              - admin_dong_code
+              - admin_dong
+              - gu_code
+              - gu
+              - admin_dong_revision_date
+            candidate_key_explanation: Silver의 admin_dong_code는 정본 조인 전 후보 키로만 사용하고 정본 차원의 exact join 결과만 게시합니다.
+            mapping_version_explanation: 모든 게시 행의 명칭과 자치구 및 개정일은 asac_axes.dim_admin_dong에서 함께 가져옵니다.
+            null_location_explanation: 정본에 결합되지 않은 사고는 이름이나 코드를 self-copy하지 않고 spatial_mapping_incomplete 상태와 null 지표로 격리합니다.
+            fan_out_explanation: 정본 코드의 중복 결합이나 행 수 증가가 확인되면 공개 게시 검증을 실패시킵니다.
+            reconciliation_tests:
+              - assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact
+              - assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles
+          metrics:
+            incident_count:
+              expression: sum(incident_count)
+              unit: 건
+              aggregation: sum
+              denominator: not_applicable
+              zero_meaning: complete 또는 complete_zero 근거가 확인된 평가 시각에 해당 행정동의 현재 사고가 없음을 뜻합니다.
+              null_meaning: snapshot 완전성이나 current 및 공간 정합성을 확인할 근거가 부족한 상태입니다.
+              additive_axes:
+                - admin_dong
+              non_additive_axes:
+                - time
+          joins:
+            admin_dong_dimension:
+              target: model.asac_axes.dim_admin_dong
+              source_keys:
+                - admin_dong_code
+              purpose: 행정동 코드의 정본 명칭과 자치구 및 개정일이 정확히 한 행에 결합되는지 검증합니다.
+              cardinality: many_to_one
+              fan_out_policy: 대상 행정동 코드가 없거나 중복되면 공개 게시 검증을 실패시킵니다.
+              reconciliation_test: assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles
+          quality:
+            completeness_explanation: manifest와 request audit 및 Bronze와 current 양방향 정합성이 모두 확인되었는지 설명합니다.
+            freshness_explanation: status_observed_at과 snapshot_as_of_at을 분리해 상태 관측 시각과 API snapshot 수집 시각을 설명합니다.
+            coverage_explanation: 정본 행정동 전체 scaffold와 current 사고의 정본 공간 매핑 누락 여부를 설명합니다.
+            state_fields:
+              quality_state:
+                allowed_values:
+                  - complete
+                  - complete_zero
+                  - missing
+                  - partial
+                  - api_failure
+                  - current_mismatch
+                  - spatial_mapping_incomplete
+                state_explanations:
+                  complete: 사고가 한 건 이상이며 publishable과 row 및 current와 공간 정합성이 모두 확인된 상태입니다.
+                  complete_zero: 정상 API 응답과 완전한 수집 근거에서 전체 현재 사고가 0건으로 확인된 상태입니다.
+                  missing: 선택 run의 manifest 또는 필수 request audit 근거가 없는 상태입니다.
+                  partial: publishable 상태나 예상 행과 객체 및 page 완전성 조건이 충족되지 않았거나 실패 종류를 명확히 구분할 수 없는 상태입니다.
+                  api_failure: 명시적 non-2xx와 non-INFO-000 audit 또는 HttpProblemError 및 ParseError manifest 근거가 확인된 상태입니다.
+                  current_mismatch: 기대한 Bronze 사고 식별자와 current Silver 사고 식별자의 양방향 차이가 있는 상태입니다.
+                  spatial_mapping_incomplete: current 사고 하나 이상이 정본 행정동에 정확히 결합되지 않은 상태입니다.
+          lineage:
+            source_relations:
+              - source.traffic.traffic_bronze.collection_run_manifest
+              - source.traffic.traffic_bronze.seoul_traffic_incident_request_audit
+              - source.traffic.traffic_bronze.seoul_traffic_incident
+              - model.traffic.silver_seoul_traffic_incident_current
+              - model.asac_axes.dim_admin_dong
+            identifiers:
+              as_of:
+                columns:
+                  - snapshot_as_of_at
+              publication:
+                columns:
+                  - published_at
+              raw:
+                relation_level_only: true
+              request:
+                relation_level_only: true
+              run:
+                columns:
+                  - snapshot_dag_run_id
+          lifecycle:
+            status: active
+    columns:
+      - name: product_row_id
+        description: admin_dong_code와 hour_at natural grain을 결정적으로 직렬화한 제품 행 식별자입니다.
+        data_type: varchar
         tests:
           - not_null
-      - name: last_collected_at
+          - unique
+        config:
+          meta:
+            semantic_role: primary_key
+            nullable: false
+            null_meaning: 제품 기본 키이므로 null을 허용하지 않습니다.
+
+      - name: admin_dong_code
+        description: asac_axes.dim_admin_dong에서 가져온 행안부 서울 행정동 10자리 정본 코드입니다.
+        data_type: varchar
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: false
+            null_meaning: natural grain과 정본 공간 조인에 필수이므로 null을 허용하지 않습니다.
+
+      - name: hour_at
+        description: status_observed_at을 시간 단위로 절삭한 서울 기준 snapshot 평가 시간입니다.
+        data_type: timestamp(6)
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 모든 행정동 cell이 공유하는 평가 시간 grain이므로 null을 허용하지 않습니다.
+            time_role: evaluation_bucket
+            timezone: Asia/Seoul
+
+      - name: admin_dong
+        description: asac_axes.dim_admin_dong에서 가져온 정본 행정동명입니다.
+        data_type: varchar
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: canonical scaffold 행에는 정본 행정동명이 반드시 존재합니다.
+
+      - name: gu_code
+        description: asac_axes.dim_admin_dong에서 가져온 행안부 자치구 5자리 코드입니다.
+        data_type: varchar
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: canonical scaffold 행에는 정본 자치구 코드가 반드시 존재합니다.
+
+      - name: gu
+        description: asac_axes.dim_admin_dong에서 가져온 정본 자치구명입니다.
+        data_type: varchar
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: canonical scaffold 행에는 정본 자치구명이 반드시 존재합니다.
+
+      - name: admin_dong_revision_date
+        description: 행정동 정본 stamp에 사용한 asac_axes.dim_admin_dong의 개정일입니다.
+        data_type: date
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: canonical scaffold 행에는 정본 개정일이 반드시 존재합니다.
+
+      - name: incident_count
+        description: 선택 snapshot에서 해당 행정동에 정확히 매핑된 현재 Traffic 돌발정보 건수입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: metric
+            nullable: true
+            null_meaning: snapshot 완전성이나 current 및 공간 정합성을 확인할 근거가 부족한 상태입니다.
+            unit: 건
+            zero_meaning: complete 또는 complete_zero 근거가 확인된 평가 시각에 해당 행정동의 현재 사고가 없음을 뜻합니다.
+            aggregation_behavior: sum
+
+      - name: has_incident
+        description: complete 또는 complete_zero 상태에서 해당 행정동의 incident_count가 0보다 큰지 나타내는 파생 값입니다.
+        data_type: boolean
+        config:
+          meta:
+            semantic_role: derived_value
+            nullable: true
+            null_meaning: 불완전 품질 상태에서는 사고 유무를 판단하지 않고 null로 둡니다.
+
+      - name: quality_state
+        description: snapshot 완전성과 API 및 current 및 공간 reconciliation 결과를 요약한 품질 상태입니다.
+        data_type: varchar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - complete
+                  - complete_zero
+                  - missing
+                  - partial
+                  - api_failure
+                  - current_mismatch
+                  - spatial_mapping_incomplete
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: false
+            null_meaning: 품질 판정을 만들지 못한 행은 게시하지 않습니다.
+
+      - name: snapshot_as_of_at
+        description: complete publishable run의 최신 request audit 수집 시각을 서울 기준으로 변환한 snapshot 기준 시각입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: 불완전 품질 상태에서는 신뢰할 snapshot 기준 시각이 없어 null입니다.
+            time_role: as_of
+            timezone: Asia/Seoul
+
+      - name: status_observed_at
+        description: 선택 run의 최신 manifest event 또는 manifest 부재 시 dbt 평가 시각을 사용한 서울 기준 관측 시각입니다.
+        data_type: timestamp(6)
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 상태 평가와 hour_at 생성을 위해 항상 값이 필요합니다.
+            time_role: observation
+            timezone: Asia/Seoul
+
+      - name: published_at
+        description: 이 relation을 계산한 dbt invocation의 서울 기준 게시 시각입니다.
+        data_type: timestamp(6)
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 제품 게시 실행을 추적하기 위해 null을 허용하지 않습니다.
+            time_role: publication
+            timezone: Asia/Seoul
+
+      - name: snapshot_dag_run_id
+        description: 변환 시작 시 고정한 Traffic snapshot의 Airflow DAG 실행 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: pinned snapshot 실행을 추적하기 위해 null을 허용하지 않습니다.
+
+      - name: source_id
+        description: Seoul TOPIS Traffic 돌발정보 원천을 나타내는 고정 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - seoul_traffic_incident
+        config:
+          meta:
+            semantic_role: source_identifier
+            nullable: false
+            null_meaning: 원천 시스템 식별을 위해 null을 허용하지 않습니다.
+
+      - name: expected_incident_count
+        description: 고정 run의 latest manifest가 선언한 expected_rows이며 manifest 근거가 없으면 null인 reconciliation 진단값입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: reconciliation_evidence
+            nullable: true
+            null_meaning: 선택 run의 manifest 기대 행 근거가 없으면 null입니다.
+
+      - name: audited_row_count
+        description: 고정 run의 request audit row_count 합계이며 0은 사고 없음 주장이 아닌 수집 근거 진단값입니다.
+        data_type: bigint
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: reconciliation_evidence
+            nullable: false
+            null_meaning: aggregate 진단값은 audit 부재도 0으로 기록하므로 null을 사용하지 않습니다.
+
+      - name: max_page_end_index
+        description: 고정 run의 request audit에서 확인한 최대 TOPIS page end index입니다.
+        data_type: integer
+        config:
+          meta:
+            semantic_role: reconciliation_evidence
+            nullable: true
+            null_meaning: request audit page 근거가 없으면 최대 page index를 판단할 수 없어 null입니다.
+
+      - name: unmapped_incident_count
+        description: 고정 current snapshot에서 asac_axes.dim_admin_dong에 정확히 결합되지 않은 사고 수이며 0만으로 snapshot 완전성을 주장하지 않습니다.
+        data_type: bigint
+        tests:
+          - not_null
+        config:
+          meta:
+            semantic_role: reconciliation_evidence
+            nullable: false
+            null_meaning: aggregate 공간 진단값은 current 근거 부재도 0으로 기록하므로 null을 사용하지 않습니다.
+
+  - name: recovery_silver_seoul_traffic_incident
+    description: Isolated, reproducible TOPIS incident snapshot for the explicit publishable `traffic_snapshot_dag_run_id`; it never updates the canonical incremental Silver or Current relation.
+    columns:
+      - name: source_record_id
+        description: Stable TOPIS accident identifier at the requested snapshot grain.
+        tests:
+          - not_null
+          - unique
+      - name: dag_run_id
+        description: Explicit publishable Bronze collection run represented by this recovery relation.
+        tests:
+          - not_null
+      - name: raw_object_key
+        description: R2 raw object lineage for the selected Bronze record.
+        tests:
+          - not_null
+      - name: collected_at
+        description: Bronze collection timestamp used for deterministic snapshot deduplication.
+        tests:
+          - not_null
+      - name: is_snapshot_marker
+        description: True only for the one atomic snapshot-identity marker row. Consumers of incident facts must filter it out.
+        tests:
+          - not_null
+
+  - name: recovery_traffic_snapshot_metadata
+    description: One-row identity anchor for the requested publishable snapshot, retained even when a valid snapshot has zero incident rows.
+    columns:
+      - name: source_id
+        description: Fixed TOPIS source identifier for the recovery snapshot.
+        tests:
+          - not_null
+          - unique
+      - name: snapshot_dag_run_id
+        description: Explicit publishable Bronze collection run used by recovery Silver and Gold.
+        tests:
+          - not_null
+          - unique
+
+  - name: recovery_gold_traffic_incident_summary
+    description: Isolated Gold summary produced only from recovery_silver_seoul_traffic_incident for one requested Bronze snapshot.
+    columns:
+      - name: source_id
+        description: TOPIS source identifier; unique recovery summary grain.
+        tests:
+          - not_null
+          - unique
+      - name: snapshot_dag_run_id
+        description: Publishable Bronze collection run represented by this recovery result.
+        tests:
+          - not_null
+      - name: row_count
+        description: Deduplicated recovery Silver incident count.
+        tests:
+          - not_null
+      - name: raw_object_count
+        description: Distinct R2 raw objects represented by recovery Silver rows.
         tests:
           - not_null

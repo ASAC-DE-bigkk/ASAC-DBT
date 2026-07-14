@@ -2,99 +2,122 @@ version: 2
 
 sources:
   - name: weather_bronze
-    description: KMA weather Bronze Iceberg tables loaded by ASAC-DAG.
+    description: ASAC-DAG가 적재한 기상청 단기예보 Bronze Iceberg 원천과 실행 발행 manifest다.
     database: "{{ target.database }}"
     schema: "{{ env_var('ASK_SEOUL_SCHEMA', 'ask_seoul') }}"
     loaded_at_field: collected_at
     freshness:
-      warn_after: {count: 30, period: hour}
-      error_after: {count: 48, period: hour}
+      warn_after:
+        count: "{{ env_var('ASK_SEOUL_REPORT_WEATHER_FRESHNESS_WARN_MINUTES', '240') | int }}"
+        period: minute
+      error_after:
+        count: "{{ env_var('ASK_SEOUL_REPORT_WEATHER_FRESHNESS_ERROR_MINUTES', '360') | int }}"
+        period: minute
     tables:
       - name: kma_vilage_fcst
         identifier: bronze_kma_vilage_fcst
-        description: KMA getVilageFcst item rows with raw lineage metadata.
+        description: KMA getVilageFcst 응답 item과 raw object·요청·Airflow 실행 lineage를 보존한 Bronze 행이다.
         columns:
           - name: request_id
-            tests:
-              - not_null
+            description: 파싱된 예보 행이 속한 API 요청 식별자다.
+            tests: [not_null]
           - name: source_id
+            description: 기상청 단기예보 원천 식별자이며 값은 kma_vilage_fcst다.
             tests:
               - not_null
               - accepted_values:
                   arguments:
                     values: ['kma_vilage_fcst']
           - name: place_id
-            tests:
-              - not_null
+            description: API 수집 요청에 사용한 Weather 장소 또는 격자 별칭 식별자다.
+            tests: [not_null]
           - name: request_params_json
-            tests:
-              - not_null
+            description: serviceKey 원문을 제외하고 재현 가능하게 보존한 요청 조건 JSON이다.
+            tests: [not_null]
           - name: base_date
-            tests:
-              - not_null
+            description: KMA 발표 기준 날짜 원문이며 형식은 YYYYMMDD다.
+            tests: [not_null]
           - name: base_time
-            tests:
-              - not_null
+            description: KMA 발표 기준 시각 원문이다.
+            tests: [not_null]
+          - name: nx
+            description: KMA 격자 X 좌표 원천값이며 양수일 때 Grid 후보가 된다.
+          - name: ny
+            description: KMA 격자 Y 좌표 원천값이며 양수일 때 Grid 후보가 된다.
           - name: category
-            tests:
-              - not_null
+            description: TMP·PCP·SNO 등 KMA 예보 항목 코드 원문이다.
+            tests: [not_null]
           - name: fcst_date
-            tests:
-              - not_null
+            description: 예보 대상 날짜 원문이며 형식은 YYYYMMDD다.
+            tests: [not_null]
           - name: fcst_time
-            tests:
-              - not_null
+            description: 예보 대상 시각 원문이다.
+            tests: [not_null]
           - name: fcst_value
-            tests:
-              - not_null
+            description: 항목별 KMA 예보 값 원문으로 수치·단위·범위·정성 코드가 포함될 수 있다.
+            tests: [not_null]
           - name: result_code
-            tests:
-              - not_null
-          - name: raw_object_key
-            tests:
-              - not_null
-          - name: payload_hash
-            tests:
-              - not_null
-          - name: http_status
-            tests:
-              - not_null
-          - name: collected_at
-            tests:
-              - not_null
+            description: KMA 응답 결과 코드이며 00만 성공 item 후보로 사용한다.
+            tests: [not_null]
           - name: result_msg
-            tests:
-              - not_null
+            description: result_code에 대응하는 KMA 응답 메시지다.
+            tests: [not_null]
+          - name: raw_object_key
+            description: 이 행의 원문 응답을 보관한 R2 raw object key다.
+            tests: [not_null]
+          - name: payload_hash
+            description: raw 응답 본문의 내용 지문이다.
+            tests: [not_null]
+          - name: http_status
+            description: 수집 시 기록한 HTTP 상태 코드다.
+            tests: [not_null]
           - name: total_count
-            tests:
-              - not_null
+            description: KMA 응답이 보고한 전체 item 수다.
+            tests: [not_null]
           - name: item_count
-            tests:
-              - not_null
+            description: 해당 응답에서 파싱된 item 수다.
+            tests: [not_null]
+          - name: page_no
+            description: KMA pagination 페이지 번호이며 과거 행은 null일 수 있다.
+          - name: collected_at
+            description: Bronze가 기록한 UTC 수집 시각이며 Silver에서 KST와 별도 lineage로 보존한다.
+            tests: [not_null]
           - name: load_date
-            tests:
-              - not_null
+            description: Bronze 적재 파티션 날짜 문자열이다.
+            tests: [not_null]
           - name: dag_run_id
-            tests:
-              - not_null
+            description: 이 Bronze 행을 만든 Airflow 실행 식별자다.
+            tests: [not_null]
 
       - name: collection_run_manifest
         identifier: bronze_collection_run_manifest
-        description: Bronze DAG run-level publish gate written by ASAC-DAG.
+        description: ASAC-DAG가 원천별 실행 성공·발행 가능 여부와 기대·실제 적재량을 기록한 실행 manifest다.
         loaded_at_field: event_at
         columns:
           - name: source_id
-            tests:
-              - not_null
+            description: 발행 게이트가 판정한 원천 식별자다.
+            tests: [not_null]
           - name: dag_run_id
-            tests:
-              - not_null
+            description: 발행 여부가 판정된 Airflow 실행 식별자다.
+            tests: [not_null]
+          - name: dag_id
+            description: collection 실행을 소유한 Airflow DAG 식별자다.
           - name: status
-            tests:
-              - not_null
+            description: 실행 종결 상태이며 W1은 SUCCESS만 소비한다.
+            tests: [not_null]
           - name: is_publishable
-            tests:
-              - not_null
+            description: downstream dbt 소비 허용 여부를 나타내는 명시적 발행 게이트다.
+            tests: [not_null]
+          - name: expected_rows
+            description: 실행 계약이 기대한 Bronze item 행 수다.
+          - name: actual_rows
+            description: 실행이 실제로 적재했다고 manifest에 기록한 Bronze item 행 수다.
+          - name: expected_raw_objects
+            description: 실행 계약이 기대한 raw object 수다.
+          - name: actual_raw_objects
+            description: 실행이 실제 업로드했다고 manifest에 기록한 raw object 수다.
+          - name: failure_reason
+            description: 실패 또는 발행 불가 판정 사유이며 성공 시 null일 수 있다.
           - name: event_at
-            tests:
-              - not_null
+            description: manifest 상태 이벤트의 UTC 기록 시각이며 Silver에서 published_at KST로 별도 노출한다.
+            tests: [not_null]

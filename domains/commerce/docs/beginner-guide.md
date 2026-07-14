@@ -191,7 +191,9 @@ observed_date, collected_at, content_hash` **내림차순 정렬이 곧 버전 �
   grain=(dataset, opnsfteamcode, mgtno) — MGTNO 는 발급 자치단체 안에서만 유니크.
 
 ### 좌표 보정·gold
-- 후속(계획서 Step 8·9). 지금은 미구현.
+- 좌표는 silver 에서 EPSG:5174→WGS84 로 변환된다(latitude/longitude, `macros/geo_transform.sql`).
+  외부 geocode 재보정(계획서 Step 8, `bronze_geocode_address`)만 후속 과제.
+- **gold 는 구현·가동 중** — 카탈로그 구동 Python→서빙 Postgres(`commerce_load_gold`). 명세: [DB/gold/](DB/gold/).
 
 ---
 

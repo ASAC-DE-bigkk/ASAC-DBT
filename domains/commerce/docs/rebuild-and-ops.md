@@ -94,7 +94,8 @@ dbt test --select silver_license_history silver_license_current
 `commerce_load_silver` DAG(ASAC-DAG 번들, 05:00 KST — bronze 적재 04:00 이후):
 `ensure_silver_marker` → `dbt run --select silver_*` → `dbt test --select silver_*` →
 `mark_silver_done`. DAG 는 DONE marker 가 없는 신규 `bronze_run_id` 만 처리한다.
-gold 는 Step 9 구현 시 태스크 2개가 뒤에 추가된다.
+gold 는 **별도 DAG(`commerce_load_gold`, 06:00 KST)로 구현·가동 중** — 카탈로그 구동 Python 이
+silver 를 읽어 서빙 Postgres 에 증분 적재한다(명세: [DB/gold/](DB/gold/)).
 
 ## 5. 운영 노트
 
@@ -132,3 +133,89 @@ dbt test --select silver_license_history silver_license_current
 - current 도 같은 배치의 grain 만 재계산(collected_at 순서 무관 — 백필이 시간순 밖으로 들어와도 누락 없음).
 - 배치 간 **마킹 불필요**(dataset 격리). 백필 완료 후 일상 운영은 marker 증분으로 자동 이어진다.
 - 대안(인프라): Trino `query.max-memory-per-node` 상향 또는 `spill-enabled=true`. 단 배치가 무설정으로 안전.
+
+### 6.1 자동화·저메모리 확장 (2026-07-13, change-log ASAC-DAG #60)
+
+seed(`commerce_load_silver.seed_silver_if_empty` → `silver/chunked_run.py`)가 위 절차를 자동화하며,
+저메모리 노드까지 커버하도록 확장됐다:
+
+- **동적 배치 사이징**: 배치 행수는 Trino 가용 heap(`/v1/status`)에서 실시간 산정(`commerce_core.trino_mem`
+  — silver·gold 공용 정책). 큰 노드=큰 배치(빠름), 작은 노드=작게(안전). env(`COMMERCE_SILVER_BATCH_ROWS`)는
+  상한/프로브 실패 폴백.
+- **비-json 컬럼 버킷(대형 단일 dataset)**: dataset 하나가 배치 예산을 넘으면(예: mail_order_sale 934K
+  단일 스냅샷 run) — history 는 `content_bucket`(content_hash 해시, 동일 레코드=같은 버킷 →
+  adjacent-dedup 보존), current 는 `key_bucket`(grain 키, 키의 전 버전=같은 버킷 → latest 정확)으로
+  K 분할해 record_json 읽기를 1/K 로 바운드(`macros/key_bucket.sql`, var 없으면 컴파일 SQL 불변).
+- **pace**: 쿼리 사이 heap 회복 대기 — 백투백 실행의 garbage 누적 OOM 을 차단.
+- **마커 기반 재개**: seed 의 skip/재개 판정은 행수>0 프록시가 아니라 **DONE 마커 커버리지 + current
+  정합**(`chunked_run.seed_state`)이다. 중단 시 미완 dataset 만 부분행 선삭제 후 재빌드 — 부분 상태가
+  Cosmos 무스코프 증분(전량, OOM 클래스)으로 새는 결함을 막는다.
+
+## 7. 공유 R2 · 멀티 로컬 환경 운영/복구 계약 (2026-07-12 실측 검증)
+
+> 두 개 이상의 로컬 환경(PC)이 **R2 만 공유**하는 구성에서의 경계·복구·수칙.
+> 아래 복구 계약은 2026-07-12 실측(Trino OOM exit 137 재현 → 스냅샷/마커 검사)으로 검증했다.
+
+### 7.1 공유 경계 — 무엇이 공유되고 무엇이 로컬인가
+
+| 구분 | 저장소 | 공유 여부 |
+|---|---|---|
+| Iceberg 카탈로그+웨어하우스(bronze/silver/**마커**/manifest) | **R2 Data Catalog(REST)** — `trino/catalog/iceberg*.properties` (dev=`iceberg_dev`, prod=`iceberg`) | **공유** |
+| raw NDJSON + 상태파일(`_watermark.json` 등) | R2 버킷 | **공유** (§2 의 상태파일 편집은 다른 환경 수집에도 영향) |
+| Airflow 메타DB · gold 서빙 DB(serving-postgres) · Marquez | 각 PC 의 컨테이너 볼륨 | 로컬 |
+
+핵심: **`silver_load_run_marker` 가 데이터와 같은(공유) 웨어하우스에 있다** — 그래서 아래 복구
+계약이 환경 간에도 성립한다. 반면 **gold 마커(`commerce_load_run_marker`)는 로컬 서빙 DB** 에
+있어 환경마다 gold 적재 상태가 다르다(각자 재적재).
+
+### 7.2 복구 계약 (레이어별 — 실측 근거)
+
+- **Trino 문장 원자성**: 실패한 쿼리는 아무것도 커밋하지 않는다. 실측 — Trino OOM(exit 137)으로
+  죽은 `dbt run` 이 남긴 것은 스냅샷 로그의 **no-op delete 1개뿐**(total_records 불변), 부분행 0.
+- **silver(공유)**: 커밋 후 마킹 전에 중단되면 무마킹 행이 남는데, **어느 환경이든** 다음 성공
+  run 의 pre_hook(`delete_unmarked_silver_history_runs`)이 삭제 후 재처리한다. 무마킹 검사:
+  ```sql
+  select count(*) from (
+    select distinct h.dataset, h.bronze_run_id
+    from silver_license_history h
+    left join silver_load_run_marker m
+      on m.dataset = h.dataset and m.bronze_run_id = h.bronze_run_id and m.status = 'DONE'
+    where m.dataset is null)   -- 0 이어야 정상
+  ```
+- **gold(로컬)**: 마커 **후행 기록**(전 객체 성공 후에만 DONE) + 실행 시작 시 `_defend` 가
+  워터마크 이후 잔존행(부분적재)을 선삭제. 마커가 비면 전량 재적재(cold start) — 실패 지점과
+  무관하게 다음 실행이 멱등 재개한다. `commerce_entity_key` 는 어떤 복구에서도 **삭제 금지**.
+- **raw/bronze(공유)**: 수집·적재는 append-only + run_id 스냅샷/마커 — §2 절차 외 임의 수정 금지.
+
+### 7.3 멀티 환경 수칙
+
+1. **같은 DAG 를 두 환경에서 동시에 실행하지 않는다.** Iceberg REST 커밋 충돌은 재시도되지만
+   마커 경합·중복 계산의 여지가 있다. 활성 실행 환경을 하나로 정하고, 나머지는 **paused 유지**.
+2. **standby 환경에서 검증 실행을 했다면**: 끝나고 DAG 를 다시 pause 하고, change-log 에 실행
+   사실(무엇을 언제 돌렸는지)을 남긴다 — 다른 환경이 공유 웨어하우스의 스냅샷
+   `committed_at`/마커 변화를 보고 놀라지 않게 하기 위함이다. 데이터 영향이 0(no-op/멱등)이어도
+   스냅샷 흔적은 남는다.
+3. **저메모리 박스에서 전량 작업 금지**: full-refresh/전량 재빌드는 §6 청크로. Cosmos DAG 경유
+   증분도 무겁게 돌 때는 `.env.commerce` 의 `COMMERCE_DBT_VARS`(dataset 스코프 노브,
+   `commerce_load_silver.py`)로 스코프를 좁혀 실행한다(마커/pre_hook 이 스코프를 존중).
+4. **`enrich_admin_dong_ref`(전량 교체)**: 두 환경이 다른 시각에 실행해도 같은 MOIS 원천을
+   읽으므로 최종 승자 무해. 동시 실행만 피한다.
+5. **스냅샷 위생**: 검증/재시도가 만든 no-op 스냅샷도 누적된다 — §5 의 스냅샷 만료/컴팩션
+   유지보수에 포함시킨다.
+
+### 6.2 저메모리 노드 인프라 노브 (2026-07-13)
+
+- **Trino heap cap + spill + GC**: [trino/jvm.config](../../../trino/jvm.config)(MaxRAMPercentage=55 —
+  비율이라 머신 RAM 에 자동 비례, IHOP=30·주기 GC) + [trino/config.properties](../../../trino/config.properties)
+  (spill-enabled, `task.concurrency=${ENV:TRINO_TASK_CONCURRENCY}`). compose 가 마운트·주입한다.
+  **고사양 노드**: host `.env` 에 `TRINO_TASK_CONCURRENCY=16` 상향(기본 2 = 공유 VM 안전값).
+- **OS 스왑(파일시스템=스왑, 최후 안전망)**: Docker Desktop VM 의 기본 스왑(1GB)이 소진되면 컨테이너가
+  OS OOM-kill 된다(exit 137). VM에 스왑파일 추가:
+  ```bash
+  docker run --rm --privileged --pid=host alpine nsenter -t 1 -m -u -n -i sh -c '
+    [ -f /var/lib/swapfile-commerce ] || { dd if=/dev/zero of=/var/lib/swapfile-commerce bs=1M count=8192;
+      chmod 600 /var/lib/swapfile-commerce; mkswap /var/lib/swapfile-commerce; }
+    swapon /var/lib/swapfile-commerce'
+  ```
+  ⚠ **VM 재시작(Docker Desktop 재시작) 시 swapon 은 풀린다** — 파일은 남으므로 위 명령 재실행.
+  스왑이 있으면 메모리 초과는 kill 대신 감속으로 흡수된다(from-scratch 4h 무사망 실측).
