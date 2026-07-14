@@ -99,11 +99,20 @@ joined_candidates as (
         on bridge.admin_dong_code = canonical.admin_dong_code
 ),
 
-ranked_candidates as (
+ranked_grid_candidate_keys as (
     select
-        joined_candidates.*,
+        nx,
+        ny,
+        forecast_at,
+        category,
+        issued_at,
+        collected_at,
+        raw_object_key,
+        request_id,
+        dag_run_id,
+        source_grid_place_id,
         row_number() over (
-            partition by admin_dong_code, forecast_at, category
+            partition by nx, ny, forecast_at, category
             order by
                 issued_at desc,
                 collected_at desc,
@@ -114,152 +123,157 @@ ranked_candidates as (
                 nx desc,
                 ny desc
         ) as product_row_num
-    from joined_candidates
+    from grid_candidates
+),
+
+winning_grid_candidate_keys as (
+    select
+        nx,
+        ny,
+        forecast_at,
+        category,
+        issued_at,
+        collected_at,
+        raw_object_key,
+        request_id,
+        dag_run_id,
+        source_grid_place_id
+    from ranked_grid_candidate_keys
+    where product_row_num = 1
 ),
 
 boundary_expected as (
     select
         concat(
-            admin_dong_code,
+            candidate.admin_dong_code,
             '|',
-            to_iso8601(cast(forecast_at as timestamp(6))),
+            to_iso8601(cast(candidate.forecast_at as timestamp(6))),
             '|',
-            category
+            candidate.category
         ) as product_row_id,
-        admin_dong_code,
-        forecast_at,
-        category,
-        admin_dong,
-        gu_code,
-        gu,
-        admin_dong_revision_date,
-        bridge_version,
-        nx,
-        ny,
-        source_grid_place_id,
-        issued_at,
-        collected_at,
-        published_at,
-        fcst_value_raw,
-        fcst_value_num,
-        value_representation,
-        value_num,
-        value_lower_bound,
-        value_upper_bound,
-        qualitative_code,
-        forecast_lead_hours,
-        source_id,
-        dag_run_id,
-        raw_object_key,
-        request_id
-    from ranked_candidates
-    where product_row_num = 1
-),
-
-actual as (
-    select
-        product_row_id,
-        admin_dong_code,
-        forecast_at,
-        category,
-        admin_dong,
-        gu_code,
-        gu,
-        admin_dong_revision_date,
-        bridge_version,
-        nx,
-        ny,
-        source_grid_place_id,
-        issued_at,
-        collected_at,
-        published_at,
-        fcst_value_raw,
-        fcst_value_num,
-        value_representation,
-        value_num,
-        value_lower_bound,
-        value_upper_bound,
-        qualitative_code,
-        forecast_lead_hours,
-        source_id,
-        dag_run_id,
-        raw_object_key,
-        request_id
-    from {{ ref('gold_weather_forecast_by_admin_dong') }}
-),
-
-strictly_newer_targets as (
-    select
-        expected.admin_dong_code,
-        expected.forecast_at,
-        expected.category
-    from boundary_expected as expected
-    inner join actual
-        on expected.admin_dong_code = actual.admin_dong_code
-       and expected.forecast_at = actual.forecast_at
-       and expected.category = actual.category
-    where {{ weather_w2_gold_winner_is_not_older('actual', 'expected') }}
-      and not {{ weather_w2_gold_winner_is_not_older('expected', 'actual') }}
-      and (
-          actual.published_at < timestamp '{{ weather_w2_repair_start_at() }}'
-          or actual.published_at > timestamp '{{ weather_w2_publishable_cutoff_at() }}'
-          or exists (
-              select 1
-              from eligible_manifest_anchors as anchor
-              where anchor.anchor_source_id = actual.source_id
-                and anchor.anchor_dag_run_id = actual.dag_run_id
-          )
-      )
-),
-
-expected_scoped as (
-    select expected.*
-    from boundary_expected as expected
-    left join strictly_newer_targets as newer
-        on expected.admin_dong_code = newer.admin_dong_code
-       and expected.forecast_at = newer.forecast_at
-       and expected.category = newer.category
-    where newer.admin_dong_code is null
-),
-
-actual_scoped as (
-    select actual.*
-    from actual
-    left join strictly_newer_targets as newer
-        on actual.admin_dong_code = newer.admin_dong_code
-       and actual.forecast_at = newer.forecast_at
-       and actual.category = newer.category
-    where newer.admin_dong_code is null
-      and (
-          (
-              actual.published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
-              and actual.published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
-          )
-          or exists (
-              select 1
-              from expected_scoped as expected
-              where expected.admin_dong_code = actual.admin_dong_code
-                and expected.forecast_at = actual.forecast_at
-                and expected.category = actual.category
-          )
-      )
-),
-
-missing as (
-    select * from expected_scoped
-    except
-    select * from actual_scoped
-),
-
-extra as (
-    select * from actual_scoped
-    except
-    select * from expected_scoped
+        candidate.admin_dong_code,
+        candidate.forecast_at,
+        candidate.category,
+        candidate.issued_at,
+        candidate.collected_at,
+        candidate.published_at,
+        candidate.source_id,
+        candidate.dag_run_id,
+        candidate.raw_object_key,
+        candidate.request_id,
+        candidate.source_grid_place_id,
+        candidate.nx,
+        candidate.ny,
+        to_hex(sha256(to_utf8(json_format(cast(row(
+            cast(candidate.admin_dong_code as varchar),
+            cast(candidate.forecast_at as timestamp(6)),
+            cast(candidate.category as varchar),
+            cast(candidate.admin_dong as varchar),
+            cast(candidate.gu_code as varchar),
+            cast(candidate.gu as varchar),
+            cast(candidate.admin_dong_revision_date as date),
+            cast(candidate.bridge_version as varchar),
+            cast(candidate.nx as integer),
+            cast(candidate.ny as integer),
+            cast(candidate.source_grid_place_id as varchar),
+            cast(candidate.issued_at as timestamp(6)),
+            cast(candidate.collected_at as timestamp(6)),
+            cast(candidate.published_at as timestamp(6)),
+            cast(candidate.fcst_value_raw as varchar),
+            cast(candidate.fcst_value_num as double),
+            cast(candidate.value_representation as varchar),
+            cast(candidate.value_num as double),
+            cast(candidate.value_lower_bound as double),
+            cast(candidate.value_upper_bound as double),
+            cast(candidate.qualitative_code as varchar),
+            cast(candidate.forecast_lead_hours as bigint),
+            cast(candidate.source_id as varchar),
+            cast(candidate.dag_run_id as varchar),
+            cast(candidate.raw_object_key as varchar),
+            cast(candidate.request_id as varchar)
+        ) as json))))) as candidate_payload_hash
+    from joined_candidates as candidate
+    inner join winning_grid_candidate_keys as winner
+        on candidate.nx = winner.nx
+       and candidate.ny = winner.ny
+       and candidate.forecast_at = winner.forecast_at
+       and candidate.category = winner.category
+       and candidate.issued_at is not distinct from winner.issued_at
+       and candidate.collected_at is not distinct from winner.collected_at
+       and candidate.raw_object_key is not distinct from winner.raw_object_key
+       and candidate.request_id is not distinct from winner.request_id
+       and candidate.dag_run_id is not distinct from winner.dag_run_id
+       and candidate.source_grid_place_id is not distinct from winner.source_grid_place_id
 )
 
-select * from missing
-union all
-select * from extra
+select
+    coalesce(expected.product_row_id, cast(actual.product_row_id as varchar))
+        as product_row_id,
+    case
+        when expected.product_row_id is null then 'unexpected_window_gold_row'
+        when actual.product_row_id is null then 'missing_expected_gold_row'
+        else 'gold_payload_differs_from_repair_winner'
+    end as failure_reason
+from boundary_expected as expected
+full outer join {{ ref('gold_weather_forecast_by_admin_dong') }} as actual
+    on expected.admin_dong_code = cast(actual.admin_dong_code as varchar)
+   and expected.forecast_at = cast(actual.forecast_at as timestamp(6))
+   and expected.category = cast(actual.category as varchar)
+where (
+        expected.product_row_id is null
+    and cast(actual.published_at as timestamp(6))
+        >= timestamp '{{ weather_w2_repair_start_at() }}'
+    and cast(actual.published_at as timestamp(6))
+        <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+)
+or actual.product_row_id is null
+or (
+    not (
+        {{ weather_w2_gold_winner_is_not_older('actual', 'expected') }}
+        and not {{ weather_w2_gold_winner_is_not_older('expected', 'actual') }}
+        and (
+            cast(actual.published_at as timestamp(6))
+                < timestamp '{{ weather_w2_repair_start_at() }}'
+            or cast(actual.published_at as timestamp(6))
+                > timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+            or exists (
+                select 1
+                from eligible_manifest_anchors as anchor
+                where anchor.anchor_source_id = cast(actual.source_id as varchar)
+                  and anchor.anchor_dag_run_id = cast(actual.dag_run_id as varchar)
+            )
+        )
+    )
+    and expected.candidate_payload_hash is distinct from
+        to_hex(sha256(to_utf8(json_format(cast(row(
+            cast(actual.admin_dong_code as varchar),
+            cast(actual.forecast_at as timestamp(6)),
+            cast(actual.category as varchar),
+            cast(actual.admin_dong as varchar),
+            cast(actual.gu_code as varchar),
+            cast(actual.gu as varchar),
+            cast(actual.admin_dong_revision_date as date),
+            cast(actual.bridge_version as varchar),
+            cast(actual.nx as integer),
+            cast(actual.ny as integer),
+            cast(actual.source_grid_place_id as varchar),
+            cast(actual.issued_at as timestamp(6)),
+            cast(actual.collected_at as timestamp(6)),
+            cast(actual.published_at as timestamp(6)),
+            cast(actual.fcst_value_raw as varchar),
+            cast(actual.fcst_value_num as double),
+            cast(actual.value_representation as varchar),
+            cast(actual.value_num as double),
+            cast(actual.value_lower_bound as double),
+            cast(actual.value_upper_bound as double),
+            cast(actual.qualitative_code as varchar),
+            cast(actual.forecast_lead_hours as bigint),
+            cast(actual.source_id as varchar),
+            cast(actual.dag_run_id as varchar),
+            cast(actual.raw_object_key as varchar),
+            cast(actual.request_id as varchar)
+        ) as json)))))
+)
 {% else %}
 select cast(null as varchar) as failure_reason
 where false

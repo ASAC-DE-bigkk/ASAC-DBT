@@ -222,6 +222,25 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed():
     assert "flags.full_refresh" in w1_macro
 
 
+def test_gold_repair_reconciliation_compacts_payload_before_winner_ranking():
+    raw = read("tests/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql")
+    compacted = compact(raw)
+    ranked = raw[
+        raw.index("ranked_grid_candidate_keys as") : raw.index(
+            "winning_grid_candidate_keys as"
+        )
+    ]
+
+    assert "ranked_grid_candidate_keys as" in raw
+    assert "winning_grid_candidate_keys as" in raw
+    assert "candidate_payload_hash" in raw
+    assert "to_hex(sha256(to_utf8(json_format(cast(row(" in compacted
+    assert "joined_candidates.*" not in ranked
+    assert "from grid_candidates" in ranked
+    assert "full outer join {{ ref('gold_weather_forecast_by_admin_dong') }} as actual" in raw
+    assert "weather_w2_gold_winner_is_not_older" in raw
+
+
 def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze():
     macro = compact(read("macros/weather_w2_contract.sql"))
     for token in (
