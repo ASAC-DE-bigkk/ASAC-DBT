@@ -75,6 +75,16 @@ sources:
       - name: silver_license_current
         description: 서울 인허가 명부(현재) — admin_dong_code·trdstatenm(영업상태)·dataset(업종).
 
+  - name: transit_dong
+    description: >
+      교통(버스·지하철·주차) 도메인 골드 (codingpoppy94). ⚠ 현재 dev sandbox 스키마라
+      transit 이 shared schema 로 퍼블리시되면 schema 를 교체할 것.
+    database: "{{ target.database }}"
+    schema: dev_codingpoppy94
+    tables:
+      - name: gold_transit_dong_hourly
+        description: 행정동×시간 대중교통·주차 집계 — bus_congestion_avg·subway_wait_avg_s·parking_occupancy_avg 등.
+
 seeds:
   - name: seoul_hotspot_area_geo
     description: >
@@ -455,3 +465,76 @@ models:
         description: 그 동의 영업중 인허가 수 (상가 밀도)
       - name: restaurant_active
         description: 그중 음식점(일반/휴게) 영업중 수
+
+  - name: gold_citydata_ppltn_anomaly
+    description: >
+      인구혼잡 이상탐지 — grain area_cd(장소 현재 1행). (장소×주말여부×시간) 과거 baseline 평균±표준편차
+      대비 현재 편차. z_score·pct_vs_normal 로 "지금 평소보다 붐벼?" 판단. by_time 파생 view.
+    columns:
+      - name: area_cd
+        data_tests: [unique, not_null]
+      - name: pct_vs_normal
+        description: 현재 붐빔 ÷ 평소 − 1 (예 +0.4 = 평소보다 40% 더)
+      - name: z_score
+        description: (현재−평소)/표준편차 — 이례성 (|z|>2 강한 이례)
+
+  - name: gold_citydata_ppltn_trend
+    description: >
+      인구혼잡 실시간 추세 — grain area_cd. 최근 30분 vs 이전 30분 평균 붐빔 변화율. "지금 뜨는 곳".
+      by_time(5분) 최근 12버킷 파생 view.
+    columns:
+      - name: area_cd
+        data_tests: [unique, not_null]
+      - name: change_pct
+        description: 최근30분 ÷ 이전30분 − 1 (붐빔 변화율)
+      - name: trend
+        description: 증가/감소/유지 (±5% 기준)
+
+  - name: gold_citydata_place_scorecard
+    description: >
+      장소 스코어카드 — grain area_cd(장소 1행). 현재 혼잡·상권·교통·날씨·따릉이(place_latest)
+      + 이상(anomaly) + 추세(trend) + 구매력(purchasing_power)을 한 행에 통합. 챗봇 "강남 어때?"용 view.
+    columns:
+      - name: area_cd
+        data_tests: [unique, not_null]
+
+  - name: gold_citydata_hot_commerce
+    description: >
+      뜨는 상권 지수 — grain area_cd. 붐빔추세+구매력+결제를 백분위 정규화 평균한 hot_index(0~1).
+      "요즘 뜨는 상권?" trend+purchasing_power 파생 view.
+    columns:
+      - name: area_cd
+        data_tests: [unique, not_null]
+      - name: hot_index
+        description: 세 축 백분위 평균 (0~1, 높을수록 핫)
+
+  - name: gold_citydata_ppltn_forecast
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, is_weekend, hr]
+    description: >
+      인구혼잡 예보(패턴) — grain (area_cd, is_weekend, hr). 장소×주말여부×시간대 과거 평균 붐빔±표준편차.
+      "이번 주말 홍대 붐벼?" 미래 예상 조회. by_time 파생 view.
+    columns:
+      - name: area_cd
+        data_tests: [not_null]
+      - name: expected_ppltn
+        description: 그 장소·주말여부·시간대 과거 평균 붐빔
+
+  - name: gold_citydata_ppltn_x_transit_hourly
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [time_bucket, admin_dong_code]
+    description: >
+      인구혼잡 × 대중교통·주차 — grain (time_bucket=시, admin_dong_code). 우리 인구를 동×시 롤업하고
+      버스혼잡·지하철대기·주차점유율(transit_dong, ⚠dev sandbox source)을 붙인다. "붐비는데 주차 돼?"용.
+      incremental(delete+insert).
+    columns:
+      - name: time_bucket
+        data_tests: [not_null]
+      - name: admin_dong_code
+        data_tests: [not_null]
+      - name: parking_occupancy_avg
+        description: 주차 점유율 평균 (0~1, 높을수록 만차)
