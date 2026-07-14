@@ -7,12 +7,10 @@
 -- 주의: source 가 dev sandbox 스키마(dev_codingpoppy94)라 transit 이 shared schema 로
 -- 퍼블리시되면 그때 source 를 교체해야 함(현재는 dev 단계 크로스). 조인축 admin_dong_code + 시간.
 
+-- view: R2 delete+insert 비원자성 중복 재발 방지 위해 view 전환(물리 write 없음·항상 라이브).
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='incremental',
-    incremental_strategy='delete+insert',
-    unique_key=['time_bucket', 'admin_dong_code'],
-    on_table_exists='drop',
+    materialized='view',
 ) }}
 
 with ppltn_dong as (
