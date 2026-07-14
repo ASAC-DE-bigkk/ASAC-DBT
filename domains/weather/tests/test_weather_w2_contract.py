@@ -59,6 +59,7 @@ DATA_TESTS = NAMED_TESTS | {
     "assert_gold_weather_forecast_by_admin_dong_latest_grid_record",
     "assert_gold_weather_forecast_by_admin_dong_bridge_exclusions_reconcile",
     "assert_gold_weather_forecast_by_admin_dong_repair_reconciles",
+    "assert_gold_weather_forecast_by_admin_dong_repair_window_no_extra_rows",
     "assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade",
 }
 CANONICAL_DATA_TESTS = DATA_TESTS - {
@@ -233,12 +234,50 @@ def test_gold_repair_reconciliation_compacts_payload_before_winner_ranking():
 
     assert "ranked_grid_candidate_keys as" in raw
     assert "winning_grid_candidate_keys as" in raw
-    assert "candidate_payload_hash" in raw
-    assert "to_hex(sha256(to_utf8(json_format(cast(row(" in compacted
+    assert "candidate_payload_hash" not in raw
+    assert "sha256(" not in compacted
+    assert "canonical_payload" in raw
+    assert compacted.count("json_format(cast(row(") == 2
     assert "joined_candidates.*" not in ranked
     assert "from grid_candidates" in ranked
-    assert "full outer join {{ ref('gold_weather_forecast_by_admin_dong') }} as actual" in raw
+    assert "left join {{ ref('gold_weather_forecast_by_admin_dong') }} as actual" in raw
+    assert "full outer join" not in compacted
     assert "weather_w2_gold_winner_is_not_older" in raw
+    for field in (
+        "admin_dong",
+        "gu_code",
+        "gu",
+        "admin_dong_revision_date",
+        "bridge_version",
+        "nx",
+        "ny",
+        "source_grid_place_id",
+        "issued_at",
+        "collected_at",
+        "published_at",
+        "fcst_value_raw",
+        "fcst_value_num",
+        "value_representation",
+        "value_num",
+        "value_lower_bound",
+        "value_upper_bound",
+        "qualitative_code",
+        "forecast_lead_hours",
+        "source_id",
+        "dag_run_id",
+        "raw_object_key",
+        "request_id",
+    ):
+        assert f"cast(candidate.{field} as" in compacted
+        assert f"cast(actual.{field} as" in compacted
+
+    extra_rows = compact(
+        read("tests/assert_gold_weather_forecast_by_admin_dong_repair_window_no_extra_rows.sql")
+    )
+    assert "ranked_grid_candidate_keys as" in extra_rows
+    assert "actual_window as" in extra_rows
+    assert "unexpected_window_gold_row" in extra_rows
+    assert "published_at as timestamp(6)) >= timestamp" in extra_rows
 
 
 def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze():

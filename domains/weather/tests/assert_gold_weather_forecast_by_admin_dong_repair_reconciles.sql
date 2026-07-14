@@ -164,7 +164,9 @@ boundary_expected as (
         candidate.source_grid_place_id,
         candidate.nx,
         candidate.ny,
-        to_hex(sha256(to_utf8(json_format(cast(row(
+        -- Ordered, typed JSON is a collision-free canonical representation of
+        -- every payload field. It is computed only after the narrow winner rank.
+        json_format(cast(row(
             cast(candidate.admin_dong_code as varchar),
             cast(candidate.forecast_at as timestamp(6)),
             cast(candidate.category as varchar),
@@ -191,7 +193,7 @@ boundary_expected as (
             cast(candidate.dag_run_id as varchar),
             cast(candidate.raw_object_key as varchar),
             cast(candidate.request_id as varchar)
-        ) as json))))) as candidate_payload_hash
+        ) as json)) as canonical_payload
     from joined_candidates as candidate
     inner join winning_grid_candidate_keys as winner
         on candidate.nx = winner.nx
@@ -207,26 +209,17 @@ boundary_expected as (
 )
 
 select
-    coalesce(expected.product_row_id, cast(actual.product_row_id as varchar))
-        as product_row_id,
+    expected.product_row_id,
     case
-        when expected.product_row_id is null then 'unexpected_window_gold_row'
         when actual.product_row_id is null then 'missing_expected_gold_row'
         else 'gold_payload_differs_from_repair_winner'
     end as failure_reason
 from boundary_expected as expected
-full outer join {{ ref('gold_weather_forecast_by_admin_dong') }} as actual
+left join {{ ref('gold_weather_forecast_by_admin_dong') }} as actual
     on expected.admin_dong_code = cast(actual.admin_dong_code as varchar)
    and expected.forecast_at = cast(actual.forecast_at as timestamp(6))
    and expected.category = cast(actual.category as varchar)
-where (
-        expected.product_row_id is null
-    and cast(actual.published_at as timestamp(6))
-        >= timestamp '{{ weather_w2_repair_start_at() }}'
-    and cast(actual.published_at as timestamp(6))
-        <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
-)
-or actual.product_row_id is null
+where actual.product_row_id is null
 or (
     not (
         {{ weather_w2_gold_winner_is_not_older('actual', 'expected') }}
@@ -244,8 +237,8 @@ or (
             )
         )
     )
-    and expected.candidate_payload_hash is distinct from
-        to_hex(sha256(to_utf8(json_format(cast(row(
+    and expected.canonical_payload is distinct from
+        json_format(cast(row(
             cast(actual.admin_dong_code as varchar),
             cast(actual.forecast_at as timestamp(6)),
             cast(actual.category as varchar),
@@ -272,7 +265,7 @@ or (
             cast(actual.dag_run_id as varchar),
             cast(actual.raw_object_key as varchar),
             cast(actual.request_id as varchar)
-        ) as json)))))
+        ) as json))
 )
 {% else %}
 select cast(null as varchar) as failure_reason
