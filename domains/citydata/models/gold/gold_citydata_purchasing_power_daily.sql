@@ -1,6 +1,6 @@
 -- gold: 장소별 일 구매력·붐빔대비구매 (#122). grain = (event_date, area_cd).
 --
--- silver_seoul_ppltn(유동인구) 와 silver_citydata_cmrcl(결제) 를 각각 하루로 집계해
+-- silver_citydata_ppltn(유동인구) 와 silver_citydata_cmrcl(결제) 를 각각 하루로 집계해
 -- 조인, "붐빔 대비 구매" 지수를 낸다. 세 관점을 한 마트로:
 --   * buy_per_crowd_idx  = 결제건수 / 평균 유동인구  (붐빔 대비 구매)
 --   * spend_per_crowd_idx = 결제금액 / 평균 유동인구  (구매력 proxy)
@@ -30,7 +30,7 @@ with ppltn as (
         max((area_ppltn_min + area_ppltn_max) / 2.0) as ppltn_peak,
         max_by(area_congest_lvl, (area_ppltn_min + area_ppltn_max) / 2.0) as congest_peak_lvl,
         count(*) as ppltn_measure_count
-    from {{ ref('silver_seoul_ppltn') }}
+    from {{ ref('silver_citydata_ppltn') }}
     {% if is_incremental() %}
     where event_at >= (
         select coalesce(max(event_date), date '1970-01-01') - interval '1' day from {{ this }}

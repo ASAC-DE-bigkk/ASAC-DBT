@@ -1,2 +1,2 @@
-select * from {{ ref('silver_seoul_ppltn') }}
+select * from {{ ref('silver_citydata_ppltn') }}
 where false

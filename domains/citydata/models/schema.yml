@@ -107,7 +107,7 @@ seeds:
         description: 영역 폴리곤 WKT (POLYGON/MULTIPOLYGON, WGS84)
 
 models:
-  - name: silver_seoul_ppltn
+  - name: silver_citydata_ppltn
     data_tests:
       - unique_grain:
           arguments:
@@ -148,7 +148,7 @@ models:
       - name: collected_at
         description: 수집 시각 (KST, dedup 시 최신 판단 기준)
 
-  - name: gold_seoul_ppltn_by_time
+  - name: gold_citydata_ppltn_by_time
     data_tests:
       - unique_grain:
           arguments:
@@ -183,7 +183,7 @@ models:
       - name: collected_at
         description: 수집 시각
 
-  - name: gold_seoul_ppltn_daily
+  - name: gold_citydata_ppltn_daily
     data_tests:
       - unique_grain:
           arguments:
@@ -323,7 +323,7 @@ models:
 
   - name: gold_citydata_place_latest
     description: >
-      장소별 최신 크로스 신호 스냅샷 (장소당 1행) — 혼잡도(silver_seoul_ppltn) ×
+      장소별 최신 크로스 신호 스냅샷 (장소당 1행) — 혼잡도(silver_citydata_ppltn) ×
       소비 × 승하차 × 따릉이 × 대기질. 실시간 지도/현황판 마트. incremental(merge,
       key=area_cd) — 최근 6시간 창에서 신호별 최신값을 merge, 전체 재생성 없음.
     columns:

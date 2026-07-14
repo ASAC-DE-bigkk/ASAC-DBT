@@ -43,7 +43,7 @@ with src as (
         row_number() over (
             partition by s.event_at, s.area_cd order by s.collected_at desc
         ) as _rn
-    from {{ ref('silver_seoul_ppltn') }} s
+    from {{ ref('silver_citydata_ppltn') }} s
     {% if is_incremental() %}
     where s.collected_at >= (
         select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute

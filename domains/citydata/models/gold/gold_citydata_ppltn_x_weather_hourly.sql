@@ -23,7 +23,7 @@ with ppltn_dong as (
         avg((area_ppltn_min + area_ppltn_max) / 2.0) as ppltn_avg,
         max((area_ppltn_min + area_ppltn_max) / 2.0) as ppltn_peak,
         count(distinct area_cd) as hotspot_count
-    from {{ ref('silver_seoul_ppltn') }}
+    from {{ ref('silver_citydata_ppltn') }}
     where admin_dong_code is not null
     {% if is_incremental() %}
       and event_at >= (
