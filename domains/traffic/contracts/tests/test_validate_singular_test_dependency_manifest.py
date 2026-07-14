@@ -25,6 +25,32 @@ REQUIRED_DEPENDENCIES = {
         "gold_traffic_incident_summary",
     ),
     "assert_gold_traffic_row_counts_positive.sql": ("gold_traffic_incident_summary",),
+    "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql": (
+        "silver_seoul_traffic_incident_current",
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_grain_unique.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_product_row_id_reproducible.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql": (
+        "silver_seoul_traffic_incident_current",
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_zero_requires_complete.sql": (
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    ),
     "assert_silver_seoul_traffic_incident_grain_unique.sql": ("silver_seoul_traffic_incident",),
     "assert_silver_traffic_admin_axis_consistent.sql": ("silver_seoul_traffic_incident",),
     "assert_silver_traffic_admin_axis_coverage.sql": ("silver_seoul_traffic_incident",),
@@ -40,6 +66,24 @@ REQUIRED_DEPENDENCIES = {
     ),
 }
 
+REQUIRED_EXTERNAL_DEPENDENCIES = {
+    "assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+    "assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql": (
+        "model.asac_axes.dim_admin_dong",
+    ),
+}
+
 
 def valid_manifest() -> dict[str, object]:
     nodes: dict[str, object] = {}
@@ -50,6 +94,7 @@ def valid_manifest() -> dict[str, object]:
             "depends_on": {
                 "nodes": [
                     *(f"model.traffic.{model_name}" for model_name in model_names),
+                    *REQUIRED_EXTERNAL_DEPENDENCIES.get(filename, ()),
                     "source.traffic.topis_accident",
                 ]
             },
@@ -78,6 +123,60 @@ class ValidateSingularTestDependencyManifestTest(unittest.TestCase):
 
     def test_valid_manifest_passes(self) -> None:
         self.validator.validate_manifest(valid_manifest())
+
+    def test_required_dependency_mapping_matches_validator(self) -> None:
+        self.assertEqual(
+            self.validator.REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES,
+            REQUIRED_DEPENDENCIES,
+        )
+        self.assertEqual(
+            getattr(
+                self.validator,
+                "REQUIRED_SINGULAR_TEST_EXTERNAL_MODEL_DEPENDENCIES",
+                {},
+            ),
+            REQUIRED_EXTERNAL_DEPENDENCIES,
+        )
+
+    def test_missing_required_external_model_dependency_fails(self) -> None:
+        manifest = valid_manifest()
+        filename = "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql"
+        node = next(
+            node
+            for node in manifest["nodes"].values()
+            if node["original_file_path"] == f"tests/{filename}"
+        )
+        node["depends_on"]["nodes"].remove("model.asac_axes.dim_admin_dong")
+
+        with self.assertRaisesRegex(
+            self.validator.ManifestDependencyError,
+            rf"{filename}.*model\.asac_axes\.dim_admin_dong",
+        ):
+            self.validator.validate_manifest(manifest)
+
+    def test_additional_external_model_dependency_is_allowed(self) -> None:
+        manifest = valid_manifest()
+        filename = "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql"
+        node = next(
+            node
+            for node in manifest["nodes"].values()
+            if node["original_file_path"] == f"tests/{filename}"
+        )
+        node["depends_on"]["nodes"].append("model.other.allowed_dependency")
+
+        self.validator.validate_manifest(manifest)
+
+    def test_non_string_extra_dependency_is_ignored(self) -> None:
+        manifest = valid_manifest()
+        filename = "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql"
+        node = next(
+            node
+            for node in manifest["nodes"].values()
+            if node["original_file_path"] == f"tests/{filename}"
+        )
+        node["depends_on"]["nodes"].append({"malformed": "extra"})
+
+        self.validator.validate_manifest(manifest)
 
     def test_empty_dependency_array_fails_with_filename_and_node_ids(self) -> None:
         manifest = valid_manifest()
