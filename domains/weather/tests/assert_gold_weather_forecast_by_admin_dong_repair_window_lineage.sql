@@ -121,46 +121,88 @@ actual_repair_products as (
     where {{ weather_w2_gold_winner_is_not_older('actual', 'expected') }}
 ),
 
-lineage_backed_products as (
-    select distinct actual.product_row_id
+actual_lineage_runs as (
+    -- An exact backing row must carry this same non-null source/run lineage.
+    -- Restricting the Silver scan to those runs is semantically neutral and
+    -- keeps the 6h repair validation below Trino's 2GB query cap.
+    select distinct source_id, dag_run_id
+    from actual_repair_products
+),
+
+actual_lineage_payloads as (
+    select
+        actual.product_row_id,
+        json_format(cast(row(
+            actual.admin_dong_code,
+            actual.bridge_version,
+            actual.nx,
+            actual.ny,
+            actual.source_grid_place_id,
+            actual.forecast_at,
+            actual.category,
+            actual.issued_at,
+            actual.collected_at,
+            actual.published_at,
+            actual.fcst_value_raw,
+            actual.fcst_value_num,
+            actual.value_representation,
+            actual.value_num,
+            actual.value_lower_bound,
+            actual.value_upper_bound,
+            actual.qualitative_code,
+            actual.forecast_lead_hours,
+            actual.source_id,
+            actual.dag_run_id,
+            actual.raw_object_key,
+            actual.request_id
+        ) as json)) as lineage_payload
     from actual_repair_products as actual
+),
+
+lineage_grid_payloads as (
+    select distinct
+        json_format(cast(row(
+            bridge.admin_dong_code,
+            bridge.bridge_version,
+            cast(grid.nx as integer),
+            cast(grid.ny as integer),
+            cast(grid.source_grid_place_id as varchar),
+            cast(grid.forecast_at as timestamp(6)),
+            cast(grid.category as varchar),
+            cast(grid.issued_at as timestamp(6)),
+            cast(grid.collected_at as timestamp(6)),
+            cast(grid.published_at as timestamp(6)),
+            cast(grid.fcst_value_raw as varchar),
+            cast(grid.fcst_value_num as double),
+            cast(grid.value_representation as varchar),
+            cast(grid.value_num as double),
+            cast(grid.value_lower_bound as double),
+            cast(grid.value_upper_bound as double),
+            cast(grid.qualitative_code as varchar),
+            cast(grid.forecast_lead_hours as bigint),
+            cast(grid.source_id as varchar),
+            cast(grid.selected_dag_run_id as varchar),
+            cast(grid.raw_object_key as varchar),
+            cast(grid.request_id as varchar)
+        ) as json)) as lineage_payload
+    from {{ ref('silver_kma_vilage_fcst_grid') }} as grid
+    inner join actual_lineage_runs as run
+        on cast(grid.source_id as varchar) = run.source_id
+       and cast(grid.selected_dag_run_id as varchar) = run.dag_run_id
     inner join active_bridge as bridge
-        on bridge.admin_dong_code = actual.admin_dong_code
-       and bridge.bridge_version is not distinct from actual.bridge_version
-       and bridge.nx is not distinct from actual.nx
-       and bridge.ny is not distinct from actual.ny
+        on cast(grid.nx as integer) = bridge.nx
+       and cast(grid.ny as integer) = bridge.ny
     inner join canonical
         on bridge.admin_dong_code = canonical.admin_dong_code
-    inner join {{ ref('silver_kma_vilage_fcst_grid') }} as grid
-        on cast(grid.nx as integer) is not distinct from actual.nx
-       and cast(grid.ny as integer) is not distinct from actual.ny
-       and cast(grid.source_grid_place_id as varchar) is not distinct from actual.source_grid_place_id
-       and cast(grid.forecast_at as timestamp(6)) is not distinct from actual.forecast_at
-       and cast(grid.category as varchar) is not distinct from actual.category
-       and cast(grid.issued_at as timestamp(6)) is not distinct from actual.issued_at
-       and cast(grid.collected_at as timestamp(6)) is not distinct from actual.collected_at
-       and cast(grid.published_at as timestamp(6)) is not distinct from actual.published_at
-       and cast(grid.fcst_value_raw as varchar) is not distinct from actual.fcst_value_raw
-       and cast(grid.fcst_value_num as double) is not distinct from actual.fcst_value_num
-       and cast(grid.value_representation as varchar) is not distinct from actual.value_representation
-       and cast(grid.value_num as double) is not distinct from actual.value_num
-       and cast(grid.value_lower_bound as double) is not distinct from actual.value_lower_bound
-       and cast(grid.value_upper_bound as double) is not distinct from actual.value_upper_bound
-       and cast(grid.qualitative_code as varchar) is not distinct from actual.qualitative_code
-       and cast(grid.forecast_lead_hours as bigint) is not distinct from actual.forecast_lead_hours
-       and cast(grid.source_id as varchar) is not distinct from actual.source_id
-       and cast(grid.selected_dag_run_id as varchar) is not distinct from actual.dag_run_id
-       and cast(grid.raw_object_key as varchar) is not distinct from actual.raw_object_key
-       and cast(grid.request_id as varchar) is not distinct from actual.request_id
 )
 
 select
     actual.product_row_id,
     cast('forecast_lineage_not_backed_by_one_grid_row' as varchar) as failure_reason
-from actual_repair_products as actual
-left join lineage_backed_products as backed
-    on actual.product_row_id = backed.product_row_id
-where backed.product_row_id is null
+from actual_lineage_payloads as actual
+left join lineage_grid_payloads as backed
+    on actual.lineage_payload = backed.lineage_payload
+where backed.lineage_payload is null
 {% else %}
 select cast(null as varchar) as product_row_id,
        cast(null as varchar) as failure_reason

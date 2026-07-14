@@ -285,8 +285,15 @@ def test_gold_repair_reconciliation_compacts_payload_before_winner_ranking():
     )
     assert "repair_product_keys as" in lineage
     assert "actual_repair_products as" in lineage
+    assert "actual_lineage_runs as" in lineage
+    assert "actual_lineage_payloads as" in lineage
+    assert "lineage_grid_payloads as" in lineage
     assert "forecast_lineage_not_backed_by_one_grid_row" in lineage
     assert "weather_w2_gold_winner_is_not_older" in lineage
+    assert "inner join actual_lineage_runs as run" in lineage
+    assert "grid.source_id as varchar) = run.source_id" in lineage
+    assert "grid.selected_dag_run_id as varchar) = run.dag_run_id" in lineage
+    assert lineage.count("json_format(cast(row(") == 2
     assert "where cast(actual.published_at" not in lineage
     assert "actual.published_at >= timestamp" not in lineage
     assert "actual.published_at <= timestamp" not in lineage
