@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: weather_w2_observation_recovery_lineage_workset
+    description: W2 bounded recovery 창의 현재 Gold 행과 exact lineage payload를 materialize해 2GB Trino 한도 안에서 bucket별 검증을 가능하게 하는 dev 전용 내부 workset이다.
+    access: private
+    config:
+      meta:
+        row_meaning_ko: 현재 W2 repair 창에 속한 한 Gold 제품 행과 그 행을 설명하는 결정적 lineage payload다.
+        grain:
+          - product_row_id
+        event_time: forecast_at
+        ingest_time: published_at
+        lifecycle: recovery_validation
+        operating_mode: bounded_reconcile_dev_only
+        downstream:
+          - assert_gold_weather_forecast_by_admin_dong_repair_window_lineage
+    columns:
+      - name: product_row_id
+        description: 행정동 코드와 예보 대상 시각 및 항목으로 만든 Gold 제품 행 식별자다.
+      - name: repair_start_at
+        description: workset을 생성한 bounded recovery 창의 포함 시작 시각이다.
+      - name: repair_cutoff_at
+        description: workset을 생성한 bounded recovery 창의 포함 종료 시각이다.
+      - name: lineage_run_bucket_ordinal
+        description: source_id와 dag_run_id 순서로 결정한 0 기반 lineage run 순번이다.
+      - name: lineage_payload
+        description: nullable 값을 포함한 Gold lineage 필드 전체를 순서 고정 typed JSON으로 표현한 값이다.

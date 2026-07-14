@@ -6,7 +6,9 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 
 ## 적용 범위
 
-- 도메인: `domains/weather`
+- dbt project: repository root (`dbt_project.yml`, `profiles.yml`)
+- 도메인 모델: `models/weather`
+- 도메인 테스트: `tests/weather`
 - 원천: KMA `getVilageFcst`
 - Bronze source: `{{ source('weather_bronze', 'kma_vilage_fcst') }}`
 - Bronze table: `iceberg_dev.<ASK_SEOUL_SCHEMA>.bronze_kma_vilage_fcst`
@@ -22,7 +24,21 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 
 ## Source contract
 
-`domains/weather/models/sources.yml`은 KMA Bronze table을 다음 기준으로 선언한다.
+`models/weather/sources.yml`은 KMA Bronze table을 다음 기준으로 선언한다.
+
+## Root monoproject validation
+
+모든 명령은 repository root에서 실행하며 삭제된 `domains/weather/dbt_project.yml`을 project로
+지정하지 않는다.
+
+```bash
+dbt deps --project-dir . --profiles-dir .
+dbt parse --no-partial-parse --project-dir . --profiles-dir . --target dev \
+  --target-path <fresh-target> \
+  --vars '{"traffic_snapshot_dag_run_id":"ci__weather-monoproject-parse"}'
+dbt ls --project-dir . --profiles-dir . --target dev \
+  --select tag:ask_seoul_weather_transform_silver
+```
 
 | 컬럼 | 의미 | 계약 |
 |---|---|---|

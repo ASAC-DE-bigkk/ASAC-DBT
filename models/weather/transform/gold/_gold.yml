@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: gold_weather_forecast_summary
+    description: 기존 최신 Weather Silver snapshot을 source_id별로 집계한 원천 수준 호환 요약이며 question-grain 조인 Gold가 아니다.
+    columns:
+      - name: source_id
+        description: 집계 대상 원천 식별자이며 한 행의 grain이다.
+        tests:
+          - not_null
+          - unique
+      - name: row_count
+        description: 현재 호환 Silver 행 수다.
+        tests:
+          - not_null
+      - name: raw_object_count
+        description: 현재 호환 Silver가 참조하는 raw object 고유 수다.
+        tests:
+          - not_null
+      - name: first_forecast_at
+        description: 현재 snapshot의 가장 이른 KST 예보 대상 시각이다.
+        tests:
+          - not_null
+      - name: last_forecast_at
+        description: 현재 snapshot의 가장 늦은 KST 예보 대상 시각이다.
+        tests:
+          - not_null
+      - name: last_collected_at
+        description: 현재 snapshot의 가장 늦은 수집 timestamp(6)다.
+        tests:
+          - not_null

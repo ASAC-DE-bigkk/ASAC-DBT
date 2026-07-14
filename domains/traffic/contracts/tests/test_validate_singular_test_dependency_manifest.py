@@ -5,8 +5,9 @@ import json
 import subprocess
 import sys
 import tempfile
-import unittest
 from pathlib import Path
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -18,88 +19,55 @@ SCRIPT = (
     / "scripts"
     / "validate_singular_test_dependency_manifest.py"
 )
+PROJECT_NAME = "asac_seoul"
+GOLD_PATH = "tests/traffic/transform/gold/assert_gold_contract.sql"
+SILVER_PATH = "tests/traffic/transform/silver/assert_silver_contract.sql"
 
-REQUIRED_DEPENDENCIES = {
-    "assert_gold_traffic_counts_match_silver.sql": (
-        "silver_seoul_traffic_incident_current",
-        "gold_traffic_incident_summary",
-    ),
-    "assert_gold_traffic_row_counts_positive.sql": ("gold_traffic_incident_summary",),
-    "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql": (
-        "gold_traffic_incident_current_by_admin_dong_hourly",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql": (
-        "gold_traffic_incident_current_by_admin_dong_hourly",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql": (
-        "silver_seoul_traffic_incident_current",
-        "gold_traffic_incident_current_by_admin_dong_hourly",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_grain_unique.sql": (
-        "gold_traffic_incident_current_by_admin_dong_hourly",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql": (
-        "gold_traffic_incident_current_by_admin_dong_hourly",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_product_row_id_reproducible.sql": (
-        "gold_traffic_incident_current_by_admin_dong_hourly",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql": (
-        "silver_seoul_traffic_incident_current",
-        "gold_traffic_incident_current_by_admin_dong_hourly",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_zero_requires_complete.sql": (
-        "gold_traffic_incident_current_by_admin_dong_hourly",
-    ),
-    "assert_silver_seoul_traffic_incident_grain_unique.sql": ("silver_seoul_traffic_incident",),
-    "assert_silver_traffic_admin_axis_consistent.sql": ("silver_seoul_traffic_incident",),
-    "assert_silver_traffic_admin_axis_coverage.sql": ("silver_seoul_traffic_incident",),
-    "assert_silver_traffic_event_at_matches_occurred_at.sql": ("silver_seoul_traffic_incident",),
-    "assert_silver_traffic_latest_publishable_record.sql": ("silver_seoul_traffic_incident",),
-    "assert_silver_traffic_location_contract.sql": ("silver_seoul_traffic_incident",),
-    "assert_silver_traffic_uses_publishable_runs.sql": ("silver_seoul_traffic_incident",),
-    "assert_silver_traffic_wgs84_required_when_source_coordinate_available.sql": (
-        "silver_seoul_traffic_incident",
-    ),
-    "assert_traffic_current_pinned_publishable_run.sql": (
-        "silver_seoul_traffic_incident_current",
-    ),
-}
 
-REQUIRED_EXTERNAL_DEPENDENCIES = {
-    "assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql": (
-        "model.asac_axes.dim_admin_dong",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql": (
-        "model.asac_axes.dim_admin_dong",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql": (
-        "model.asac_axes.dim_admin_dong",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql": (
-        "model.asac_axes.dim_admin_dong",
-    ),
-    "assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql": (
-        "model.asac_axes.dim_admin_dong",
-    ),
-}
+def _test_node(
+    path: str,
+    dependencies: list[object],
+    *,
+    raw_code: str = "{{ ref(dynamic_model_name) }}",
+) -> dict[str, object]:
+    phase = Path(path).parent.name
+    return {
+        "resource_type": "test",
+        "original_file_path": path,
+        "raw_code": raw_code,
+        "tags": [f"ask_seoul_traffic_transform_{phase}"],
+        "depends_on": {"nodes": dependencies},
+    }
 
 
 def valid_manifest() -> dict[str, object]:
-    nodes: dict[str, object] = {}
-    for index, (filename, model_names) in enumerate(REQUIRED_DEPENDENCIES.items()):
-        nodes[f"test.traffic.{index}"] = {
-            "resource_type": "test",
-            "original_file_path": f"tests/{filename}",
-            "depends_on": {
-                "nodes": [
-                    *(f"model.traffic.{model_name}" for model_name in model_names),
-                    *REQUIRED_EXTERNAL_DEPENDENCIES.get(filename, ()),
-                    "source.traffic.topis_accident",
-                ]
-            },
-        }
-    return {"nodes": nodes}
+    return {
+        "metadata": {"project_name": PROJECT_NAME},
+        "nodes": {
+            "test.asac_seoul.gold_contract": _test_node(
+                GOLD_PATH,
+                [
+                    "model.asac_seoul.gold_traffic_incident_summary",
+                    "model.asac_axes.dim_admin_dong",
+                    "source.asac_seoul.traffic_bronze.incident",
+                ],
+                raw_code=(
+                    "-- versioned refs are resolved by dbt, not this validator\n"
+                    "{{ ref('gold_traffic_incident_summary', version=1) }}"
+                ),
+            ),
+            "test.asac_seoul.silver_contract": _test_node(
+                SILVER_PATH,
+                ["model.asac_seoul.silver_seoul_traffic_incident"],
+            ),
+        },
+    }
+
+
+def node_for(manifest: dict[str, object], path: str) -> dict[str, object]:
+    nodes = manifest["nodes"]
+    assert isinstance(nodes, dict)
+    return next(node for node in nodes.values() if node["original_file_path"] == path)
 
 
 def run_cli(*args: object) -> subprocess.CompletedProcess[str]:
@@ -113,154 +81,162 @@ def run_cli(*args: object) -> subprocess.CompletedProcess[str]:
     )
 
 
-class ValidateSingularTestDependencyManifestTest(unittest.TestCase):
-    def setUp(self) -> None:
-        from domains.traffic.contracts.scripts import (
-            validate_singular_test_dependency_manifest as validator,
-        )
+@pytest.fixture
+def validator():
+    from domains.traffic.contracts.scripts import (
+        validate_singular_test_dependency_manifest as module,
+    )
 
-        self.validator = validator
+    return module
 
-    def test_valid_manifest_passes(self) -> None:
-        self.validator.validate_manifest(valid_manifest())
 
-    def test_required_dependency_mapping_matches_validator(self) -> None:
-        self.assertEqual(
-            self.validator.REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES,
-            REQUIRED_DEPENDENCIES,
-        )
-        self.assertEqual(
-            getattr(
-                self.validator,
-                "REQUIRED_SINGULAR_TEST_EXTERNAL_MODEL_DEPENDENCIES",
-                {},
-            ),
-            REQUIRED_EXTERNAL_DEPENDENCIES,
-        )
+def test_manifest_native_validation_uses_dbt_edges_without_source_registry(
+    validator,
+) -> None:
+    validator.validate_manifest(valid_manifest())
 
-    def test_missing_required_external_model_dependency_fails(self) -> None:
+    assert not hasattr(validator, "REQUIRED_SINGULAR_TEST_MODEL_DEPENDENCIES")
+    assert not hasattr(validator, "PHASE_TAGS")
+    assert not hasattr(validator, "REF_PATTERN")
+    assert not hasattr(validator, "declared_model_node_ids")
+    assert not hasattr(validator, "_discover_test_paths")
+
+
+def test_manifest_project_name_is_required(validator) -> None:
+    for project_name in (None, "traffic"):
         manifest = valid_manifest()
-        filename = "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql"
-        node = next(
-            node
-            for node in manifest["nodes"].values()
-            if node["original_file_path"] == f"tests/{filename}"
-        )
-        node["depends_on"]["nodes"].remove("model.asac_axes.dim_admin_dong")
+        if project_name is None:
+            manifest.pop("metadata")
+        else:
+            manifest["metadata"]["project_name"] = project_name
 
-        with self.assertRaisesRegex(
-            self.validator.ManifestDependencyError,
-            rf"{filename}.*model\.asac_axes\.dim_admin_dong",
+        with pytest.raises(
+            validator.ManifestDependencyError,
+            match=r"manifest\.metadata\.project_name.*asac_seoul",
         ):
-            self.validator.validate_manifest(manifest)
+            validator.validate_manifest(manifest)
 
-    def test_additional_external_model_dependency_is_allowed(self) -> None:
-        manifest = valid_manifest()
-        filename = "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql"
-        node = next(
-            node
-            for node in manifest["nodes"].values()
-            if node["original_file_path"] == f"tests/{filename}"
+
+def test_windows_path_separator_is_normalized(validator) -> None:
+    manifest = valid_manifest()
+    node_for(manifest, GOLD_PATH)["original_file_path"] = GOLD_PATH.replace("/", "\\")
+
+    validator.validate_manifest(manifest)
+
+
+def test_manifest_requires_at_least_one_scoped_singular_test(validator) -> None:
+    manifest = valid_manifest()
+    manifest["nodes"] = {
+        "test.asac_seoul.outside": _test_node(
+            "tests/traffic/source/assert_source_contract.sql",
+            ["model.asac_seoul.silver_seoul_traffic_incident"],
         )
-        node["depends_on"]["nodes"].append("model.other.allowed_dependency")
+    }
 
-        self.validator.validate_manifest(manifest)
-
-    def test_non_string_extra_dependency_is_ignored(self) -> None:
-        manifest = valid_manifest()
-        filename = "assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql"
-        node = next(
-            node
-            for node in manifest["nodes"].values()
-            if node["original_file_path"] == f"tests/{filename}"
-        )
-        node["depends_on"]["nodes"].append({"malformed": "extra"})
-
-        self.validator.validate_manifest(manifest)
-
-    def test_empty_dependency_array_fails_with_filename_and_node_ids(self) -> None:
-        manifest = valid_manifest()
-        filename = "assert_silver_traffic_location_contract.sql"
-        node = next(
-            node
-            for node in manifest["nodes"].values()
-            if node["original_file_path"] == f"tests/{filename}"
-        )
-        node["depends_on"]["nodes"] = []
-
-        with self.assertRaisesRegex(
-            self.validator.ManifestDependencyError,
-            rf"{filename}.*model\.traffic\.silver_seoul_traffic_incident",
-        ):
-            self.validator.validate_manifest(manifest)
-
-    def test_missing_required_model_dependency_fails_with_filename_and_node_ids(self) -> None:
-        manifest = valid_manifest()
-        filename = "assert_gold_traffic_counts_match_silver.sql"
-        node = next(
-            node
-            for node in manifest["nodes"].values()
-            if node["original_file_path"] == f"tests/{filename}"
-        )
-        node["depends_on"]["nodes"].remove("model.traffic.gold_traffic_incident_summary")
-
-        with self.assertRaisesRegex(
-            self.validator.ManifestDependencyError,
-            rf"{filename}.*model\.traffic\.gold_traffic_incident_summary",
-        ):
-            self.validator.validate_manifest(manifest)
-
-    def test_duplicate_original_file_path_fails(self) -> None:
-        manifest = valid_manifest()
-        original_node = next(iter(manifest["nodes"].values()))
-        manifest["nodes"]["test.traffic.duplicate"] = copy.deepcopy(original_node)
-
-        with self.assertRaisesRegex(
-            self.validator.ManifestDependencyError,
-            "assert_gold_traffic_counts_match_silver.sql.*expected exactly one test node.*actual 2",
-        ):
-            self.validator.validate_manifest(manifest)
-
-    def test_unexpected_traffic_model_dependency_fails(self) -> None:
-        manifest = valid_manifest()
-        filename = "assert_gold_traffic_row_counts_positive.sql"
-        node = next(
-            node
-            for node in manifest["nodes"].values()
-            if node["original_file_path"] == f"tests/{filename}"
-        )
-        node["depends_on"]["nodes"].append("model.traffic.unexpected")
-
-        with self.assertRaisesRegex(
-            self.validator.ManifestDependencyError,
-            rf"{filename}.*model\.traffic\.unexpected",
-        ):
-            self.validator.validate_manifest(manifest)
-
-    def test_cli_prints_pass_for_valid_explicit_manifest(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            manifest_path = Path(directory) / "manifest.json"
-            manifest_path.write_text(json.dumps(valid_manifest()), encoding="utf-8")
-
-            result = run_cli("--manifest", manifest_path)
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("PASS", result.stdout)
-        self.assertEqual(result.stderr, "")
-
-    def test_cli_prints_error_for_invalid_explicit_manifest(self) -> None:
-        manifest = valid_manifest()
-        manifest["nodes"].pop("test.traffic.0")
-        with tempfile.TemporaryDirectory() as directory:
-            manifest_path = Path(directory) / "manifest.json"
-            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-
-            result = run_cli("--manifest", manifest_path)
-
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("assert_gold_traffic_counts_match_silver.sql", result.stdout)
-        self.assertNotIn("Traceback", result.stderr)
+    with pytest.raises(
+        validator.ManifestDependencyError,
+        match=r"does not contain.*tests/traffic/transform",
+    ):
+        validator.validate_manifest(manifest)
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_duplicate_original_file_path_fails(validator) -> None:
+    manifest = valid_manifest()
+    manifest["nodes"]["test.asac_seoul.duplicate"] = copy.deepcopy(
+        manifest["nodes"]["test.asac_seoul.gold_contract"]
+    )
+
+    with pytest.raises(
+        validator.ManifestDependencyError, match="duplicate.*assert_gold_contract"
+    ):
+        validator.validate_manifest(manifest)
+
+
+def test_phase_tag_is_derived_from_the_test_parent_directory(validator) -> None:
+    manifest = valid_manifest()
+    node_for(manifest, GOLD_PATH)["tags"] = ["ask_seoul_traffic_transform_silver"]
+
+    with pytest.raises(
+        validator.ManifestDependencyError, match="assert_gold_contract.*gold"
+    ):
+        validator.validate_manifest(manifest)
+
+
+def test_each_scoped_singular_test_requires_a_local_project_model_edge(
+    validator,
+) -> None:
+    manifest = valid_manifest()
+    node_for(manifest, GOLD_PATH)["depends_on"]["nodes"] = [
+        "model.asac_axes.dim_admin_dong",
+        "source.asac_seoul.traffic_bronze.incident",
+    ]
+
+    with pytest.raises(
+        validator.ManifestDependencyError, match="local asac_seoul model"
+    ):
+        validator.validate_manifest(manifest)
+
+
+def test_raw_code_shape_does_not_change_manifest_edge_validation(validator) -> None:
+    manifest = valid_manifest()
+    node_for(manifest, GOLD_PATH)["raw_code"] = (
+        "{% set target = 'gold_traffic_incident_summary' %}{{ ref(target, version=1) }}"
+    )
+
+    validator.validate_manifest(manifest)
+
+
+def test_non_string_and_non_model_dependencies_are_ignored(validator) -> None:
+    manifest = valid_manifest()
+    node_for(manifest, GOLD_PATH)["depends_on"]["nodes"].extend(
+        [{"malformed": "extra"}, "source.other.allowed"]
+    )
+
+    validator.validate_manifest(manifest)
+
+
+def test_nodes_outside_transform_scope_are_ignored(validator) -> None:
+    manifest = valid_manifest()
+    manifest["nodes"]["test.asac_seoul.source_availability"] = _test_node(
+        "tests/traffic/source/availability/assert_source_availability.sql",
+        ["source.asac_seoul.traffic_bronze.incident"],
+    )
+
+    validator.validate_manifest(manifest)
+
+
+def test_cli_validates_a_manifest_without_a_tests_root_argument() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        manifest_path = Path(directory) / "manifest.json"
+        manifest_path.write_text(json.dumps(valid_manifest()), encoding="utf-8")
+
+        result = run_cli("--manifest", manifest_path)
+
+    assert result.returncode == 0, result.stdout
+    assert "PASS" in result.stdout
+    assert result.stderr == ""
+
+
+def test_cli_rejects_the_removed_tests_root_argument() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        manifest_path = Path(directory) / "manifest.json"
+        manifest_path.write_text(json.dumps(valid_manifest()), encoding="utf-8")
+
+        result = run_cli("--manifest", manifest_path, "--tests-root", directory)
+
+    assert result.returncode == 2
+    assert "unrecognized arguments: --tests-root" in result.stderr
+
+
+def test_cli_prints_contract_error_without_traceback() -> None:
+    manifest = valid_manifest()
+    node_for(manifest, GOLD_PATH)["depends_on"]["nodes"] = []
+    with tempfile.TemporaryDirectory() as directory:
+        manifest_path = Path(directory) / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+        result = run_cli("--manifest", manifest_path)
+
+    assert result.returncode == 1
+    assert "ERROR" in result.stdout
+    assert "Traceback" not in result.stderr

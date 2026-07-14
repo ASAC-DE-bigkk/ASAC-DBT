@@ -7,7 +7,7 @@ build_crosswalk.py — asac_axes 공용 seed 3종 생성기 (issue #48).
 서울 행정동 crosswalk 와, 여기에서 파생된 행정동/구 경계 seed 를 생성한다.
 
 소스
-  A) domains/weather/seeds/weather_place_grid_mapping.csv
+  A) seeds/weather/weather_place_grid_mapping.csv
        place_id(seoul_admd_<행안부10>), place_name, gu, admin_dong,
        latitude, longitude, mapping_method(snapshot 표기), source_admin_code(행안부10)
   B) domains/population/seeds/seoul_dong_boundary.csv
@@ -31,6 +31,7 @@ build_crosswalk.py — asac_axes 공용 seed 3종 생성기 (issue #48).
 
 미매칭 행은 버리지 않고 stderr 리포트로 남긴다(양쪽). 재실행 시 결정적 결과.
 """
+
 import csv
 import io
 import os
@@ -41,8 +42,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))  # .../dbt
 SEED_OUT = os.path.abspath(os.path.join(HERE, "..", "seeds"))
 
-SRC_WEATHER = os.path.join(REPO, "domains", "weather", "seeds", "weather_place_grid_mapping.csv")
-SRC_DONG = os.path.join(REPO, "domains", "population", "seeds", "seoul_dong_boundary.csv")
+SRC_WEATHER = os.path.join(REPO, "seeds", "weather", "weather_place_grid_mapping.csv")
+SRC_DONG = os.path.join(
+    REPO, "domains", "population", "seeds", "seoul_dong_boundary.csv"
+)
 SRC_GU = os.path.join(REPO, "domains", "population", "seeds", "seoul_gu_boundary.csv")
 
 
@@ -110,8 +113,15 @@ def main():
 
     # crosswalk 조립
     cross_header = [
-        "admin_dong_code", "gu_code", "stat_dong_code", "stat_gu_code",
-        "gu", "admin_dong", "latitude", "longitude", "snapshot_ref",
+        "admin_dong_code",
+        "gu_code",
+        "stat_dong_code",
+        "stat_gu_code",
+        "gu",
+        "admin_dong",
+        "latitude",
+        "longitude",
+        "snapshot_ref",
     ]
     cross_rows = []
     matched_stat_dong = set()  # 매칭된 B.dong_code
@@ -126,17 +136,19 @@ def main():
             continue
         b = bmatch[0]
         matched_stat_dong.add(b["dong_code"].strip())
-        cross_rows.append([
-            adcode,
-            gcode,
-            b["dong_code"].strip(),
-            b["sigungu_code"].strip(),
-            r["gu"].strip(),
-            r["admin_dong"].strip(),
-            r["latitude"].strip(),
-            r["longitude"].strip(),
-            r.get("mapping_method", "").strip(),
-        ])
+        cross_rows.append(
+            [
+                adcode,
+                gcode,
+                b["dong_code"].strip(),
+                b["sigungu_code"].strip(),
+                r["gu"].strip(),
+                r["admin_dong"].strip(),
+                r["latitude"].strip(),
+                r["longitude"].strip(),
+                r.get("mapping_method", "").strip(),
+            ]
+        )
 
     # B 미매칭
     Akeys = set((norm_gu(a["gu"]), norm_dong_admin(a["admin_dong"])) for a in A)
@@ -147,7 +159,11 @@ def main():
             unmatched_B.append((r["sigungu"], r["dong"], r["dong_code"].strip()))
 
     cross_rows.sort(key=lambda x: x[0])
-    write_csv(os.path.join(SEED_OUT, "seoul_admin_dong_crosswalk.csv"), cross_header, cross_rows)
+    write_csv(
+        os.path.join(SEED_OUT, "seoul_admin_dong_crosswalk.csv"),
+        cross_header,
+        cross_rows,
+    )
 
     # ---- boundary seed: B 복사 + 행안부 admin_dong_code / gu_code 부가 ----
     # admin_dong_code 는 매칭된 경우만, gu_code(행안부5)는 구명으로 항상 부가.
@@ -196,10 +212,14 @@ def main():
     for g, d, c in unmatched_B:
         e.write("    B> %s | %s | %s\n" % (g, d, c))
     e.write("unmatched gu         : %d %r\n" % (len(unmatched_gu), unmatched_gu))
-    e.write("boundary rows w/ admin_dong_code: %d / %d\n"
-            % (sum(1 for row in b_rows if row[-2]), len(b_rows)))
-    e.write("gu boundary rows     : %d (all coded=%s)\n"
-            % (len(c_rows), all(row[-1] for row in c_rows)))
+    e.write(
+        "boundary rows w/ admin_dong_code: %d / %d\n"
+        % (sum(1 for row in b_rows if row[-2]), len(b_rows))
+    )
+    e.write(
+        "gu boundary rows     : %d (all coded=%s)\n"
+        % (len(c_rows), all(row[-1] for row in c_rows))
+    )
     e.write("outputs -> %s\n" % SEED_OUT)
 
 

@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: gold_traffic_incident_summary
+    description: One-row-per-source full Silver aggregate; rebuilt as a table so counts do not become stale.
+    columns:
+      - name: source_id
+        description: TOPIS source identifier; unique summary grain.
+        tests:
+          - not_null
+          - unique
+      - name: row_count
+        description: Current deduplicated Silver incident count.
+        tests:
+          - not_null
+      - name: raw_object_count
+        description: Distinct R2 raw objects represented by the current Silver rows.
+        tests:
+          - not_null
+      - name: source_coordinate_row_count
+        description: Silver rows whose original GRS80 TM coordinate pair was present.
+        tests:
+          - not_null
+      - name: missing_source_coordinate_row_count
+        description: Silver rows whose original coordinate pair was absent.
+        tests:
+          - not_null
+      - name: first_occurred_at
+        description: Earliest current incident occurrence timestamp in KST; null for a valid zero-incident snapshot.
+      - name: last_occurred_at
+        description: Latest current incident occurrence timestamp in KST; null for a valid zero-incident snapshot.
+      - name: last_collected_at
+        description: Latest Bronze collection timestamp represented in the current snapshot; null for a valid zero-incident snapshot.

@@ -24,7 +24,7 @@ class RunTrafficManifestPremergeGateTest(unittest.TestCase):
     def test_run_gate_resolves_dependencies_parses_fresh_manifest_and_validates_it(
         self,
     ) -> None:
-        project_dir = TEST_ROOT / "domains" / "traffic"
+        project_dir = TEST_ROOT / "project"
         target_path = TEST_ROOT / ".tmp" / "traffic-manifest-target"
         snapshot_run_id = "ci__traffic-manifest-premerge-gate"
 
@@ -79,7 +79,7 @@ class RunTrafficManifestPremergeGateTest(unittest.TestCase):
             self.assertEqual(environment["DBT_TARGET"], "dev")
 
     def test_cli_uses_synthetic_snapshot_run_id_by_default(self) -> None:
-        project_dir = TEST_ROOT / "domains" / "traffic"
+        project_dir = TEST_ROOT / "project"
         target_path = TEST_ROOT / ".tmp" / "traffic-manifest-target"
 
         with patch.object(self.runner, "run_gate") as run_gate:
@@ -108,7 +108,7 @@ class RunTrafficManifestPremergeGateTest(unittest.TestCase):
         with patch.object(self.runner.subprocess, "run", side_effect=failure) as run:
             with self.assertRaisesRegex(subprocess.CalledProcessError, "dbt"):
                 self.runner.run_gate(
-                    project_dir=TEST_ROOT / "domains" / "traffic",
+                    project_dir=TEST_ROOT / "project",
                     dbt_bin="dbt",
                     target_path=TEST_ROOT / ".tmp" / "traffic-manifest-target",
                     snapshot_run_id="ci__traffic-manifest-premerge-gate",
@@ -126,7 +126,7 @@ class RunTrafficManifestPremergeGateTest(unittest.TestCase):
             try:
                 with patch.object(self.runner.subprocess, "run") as run:
                     self.runner.run_gate(
-                        project_dir=Path("domains/traffic"),
+                        project_dir=Path("."),
                         dbt_bin="dbt",
                         target_path=Path(".tmp/traffic-manifest-target"),
                         snapshot_run_id="ci__traffic-manifest-premerge-gate",
@@ -134,7 +134,7 @@ class RunTrafficManifestPremergeGateTest(unittest.TestCase):
             finally:
                 os.chdir(original_cwd)
 
-        project_dir = workspace / "domains" / "traffic"
+        project_dir = workspace
         target_path = workspace / ".tmp" / "traffic-manifest-target"
         deps_call, parse_call, validator_call = run.call_args_list
         self.assertEqual(deps_call.kwargs["cwd"], project_dir)

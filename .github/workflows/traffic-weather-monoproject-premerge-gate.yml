@@ -1,0 +1,100 @@
+name: Traffic/Weather dbt monoproject pre-merge gate
+
+on:
+  pull_request:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+
+jobs:
+  validate-traffic-weather-monoproject:
+    name: validate-traffic-weather-monoproject
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Determine Traffic/Weather monoproject scope
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+          monoproject_pattern='^(contracts/engine/|domains/traffic/|domains/weather/|models/traffic/|models/weather/|tests/traffic/|tests/weather/|analyses/traffic_weather/|macros/weather/|seeds/weather/|packages/asac_axes/|dbt_project\.yml$|profiles\.yml$|packages\.yml$|package-lock\.yml$|selectors\.yml$|pytest\.ini$|macros/generate_schema_name\.sql$|models/groups\.yml$|\.github/workflows/traffic-weather-monoproject-premerge-gate\.yml$)'
+          traffic_pattern='^(domains/traffic/|models/traffic/|tests/traffic/|packages/asac_axes/|dbt_project\.yml$|profiles\.yml$|packages\.yml$|package-lock\.yml$|selectors\.yml$|macros/generate_schema_name\.sql$|models/groups\.yml$)'
+
+          if printf '%s\n' "$changed_files" | grep -Eq "$monoproject_pattern"; then
+            echo "monoproject_relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "monoproject_relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+          if printf '%s\n' "$changed_files" | grep -Eq "$traffic_pattern"; then
+            echo "traffic_relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "traffic_relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Skip Traffic/Weather monoproject validation
+        if: steps.scope.outputs.monoproject_relevant != 'true'
+        run: echo "Traffic/Weather monoproject validation is not required for this change."
+      - uses: actions/setup-python@v5
+        if: steps.scope.outputs.monoproject_relevant == 'true'
+        with:
+          python-version: '3.11'
+      - name: Install dbt parser dependencies
+        if: steps.scope.outputs.monoproject_relevant == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install dbt-core==1.10.22 dbt-trino==1.10.2 pytest==8.4.2
+      - name: Resolve root monoproject dependencies
+        if: steps.scope.outputs.monoproject_relevant == 'true'
+        run: dbt deps --project-dir . --profiles-dir .
+      - name: Parse a fresh root monoproject manifest
+        if: steps.scope.outputs.monoproject_relevant == 'true'
+        run: |
+          dbt parse --no-partial-parse \
+            --project-dir . \
+            --profiles-dir . \
+            --target dev \
+            --target-path "$RUNNER_TEMP/traffic-weather-monoproject" \
+            --vars '{"traffic_snapshot_dag_run_id":"ci__traffic-weather-monoproject-premerge-gate"}'
+      - name: Validate every named selector is non-empty
+        if: steps.scope.outputs.monoproject_relevant == 'true'
+        run: |
+          python - <<'PY' > "$RUNNER_TEMP/traffic-weather-selectors.txt"
+          import yaml
+
+          with open("selectors.yml", encoding="utf-8") as stream:
+              for selector in yaml.safe_load(stream)["selectors"]:
+                  print(selector["name"])
+          PY
+          while IFS= read -r selector; do
+            selection="$(dbt ls --selector "$selector" \
+              --project-dir . \
+              --profiles-dir . \
+              --target dev \
+              --target-path "$RUNNER_TEMP/traffic-weather-monoproject" \
+              --vars '{"traffic_snapshot_dag_run_id":"ci__traffic-weather-monoproject-premerge-gate"}' \
+              --output name \
+              --quiet)"
+            test -n "$selection"
+          done < "$RUNNER_TEMP/traffic-weather-selectors.txt"
+      - name: Validate repository Python contracts
+        if: steps.scope.outputs.monoproject_relevant == 'true'
+        env:
+          ASK_SEOUL_FRESH_MANIFEST: ${{ runner.temp }}/traffic-weather-monoproject/manifest.json
+        run: python -m pytest -q -p no:cacheprovider
+      - name: Validate Traffic singular-test dependencies
+        if: steps.scope.outputs.traffic_relevant == 'true'
+        run: |
+          python domains/traffic/contracts/scripts/validate_singular_test_dependency_manifest.py \
+            --manifest "$RUNNER_TEMP/traffic-weather-monoproject/manifest.json"
+      - name: Upload generated manifest
+        if: ${{ always() && steps.scope.outputs.monoproject_relevant == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: traffic-weather-monoproject-manifest
+          path: ${{ runner.temp }}/traffic-weather-monoproject
+          if-no-files-found: ignore

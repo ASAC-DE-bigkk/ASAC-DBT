@@ -545,9 +545,9 @@ mkdir -p target/contracts
 ### 9.1 source declaration linter
 
 ```bash
-python3 domains/weather/contracts/scripts/lint_schema_contract_source.py \
-  --schema-root domains/weather/models/schema.yml \
-  --schema-root domains/weather/models/sources.yml \
+python3 contracts/engine/lint_schema_contract_source.py \
+  --schema-root models/weather/special/gold/gold_weather_forecast_by_admin_dong.yml \
+  --schema-root models/weather/sources.yml \
   --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
   --output target/contracts/weather-source-declaration.json
@@ -570,7 +570,7 @@ source report는 가능한 오류를 `file`, `resource_kind`, `resource_name`, `
 ### 9.2 manifest declaration validator
 
 ```bash
-python3 domains/weather/contracts/scripts/validate_public_gold_manifest.py \
+python3 contracts/engine/validate_public_gold_manifest.py \
   --manifest target/manifest.json \
   --resource gold_weather_forecast_by_admin_dong \
   --require-language ko-KR \
@@ -596,7 +596,7 @@ manifest 오류는 `nodes.<unique_id>.config.meta.public_gold...` 또는 `nodes.
 fixture 비교는 물리 증거로 승격하지 않는다.
 
 ```bash
-python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
+python3 contracts/engine/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
   --resource gold_weather_forecast_by_admin_dong \
@@ -608,7 +608,7 @@ python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
 승인된 dev 비교는 외부에서 실제 run으로 해소할 수 있는 비밀이 아닌 evidence ID를 사용한다. 값은 `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`를 만족해야 한다.
 
 ```bash
-python3 domains/weather/contracts/scripts/compare_public_gold_catalog.py \
+python3 contracts/engine/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
   --resource gold_weather_forecast_by_admin_dong \

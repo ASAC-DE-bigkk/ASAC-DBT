@@ -10,7 +10,8 @@
 
 ## Global Constraints
 
-- 모든 변경은 `domains/traffic/**` 안에 둔다.
+- dbt model/test는 root monoproject의 `models/traffic/**`, `tests/traffic/**`에 두고,
+  Traffic 전용 validator와 문서는 `domains/traffic/**`에 둔다.
 - prod, full-refresh, backfill, destructive delete를 사용하지 않는다.
 - `traffic_snapshot_dag_run_id` pinned correctness와 기존 summary/recovery 의미를 유지한다.
 - dev output은 고유 `TRAFFIC_SCHEMA`와 `--threads 1`을 사용한다.
@@ -21,15 +22,15 @@
 ### Task 1: RED 계약과 graph shape
 
 **Files:**
-- Create: `domains/traffic/tests/test_canonical_gold_contract.py`
-- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_grain_unique.sql`
-- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql`
-- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql`
-- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql`
-- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql`
-- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_product_row_id_reproducible.sql`
-- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_zero_requires_complete.sql`
-- Create: `domains/traffic/tests/assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql`
+- Create: `tests/traffic/test_canonical_gold_contract.py`
+- Create: `tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_grain_unique.sql`
+- Create: `tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql`
+- Create: `tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql`
+- Create: `tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql`
+- Create: `tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql`
+- Create: `tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_product_row_id_reproducible.sql`
+- Create: `tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_zero_requires_complete.sql`
+- Create: `tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql`
 - Modify: `domains/traffic/contracts/scripts/validate_singular_test_dependency_manifest.py`
 - Modify: `domains/traffic/contracts/tests/test_validate_singular_test_dependency_manifest.py`
 
@@ -52,13 +53,13 @@ assert "source('traffic_bronze', 'seoul_traffic_incident')" in sql
 
 - [ ] **Step 2: Run RED**
 
-Run: `python -m pytest domains/traffic/tests/test_canonical_gold_contract.py -q`
+Run: `python -m pytest tests/traffic/test_canonical_gold_contract.py -q`
 
 Expected: FAIL because the model does not exist.
 
-- [ ] **Step 3: Add singular SQL gates and validator mappings**
+- [ ] **Step 3: Add singular SQL gates and the manifest-native validator policy**
 
-Each test returns violation rows and declares its model refs in `-- depends_on`. Snapshot reconciliation independently reads the pinned manifest, request audit, Bronze IDs, current relation, and canonical dim; it derives the expected state/evidence rather than trusting Gold's own state. The graph validator requires the exact Traffic-model edge set and separately requires `model.asac_axes.dim_admin_dong` as a subset edge for canonical tests while allowing other source/external nodes.
+Each test returns violation rows and declares its model refs in `-- depends_on`. Snapshot reconciliation independently reads the pinned manifest, request audit, Bronze IDs, current relation, and canonical dim; it derives the expected state/evidence rather than trusting Gold's own state. The graph validator discovers every active `tests/traffic/transform/<phase>/*.sql` node from the fresh manifest and requires a path-derived phase tag plus at least one local `model.asac_seoul.*` edge without maintaining a filename/model registry.
 
 - [ ] **Step 4: Run graph RED**
 
@@ -66,7 +67,7 @@ Run:
 
 ```text
 dbt parse --target dev --no-partial-parse --target-path target/contract-red --vars '{"traffic_snapshot_dag_run_id":"contract-red"}'
-python contracts/scripts/validate_singular_test_dependency_manifest.py --manifest target/contract-red/manifest.json
+python domains/traffic/contracts/scripts/validate_singular_test_dependency_manifest.py --manifest target/contract-red/manifest.json
 ```
 
 Expected: bare `dbt parse` may warn about the absent Gold ref and still exit 0. The manifest dependency validator is the graph RED assertion and must exit nonzero because the required singular-test node/edges cannot be present until the Gold model exists.
@@ -81,11 +82,11 @@ dbt parse ... --target-path target/contract-red-final-review3
 exit 0 — WARNING: ... depends on a node named
 'gold_traffic_incident_current_by_admin_dong_hourly' ... which was not found
 
-python contracts/scripts/validate_singular_test_dependency_manifest.py \
+python domains/traffic/contracts/scripts/validate_singular_test_dependency_manifest.py \
   --manifest target/contract-red-final-review3/manifest.json
 exit 1 — ERROR: assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql:
 traffic model dependencies differ; expected
-['model.traffic.gold_traffic_incident_current_by_admin_dong_hourly']; actual []
+expected at least one local `model.asac_seoul.*` dependency; actual []
 
 isolated static model-existence contract
 exit 1 — missing canonical Gold model
@@ -106,8 +107,8 @@ exit 0 — compiled without relation execution
 ### Task 2: Minimal canonical Gold implementation
 
 **Files:**
-- Create: `domains/traffic/models/gold/gold_traffic_incident_current_by_admin_dong_hourly.sql`
-- Modify: `domains/traffic/models/sources.yml`
+- Create: `models/traffic/transform/gold/gold_traffic_incident_current_by_admin_dong_hourly.sql`
+- Modify: `models/traffic/sources.yml`
 
 **Interfaces:**
 - Consumes: pinned run var, manifest/audit/Bronze sources, current Silver, canonical dim.
@@ -170,7 +171,7 @@ Expected: all exit 0.
 ### Task 3: Public schema contract
 
 **Files:**
-- Modify: `domains/traffic/models/schema.yml`
+- Create: `models/traffic/transform/gold/gold_traffic_incident_current_by_admin_dong_hourly.yml`
 
 **Interfaces:**
 - Consumes: the exact physical column order from Task 2.
@@ -185,7 +186,7 @@ Declare `visibility: published_producer`, `contract_status: dev_pending`, natura
 Run:
 
 ```text
-python domains/traffic/contracts/scripts/validate_public_gold_manifest.py --manifest $ArtifactRoot/parse/manifest.json --resource gold_traffic_incident_current_by_admin_dong_hourly --require-language ko-KR
+python contracts/engine/validate_public_gold_manifest.py --manifest $ArtifactRoot/parse/manifest.json --resource gold_traffic_incident_current_by_admin_dong_hourly --require-language ko-KR
 ```
 
 Expected: `status=PASS` for the new resource.
@@ -193,7 +194,7 @@ Expected: `status=PASS` for the new resource.
 ### Task 4: Dev data proof and regressions
 
 **Files:**
-- Verify only: `domains/traffic/**`
+- Verify only: `models/traffic/**`, `tests/traffic/**`, `domains/traffic/**`
 
 **Interfaces:**
 - Consumes: latest complete publishable run ID and isolated `TRAFFIC_SCHEMA`.

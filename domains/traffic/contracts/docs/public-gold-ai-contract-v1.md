@@ -530,10 +530,10 @@ mkdir -p target/contracts
 ### 9.1 source declaration linter
 
 ```bash
-python3 domains/traffic/contracts/scripts/lint_schema_contract_source.py \
-  --schema-root domains/traffic/models/schema.yml \
-  --schema-root domains/traffic/models/sources.yml \
-  --resource gold_traffic_incident_summary \
+python3 contracts/engine/lint_schema_contract_source.py \
+  --schema-root models/traffic/transform/gold/gold_traffic_incident_current_by_admin_dong_hourly.yml \
+  --schema-root models/traffic/sources.yml \
+  --resource gold_traffic_incident_current_by_admin_dong_hourly \
   --require-language ko-KR \
   --output target/contracts/traffic-source-declaration.json
 ```
@@ -555,9 +555,9 @@ source report는 가능한 오류를 `file`, `resource_kind`, `resource_name`, `
 ### 9.2 manifest declaration validator
 
 ```bash
-python3 domains/traffic/contracts/scripts/validate_public_gold_manifest.py \
+python3 contracts/engine/validate_public_gold_manifest.py \
   --manifest target/manifest.json \
-  --resource gold_traffic_incident_summary \
+  --resource gold_traffic_incident_current_by_admin_dong_hourly \
   --require-language ko-KR \
   --output target/contracts/traffic-public-gold-declared-catalog.json
 ```
@@ -581,10 +581,10 @@ manifest 오류는 `nodes.<unique_id>.config.meta.public_gold...` 또는 `nodes.
 fixture 비교는 물리 증거로 승격하지 않는다.
 
 ```bash
-python3 domains/traffic/contracts/scripts/compare_public_gold_catalog.py \
+python3 contracts/engine/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
-  --resource gold_traffic_incident_summary \
+  --resource gold_traffic_incident_current_by_admin_dong_hourly \
   --require-language ko-KR \
   --evidence-kind fixture \
   --output target/contracts/traffic-fixture-comparison.json
@@ -593,10 +593,10 @@ python3 domains/traffic/contracts/scripts/compare_public_gold_catalog.py \
 승인된 dev 비교는 외부에서 실제 run으로 해소할 수 있는 비밀이 아닌 evidence ID를 사용한다. 값은 `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`를 만족해야 한다.
 
 ```bash
-python3 domains/traffic/contracts/scripts/compare_public_gold_catalog.py \
+python3 contracts/engine/compare_public_gold_catalog.py \
   --manifest target/manifest.json \
   --catalog target/catalog.json \
-  --resource gold_traffic_incident_summary \
+  --resource gold_traffic_incident_current_by_admin_dong_hourly \
   --require-language ko-KR \
   --evidence-kind approved_dev_catalog \
   --evidence-id "$APPROVED_DEV_EVIDENCE_ID" \

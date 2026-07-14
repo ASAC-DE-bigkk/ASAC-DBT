@@ -5,7 +5,9 @@ coverage 계약을 정리한다. 시간/공간 공통축은 `asac_axes` package�
 
 ## 적용 범위
 
-- 도메인: `domains/traffic`
+- dbt project: repository root (`dbt_project.yml`, `profiles.yml`)
+- 도메인 모델: `models/traffic`
+- 도메인 테스트: `tests/traffic`
 - 원천: Seoul TOPIS AccInfo
 - Bronze source: `{{ source('traffic_bronze', 'seoul_traffic_incident') }}`
 - Bronze request-audit source: `{{ source('traffic_bronze', 'seoul_traffic_incident_request_audit') }}`
@@ -17,7 +19,7 @@ coverage 계약을 정리한다. 시간/공간 공통축은 `asac_axes` package�
 
 ## Source contract
 
-`domains/traffic/models/sources.yml`은 아래 기준을 기본 계약으로 둔다.
+`models/traffic/sources.yml`은 아래 기준을 기본 계약으로 둔다.
 
 ### `seoul_traffic_incident`
 
@@ -169,10 +171,11 @@ artifact가 재사용되면 manifest graph가 잘못 생성될 수 있다. 따�
 `traffic_snapshot_dag_run_id`를 넣는다.
 
 ```bash
-dbt deps
-dbt parse --no-partial-parse --target-path <fresh-target> \
+dbt deps --project-dir . --profiles-dir .
+dbt parse --no-partial-parse --project-dir . --profiles-dir . --target dev \
+  --target-path <fresh-target> \
   --vars '{"traffic_snapshot_dag_run_id":"<publishable-run-id>"}'
-python contracts/scripts/validate_singular_test_dependency_manifest.py \
+python domains/traffic/contracts/scripts/validate_singular_test_dependency_manifest.py \
   --manifest <fresh-target>/manifest.json
 dbt test --select gold_traffic_incident_summary \
   assert_gold_traffic_counts_match_silver \
@@ -181,7 +184,9 @@ dbt test --select gold_traffic_incident_summary \
   --vars '{"traffic_snapshot_dag_run_id":"<publishable-run-id>"}'
 ```
 
-manifest validator는 explicit singular-test-to-model edge가 존재하는지 확인하는
+manifest validator는 fresh manifest의 `tests/traffic/transform/<phase>/*.sql` active node를
+동적으로 읽고, 중복 없는 `original_file_path`, 경로에서 파생한 phase tag, 하나 이상의 local
+`model.asac_seoul.*` dependency edge가 존재하는지 확인하는
 **graph/deployment gate**다. 마지막 selected Gold dbt test는 해당 pinned snapshot의
 row/count 계약을 확인하는 **data-contract gate**다. 둘 중 하나가 다른 하나를 대체하지
 않는다.
@@ -192,24 +197,25 @@ runtime upgrade는 별도 작업으로 관리한다. 이 경계는 graph 실패�
 
 ### PR 전 자동 manifest 검증 (#178)
 
-`dev`를 대상으로 하는 **모든** pull request에서는
-`traffic-manifest-premerge-gate` GitHub Actions가 동일한
-`validate-traffic-manifest` check를 생성한다. workflow trigger나 job 자체에는 path filter를
-두지 않으므로, Traffic과 무관한 PR도 이 check context를 일관되게 남긴다.
+`dev` 대상 모든 pull request에서는
+`.github/workflows/traffic-weather-monoproject-premerge-gate.yml`이 동일한
+`validate-traffic-weather-monoproject` check를 만든다. trigger와 job에는 path filter를 두지
+않고, job 내부에서 변경 범위를 판정한다.
 
-runner는 base/head diff에서 다음 중 하나가 바뀐 Traffic 영향 PR에만 repository root에서
-실행한다.
+Traffic 또는 Weather 소유 경로와 root dbt graph 경로가 바뀌면 다음 공통 검증을 repository
+root에서 실행한다.
 
-- `domains/traffic/**`
-- `packages/asac_axes/**`
-- `.github/workflows/traffic-manifest-premerge-gate.yml`
+1. `contracts/engine/tests` pytest
+2. root `dbt deps`
+3. isolated target의 root `dbt parse --no-partial-parse`
 
-해당 범위에서는 기존 runner가 `dbt deps` → fresh target의
-`dbt parse --no-partial-parse` → manifest validator 순서로 실행한다.
+Traffic 모델·테스트 또는 Traffic graph에 영향을 주는 root 설정이 바뀐 경우에만 생성된
+manifest를 singular-test dependency validator로 추가 검증한다. Weather-only 변경은 공통
+engine/parse 검증을 실행하되 Traffic singular gate는 실행하지 않는다.
 
 ```bash
 python domains/traffic/contracts/scripts/run_traffic_manifest_premerge_gate.py \
-  --project-dir domains/traffic \
+  --project-dir . \
   --target-path "$RUNNER_TEMP/traffic-manifest-gate"
 ```
 
@@ -219,12 +225,11 @@ runner는 `dbt deps` 뒤에 synthetic
 dependency validator로 검사한다. Traffic 영향 runner가 실패해도 target artifact는
 `if: always()`로 수집하므로 배포 전 graph 오류의 원인을 확인할 수 있다.
 
-Weather 전용 변경처럼 위 범위 밖의 PR은 dbt를 실행하지 않고 skip step을 거쳐 성공 종료한다.
-Weather는 이번 #178 검증 범위가 아니다.
+두 도메인과 root monoproject에 무관한 PR만 skip step을 거쳐 성공 종료한다.
 
-첫 PR 실행에서 GitHub가 실제로 만든 `validate-traffic-manifest` check context를 확인한 뒤,
+첫 PR 실행에서 GitHub가 실제로 만든 `validate-traffic-weather-monoproject` check context를 확인한 뒤,
 `dev-protect` ruleset의 required status check로 등록해야 한다. 이 등록이 완료되어야 Traffic
-영향 PR에서 check 실패가 실제 merge 차단으로 동작한다.
+또는 Weather 영향 PR에서 check 실패가 실제 merge 차단으로 동작한다.
 
 이 CI gate는 parse-only/read-only 검증이다. `dbt test`나 `dbt run`을 실행하지 않고,
 Trino·R2에 접속하거나 warehouse에 쓰지 않는다. 따라서 이 gate의 통과는 실제 Airflow run의

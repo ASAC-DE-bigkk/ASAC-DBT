@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: recovery_silver_seoul_traffic_incident
+    description: Isolated, reproducible TOPIS incident snapshot for the explicit publishable `traffic_snapshot_dag_run_id`; it never updates the canonical incremental Silver or Current relation.
+    columns:
+      - name: source_record_id
+        description: Stable TOPIS accident identifier at the requested snapshot grain.
+        tests:
+          - not_null
+          - unique
+      - name: dag_run_id
+        description: Explicit publishable Bronze collection run represented by this recovery relation.
+        tests:
+          - not_null
+      - name: raw_object_key
+        description: R2 raw object lineage for the selected Bronze record.
+        tests:
+          - not_null
+      - name: collected_at
+        description: Bronze collection timestamp used for deterministic snapshot deduplication.
+        tests:
+          - not_null
+      - name: is_snapshot_marker
+        description: True only for the one atomic snapshot-identity marker row. Consumers of incident facts must filter it out.
+        tests:
+          - not_null

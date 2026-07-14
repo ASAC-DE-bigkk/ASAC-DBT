@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: recovery_traffic_snapshot_metadata
+    description: One-row identity anchor for the requested publishable snapshot, retained even when a valid snapshot has zero incident rows.
+    columns:
+      - name: source_id
+        description: Fixed TOPIS source identifier for the recovery snapshot.
+        tests:
+          - not_null
+          - unique
+      - name: snapshot_dag_run_id
+        description: Explicit publishable Bronze collection run used by recovery Silver and Gold.
+        tests:
+          - not_null
+          - unique
