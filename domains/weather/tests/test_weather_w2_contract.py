@@ -60,6 +60,7 @@ DATA_TESTS = NAMED_TESTS | {
     "assert_gold_weather_forecast_by_admin_dong_bridge_exclusions_reconcile",
     "assert_gold_weather_forecast_by_admin_dong_repair_reconciles",
     "assert_gold_weather_forecast_by_admin_dong_repair_window_no_extra_rows",
+    "assert_gold_weather_forecast_by_admin_dong_repair_window_lineage",
     "assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade",
 }
 CANONICAL_DATA_TESTS = DATA_TESTS - {
@@ -278,6 +279,18 @@ def test_gold_repair_reconciliation_compacts_payload_before_winner_ranking():
     assert "actual_window as" in extra_rows
     assert "unexpected_window_gold_row" in extra_rows
     assert "published_at as timestamp(6)) >= timestamp" in extra_rows
+
+    lineage = compact(
+        read("tests/assert_gold_weather_forecast_by_admin_dong_repair_window_lineage.sql")
+    )
+    assert "repair_product_keys as" in lineage
+    assert "actual_repair_products as" in lineage
+    assert "forecast_lineage_not_backed_by_one_grid_row" in lineage
+    assert "weather_w2_gold_winner_is_not_older" in lineage
+    assert "where cast(actual.published_at" not in lineage
+    assert "actual.published_at >= timestamp" not in lineage
+    assert "actual.published_at <= timestamp" not in lineage
+    assert "all_grid_records as" not in lineage
 
 
 def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze():
