@@ -55,6 +55,7 @@ where event_start_date <= current_date and current_date <= event_end_date;
 | `gold_culture_movie_boxoffice_daily` | boxoffice_date (날짜 1행) | 2 | 영화 관객 서울 쏠림(`seoul_audience_share`) — 시도 그레인이라 자치구 축 없음 |
 | `gold_culture_sports_schedule` | 경기 1행 | 67 | 서울 야구(잠실·고척) 홈경기 일정 |
 | `gold_culture_activity_by_dong` | admin_dong_code × event_date | 177,216 | **행정동**별·일별 활동 — 426동 전체 scaffold(0건 동도 행 존재, `activities_count=0`), 날짜 창 [오늘−90, 오늘+365] |
+| `gold_culture_event_schedule` | 행사 1행 | 37,454 | 행사 **목록**(제목·장소·기간) — "이번 주말 ○○구 뭐 하나" = 기간 겹침 + `gu_code` 필터 (#187). 크로스소스 dedup 완료라 union 불필요 |
 
 \* 행수는 2026-07-10 dev 실측. 스냅샷·기간 전개 특성상 매일 증가합니다.
 

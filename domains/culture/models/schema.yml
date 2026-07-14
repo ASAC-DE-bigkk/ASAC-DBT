@@ -462,6 +462,59 @@ models:
           - accepted_values:
               arguments: {values: [dong_precise, gu_only, unmatched]}
 
+  - name: gold_culture_event_schedule
+    description: 문화행사 목록 질의 표면 (행사 1행, #187). "이번 주말 ○○구 행사" = 기간 겹침 + gu_code 필터 단독 조회. 6개 silver union + norm_title×시작일×gu 크로스소스 dedup(전문 소스 우선).
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: event_ref
+        description: "소스 프리픽스 키 ('performance:12345') — 크로스소스 충돌 방지"
+        data_type: varchar
+        tests: [not_null, unique]
+      - name: event_type
+        data_type: varchar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [event, performance, exhibition, festival, sejong, kcisa]}
+      - name: title
+        data_type: varchar
+        tests: [not_null]
+      - name: category
+        data_type: varchar
+      - name: venue_name
+        data_type: varchar
+      - name: is_free
+        data_type: varchar
+      - name: event_start_date
+        data_type: date
+        tests: [not_null]
+      - name: event_end_date
+        data_type: date
+        tests: [not_null]
+      - name: event_at
+        data_type: timestamp(6)
+        tests: [not_null]
+      - name: gu
+        data_type: varchar
+      - name: gu_code
+        data_type: varchar
+      - name: admin_dong
+        data_type: varchar
+      - name: admin_dong_code
+        data_type: varchar
+      - name: latitude
+        data_type: double
+      - name: longitude
+        data_type: double
+      - name: quality_status
+        data_type: varchar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
   - name: silver_culture_kcisa_event
     description: KCISA 한눈에보는문화정보 서울 행사 fact — 전 serviceName 편입, 3축(performance·event·exhibition) anti-join dedup 잔존분(#85). 그레인 event_id(=seq), 좌표 내장.
     columns:
