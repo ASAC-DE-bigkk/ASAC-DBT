@@ -1,4 +1,4 @@
 packages:
-  - local: ../../packages/asac_axes
+  - local: /opt/airflow/dbt/packages/asac_axes
     name: asac_axes
-sha1_hash: 1880f33cd5da4a573d7f79bc8408062bf0971bc4
+sha1_hash: 81c807960afb3d6834bf1661644687b2fcba9487
