@@ -7,8 +7,12 @@ sources:
     schema: "{{ env_var('ASK_SEOUL_SCHEMA', 'ask_seoul') }}"
     loaded_at_field: collected_at
     freshness:
-      warn_after: {count: 4, period: hour}
-      error_after: {count: 6, period: hour}
+      warn_after:
+        count: "{{ env_var('ASK_SEOUL_REPORT_WEATHER_FRESHNESS_WARN_MINUTES', '240') | int }}"
+        period: minute
+      error_after:
+        count: "{{ env_var('ASK_SEOUL_REPORT_WEATHER_FRESHNESS_ERROR_MINUTES', '360') | int }}"
+        period: minute
     tables:
       - name: kma_vilage_fcst
         identifier: bronze_kma_vilage_fcst

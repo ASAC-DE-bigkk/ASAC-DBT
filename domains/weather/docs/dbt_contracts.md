@@ -117,9 +117,14 @@ weather coverage는 "row가 존재하는지"가 아니라 "최신 발표시각�
 - test: `assert_silver_kma_vilage_fcst_grid_coverage`
 - 기준: 최신 `issued_at`의 distinct `nx:ny` 수
 - 기본 기대값: `ASK_SEOUL_REPORT_EXPECTED_KMA_GRIDS`, default `80`
-- freshness 기준: `collected_at`
-  - warn: 30 hours
-  - error: 48 hours
+- freshness 기준:
+  - `kma_vilage_fcst`: `collected_at`
+  - `collection_run_manifest`: `event_at`
+  - warn 기본값: 240분(4시간)
+  - error 기본값: 360분(6시간)
+  - warn override: `ASK_SEOUL_REPORT_WEATHER_FRESHNESS_WARN_MINUTES`
+  - error override: `ASK_SEOUL_REPORT_WEATHER_FRESHNESS_ERROR_MINUTES`
+  - 두 값은 분 단위 정수이고 운영 설정은 `warn < error`를 유지한다.
 
 이 테스트가 실패하면 최신 KMA 수집이 서울 전체 격자를 충분히 포함하지 못했거나,
 Bronze publish 기준과 dbt 실행 시점 사이에 데이터가 비어 있는 상태로 봐야 한다.
