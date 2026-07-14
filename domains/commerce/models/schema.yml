@@ -1,6 +1,50 @@
 version: 2
 
 models:
+  # ── gold 코어(Iceberg — dags docs/PROJECT.md §4) ─────────────────────────────
+  - name: gold_license_entity
+    description: >
+      업소 현재 상태(공통 컬럼 서빙 프로젝션, Iceberg 정본). grain = 자연키
+      (dataset, opnsfteamcode, mgtno) — silver_license_current 와 1:1(D1/SQLite 특성상
+      DB 발급 서러게이트 금지, PROJECT.md §4.2). record_json 등 대형/내부 컬럼 제외.
+      API 별 상이 컬럼은 카탈로그 구동 detail(commerce_<domain>_detail, dags include/gold/) 담당.
+    columns:
+      - name: dataset
+        tests:
+          - not_null
+      - name: opnsfteamcode
+        tests:
+          - not_null
+      - name: mgtno
+        tests:
+          - not_null
+
+  - name: gold_license_entity_history
+    description: >
+      업소 버전 이력 프로젝션(append-only, Iceberg 전용 — D1 export 금지·대용량).
+      증분 = collected_at 워터마크(silver history 가 append-only 라 신규 버전 행만 승계).
+      버전 grain = silver 와 동일 (dataset, opnsfteamcode, mgtno, collected_at, content_hash).
+    columns:
+      - name: dataset
+        tests:
+          - not_null
+      - name: collected_at
+        tests:
+          - not_null
+      - name: content_hash
+        tests:
+          - not_null
+
+  - name: gold_license_dong_summary
+    description: >
+      행정동별 업소 현황 집계(소형 · D1 export 1순위 — PROJECT.md §4.3). grain =
+      admin_dong_code(행안부 10자리). 마스킹 주소 등 동 매핑 불가 업소는 제외.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+          - unique
+
   - name: silver_license_history
     description: >
       서울 인허가 변경 이력(정제된 변경로그). bronze 를 publishable run 으로 필터하고 연속 중복을

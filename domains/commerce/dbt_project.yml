@@ -25,6 +25,15 @@ models:
         +materialized: incremental
         +incremental_strategy: append
         +on_schema_change: fail
+    # gold 코어(Iceberg — dags docs/PROJECT.md §4): entity(현재)·history(이력)·dong_summary(집계).
+    # detail(API 별 상이 컬럼)은 카탈로그 구동이라 dbt 정적 모델이 아님 — dags include/gold/ 담당.
+    gold:
+      +materialized: table
+      +tags: ["gold"]
+      gold_license_entity_history:
+        +materialized: incremental
+        +incremental_strategy: append
+        +on_schema_change: fail
 
 # 단위 제외(삭제) 목록 — silver 증분/백필 입력에서 해당 단위를 뺀다(복원 = 목록에서 제거 후 dbt run).
 # bronze 는 불변이므로 "삭제"는 silver 노출 제외이며, 원본·이력은 bronze 에 남는다.

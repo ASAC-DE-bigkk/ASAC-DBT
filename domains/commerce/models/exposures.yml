@@ -1,19 +1,23 @@
 version: 2
 
-# gold 소비처 선언 — silver 를 "누가 소비하는지"를 dbt lineage 에 노출(C5, lineage 사각 해소 1단계).
-# commerce gold 는 Python→서빙 Postgres 라 dbt 그래프에 모델로 존재하지 않는다 → exposure 로
-# 소비 계약을 문서화한다. Marquez(OpenLineage) 실엣지는 V1(gold DAG inlets/outlets)에서 잇는다.
+# gold 소비처 선언 — 서빙 레이어 정책(dags docs/PROJECT.md §4, 2026-07-14 개편).
+# gold 코어는 dbt 모델(Iceberg)이라 그래프에 직접 존재한다. 이 exposure 는 그 하류 소비 계약 —
+# (1) 카탈로그 구동 detail 적재(dags include/gold/ — commerce_<domain>_detail, 물리명 stitch)
+# (2) D1(SQLite) 선별 export(예정 — dong_summary 1순위, entity 선별 후보)를 문서화한다.
 exposures:
   - name: commerce_gold_serving
-    label: commerce gold 서빙 DB (serving-postgres)
+    label: commerce gold 서빙 — Iceberg 정본 → D1(SQLite) 선별 export(예정)
     type: application
-    maturity: high
+    maturity: medium
     owner:
       name: data-eng
     description: >
-      commerce_load_gold DAG(ASAC-DAG) 가 silver 를 읽어 서빙 Postgres 의 commerce_* 객체
-      (core entity/history · detail 78 · dim 3 · view 320)로 증분 적재한다. 카탈로그 구동 —
-      규칙: dags/domains/commerce/include/gold/ · 명세: docs/DB/gold/.
+      commerce_load_gold DAG(ASAC-DAG) 가 gold 코어(dbt·Iceberg)와 카탈로그 구동 detail
+      (commerce_<domain>_detail — API 별 상이 컬럼 평탄화, dags include/gold/)을 구축한다.
+      서빙은 gold 중 선별 소수 테이블만 D1(SQLite) 로 export(후속 구현 — PROJECT.md §4.3):
+      gold_license_dong_summary(1순위)·gold_license_entity(필터/컬럼 축소 후보).
+      기존 serving Postgres 경로는 폐기(2026-07-14).
     depends_on:
-      - ref('silver_license_history')
-      - ref('silver_license_current')
+      - ref('gold_license_entity')
+      - ref('gold_license_entity_history')
+      - ref('gold_license_dong_summary')
