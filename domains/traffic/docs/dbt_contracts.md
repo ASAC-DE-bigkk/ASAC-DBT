@@ -190,6 +190,47 @@ row/count 계약을 확인하는 **data-contract gate**다. 둘 중 하나가 �
 runtime upgrade는 별도 작업으로 관리한다. 이 경계는 graph 실패를 Gold data failure로
 오인하거나, runtime 변경으로 기존 snapshot/recovery 계약을 바꾸지 않기 위한 것이다.
 
+### PR 전 자동 manifest 검증 (#178)
+
+`dev`를 대상으로 하는 **모든** pull request에서는
+`traffic-manifest-premerge-gate` GitHub Actions가 동일한
+`validate-traffic-manifest` check를 생성한다. workflow trigger나 job 자체에는 path filter를
+두지 않으므로, Traffic과 무관한 PR도 이 check context를 일관되게 남긴다.
+
+runner는 base/head diff에서 다음 중 하나가 바뀐 Traffic 영향 PR에만 repository root에서
+실행한다.
+
+- `domains/traffic/**`
+- `packages/asac_axes/**`
+- `.github/workflows/traffic-manifest-premerge-gate.yml`
+
+해당 범위에서는 기존 runner가 `dbt deps` → fresh target의
+`dbt parse --no-partial-parse` → manifest validator 순서로 실행한다.
+
+```bash
+python domains/traffic/contracts/scripts/run_traffic_manifest_premerge_gate.py \
+  --project-dir domains/traffic \
+  --target-path "$RUNNER_TEMP/traffic-manifest-gate"
+```
+
+runner는 `dbt deps` 뒤에 synthetic
+`traffic_snapshot_dag_run_id=ci__traffic-manifest-premerge-gate`를 사용해 새 target에서
+`dbt parse --no-partial-parse`를 수행하고, 생성된 `manifest.json`을 기존 singular-test
+dependency validator로 검사한다. Traffic 영향 runner가 실패해도 target artifact는
+`if: always()`로 수집하므로 배포 전 graph 오류의 원인을 확인할 수 있다.
+
+Weather 전용 변경처럼 위 범위 밖의 PR은 dbt를 실행하지 않고 skip step을 거쳐 성공 종료한다.
+Weather는 이번 #178 검증 범위가 아니다.
+
+첫 PR 실행에서 GitHub가 실제로 만든 `validate-traffic-manifest` check context를 확인한 뒤,
+`dev-protect` ruleset의 required status check로 등록해야 한다. 이 등록이 완료되어야 Traffic
+영향 PR에서 check 실패가 실제 merge 차단으로 동작한다.
+
+이 CI gate는 parse-only/read-only 검증이다. `dbt test`나 `dbt run`을 실행하지 않고,
+Trino·R2에 접속하거나 warehouse에 쓰지 않는다. 따라서 이 gate의 통과는 실제 Airflow run의
+data-contract test 또는 recovery 성공을 보장하거나 대체하지 않는다. 운영성 수동 검증은 바로
+위의 publishable Bronze snapshot 절차를 계속 사용한다.
+
 ## Coverage and completeness
 
 traffic는 request/page 단위의 수집 특성 때문에 단일 row 기반의 coverage가 오도될 수 있다.
