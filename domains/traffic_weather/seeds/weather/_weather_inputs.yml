@@ -1,0 +1,128 @@
+version: 2
+
+seeds:
+  - name: weather_place_grid_mapping
+    description: 기존 Weather 장소·행정동 별칭을 KMA 격자에 연결한 427행 호환 seed이며 canonical 행정동 증거로 사용하지 않는다.
+    columns:
+      - name: place_id
+        description: Weather 도메인이 부여한 장소 식별자이며 seed grain이다.
+        tests:
+          - not_null
+          - unique
+      - name: place_name
+        description: 사용자 표시용 대표 장소명이다.
+        tests:
+          - not_null
+      - name: alias_names
+        description: 세로 막대로 구분한 검색 별칭 목록이다.
+        tests:
+          - not_null
+      - name: gu
+        description: legacy mapping에 기록된 자치구명이며 canonical 값이 아니다.
+        tests:
+          - not_null
+      - name: admin_dong
+        description: legacy mapping에 기록된 행정동명이며 canonical 값이 아니다.
+        tests:
+          - not_null
+      - name: latitude
+        description: 장소의 WGS84 위도이며 격자 매핑 보조 정보다.
+        tests:
+          - not_null
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lat
+      - name: longitude
+        description: 장소의 WGS84 경도이며 격자 매핑 보조 정보다.
+        tests:
+          - not_null
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lon
+      - name: nx
+        description: 장소에 대응하는 KMA 격자 X 좌표다.
+        tests:
+          - not_null
+      - name: ny
+        description: 장소에 대응하는 KMA 격자 Y 좌표다.
+        tests:
+          - not_null
+      - name: mapping_method
+        description: legacy 매핑 개정 label이며 유효 시작일 증거가 아니다.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - kma_admin_dong_grid_20260325
+      - name: grid_distance_m
+        description: 장소와 격자 기준점 사이 거리 m이며 계산되지 않은 경우 null이다.
+      - name: source_admin_code
+        description: KMA 안내 자료에 기록된 행정코드 후보이며 canonical dim과 exact join해야 한다.
+        tests:
+          - not_null
+  - name: weather_admin_dong_grid_bridge_history
+    description: legacy 427행을 손실 없이 복제하고 버전·기록 시각·시간 증거 품질을 추가한 append-only 행정동-격자 assertion seed다.
+    config:
+      meta:
+        row_meaning_ko: source 행정코드·버전·격자에 대한 한 개의 mapping assertion이다.
+        grain:
+          - source_admin_code
+          - bridge_version
+          - nx
+          - ny
+        lifecycle: internal_candidate
+        time_semantics_ko: recorded_at은 Git 최초 기록 시각이며 valid_from_at과 valid_to_at은 source 유효기간 증거 부재로 null이다.
+        spatial_semantics_ko: source_admin_code는 후보 키이고 canonical 다섯 필드는 bridge 모델에서만 stamp한다.
+        downstream:
+          - bridge_weather_admin_dong_grid
+          - W2_weather_public_gold
+    columns:
+      - name: place_id
+        description: legacy mapping의 Weather 장소 식별자다.
+      - name: place_name
+        description: legacy mapping의 대표 장소명이다.
+      - name: alias_names
+        description: legacy mapping의 검색 별칭 목록이다.
+      - name: legacy_gu
+        description: legacy mapping에 기록된 자치구명으로 canonical 값이 아니다.
+      - name: legacy_admin_dong
+        description: legacy mapping에 기록된 행정동명으로 canonical 값이 아니다.
+      - name: latitude
+        description: legacy 장소의 WGS84 위도다.
+      - name: longitude
+        description: legacy 장소의 WGS84 경도다.
+      - name: source_admin_code
+        description: canonical 행정동 차원과 exact join할 원천 행정코드 후보다.
+        tests:
+          - not_null
+      - name: bridge_version
+        description: append-only bridge assertion 버전이며 v1은 weather_admin_dong_grid_bridge_v1이다.
+        tests:
+          - not_null
+      - name: nx
+        description: KMA 격자 X 좌표이며 candidate grain 구성요소다.
+        tests:
+          - not_null
+      - name: ny
+        description: KMA 격자 Y 좌표이며 candidate grain 구성요소다.
+        tests:
+          - not_null
+      - name: legacy_mapping_method
+        description: 원 seed의 mapping_method 원문을 보존한 값이다.
+      - name: mapping_revision_label
+        description: kma_admin_dong_grid_20260325 개정 label이며 유효 시작일로 해석하지 않는다.
+      - name: recorded_at
+        description: legacy seed가 Git에 최초 기록된 KST timestamp(6) 증거다.
+      - name: valid_from_at
+        description: source-backed 유효 시작 KST 시각이며 v1은 증거 부재로 null이다.
+      - name: valid_to_at
+        description: source-backed 유효 종료 KST 시각이며 v1은 증거 부재로 null이다.
+      - name: effective_from_basis
+        description: recorded_at과 source 유효 시작일을 구분하는 근거 설명 token이다.
+      - name: mapping_method
+        description: 이 assertion이 legacy seed exact copy로 생성됐음을 나타낸다.
+      - name: temporal_quality
+        description: 시간 구간 증거 품질이며 v1은 revision_only다.
+      - name: grid_distance_m
+        description: legacy 장소와 격자 기준점 사이 거리 m이며 미계산 시 null이다.

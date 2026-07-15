@@ -1,0 +1,90 @@
+selectors:
+  - name: ask_seoul_traffic_transform_source
+    description: Traffic Bronze source와 해당 source 계약 리소스를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_transform_source, indirect_selection: cautious}
+  - name: ask_seoul_traffic_transform_availability
+    description: Traffic source availability singular test phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_transform_availability, indirect_selection: cautious}
+  - name: ask_seoul_traffic_transform_asac_axes
+    description: Traffic 변환이 준비하는 공통 asac_axes seed phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_transform_asac_axes, indirect_selection: cautious}
+  - name: ask_seoul_traffic_transform_asac_axes_contract
+    description: Traffic 변환 전 공통 asac_axes seed 계약 phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_transform_asac_axes_contract, indirect_selection: cautious}
+  - name: ask_seoul_traffic_transform_common_admin
+    description: Traffic 변환이 사용하는 canonical 행정동 model phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_transform_common_admin, indirect_selection: cautious}
+  - name: ask_seoul_traffic_transform_silver
+    description: Traffic scheduled Silver model과 test phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_transform_silver, indirect_selection: cautious}
+  - name: ask_seoul_traffic_transform_gold
+    description: Traffic scheduled Gold model과 test phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_transform_gold, indirect_selection: cautious}
+  - name: ask_seoul_traffic_recovery_silver
+    description: 고정 snapshot용 Traffic recovery Silver phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_recovery_silver, indirect_selection: cautious}
+  - name: ask_seoul_traffic_recovery_metadata
+    description: Traffic recovery 완료 metadata anchor phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_recovery_metadata, indirect_selection: cautious}
+  - name: ask_seoul_traffic_recovery_gold
+    description: 고정 snapshot용 Traffic recovery Gold phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_traffic_recovery_gold, indirect_selection: cautious}
+  - name: traffic_transform_contract_gate
+    description: Traffic Bronze source의 generic contract test만 선택한다.
+    definition:
+      intersection:
+        - method: tag
+          value: ask_seoul_traffic_transform_source
+          indirect_selection: cautious
+        - method: test_type
+          value: generic
+
+  - name: ask_seoul_weather_transform_source
+    description: Weather Bronze source와 해당 source 계약 리소스를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_transform_source, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_asac_axes
+    description: Weather 변환이 준비하는 공통 asac_axes seed phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_transform_asac_axes, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_common_admin
+    description: Weather 변환이 사용하는 canonical 행정동 model phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_transform_common_admin, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_place_mapping
+    description: Weather place mapping seed phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_transform_place_mapping, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_silver
+    description: Weather scheduled Silver model과 test phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_transform_silver, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_gold
+    description: Weather scheduled Gold summary model과 test phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_transform_gold, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_place_mart
+    description: Weather place mart model과 test phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_transform_place_mart, indirect_selection: cautious}
+  - name: ask_seoul_weather_w1_inputs
+    description: Weather W1 bridge가 요구하는 공통축과 Weather seed만 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w1_inputs, indirect_selection: cautious}
+  - name: ask_seoul_weather_w1_bridge
+    description: Weather W1 bridge model과 전용 singular test만 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w1_bridge, indirect_selection: cautious}
+  - name: weather_transform_contract_gate
+    description: Weather Bronze source의 generic contract test만 선택한다.
+    definition:
+      intersection:
+        - method: tag
+          value: ask_seoul_weather_transform_source
+          indirect_selection: cautious
+        - method: test_type
+          value: generic
+
+  - name: ask_seoul_weather_w2_recovery_window_models
+    description: Weather W2 bounded recovery window model graph phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_window_models, indirect_selection: cautious}
+  - name: ask_seoul_weather_w2_recovery_window_contracts
+    description: Weather W2 bounded recovery window reconciliation contract phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_window_contracts, indirect_selection: cautious}
+  - name: ask_seoul_weather_w2_recovery_lineage_contract
+    description: Weather W2 bounded recovery bucket lineage contract phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_lineage_contract, indirect_selection: cautious}
+  - name: ask_seoul_weather_w2_recovery_final_contract
+    description: Weather W2 bounded recovery final publishability contract phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_final_contract, indirect_selection: cautious}

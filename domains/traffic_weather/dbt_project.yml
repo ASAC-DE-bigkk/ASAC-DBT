@@ -1,0 +1,152 @@
+name: asac_seoul
+version: "1.0.0"
+config-version: 2
+
+profile: asac_seoul
+
+flags:
+  require_certificate_validation: true
+  static_parser: false
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+packages-install-path: "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+  - logs
+
+models:
+  asac_seoul:
+    traffic:
+      +materialized: table
+      +schema: "{{ env_var('TRAFFIC_SCHEMA', 'traffic') }}"
+      +group: traffic
+      transform:
+        silver:
+          +tags: ["ask_seoul_traffic_transform_silver"]
+        gold:
+          +tags: ["ask_seoul_traffic_transform_gold"]
+      recovery:
+        silver:
+          +tags: ["ask_seoul_traffic_recovery_silver"]
+        metadata:
+          +tags: ["ask_seoul_traffic_recovery_metadata"]
+        gold:
+          +tags: ["ask_seoul_traffic_recovery_gold"]
+    weather:
+      +materialized: table
+      +schema: "{{ env_var('WEATHER_SCHEMA', 'weather') }}"
+      +group: weather
+      transform:
+        silver:
+          +tags: ["ask_seoul_weather_transform_silver"]
+        gold:
+          +tags: ["ask_seoul_weather_transform_gold"]
+        place_mart:
+          +tags: ["ask_seoul_weather_transform_place_mart"]
+      special:
+        w1:
+          +tags: ["ask_seoul_weather_w1_bridge"]
+  asac_axes:
+    +schema: "{{ env_var('ASAC_AXES_SCHEMA', 'common') }}"
+    dim_admin_dong:
+      +tags:
+        - ask_seoul_traffic_transform_common_admin
+        - ask_seoul_weather_transform_common_admin
+
+seeds:
+  asac_seoul:
+    weather:
+      +quote_columns: false
+      +schema: "{{ env_var('WEATHER_SCHEMA', 'weather') }}"
+      weather_place_grid_mapping:
+        +tags:
+          - ask_seoul_weather_transform_place_mapping
+          - ask_seoul_weather_w1_inputs
+        +column_types:
+          place_id: varchar
+          place_name: varchar
+          alias_names: varchar
+          gu: varchar
+          admin_dong: varchar
+          latitude: double
+          longitude: double
+          nx: integer
+          ny: integer
+          mapping_method: varchar
+          grid_distance_m: double
+          source_admin_code: varchar
+      weather_admin_dong_grid_bridge_history:
+        +tags: ["ask_seoul_weather_w1_inputs"]
+        +pre-hook: "{{ weather_w1_candidate_seed_guard() }}"
+        +column_types:
+          place_id: varchar
+          place_name: varchar
+          alias_names: varchar
+          legacy_gu: varchar
+          legacy_admin_dong: varchar
+          latitude: double
+          longitude: double
+          source_admin_code: varchar
+          bridge_version: varchar
+          nx: integer
+          ny: integer
+          legacy_mapping_method: varchar
+          mapping_revision_label: varchar
+          recorded_at: timestamp(6)
+          valid_from_at: timestamp(6)
+          valid_to_at: timestamp(6)
+          effective_from_basis: varchar
+          mapping_method: varchar
+          temporal_quality: varchar
+          grid_distance_m: double
+  asac_axes:
+    +schema: "{{ env_var('ASAC_AXES_SCHEMA', 'common') }}"
+    +tags:
+      - ask_seoul_traffic_transform_asac_axes
+      - ask_seoul_traffic_transform_asac_axes_contract
+      - ask_seoul_weather_transform_asac_axes
+      - ask_seoul_weather_w1_inputs
+
+data_tests:
+  asac_seoul:
+    traffic:
+      +group: traffic
+      source:
+        availability:
+          +tags: ["ask_seoul_traffic_transform_availability"]
+      transform:
+        silver:
+          +tags: ["ask_seoul_traffic_transform_silver"]
+        gold:
+          +tags: ["ask_seoul_traffic_transform_gold"]
+      recovery:
+        silver:
+          +tags: ["ask_seoul_traffic_recovery_silver"]
+        gold:
+          +tags: ["ask_seoul_traffic_recovery_gold"]
+    weather:
+      +group: weather
+      transform:
+        silver:
+          +tags: ["ask_seoul_weather_transform_silver"]
+        gold:
+          +tags: ["ask_seoul_weather_transform_gold"]
+        place_mart:
+          +tags: ["ask_seoul_weather_transform_place_mart"]
+      special:
+        w1:
+          +tags: ["ask_seoul_weather_w1_bridge"]
+        recovery:
+          reconciliation:
+            +tags: ["ask_seoul_weather_w2_recovery_window_contracts"]
+          lineage:
+            +tags: ["ask_seoul_weather_w2_recovery_lineage_contract"]
+          final:
+            +tags: ["ask_seoul_weather_w2_recovery_final_contract"]

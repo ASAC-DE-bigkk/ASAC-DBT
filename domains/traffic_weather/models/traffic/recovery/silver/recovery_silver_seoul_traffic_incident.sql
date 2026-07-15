@@ -1,0 +1,192 @@
+-- Recovery-only Silver snapshot for one explicitly requested publishable Bronze run.
+-- This must remain independent from incremental history so an older snapshot can
+-- be reproduced after later transform runs have advanced the canonical tables.
+-- The marker row is part of this table's atomic snapshot identity, not an incident.
+
+{{ config(
+    materialized='table',
+    views_enabled=false,
+    on_table_exists='drop',
+) }}
+
+{% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}
+
+with configured_run as (
+    select
+        cast(dag_run_id as varchar) as dag_run_id,
+        max(cast(event_at as timestamp(6))) as event_at
+    from {{ source('traffic_bronze', 'collection_run_manifest') }}
+    where source_id = 'seoul_traffic_incident'
+      and status = 'SUCCESS'
+      and is_publishable
+      and cast(dag_run_id as varchar) = '{{ snapshot_dag_run_id | replace("'", "''") }}'
+    group by cast(dag_run_id as varchar)
+),
+
+bronze as (
+    select
+        cast(bronze.request_id as varchar) as request_id,
+        cast(bronze.source_id as varchar) as source_id,
+        cast(bronze.request_params_json as varchar) as request_params_json,
+        cast(bronze.acc_id as varchar) as acc_id,
+        cast(bronze.acc_type as varchar) as acc_type,
+        cast(bronze.acc_dtype as varchar) as acc_dtype,
+        cast(bronze.link_id as varchar) as link_id,
+        cast(bronze.acc_road_code as varchar) as acc_road_code,
+        cast(bronze.acc_info as varchar) as acc_info,
+        try_cast(bronze.grs80tm_x as double) as grs80tm_x,
+        try_cast(bronze.grs80tm_y as double) as grs80tm_y,
+        cast(bronze.raw_object_key as varchar) as raw_object_key,
+        cast(bronze.payload_hash as varchar) as payload_hash,
+        cast(bronze.result_code as varchar) as result_code,
+        cast(bronze.occr_date as varchar) as occr_date,
+        cast(bronze.occr_time as varchar) as occr_time,
+        cast(bronze.exp_clr_date as varchar) as exp_clr_date,
+        cast(bronze.exp_clr_time as varchar) as exp_clr_time,
+        cast(bronze.list_total_count as integer) as list_total_count,
+        cast(bronze.row_count as integer) as row_count,
+        cast(bronze.collected_at as timestamp(6)) as collected_at,
+        cast(bronze.load_date as varchar) as load_date,
+        cast(bronze.dag_run_id as varchar) as dag_run_id
+    from {{ source('traffic_bronze', 'seoul_traffic_incident') }} as bronze
+    inner join configured_run
+        on cast(bronze.dag_run_id as varchar) = configured_run.dag_run_id
+),
+
+standardized as (
+    select
+        *,
+        {{ asac_axes.kst_at_from_parts('occr_date', 'occr_time') }} as occurred_at,
+        {{ asac_axes.kst_at_from_parts('exp_clr_date', 'exp_clr_time') }} as expected_clear_at,
+        'GRS80_TM' as source_coordinate_system,
+        case
+            when grs80tm_x is not null and grs80tm_y is not null
+                then 'source_coordinate_available'
+            else 'source_coordinate_missing'
+        end as source_location_quality
+    from bronze
+    where result_code = 'INFO-000'
+),
+
+located as (
+    {{ asac_axes.tm_to_wgs84_relation('standardized', 'grs80tm_x', 'grs80tm_y') }}
+),
+
+admin_matched as (
+    select
+        located.*,
+        boundary.admin_dong_code,
+        boundary.gu_code,
+        boundary.dong as admin_dong,
+        boundary.sigungu as gu,
+        row_number() over (
+            partition by located.acc_id, located.request_id, located.raw_object_key
+            order by
+                case when boundary.admin_dong_code is null then 1 else 0 end,
+                boundary.admin_dong_code
+        ) as admin_match_num
+    from located
+    left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} as boundary
+        on located.longitude is not null
+       and located.latitude is not null
+       and boundary.admin_dong_code is not null
+       and {{ asac_axes.admin_dong_contains('boundary.boundary_wkt', 'located.longitude', 'located.latitude') }}
+),
+
+admin_deduped as (
+    select *
+    from admin_matched
+    where admin_match_num = 1
+),
+
+ranked as (
+    select
+        *,
+        row_number() over (
+            partition by acc_id
+            order by collected_at desc, raw_object_key desc, request_id desc
+        ) as row_num
+    from admin_deduped
+    where acc_id is not null
+      and occurred_at is not null
+),
+
+snapshot_marker as (
+    select
+        concat('__snapshot_marker__:', dag_run_id) as request_id,
+        'seoul_traffic_incident' as source_id,
+        cast(null as varchar) as request_params_json,
+        concat('__snapshot_marker__:', dag_run_id) as source_record_id,
+        cast(null as varchar) as acc_type,
+        cast(null as varchar) as acc_dtype,
+        cast(null as varchar) as asset_id,
+        cast(null as varchar) as acc_road_code,
+        cast(null as varchar) as acc_info,
+        'RECOVERY_SNAPSHOT_MARKER' as source_coordinate_system,
+        'snapshot_marker' as source_location_quality,
+        cast(null as double) as grs80tm_x,
+        cast(null as double) as grs80tm_y,
+        cast(null as double) as longitude,
+        cast(null as double) as latitude,
+        cast(null as varchar) as admin_dong_code,
+        cast(null as varchar) as gu_code,
+        cast(null as varchar) as admin_dong,
+        cast(null as varchar) as gu,
+        event_at as occurred_at,
+        event_at,
+        cast(null as timestamp(6)) as expected_clear_at,
+        event_at as valid_from,
+        cast(null as timestamp(6)) as valid_to,
+        date_trunc('hour', event_at) as time_bucket,
+        concat('__snapshot_marker__/', dag_run_id) as raw_object_key,
+        concat('snapshot:', dag_run_id) as payload_hash,
+        cast(0 as integer) as list_total_count,
+        cast(0 as integer) as row_count,
+        cast(date(event_at) as varchar) as load_date,
+        event_at as collected_at,
+        dag_run_id,
+        true as is_snapshot_marker
+    from configured_run
+)
+
+select
+    request_id,
+    source_id,
+    request_params_json,
+    acc_id as source_record_id,
+    acc_type,
+    acc_dtype,
+    link_id as asset_id,
+    acc_road_code,
+    acc_info,
+    source_coordinate_system,
+    source_location_quality,
+    grs80tm_x,
+    grs80tm_y,
+    longitude,
+    latitude,
+    admin_dong_code,
+    gu_code,
+    admin_dong,
+    gu,
+    occurred_at,
+    occurred_at as event_at,
+    expected_clear_at,
+    occurred_at as valid_from,
+    expected_clear_at as valid_to,
+    date_trunc('hour', occurred_at) as time_bucket,
+    raw_object_key,
+    payload_hash,
+    list_total_count,
+    row_count,
+    load_date,
+    collected_at,
+    dag_run_id,
+    false as is_snapshot_marker
+from ranked
+where row_num = 1
+
+union all
+
+select *
+from snapshot_marker

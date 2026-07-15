@@ -1,0 +1,254 @@
+version: 2
+
+models:
+  - name: silver_kma_vilage_fcst_observation
+    description: publishable run/raw page에서 관측된 동일 KMA item signature를 한 행으로 접고 replay·invalid time·raw lineage를 보존한 내부 Silver다.
+    config:
+      tags: ["ask_seoul_weather_w2_recovery_window_models"]
+      meta:
+        row_meaning_ko: 한 publishable Airflow run의 한 raw page에서 관측된 동일 KMA item signature다.
+        grain:
+          - dag_run_id
+          - raw_object_key
+          - page_no
+          - source_item_key
+        deduplication_ko: 같은 grain의 Bronze 중복을 한 행으로 접고 source_duplicate_count에 원 행 수를 보존한다.
+        event_time: forecast_at
+        ingest_time: collected_at
+        incremental_key:
+          - dag_run_id
+          - raw_object_key
+          - page_no
+          - source_item_key
+        late_arrival_policy_ko: 평시는 30분 inclusive lookback이고 더 오래된 repair는 W2가 소유한다.
+        freshness_ko: manifest와 Bronze UTC 원문을 보존하고 KST collected_at·published_at을 별도로 노출한다.
+        coverage_ko: invalid time·격자·category와 missing 또는 invalid page를 삭제하지 않고 Grid eligibility 상태로 보존한다.
+        lifecycle: internal_candidate
+        downstream:
+          - silver_kma_vilage_fcst_grid
+          - W2_weather_public_gold
+    columns:
+      - name: dag_run_id
+        description: publishable Airflow 실행 식별자이며 observation grain 구성요소다.
+        tests:
+          - not_null
+      - name: raw_object_key
+        description: 원문 응답 R2 object key이며 observation grain 구성요소다.
+        tests:
+          - not_null
+      - name: page_no
+        description: 양수 source page 또는 legacy·invalid sentinel 0이며 null이 아닌 grain 구성요소다.
+        tests:
+          - not_null
+      - name: source_item_key
+        description: 순서 고정 tagged JSON 배열의 UTF-8 SHA-256 소문자 hex item key다.
+        tests:
+          - not_null
+      - name: source_item_key_version
+        description: item identity 정규화 규칙 버전이며 weather_kma_item_v1이다.
+      - name: source_page_no
+        description: Bronze page_no 원천값으로 legacy null을 그대로 보존한다.
+      - name: page_no_state
+        description: valid_positive·missing_legacy·invalid 중 page 품질 상태다.
+      - name: source_duplicate_count
+        description: 동일 observation grain으로 접힌 Bronze 원 행 수다.
+      - name: request_id
+        description: 접힌 행 중 결정적으로 보존한 API 요청 식별자다.
+      - name: source_id
+        description: 기상청 단기예보 원천 식별자다.
+      - name: place_id
+        description: 수집 요청에 사용한 장소 식별자다.
+      - name: request_params_json
+        description: secret 원문을 제외한 요청 조건 JSON이다.
+      - name: base_date
+        description: KMA 발표 날짜 원문이다.
+      - name: base_time
+        description: KMA 발표 시각 원문이다.
+      - name: nx
+        description: 파싱 가능한 경우의 KMA 격자 X 정수이며 invalid는 null일 수 있다.
+      - name: ny
+        description: 파싱 가능한 경우의 KMA 격자 Y 정수이며 invalid는 null일 수 있다.
+      - name: category
+        description: trim과 대문자 정규화한 KMA 항목 코드이며 비어 있으면 null이다.
+      - name: category_raw
+        description: KMA category 원문이며 item identity의 null과 비어 있는 값을 구분하는 데 사용한다.
+      - name: fcst_date
+        description: KMA 예보 대상 날짜 원문이다.
+      - name: fcst_time
+        description: KMA 예보 대상 시각 원문이다.
+      - name: fcst_value_raw
+        description: KMA 예보 값 원문이다.
+      - name: issued_at
+        description: 유효한 base parts에서 만든 KST timestamp(6)이며 invalid면 null이다.
+      - name: forecast_at
+        description: 유효한 forecast parts에서 만든 KST timestamp(6)이며 invalid면 null이다.
+      - name: event_at
+        description: cross-domain event time이며 forecast_at과 같고 invalid면 null이다.
+      - name: issued_time_parse_state
+        description: 발표 시각 파싱 결과 valid 또는 invalid다.
+      - name: forecast_time_parse_state
+        description: 예보 시각 파싱 결과 valid 또는 invalid다.
+      - name: time_parse_state
+        description: 발표와 예보 시각이 모두 유효한지 나타내는 valid 또는 invalid 상태다.
+      - name: grid_coordinate_state
+        description: nx와 ny가 모두 양수인 valid 또는 Grid에서 제외할 invalid 좌표 상태다.
+      - name: grid_category_state
+        description: 정규화 category가 존재하는 valid 또는 Grid에서 제외할 missing 상태다.
+      - name: grid_time_state
+        description: issued_at과 forecast_at이 모두 유효한 valid 또는 Grid에서 제외할 invalid 시간 상태다.
+      - name: grid_eligibility_state
+        description: 좌표·category·시간 조건을 모두 충족한 eligible 또는 사유 상태를 observation에 보존한 excluded 값이다.
+      - name: result_code
+        description: KMA 응답 결과 코드이며 observation은 00만 포함한다.
+      - name: result_msg
+        description: KMA 응답 결과 메시지다.
+      - name: http_status
+        description: 수집 시 기록한 HTTP 상태 코드다.
+      - name: payload_hash
+        description: raw payload 내용 지문이다.
+      - name: total_count
+        description: KMA 응답이 보고한 전체 item 수다.
+      - name: item_count
+        description: 응답에서 파싱된 item 수다.
+      - name: load_date
+        description: Bronze 적재 파티션 날짜 문자열이다.
+      - name: bronze_collected_at_utc
+        description: Bronze가 기록한 UTC 수집 timestamp(6) 원문이다.
+      - name: manifest_event_at_utc
+        description: 선택된 manifest의 UTC 이벤트 timestamp(6) 원문이다.
+      - name: collected_at
+        description: bronze_collected_at_utc를 +9시간 변환한 KST 수집 timestamp(6)다.
+      - name: published_at
+        description: manifest_event_at_utc를 +9시간 변환한 KST 발행 timestamp(6)다.
+      - name: collection_dag_id
+        description: 선택된 manifest가 기록한 collection DAG 식별자다.
+      - name: manifest_status
+        description: 선택된 manifest 상태이며 SUCCESS다.
+      - name: is_publishable
+        description: 선택된 manifest의 발행 허용 값이며 true다.
+      - name: manifest_expected_rows
+        description: manifest가 기대한 Bronze item 행 수다.
+      - name: manifest_actual_rows
+        description: manifest가 실제 적재했다고 기록한 Bronze item 행 수다.
+      - name: manifest_expected_raw_objects
+        description: manifest가 기대한 raw object 수다.
+      - name: manifest_actual_raw_objects
+        description: manifest가 실제 업로드했다고 기록한 raw object 수다.
+      - name: manifest_failure_reason
+        description: manifest 실패 사유이며 publishable SUCCESS에서는 보통 null이다.
+  - name: silver_kma_vilage_fcst_grid
+    description: 유효한 observation 중 결정적으로 선택된 nx·ny·발표·예보·항목 단위 native KMA 예보 사실 내부 Silver다.
+    config:
+      tags: ["ask_seoul_weather_w2_recovery_window_models"]
+      meta:
+        row_meaning_ko: 동일 native Grid 예보 사실에서 tie-break로 선택된 한 observation이다.
+        grain:
+          - nx
+          - ny
+          - issued_at
+          - forecast_at
+          - category
+        deduplication_ko: collected_at·raw_object_key·request_id·dag_run_id·page_no·source_item_key 내림차순으로 한 행을 선택한다.
+        event_time: forecast_at
+        ingest_time: collected_at
+        incremental_key:
+          - nx
+          - ny
+          - issued_at
+          - forecast_at
+          - category
+        late_arrival_policy_ko: 평시는 30분 inclusive lookback이며 explicit cutoff repair는 W2가 소유한다.
+        coverage_ko: 양수 격자·비어 있지 않은 category·유효한 발표와 예보 시각만 Grid eligible이다.
+        lifecycle: internal_candidate
+        downstream:
+          - W2_weather_public_gold
+          - A1_weather_dag_gate
+    columns:
+      - name: nx
+        description: KMA 격자 X 양수 좌표이며 Grid grain 구성요소다.
+        tests:
+          - not_null
+      - name: ny
+        description: KMA 격자 Y 양수 좌표이며 Grid grain 구성요소다.
+        tests:
+          - not_null
+      - name: issued_at
+        description: KST 발표 timestamp(6)이며 Grid grain 구성요소다.
+        tests:
+          - not_null
+      - name: forecast_at
+        description: KST 예보 대상 timestamp(6)이며 Grid grain 구성요소다.
+        tests:
+          - not_null
+      - name: category
+        description: KMA 예보 항목 코드이며 Grid grain 구성요소다.
+        tests:
+          - not_null
+      - name: category_raw
+        description: 선택 observation이 보존한 KMA category 원문이다.
+      - name: event_at
+        description: cross-domain event time이며 forecast_at과 같다.
+      - name: time_bucket
+        description: forecast_at을 KST 시간 단위로 내린 호환 bucket이다.
+      - name: request_id
+        description: 선택 observation의 API 요청 식별자다.
+      - name: source_id
+        description: 기상청 단기예보 원천 식별자다.
+      - name: source_grid_place_id
+        description: 선택 observation이 보존한 수집 장소 식별자다.
+      - name: request_params_json
+        description: secret 원문을 제외한 요청 조건 JSON이다.
+      - name: fcst_value_raw
+        description: 선택 observation의 KMA 예보 값 원문이다.
+      - name: fcst_value_num
+        description: 원문 direct double cast 호환값이며 비수치 표현은 null이다.
+      - name: value_representation
+        description: explicit_none·range·bare_numeric·정성 코드 등 값 표현 상태다.
+      - name: value_num
+        description: 기존 kma_value_semantics가 파싱한 수치이며 bare_numeric은 상태로 분리된다.
+      - name: value_lower_bound
+        description: 범위 표현의 포함 하한이며 해당 없으면 null이다.
+      - name: value_upper_bound
+        description: 범위 표현의 포함 상한이며 해당 없으면 null이다.
+      - name: qualitative_code
+        description: PTY 또는 SKY 정성 코드 원문이며 해당 없으면 null이다.
+      - name: forecast_lead_hours
+        description: 발표 시각부터 예보 대상 시각까지의 시간 차이다.
+      - name: selected_dag_run_id
+        description: 선택 observation grain의 Airflow 실행 식별자다.
+      - name: selected_raw_object_key
+        description: 선택 observation grain의 raw object key다.
+      - name: selected_page_no
+        description: 선택 observation grain의 canonical page 번호다.
+      - name: selected_source_item_key
+        description: 선택 observation grain의 SHA-256 item key다.
+      - name: source_item_key_version
+        description: 선택 item key 정규화 규칙 버전이다.
+      - name: selected_request_id
+        description: 선택 observation의 요청 식별자 사본이다.
+      - name: raw_object_key
+        description: downstream 호환용 선택 raw object key다.
+      - name: payload_hash
+        description: 선택 raw payload 내용 지문이다.
+      - name: page_no
+        description: downstream 호환용 선택 canonical page 번호다.
+      - name: source_item_key
+        description: downstream 호환용 선택 item key다.
+      - name: source_duplicate_count
+        description: 선택 observation에 접힌 Bronze 원 행 수다.
+      - name: total_count
+        description: KMA 응답이 보고한 전체 item 수다.
+      - name: item_count
+        description: 응답에서 파싱된 item 수다.
+      - name: load_date
+        description: Bronze 적재 파티션 날짜 문자열이다.
+      - name: bronze_collected_at_utc
+        description: 선택 observation의 UTC 수집 timestamp(6) 원문이다.
+      - name: manifest_event_at_utc
+        description: 선택 manifest의 UTC 이벤트 timestamp(6) 원문이다.
+      - name: collected_at
+        description: 선택 observation의 KST 수집 timestamp(6)다.
+      - name: published_at
+        description: 선택 manifest의 KST 발행 timestamp(6)다.
+      - name: collection_dag_id
+        description: 선택 manifest가 기록한 collection DAG 식별자다.

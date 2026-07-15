@@ -1,0 +1,129 @@
+version: 2
+
+models:
+  - name: silver_seoul_traffic_incident
+    description: Deduplicated TOPIS AccInfo incident fact at source_record_id (acc_id) grain; only SUCCESS and publishable Bronze runs are included.
+    columns:
+      - name: source_id
+        description: Fixed TOPIS source identifier.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['seoul_traffic_incident']
+      - name: source_record_id
+        description: Stable TOPIS accident identifier (acc_id) and Silver merge key.
+        tests:
+          - not_null
+          - unique
+      - name: occurred_at
+        description: Incident occurrence timestamp in KST parsed from occr_date and variable-width occr_time.
+        tests:
+          - not_null
+      - name: event_at
+        description: Cross-domain canonical event timestamp; identical to occurred_at.
+        tests:
+          - not_null
+      - name: time_bucket
+        description: KST hourly bucket derived from occurred_at.
+        tests:
+          - not_null
+      - name: source_coordinate_system
+        description: Source coordinate reference system. TOPIS AccInfo grs80tm_x/y are GRS80 TM, not WGS84 longitude/latitude.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['GRS80_TM']
+      - name: source_location_quality
+        description: Whether the source GRS80 TM coordinate pair is available on the TOPIS row.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['source_coordinate_available', 'source_coordinate_missing']
+      - name: grs80tm_x
+        description: TOPIS source GRS80 TM X coordinate. Do not treat this as WGS84 longitude.
+      - name: grs80tm_y
+        description: TOPIS source GRS80 TM Y coordinate. Do not treat this as WGS84 latitude.
+      - name: longitude
+        description: WGS84 longitude converted from TOPIS GRS80 TM coordinates for common spatial joins. NULL when source coordinate is missing or outside the Seoul bbox guard.
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lon
+      - name: latitude
+        description: WGS84 latitude converted from TOPIS GRS80 TM coordinates for common spatial joins. NULL when source coordinate is missing or outside the Seoul bbox guard.
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lat
+      - name: admin_dong_code
+        description: 행안부 10자리 canonical 행정동 코드. Boundary miss or missing coordinates are allowed as NULL and monitored by coverage tests.
+      - name: gu_code
+        description: 행안부 5자리 canonical 자치구 코드 derived from the matched admin_dong_code.
+      - name: admin_dong
+        description: Matched Seoul administrative dong name.
+      - name: gu
+        description: Matched Seoul district name.
+      - name: raw_object_key
+        description: R2 raw object lineage for the selected Bronze record.
+        tests:
+          - not_null
+      - name: payload_hash
+        description: Content fingerprint of the selected raw payload.
+        tests:
+          - not_null
+      - name: list_total_count
+        description: TOPIS response-wide incident count reported for the request page.
+        tests:
+          - not_null
+      - name: row_count
+        description: Parsed incident row count for the request page.
+        tests:
+          - not_null
+      - name: load_date
+        description: KST ingestion partition date from Bronze.
+        tests:
+          - not_null
+      - name: collected_at
+        description: Bronze collection timestamp used for latest-record ordering and incremental watermarking.
+        tests:
+          - not_null
+      - name: dag_run_id
+        description: Airflow collection run lineage; must be a publishable manifest run.
+        tests:
+          - not_null
+
+      - name: request_id
+        description: API request identifier for the selected TOPIS page.
+      - name: request_params_json
+        description: Redacted, reproducible request parameters captured by Bronze.
+      - name: acc_type
+        description: TOPIS incident type classification.
+      - name: acc_dtype
+        description: TOPIS detailed incident type classification.
+      - name: asset_id
+        description: TOPIS road-link identifier, derived from link_id; nullable when the source omits it.
+      - name: acc_road_code
+        description: TOPIS road code for the incident; nullable source attribute.
+      - name: acc_info
+        description: TOPIS incident free-text information; nullable source attribute.
+      - name: expected_clear_at
+        description: Expected incident-clear timestamp in KST; nullable when TOPIS does not provide a valid clear date/time.
+      - name: valid_from
+        description: Start of the incident validity interval; identical to occurred_at.
+      - name: valid_to
+        description: End of the incident validity interval; identical to expected_clear_at and therefore nullable.
+  - name: silver_seoul_traffic_incident_current
+    description: Current TOPIS incident snapshot from the publishable Bronze run pinned when the transform starts; incidents absent from that snapshot are intentionally excluded.
+    columns:
+      - name: source_record_id
+        description: Stable TOPIS accident identifier at current snapshot grain.
+        tests:
+          - not_null
+          - unique
+      - name: dag_run_id
+        description: Latest complete publishable collection run represented by this snapshot.
+        tests:
+          - not_null

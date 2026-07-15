@@ -1,0 +1,82 @@
+version: 2
+
+models:
+  - name: bridge_weather_admin_dong_grid
+    description: versioned candidate를 source_admin_code exact join으로 공통 행정동 다섯 필드에 stamp하고 unmatched도 보존한 내부 bridge다.
+    config:
+      meta:
+        row_meaning_ko: 한 source 행정코드·bridge 버전·KMA 격자 mapping assertion과 canonical join 결과다.
+        grain:
+          - source_admin_code
+          - bridge_version
+          - nx
+          - ny
+        join_cardinality_ko: candidate N대 canonical dim 최대 1이며 candidate를 left join해 unmatched 손실을 금지한다.
+        fan_out_policy_ko: 격자 하나가 여러 행정동 candidate에 대응하는 의도된 fan-out만 허용한다.
+        spatial_semantics_ko: canonical 다섯 필드는 asac_axes.dim_admin_dong에서만 stamp하며 self-copy·prefix·centroid 인증을 금지한다.
+        lifecycle: internal_candidate
+        downstream:
+          - W2_weather_public_gold
+    columns:
+      - name: place_id
+        description: legacy mapping의 Weather 장소 식별자다.
+      - name: place_name
+        description: legacy mapping의 대표 장소명이다.
+      - name: alias_names
+        description: legacy mapping의 검색 별칭 목록이다.
+      - name: legacy_gu
+        description: legacy 자치구명이며 canonical 값이 아니다.
+      - name: legacy_admin_dong
+        description: legacy 행정동명이며 canonical 값이 아니다.
+      - name: latitude
+        description: legacy 장소 WGS84 위도이며 containment 증거가 아니다.
+      - name: longitude
+        description: legacy 장소 WGS84 경도이며 containment 증거가 아니다.
+      - name: source_admin_code
+        description: canonical dim에 exact join한 원천 행정코드 후보이며 grain 구성요소다.
+        tests:
+          - not_null
+      - name: bridge_version
+        description: append-only bridge assertion 버전이며 grain 구성요소다.
+        tests:
+          - not_null
+      - name: nx
+        description: KMA 격자 X 좌표이며 grain 구성요소다.
+        tests:
+          - not_null
+      - name: ny
+        description: KMA 격자 Y 좌표이며 grain 구성요소다.
+        tests:
+          - not_null
+      - name: legacy_mapping_method
+        description: legacy mapping_method 원문이다.
+      - name: mapping_revision_label
+        description: mapping 개정 label이며 source 유효 시작일 증거가 아니다.
+      - name: recorded_at
+        description: legacy seed의 Git 최초 기록 KST timestamp(6)다.
+      - name: valid_from_at
+        description: source-backed 유효 시작 KST 시각이며 v1은 null이다.
+      - name: valid_to_at
+        description: source-backed 유효 종료 KST 시각이며 v1은 null이다.
+      - name: effective_from_basis
+        description: recorded_at이 source 유효 시작일이 아님을 나타내는 근거 token이다.
+      - name: mapping_method
+        description: assertion 생성 방식이며 v1은 legacy_seed_exact_copy다.
+      - name: temporal_quality
+        description: 시간 증거 품질이며 v1은 revision_only다.
+      - name: grid_distance_m
+        description: legacy 장소와 격자 기준점 사이 거리 m이며 미계산 시 null이다.
+      - name: admin_dong_code
+        description: canonical dim에서 stamp한 행안부 10자리 행정동 코드이며 unmatched면 null이다.
+      - name: admin_dong
+        description: canonical dim에서 stamp한 행정동명이며 unmatched면 null이다.
+      - name: gu_code
+        description: canonical dim에서 stamp한 자치구 5자리 코드이며 unmatched면 null이다.
+      - name: gu
+        description: canonical dim에서 stamp한 자치구명이며 unmatched면 null이다.
+      - name: admin_dong_revision_date
+        description: canonical dim revision_date alias이며 unmatched면 null이다.
+      - name: canonical_mapping_state
+        description: canonical exact join 결과인 matched 또는 unmatched 상태다.
+      - name: canonical_join_eligible
+        description: canonical 다섯 필드를 사용할 수 있는 matched 여부다.
