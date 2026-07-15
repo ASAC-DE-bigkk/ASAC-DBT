@@ -106,6 +106,16 @@ dim (2): 시설 마스터
 - `movie_boxoffice`는 전일 관객(`boxoffice_date` = 수집일−1), `facility`는 주간 전수 리프레시(그 외 요일은 변화분만).
 - 원천 신선도는 `dbt source freshness`(collected_at 기준 30h warn/48h error)로 감시 중.
 
+## 새 행사(기간 fact) 소스를 추가한다면 — 체크리스트
+
+6-소스 union 이 의도적으로 **명시 SQL**로 4곳에 존재합니다(레지스트리 매크로화는 Jinja 복잡도 대비 소스 추가 빈도가 낮아 보류, #199). 새 silver 를 붙일 때 아래를 **전부** 갱신하세요 — 한 곳을 빼먹으면 컴파일 에러가 아니라 조용한 커버리지 구멍이 됩니다:
+
+1. `models/intermediate/int_culture_activity_days.sql` — union arm 추가 (집계 gold 2종 편입)
+2. `models/gold/gold_culture_event_schedule.sql` — union arm + source_priority 순위 결정 (행사 목록 편입)
+3. `tests/assert_culture_future_event_coverage.sql` — union arm (미래 재고 감시 편입)
+4. `tests/assert_culture_admin_dong_in_canonical.sql` — 공간축 보유 시 union arm (canonical 정합 감시)
+5. schema.yml(해당 layer) 계약 + README silver 카탈로그 표
+
 ## 더 깊이
 
 - 축 표준 합의: [ASAC-DBT#48](https://github.com/ASAC-DE-bigkk/ASAC-DBT/issues/48) — 시간/공간축 규약 원문
