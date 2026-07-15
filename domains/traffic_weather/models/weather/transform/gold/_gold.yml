@@ -102,3 +102,48 @@ models:
       - name: precip_hours
         description: 그 날 강수형태(PTY)가 없음(0)이 아닌 예보 시간 수입니다.
         tests: [not_null]
+
+  - name: gold_weather_alert_by_admin_dong
+    description: 동×예보시각 기상 경보 후보 플래그(폭염·한파·호우·대설·강풍). ⚠️ 예보값 근사이며 공식 기상특보가 아니다(임계 기준 공식 대조 필요).
+    columns:
+      - name: product_row_id
+        description: admin_dong_code와 forecast_at를 연결한 결정적 제품 행 식별자입니다.
+        tests: [not_null, unique]
+      - name: admin_dong_code
+        description: 행안부 10자리 정본 행정동 코드입니다.
+        tests: [not_null]
+      - name: forecast_at
+        description: 예보 대상 서울 기준 시각입니다.
+        tests: [not_null]
+      - name: any_alert
+        description: 경보 후보 중 하나 이상이 활성인지 나타내는 파생 불리언입니다.
+        tests: [not_null]
+
+  - name: gold_weather_current_wide_by_gu
+    description: 구×현재시각 대표 예보(동 current wide 롤업). 수치는 평균/최소/최대, 강수는 동 비율. D1 서빙 후보.
+    columns:
+      - name: product_row_id
+        description: gu_code를 그대로 쓴 결정적 제품 행 식별자입니다.
+        tests: [not_null, unique]
+      - name: gu_code
+        description: 행안부 자치구 5자리 코드입니다.
+        tests: [not_null, unique]
+      - name: dong_count
+        description: 해당 자치구에서 집계된 행정동 수입니다.
+        tests: [not_null]
+
+  - name: gold_weather_precip_profile_by_admin_dong
+    description: 동×일 강수 특화 프로파일(강수확률·강수/눈/진눈깨비 시간·PCP mm·SNO cm). 값 의미계층 활용.
+    columns:
+      - name: product_row_id
+        description: admin_dong_code와 forecast_date를 연결한 결정적 제품 행 식별자입니다.
+        tests: [not_null, unique]
+      - name: admin_dong_code
+        description: 행안부 10자리 정본 행정동 코드입니다.
+        tests: [not_null]
+      - name: forecast_date
+        description: 예보 대상 서울 기준 날짜입니다.
+        tests: [not_null]
+      - name: precip_hours
+        description: 그 날 강수형태(PTY)가 없음(0)이 아닌 예보 시간 수입니다.
+        tests: [not_null]
