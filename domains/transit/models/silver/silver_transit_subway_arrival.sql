@@ -1,4 +1,4 @@
--- slv_transit_subway_arrival — 지하철 실시간 도착정보 정제.
+-- silver_transit_subway_arrival — 지하철 실시간 도착정보 정제.
 --
 -- grain: (statn_id=statnId, ordkey, recptn_dt=recptnDt). incremental(merge),
 --   ingested_at 기준 -2h lookback.

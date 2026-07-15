@@ -47,7 +47,7 @@ and event_at >= (
 
 with bus_src as (
     select admin_dong_code, event_at, veh_id, congestion, is_full, stop_flag
-    from {{ ref('slv_transit_bus_position') }}
+    from {{ ref('silver_transit_bus_position') }}
     where admin_dong_code is not null
       {{ incr_filter }}
 ),
@@ -68,7 +68,7 @@ bus_agg as (
 
 subway_src as (
     select admin_dong_code, event_at, barvl_dt_sec, is_last_train
-    from {{ ref('slv_transit_subway_arrival') }}
+    from {{ ref('silver_transit_subway_arrival') }}
     where admin_dong_code is not null
       {{ incr_filter }}
 ),
@@ -95,7 +95,7 @@ parking_src as (
         -- 점유율은 현재대수/총면수. 둘 다 유효 & 총면수>0 인 관측만(그 외 null → 평균 무시).
         -- ※ 실측 주의(dev): 상류 silver 의 now_prk_vhcl_cnt·total_capacity 가 전건 null 이라
         --    occ_ratio 도 전건 null → parking_occupancy_avg null / parking_full_lot_cnt 0.
-        --    원인은 slv_transit_parking·dim_transit_parking 이 원천 소수문자열('806.0','1260.0')을
+        --    원인은 silver_transit_parking·dim_transit_parking 이 원천 소수문자열('806.0','1260.0')을
         --    cast(... as integer) 로 파싱(소수점 때문에 try-cast 실패→null). gold 로직은 정상이며
         --    silver 캐스트 수정(별도 이슈) 시 자동 채워진다. parking_lot_cnt 는 count 라 영향 없음.
         case
@@ -104,7 +104,7 @@ parking_src as (
              and total_capacity > 0
             then cast(now_prk_vhcl_cnt as double) / total_capacity
         end as occ_ratio
-    from {{ ref('slv_transit_parking') }}
+    from {{ ref('silver_transit_parking') }}
     where admin_dong_code is not null
       {{ incr_filter }}
 ),

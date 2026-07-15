@@ -10,7 +10,7 @@
 
     double 경유(cast(x as double) → integer)면 "806.0"·"806" 둘 다 수용한다.
     try() 래핑은 유지 — 비수치/공란은 예전처럼 null 로 흡수(전건 null 회귀는 별도
-    singular 테스트 assert_slv_transit_parking_capacity_not_all_null 이 감시).
+    singular 테스트 assert_silver_transit_parking_capacity_not_all_null 이 감시).
     소수부는 integer 캐스트가 반올림하나 대상 필드는 실측상 정수값(.0)이라 손실 없음.
 
     같은 위험은 parking 3개 캐스트에 국한됨을 실증(subway barvlDt/lstcarAt/trnsitCo,

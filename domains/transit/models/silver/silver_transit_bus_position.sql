@@ -1,4 +1,4 @@
--- slv_transit_bus_position — 버스 실시간 위치 정제.
+-- silver_transit_bus_position — 버스 실시간 위치 정제.
 --
 -- 원문은 XML(<ServiceResult>…다수 <itemList>). Trino 는 xpath 함수가 없어
 -- regexp_extract_all 로 itemList 조각을 뽑아 UNNEST 하고, 각 조각을 필드 regexp 로 파싱한다.

@@ -70,13 +70,13 @@ models:
         description: >
           좌표 0.0(미상) 주차장이 다수라 커버리지 제한. 마스터 850개 lot 중 유효좌표
           118개만 행정동 할당(coverage≈0.14). 실시간에 실제 쓰이는 lot 은 대부분 유효좌표라
-          slv_transit_parking 에서는 커버리지 0.96.
+          silver_transit_parking 에서는 커버리지 0.96.
         tests:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.12}
 
   # ---------------- 실버 ----------------
-  - name: slv_transit_parking
+  - name: silver_transit_parking
     description: >
       주차장 실시간 정제. grain (parking_id, event_at). event_at=NOW_PRK_VHCL_UPDT_TM KST.
       공간축은 dim_transit_parking 조인.
@@ -102,7 +102,7 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.90}
 
-  - name: slv_transit_subway_arrival
+  - name: silver_transit_subway_arrival
     description: >
       지하철 도착정보 정제. grain (statn_id, ordkey, recptn_dt). event_at=recptnDt KST.
       공간축은 dim_transit_station 조인('역명+노선', subwayId→route seed 변환).
@@ -140,7 +140,7 @@ models:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.90}
 
-  - name: slv_transit_bus_position
+  - name: silver_transit_bus_position
     description: >
       버스 실시간 위치 정제(XML regexp+UNNEST 파싱). grain (veh_id, data_tm).
       event_at=dataTm KST. gpsX/gpsY→경위도 직접 + 행정동 런타임 할당.
