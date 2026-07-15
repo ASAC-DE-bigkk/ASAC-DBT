@@ -1,6 +1,42 @@
 version: 2
 
 models:
+  - name: gold_license_lifespan
+    description: >
+      (#discovery 인사이트) 업소 수명(개업→폐업 일수) 분포 × 업종 3단 × 자치구 — avg/p50/p90/조기폐업률(1년 미만). 폐업 완결분(1.7M) 기준.
+  - name: gold_license_cohort_survival
+    description: >
+      (#discovery 인사이트) 개업연도 코호트 생존곡선(경과연차별 생존율) × 대/중분류. 관측 가능 연차만(우측 검열 차단), 연 단위 근사.
+  - name: gold_license_seasonality
+    description: >
+      (#discovery 인사이트) 개업/폐업의 월중 계절성(1~12월) × 업종 3단 — 최근 10개 완결연도.
+  - name: gold_license_stock_age_band
+    description: >
+      (#discovery 인사이트) 영업 중(01) 업소의 업력 밴드(<1y~20y+) 분포 × 업종 × 자치구 — 신생/노포 상권 구분.
+  - name: gold_license_gu_specialization
+    description: >
+      (#discovery 인사이트) 자치구 업종 특화지수(LQ)·구성비 — LQ>1=서울 평균 대비 밀집(예: 성동 축산 5.8).
+  - name: gold_license_churn_yearly
+    description: >
+      (#discovery 인사이트) 연도별 순증·교체율(폐업/기초스톡)·신생비 × 업종 × 자치구 — 최근 20개 완결연도.
+  - name: gold_license_data_quality
+    description: >
+      (#discovery 인사이트) dataset(API)별 커버리지 진단 — 전화/좌표/행정동/주소/폐업일 보유율(거버넌스).
+  - name: gold_license_status_transition
+    description: >
+      (#discovery 인사이트) 상태 전이 매트릭스(from→to) × 업종 — 휴업→재개 vs 폐업 등. ※수집 개시 후 이력 축적에 따라 성장하는 씨앗 지표.
+  - name: gold_license_dong_category_matrix
+    description: >
+      (#discovery 인사이트) 행정동 × 중분류 스톡 매트릭스(+최근 1년 개업) — 동네 프로파일/지도용, D1 1순위급.
+  - name: gold_license_change_activity
+    description: >
+      (#discovery 인사이트) 업소당 버전수·개명/이전 발생률 × 업종 — 갱신 활발도. ※이력 축적 초기(씨앗 지표).
+  - name: gold_detail_area_profile
+    description: >
+      (#discovery 인사이트) 영업장 면적(sitearea ㎡, 23개 detail union) 분포 × 업종 × 자치구 — avg/p50/p90/소형(<33㎡)/대형(330㎡+).
+  - name: gold_license_multi_site
+    description: >
+      (#discovery 인사이트) 동일 전화번호 다지점(체인/다점포 추정) 비율 × 업종 — 20+ 공용번호 컷, 근사 지표(전화 44%).
   - name: gold_license_flow_daily
     description: >
       (#71) 일 단위 개업/폐업 흐름 × 업종 3단 × 지역 3축(gu/admin_dong/legal). 완결일만 적재,

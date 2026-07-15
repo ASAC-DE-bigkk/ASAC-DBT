@@ -116,3 +116,26 @@ sources:
     tables:
       - name: silver_air_pollution_facility_detail
       - name: silver_water_pollution_facility_detail
+      - name: silver_amusement_park_detail
+      - name: silver_animal_drug_wholesale_detail
+      - name: silver_animal_hospital_detail
+      - name: silver_animal_medical_device_sale_detail
+      - name: silver_animal_pharmacy_detail
+      - name: silver_animal_sale_detail
+      - name: silver_culture_arts_corporation_detail
+      - name: silver_feed_manufacturing_detail
+      - name: silver_food_sanitation_business_detail
+      - name: silver_high_pressure_gas_detail
+      - name: silver_hospital_detail
+      - name: silver_large_store_detail
+      - name: silver_livestock_breeding_detail
+      - name: silver_livestock_processing_detail
+      - name: silver_livestock_sale_detail
+      - name: silver_livestock_storage_detail
+      - name: silver_livestock_transport_detail
+      - name: silver_lodging_detail
+      - name: silver_meat_packaging_detail
+      - name: silver_petroleum_sale_detail
+      - name: silver_public_sanitation_service_detail
+      - name: silver_sports_facility_detail
+      - name: silver_tourism_operator_detail
