@@ -1,6 +1,43 @@
 version: 2
 
 models:
+  - name: gold_license_flow_daily
+    description: >
+      (#71) 일 단위 개업/폐업 흐름 × 업종 3단 × 지역 3축(gu/admin_dong/legal). 완결일만 적재,
+      증분=최근 90일 지연보정 창 delete+insert(중복 불가). D1 export 는 max(event_date) 초과 append.
+    columns:
+      - name: event_date
+        tests: [not_null]
+      - name: event_type
+        tests: [not_null]
+
+  - name: gold_license_flow_monthly
+    description: >
+      (#71) 월 단위 흐름 — 이미 이전달까지 적재됐으면 재적재하지 않음(완결월 + 3개월 보정 창).
+    columns:
+      - name: ym
+        tests: [not_null]
+
+  - name: gold_license_flow_yearly
+    description: >
+      (#71) 연 단위 흐름 — 전연도까지 적재됐으면 추가 적재하지 않음(완결연 + 1개 연도 보정 창).
+    columns:
+      - name: y
+        tests: [not_null]
+
+  - name: gold_license_status_duration
+    description: >
+      (#71) 상태 전이 세그먼트의 지속기간 요약 — 업종·상태군·진행중 여부별 n/avg/p50/p90/max 일수.
+      이력 기반(silver_license_entity_history), 상태군=코드 2자리 정규화. 소형 table(전량 재계산).
+    columns:
+      - name: status_code
+        tests: [not_null]
+
+  - name: gold_env_facility_operation
+    description: >
+      (#71) 가동(영업) 시간·일수 집계 — 환경 v2 2종(대기/수질 배출시설) 한정. LOCALDATA 원천에
+      영업시간/영업요일 필드가 부재함을 실측 확인(전 payload 0건) — 실존 축만 제공.
+
   # ── 원형 정리본(silver — 레이어 재분류 2026-07-15, dags docs/PROJECT.md §4) ────
   - name: silver_license_entity
     description: >
