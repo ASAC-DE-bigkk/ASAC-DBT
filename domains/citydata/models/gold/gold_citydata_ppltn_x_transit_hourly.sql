@@ -4,8 +4,8 @@
 -- (codingpoppy94 transit 골드)을 붙인다. 답: "붐비는데 버스 미어터지나 / 주차 자리 있나".
 -- 챗봇 "강남 지금 주차 돼?" / "버스 혼잡해?" 용.
 --
--- 주의: source 가 dev sandbox 스키마(dev_codingpoppy94)라 transit 이 shared schema 로
--- 퍼블리시되면 그때 source 를 교체해야 함(현재는 dev 단계 크로스). 조인축 admin_dong_code + 시간.
+-- source 는 transit 도메인 공용 스키마(TRANSIT_SCHEMA=transit, ASAC-DBT#204 전환).
+-- 조인축 admin_dong_code + 시간.
 
 -- view: R2 delete+insert 비원자성 중복 재발 방지 위해 view 전환(물리 write 없음·항상 라이브).
 {{ config(
