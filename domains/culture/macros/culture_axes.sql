@@ -86,6 +86,49 @@ left join canon_gu cg on cg.gu = {{ driver }}.gu
 {%- endmacro %}
 
 {#
+  culture_valid_period — 기간 fact 공통 검증 술어(#199). int_culture_activity_days 와
+  gold_culture_event_schedule 이 같은 4조건을 복붙하다 드리프트("집계엔 있는데 목록엔
+  없는 행사")가 가능해 단일화. 상한(일)은 var 로 조정: culture_max_event_span_days.
+#}
+{% macro culture_valid_period(start_col='event_start_date', end_col='event_end_date') -%}
+{{ start_col }} is not null
+      and {{ end_col }} is not null
+      and {{ end_col }} >= {{ start_col }}
+      and date_diff('day', {{ start_col }}, {{ end_col }}) <= {{ var('culture_max_event_span_days', 400) }}
+{%- endmacro %}
+
+{#
+  culture_period_overlap_or_null — kcisa 크로스소스 dedup 매칭의 기간 조건(#85, 단일화 #199).
+  "기간 교차 or 한쪽 기간 null 이면 매치" — 재공연(같은 제목·다른 시기)을 살리는 규칙.
+  silver_culture_kcisa_event(anti-join 3블록)와 assert_kcisa_no_cross_duplicate 가
+  같은 정의를 공유한다 — 모델만 고치고 테스트가 낡은 규칙으로 검증하는 드리프트 봉쇄.
+  ``a``/``b`` = 양쪽 테이블 별칭(각각 event_start_date/event_end_date 보유).
+#}
+{% macro culture_period_overlap_or_null(a, b) -%}
+({{ a }}.event_start_date is null or {{ a }}.event_end_date is null
+           or {{ b }}.event_start_date is null or {{ b }}.event_end_date is null
+           or ({{ a }}.event_start_date <= {{ b }}.event_end_date and {{ a }}.event_end_date >= {{ b }}.event_start_date))
+{%- endmacro %}
+
+{#
+  culture_facility_by_name — KOPIS 시설 이름매칭 두 CTE(#199). performance·festival 이
+  바이트 동일 복붙하던 것을 단일화 — min(facility_id) 동명 시설 해소 규칙의 정의를
+  한 곳에. culture_admin_canon 과 같은 "CTE 조각" 패턴(`with ..., {{ macro }}` 배치).
+#}
+{% macro culture_facility_by_name() -%}
+fac as (
+    select facility_id, facility_name, longitude, latitude, gu, gu_code, admin_dong, admin_dong_code
+    from {{ ref('silver_culture_facility') }}
+),
+fac_by_name as (
+    select facility_name, min(facility_id) as facility_id
+    from fac
+    where facility_name is not null
+    group by facility_name
+)
+{%- endmacro %}
+
+{#
   culture_quality_status — 공간축 정밀도 3치 표식(#111). 최종 컬럼 null 여부로 순수 파생.
   - dong_precise : admin_dong_code 있음(좌표 point-in-polygon 성공, 행정동까지)
   - gu_only      : admin_dong_code 없고 gu_code 있음(좌표 없어 구 레벨 근사)

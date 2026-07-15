@@ -50,29 +50,25 @@ normed as (
     from latest
 ),
 
+-- 매칭 기간 조건은 culture_period_overlap_or_null 매크로(#199) —
+-- assert_kcisa_no_cross_duplicate 테스트와 같은 정의를 공유한다.
 deduped as (
     select n.* from normed n
     where not exists (
         select 1 from {{ ref('silver_culture_performance') }} p
         where {{ culture_norm_title('p.performance_name') }} = n.norm_title
-          and (p.event_start_date is null or p.event_end_date is null
-               or n.event_start_date is null or n.event_end_date is null
-               or (p.event_start_date <= n.event_end_date and p.event_end_date >= n.event_start_date))
+          and {{ culture_period_overlap_or_null('p', 'n') }}
     )
     and not exists (
         select 1 from {{ ref('silver_culture_event') }} e
         where {{ culture_norm_title('e.event_title') }} = n.norm_title
-          and (e.event_start_date is null or e.event_end_date is null
-               or n.event_start_date is null or n.event_end_date is null
-               or (e.event_start_date <= n.event_end_date and e.event_end_date >= n.event_start_date))
+          and {{ culture_period_overlap_or_null('e', 'n') }}
     )
     and not exists (
         select 1 from {{ ref('silver_culture_exhibition') }} x
         where x.title is not null
           and {{ culture_norm_title('x.title') }} = n.norm_title
-          and (x.event_start_date is null or x.event_end_date is null
-               or n.event_start_date is null or n.event_end_date is null
-               or (x.event_start_date <= n.event_end_date and x.event_end_date >= n.event_start_date))
+          and {{ culture_period_overlap_or_null('x', 'n') }}
     )
 ),
 
