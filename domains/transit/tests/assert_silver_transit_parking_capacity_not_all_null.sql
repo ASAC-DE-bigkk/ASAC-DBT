@@ -1,4 +1,4 @@
--- #72 회귀 방지: slv_transit_parking 의 now_prk_vhcl_cnt / total_capacity 가
+-- #72 회귀 방지: silver_transit_parking 의 now_prk_vhcl_cnt / total_capacity 가
 --   '전건 null' 로 조용히 회귀하지 않는지 감시하는 하한 계약 테스트.
 --
 -- 배경(실측): 원천 NOW_PRK_VHCL_CNT·TPKCT 가 정수를 소수 문자열로 내보내(예 "806.0"),
@@ -20,7 +20,7 @@
 
 with recent as (
     select now_prk_vhcl_cnt, total_capacity
-    from {{ ref('slv_transit_parking') }}
+    from {{ ref('silver_transit_parking') }}
     where ingested_at >= cast(at_timezone(current_timestamp, 'UTC') as timestamp(6))
                          - interval '{{ var("transit_freshness_monitor_hours") }}' hour
 ),

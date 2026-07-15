@@ -1,4 +1,4 @@
--- slv_transit_parking — 주차장 실시간 스냅샷 정제.
+-- silver_transit_parking — 주차장 실시간 스냅샷 정제.
 --
 -- grain: (parking_id=PKLT_CD, event_at=NOW_PRK_VHCL_UPDT_TM KST). 시간당 수집 가정,
 --   incremental(merge): 이미 반영된 ingested_at 이후(-2h lookback)만 스캔·중복은 merge 로 갱신.

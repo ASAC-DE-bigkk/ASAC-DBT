@@ -3,18 +3,18 @@
 --   매크로/var/모델 회귀로 필터가 풀리면 이 테스트가 즉시 실패한다.
 --   event_at 은 KST 벽시계, ingested_at 은 UTC → asac_axes.utc_to_kst 로 환산해 비교
 --   (transit_event_at_is_future 가 캡슐화). 반환 행이 있으면 미래 잔존 = 실패.
-select 'slv_transit_subway_arrival' as model, event_at, ingested_at
-from {{ ref('slv_transit_subway_arrival') }}
+select 'silver_transit_subway_arrival' as model, event_at, ingested_at
+from {{ ref('silver_transit_subway_arrival') }}
 where {{ transit_event_at_is_future('event_at', 'ingested_at') }}
 
 union all
 
-select 'slv_transit_parking' as model, event_at, ingested_at
-from {{ ref('slv_transit_parking') }}
+select 'silver_transit_parking' as model, event_at, ingested_at
+from {{ ref('silver_transit_parking') }}
 where {{ transit_event_at_is_future('event_at', 'ingested_at') }}
 
 union all
 
-select 'slv_transit_bus_position' as model, event_at, ingested_at
-from {{ ref('slv_transit_bus_position') }}
+select 'silver_transit_bus_position' as model, event_at, ingested_at
+from {{ ref('silver_transit_bus_position') }}
 where {{ transit_event_at_is_future('event_at', 'ingested_at') }}

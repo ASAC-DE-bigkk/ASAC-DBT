@@ -1,7 +1,7 @@
 -- #66: bronze 원천의 '미래 event_at' 비율을 감시하는 warn 테스트 (최근 윈도).
 --   목적: silver 상한 필터가 '조용한 대량 드랍'을 하지 않는지(원천 시각체계 급변·대량 오염)
 --   사람이 인지하게 한다. error 가 아니라 warn 인 이유: 미래 행 자체는 silver 에서 이미 안전히
---   제거되므로(assert_slv_transit_no_future_event_at 가 error 로 보증) 파이프를 멈출 사안은
+--   제거되므로(assert_silver_transit_no_future_event_at 가 error 로 보증) 파이프를 멈출 사안은
 --   아니고, '얼마나 버려지는가'를 관측·경보하는 감시 지표이기 때문.
 --
 --   윈도(#66 리뷰): 전 이력 비율은 이력이 쌓일수록 급성 이상(예: 원천 시계 붕괴로 당일
