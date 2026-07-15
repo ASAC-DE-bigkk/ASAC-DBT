@@ -10,21 +10,24 @@ with configured_run as (
         'seoul_traffic_incident' as source_id
 ),
 
+latest_manifest_state as (
+    {{ latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident') }}
+),
+
 manifest_events as (
     select
-        cast(manifest.dag_run_id as varchar) as dag_run_id,
-        cast(manifest.status as varchar) as status,
-        cast(manifest.is_publishable as boolean) as is_publishable,
-        cast(manifest.event_at as timestamp(6)) as event_at,
-        try_cast(manifest.expected_rows as integer) as expected_rows,
-        try_cast(manifest.actual_rows as integer) as actual_rows,
-        try_cast(manifest.expected_raw_objects as integer) as expected_raw_objects,
-        try_cast(manifest.actual_raw_objects as integer) as actual_raw_objects,
-        cast(manifest.failure_reason as varchar) as failure_reason
-    from {{ source('traffic_bronze', 'collection_run_manifest') }} as manifest
+        manifest.dag_run_id,
+        manifest.manifest_status as status,
+        manifest.is_publishable,
+        manifest.manifest_event_at_utc as event_at,
+        try_cast(manifest.manifest_expected_rows as integer) as expected_rows,
+        try_cast(manifest.manifest_actual_rows as integer) as actual_rows,
+        try_cast(manifest.manifest_expected_raw_objects as integer) as expected_raw_objects,
+        try_cast(manifest.manifest_actual_raw_objects as integer) as actual_raw_objects,
+        manifest.manifest_failure_reason as failure_reason
+    from latest_manifest_state as manifest
     cross join configured_run
-    where cast(manifest.source_id as varchar) = configured_run.source_id
-      and cast(manifest.dag_run_id as varchar) = configured_run.dag_run_id
+    where manifest.dag_run_id = configured_run.dag_run_id
 ),
 
 manifest_ranked as (

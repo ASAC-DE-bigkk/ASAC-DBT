@@ -1,18 +1,12 @@
-with manifest as (
+with latest_manifest_state as (
+    {{ latest_manifest_run_state('weather_bronze', 'collection_run_manifest', 'kma_vilage_fcst') }}
+),
+
+manifest as (
     select source_id, dag_run_id
-    from (
-        select cast(source_id as varchar) as source_id,
-               cast(dag_run_id as varchar) as dag_run_id,
-               row_number() over (
-                   partition by cast(source_id as varchar), cast(dag_run_id as varchar)
-                   order by cast(event_at as timestamp(6)) desc, cast(dag_id as varchar) desc
-               ) as row_num
-        from {{ source('weather_bronze', 'collection_run_manifest') }}
-        where cast(source_id as varchar) = 'kma_vilage_fcst'
-          and cast(status as varchar) = 'SUCCESS'
-          and cast(is_publishable as boolean)
-    )
-    where row_num = 1
+    from latest_manifest_state
+    where manifest_status = 'SUCCESS'
+      and is_publishable
 ),
 source_typed as (
     select

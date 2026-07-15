@@ -26,13 +26,16 @@
 
 {% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}
 
-with publishable_runs as (
-    select distinct cast(dag_run_id as varchar) as dag_run_id
-    from {{ source('traffic_bronze', 'collection_run_manifest') }}
-    where source_id = 'seoul_traffic_incident'
-      and status = 'SUCCESS'
+with latest_manifest_state as (
+    {{ latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident') }}
+),
+
+publishable_runs as (
+    select distinct dag_run_id
+    from latest_manifest_state
+    where manifest_status = 'SUCCESS'
       and is_publishable
-      and cast(dag_run_id as varchar) = '{{ snapshot_dag_run_id | replace("'", "''") }}'
+      and dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
 ),
 
 bronze as (

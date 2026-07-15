@@ -4,13 +4,19 @@
 -- complete snapshot into one row per source_id, so rebuilding the tiny summary
 -- avoids stale counts without re-scanning Bronze history.
 
-with latest_source as (
+{% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}
+
+with latest_manifest_state as (
+    {{ latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident') }}
+),
+
+latest_source as (
     select source_id
-    from {{ source('traffic_bronze', 'collection_run_manifest') }}
-    where source_id = 'seoul_traffic_incident'
-      and status = 'SUCCESS'
+    from latest_manifest_state
+    where manifest_status = 'SUCCESS'
       and is_publishable
-    order by cast(event_at as timestamp(6)) desc, cast(dag_run_id as varchar) desc
+      and dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
+    order by manifest_event_at_utc desc, dag_run_id desc
     limit 1
 ),
 

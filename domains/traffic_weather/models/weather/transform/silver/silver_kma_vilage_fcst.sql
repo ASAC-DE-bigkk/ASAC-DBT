@@ -13,12 +13,18 @@
     on_table_exists='drop',
 ) }}
 
-with publishable_runs as (
-    select distinct cast(dag_run_id as varchar) as dag_run_id
-    from {{ source('weather_bronze', 'collection_run_manifest') }}
-    where source_id = 'kma_vilage_fcst'
-      and status = 'SUCCESS'
+{% set snapshot_dag_run_id = var('weather_snapshot_dag_run_id') %}
+
+with latest_manifest_state as (
+    {{ latest_manifest_run_state('weather_bronze', 'collection_run_manifest', 'kma_vilage_fcst') }}
+),
+
+publishable_runs as (
+    select distinct dag_run_id
+    from latest_manifest_state
+    where manifest_status = 'SUCCESS'
       and is_publishable
+      and dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
 ),
 
 bronze as (
