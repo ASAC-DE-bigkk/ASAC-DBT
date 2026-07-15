@@ -33,25 +33,22 @@ def test_canonical_gold_declares_snapshot_and_graph_dependencies():
     assert "var('traffic_snapshot_dag_run_id')" in sql
     assert "ref('silver_seoul_traffic_incident_current')" in sql
     assert "ref('asac_axes', 'dim_admin_dong')" in sql
-    assert "source('traffic_bronze', 'collection_run_manifest')" in sql
+    assert (
+        "latest_manifest_run_state("
+        "'traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident'"
+        ")" in sql
+    )
     assert "source('traffic_bronze', 'seoul_traffic_incident_request_audit')" in sql
     assert "source('traffic_bronze', 'seoul_traffic_incident')" in sql
 
     compact_sql = " ".join(sql.lower().split())
-    _assert_fragments_are_ordered(
-        compact_sql,
-        (
-            "manifest_event_at_utc desc nulls last",
-            "manifest_status desc nulls last",
-            "is_publishable desc nulls last",
-            "expected_rows desc nulls last",
-            "actual_rows desc nulls last",
-            "expected_raw_objects desc nulls last",
-            "actual_raw_objects desc nulls last",
-            "failure_reason desc nulls last",
-            "manifest_dag_run_id desc nulls last",
-        ),
+    assert "manifest_candidates as" in compact_sql
+    assert (
+        "where manifest.dag_run_id = configured_run.snapshot_dag_run_id"
+        in compact_sql
     )
+    assert "manifest_status is distinct from 'success'" in compact_sql
+    assert "or not coalesce(is_publishable, false)" in compact_sql
 
 
 def test_snapshot_reconciliation_independently_derives_state_and_evidence():
@@ -62,7 +59,7 @@ def test_snapshot_reconciliation_independently_derives_state_and_evidence():
         "ref('silver_seoul_traffic_incident_current')",
         "ref('gold_traffic_incident_current_by_admin_dong_hourly')",
         "ref('asac_axes', 'dim_admin_dong')",
-        "source('traffic_bronze', 'collection_run_manifest')",
+        "latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident')",
         "source('traffic_bronze', 'seoul_traffic_incident_request_audit')",
         "source('traffic_bronze', 'seoul_traffic_incident')",
     ):
@@ -87,24 +84,8 @@ def test_snapshot_reconciliation_independently_derives_state_and_evidence():
     assert "runtimeerror in land_seoul_traffic_raw" not in compact_sql
     assert "nullif(trim(coalesce(failure_reason, '')), '') is not null" in compact_sql
 
-    assert "row_number() over (" in compact_sql
-    assert "event_at desc nulls last" in compact_sql
-    assert "status desc nulls last" in compact_sql
-    assert "is_publishable desc nulls last" in compact_sql
-    _assert_fragments_are_ordered(
-        compact_sql,
-        (
-            "event_at desc nulls last",
-            "status desc nulls last",
-            "is_publishable desc nulls last",
-            "expected_rows desc nulls last",
-            "actual_rows desc nulls last",
-            "expected_raw_objects desc nulls last",
-            "actual_raw_objects desc nulls last",
-            "failure_reason desc nulls last",
-            "dag_run_id desc nulls last",
-        ),
-    )
+    assert "latest_manifest_state as (" in compact_sql
+    assert "where manifest.dag_run_id = configured_run.dag_run_id" in compact_sql
     assert (
         "max(case when manifest_row_num = 1 then latest_event_tie_count end)"
         in compact_sql

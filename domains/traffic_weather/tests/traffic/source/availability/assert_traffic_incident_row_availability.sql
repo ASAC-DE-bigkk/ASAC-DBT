@@ -2,11 +2,14 @@
 
 {% set warn_hours = env_var('TRAFFIC_INCIDENT_AVAILABILITY_WARN_HOURS', '24') | int %}
 
-with latest_publishable_manifest as (
-    select max(cast(event_at as timestamp(6))) as manifest_at
-    from {{ source('traffic_bronze', 'collection_run_manifest') }}
-    where source_id = 'seoul_traffic_incident'
-      and status = 'SUCCESS'
+with latest_manifest_state as (
+    {{ latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident') }}
+),
+
+latest_publishable_manifest as (
+    select max(manifest_event_at_utc) as manifest_at
+    from latest_manifest_state
+    where manifest_status = 'SUCCESS'
       and is_publishable
 ),
 

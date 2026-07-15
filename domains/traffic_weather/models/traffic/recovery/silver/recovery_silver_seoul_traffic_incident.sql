@@ -11,16 +11,19 @@
 
 {% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}
 
-with configured_run as (
+with latest_manifest_state as (
+    {{ latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident') }}
+),
+
+configured_run as (
     select
-        cast(dag_run_id as varchar) as dag_run_id,
-        max(cast(event_at as timestamp(6))) as event_at
-    from {{ source('traffic_bronze', 'collection_run_manifest') }}
-    where source_id = 'seoul_traffic_incident'
-      and status = 'SUCCESS'
+        dag_run_id,
+        max(manifest_event_at_utc) as event_at
+    from latest_manifest_state
+    where manifest_status = 'SUCCESS'
       and is_publishable
-      and cast(dag_run_id as varchar) = '{{ snapshot_dag_run_id | replace("'", "''") }}'
-    group by cast(dag_run_id as varchar)
+      and dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
+    group by dag_run_id
 ),
 
 bronze as (

@@ -82,7 +82,11 @@ def test_current_snapshot_contract_keeps_pinned_correctness_and_grace_freshness_
     )
     compact_sql = " ".join(sql.split())
 
-    assert "group by cast(dag_run_id as varchar)" in sql
+    assert (
+        "latest_manifest_run_state("
+        "'traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident'"
+        ")" in sql
+    )
     assert "publishable_rank" in sql
     assert "publishable_rank > 3" in sql
     assert "missing_pinned_run" in sql
@@ -120,8 +124,8 @@ def test_current_snapshot_contract_uses_the_dag_publishable_predicate_without_te
     compact_sql = " ".join(sql.split())
 
     assert "manifest_event_rank" not in sql
-    assert "max(cast(event_at as timestamp(6))) as event_at" in compact_sql
-    assert "and status = 'success'" in compact_sql
+    assert "manifest_event_at_utc as event_at" in compact_sql
+    assert "where manifest_status = 'success'" in compact_sql
     assert "and is_publishable" in compact_sql
 
 

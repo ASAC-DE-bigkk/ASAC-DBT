@@ -20,40 +20,25 @@ with configured_run as (
         cast(timestamp '{{ published_at_utc }}' + interval '9' hour as timestamp(6)) as published_at
 ),
 
-manifest_candidates as (
-    select
-        cast(manifest.dag_run_id as varchar) as manifest_dag_run_id,
-        cast(manifest.status as varchar) as manifest_status,
-        cast(manifest.is_publishable as boolean) as is_publishable,
-        cast(manifest.event_at as timestamp(6)) as manifest_event_at_utc,
-        try_cast(manifest.expected_rows as integer) as expected_rows,
-        try_cast(manifest.actual_rows as integer) as actual_rows,
-        try_cast(manifest.expected_raw_objects as integer) as expected_raw_objects,
-        try_cast(manifest.actual_raw_objects as integer) as actual_raw_objects,
-        cast(manifest.failure_reason as varchar) as failure_reason
-    from {{ source('traffic_bronze', 'collection_run_manifest') }} as manifest
-    cross join configured_run
-    where cast(manifest.source_id as varchar) = configured_run.source_id
-      and cast(manifest.dag_run_id as varchar) = configured_run.snapshot_dag_run_id
+latest_manifest_state as (
+    {{ latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident') }}
 ),
 
-manifest_ranked as (
+manifest_candidates as (
     select
-        *,
-        row_number() over (
-            order by
-                manifest_event_at_utc desc nulls last,
-                manifest_status desc nulls last,
-                is_publishable desc nulls last,
-                expected_rows desc nulls last,
-                actual_rows desc nulls last,
-                expected_raw_objects desc nulls last,
-                actual_raw_objects desc nulls last,
-                failure_reason desc nulls last,
-                manifest_dag_run_id desc nulls last
-        ) as manifest_row_num,
-        count(*) over (partition by manifest_event_at_utc) as manifest_latest_tie_count
-    from manifest_candidates
+        manifest.dag_run_id as manifest_dag_run_id,
+        manifest.manifest_status,
+        manifest.is_publishable,
+        manifest.manifest_event_at_utc,
+        try_cast(manifest.manifest_expected_rows as integer) as expected_rows,
+        try_cast(manifest.manifest_actual_rows as integer) as actual_rows,
+        try_cast(manifest.manifest_expected_raw_objects as integer) as expected_raw_objects,
+        try_cast(manifest.manifest_actual_raw_objects as integer) as actual_raw_objects,
+        manifest.manifest_failure_reason as failure_reason,
+        manifest.manifest_state_tie_count as manifest_latest_tie_count
+    from latest_manifest_state as manifest
+    cross join configured_run
+    where manifest.dag_run_id = configured_run.snapshot_dag_run_id
 ),
 
 manifest_evidence as (
@@ -61,24 +46,24 @@ manifest_evidence as (
         configured_run.snapshot_dag_run_id,
         configured_run.source_id,
         configured_run.published_at,
-        manifest_ranked.manifest_dag_run_id,
-        manifest_ranked.manifest_status,
-        manifest_ranked.is_publishable,
-        manifest_ranked.manifest_event_at_utc,
+        manifest_candidates.manifest_dag_run_id,
+        manifest_candidates.manifest_status,
+        manifest_candidates.is_publishable,
+        manifest_candidates.manifest_event_at_utc,
         cast(
-            {{ asac_axes.utc_to_kst('manifest_ranked.manifest_event_at_utc') }}
+            {{ asac_axes.utc_to_kst('manifest_candidates.manifest_event_at_utc') }}
             as timestamp(6)
         ) as manifest_event_at_kst,
-        manifest_ranked.expected_rows,
-        manifest_ranked.actual_rows,
-        manifest_ranked.expected_raw_objects,
-        manifest_ranked.actual_raw_objects,
-        manifest_ranked.failure_reason,
-        coalesce(manifest_ranked.manifest_latest_tie_count, cast(0 as bigint))
+        manifest_candidates.expected_rows,
+        manifest_candidates.actual_rows,
+        manifest_candidates.expected_raw_objects,
+        manifest_candidates.actual_raw_objects,
+        manifest_candidates.failure_reason,
+        coalesce(manifest_candidates.manifest_latest_tie_count, cast(0 as bigint))
             as manifest_latest_tie_count
     from configured_run
-    left join manifest_ranked
-        on manifest_ranked.manifest_row_num = 1
+    left join manifest_candidates
+        on true
 ),
 
 audit_rows as (

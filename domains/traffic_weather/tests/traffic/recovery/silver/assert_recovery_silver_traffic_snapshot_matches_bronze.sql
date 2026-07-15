@@ -4,13 +4,16 @@ with requested_run as (
     select '{{ snapshot_dag_run_id | replace("'", "''") }}' as dag_run_id
 ),
 
+latest_manifest_state as (
+    {{ latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident') }}
+),
+
 configured_run as (
-    select distinct cast(manifest.dag_run_id as varchar) as dag_run_id
-    from {{ source('traffic_bronze', 'collection_run_manifest') }} as manifest
+    select distinct manifest.dag_run_id
+    from latest_manifest_state as manifest
     inner join requested_run
-        on cast(manifest.dag_run_id as varchar) = requested_run.dag_run_id
-    where manifest.source_id = 'seoul_traffic_incident'
-      and manifest.status = 'SUCCESS'
+        on manifest.dag_run_id = requested_run.dag_run_id
+    where manifest.manifest_status = 'SUCCESS'
       and manifest.is_publishable
 ),
 

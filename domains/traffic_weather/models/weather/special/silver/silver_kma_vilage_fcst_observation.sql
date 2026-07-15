@@ -12,6 +12,11 @@
 {{ weather_w1_initial_build_guard() }}
 {{ weather_w2_assert_repair_evidence() }}
 
+{% if not weather_w2_is_repair() %}
+{% set snapshot_dag_run_id = var('weather_snapshot_dag_run_id') %}
+{% endif %}
+
+{% if weather_w2_is_repair() %}
 with publishable_manifest_ranked as (
     select
         cast(source_id as varchar) as source_id,
@@ -34,9 +39,6 @@ with publishable_manifest_ranked as (
     {% if weather_w2_is_repair() %}
       and cast(event_at as timestamp(6)) + interval '9' hour
           <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
-    {% else %}
-      and cast(status as varchar) = 'SUCCESS'
-      and cast(is_publishable as boolean)
     {% endif %}
 ),
 
@@ -52,7 +54,20 @@ publishable_manifest as (
       and manifest_event_at_utc + interval '9' hour
           <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
     {% endif %}
+)
+{% else %}
+with latest_manifest_state as (
+    {{ latest_manifest_run_state('weather_bronze', 'collection_run_manifest', 'kma_vilage_fcst') }}
 ),
+
+publishable_manifest as (
+    select *
+    from latest_manifest_state
+    where manifest_status = 'SUCCESS'
+      and is_publishable
+      and dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
+)
+{% endif %},
 
 bronze_typed as (
     select
