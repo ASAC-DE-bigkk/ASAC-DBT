@@ -23,10 +23,14 @@ grain 은 **(beop_dong_code, admin_dong_code) 쌍**이며 관계는 다대다(�
 ## 설치 (소비 프로젝트)
 
 ```yaml
-# <consumer>/packages.yml
+# domains/<project>/packages.yml
 packages:
-  - local: ../packages/asac_axes
+  - local: ../../packages/asac_axes
 ```
+
+`local`은 소비 dbt project의 `packages.yml` 위치를 기준으로 해석한다. 따라서 저장소의
+`domains/<project>/` 아래 project가 root의 `packages/asac_axes/`를 참조할 때는 위처럼
+두 단계 상위 경로를 사용한다.
 
 ```bash
 dbt deps
@@ -157,11 +161,13 @@ columns:
 ## Seed (`seeds/`)
 
 코드 컬럼은 모두 **varchar** (선행 0 보존, 숫자 오인 방지 — `dbt_project.yml` `column_types` 로 고정).
-`scripts/build_crosswalk.py` 가 도메인 seed 2종에서 기계 생성한다(재실행 결정적).
+`scripts/build_crosswalk.py`가 CLI로 주입된 도메인 seed 3종에서 기계 생성한다(재실행 결정적).
+공용 package 구현은 consumer domain 경로를 직접 알지 않는다.
 
 ### `seoul_admin_dong_crosswalk.csv` (420행)
 
-행안부 ↔ 통계청 코드 crosswalk. 소스: weather `weather_place_grid_mapping`(행안부10) ⋈ population `seoul_dong_boundary`(통계청7).
+행안부 ↔ 통계청 코드 crosswalk. 소스는 CLI의 `--weather-grid` 입력(행안부10)과
+`--dong-boundary` 입력(통계청7)이다.
 조인 키는 (구명, 동명)이며, 서수 표기 차이(행안부 `제N동` vs 통계청 `N동`)와 구분자(`.` vs `·`)를 정규화해 맞춘다.
 
 | 컬럼 | 설명 |
@@ -176,12 +182,13 @@ columns:
 
 ### `seoul_admin_dong_boundary.csv` (423행)
 
-population `seoul_dong_boundary` 복사 + `admin_dong_code`(행안부10)·`gu_code` 부가. 기존 통계청 컬럼(`sigungu_code`,`dong_code`)·`boundary_wkt` 유지(하위호환).
+`--dong-boundary` 입력에 `admin_dong_code`(행안부10)·`gu_code`를 부가한다. 기존 통계청
+컬럼(`sigungu_code`,`dong_code`)·`boundary_wkt`는 하위 호환을 위해 유지한다.
 행 재편(신설동/용두동↔용신동, 상일1·2동↔상일동, 일원2동↔개포3동)으로 **3행은 `admin_dong_code` 공란**(gu_code 는 채움).
 
 ### `seoul_gu_boundary.csv` (25행)
 
-population `seoul_gu_boundary` 복사 + `gu_code`(행안부 5자리) 부가. 기존 컬럼 유지.
+`--gu-boundary` 입력에 `gu_code`(행안부 5자리)를 부가하고 기존 컬럼을 유지한다.
 
 ---
 
@@ -189,10 +196,21 @@ population `seoul_gu_boundary` 복사 + `gu_code`(행안부 5자리) 부가. 기
 
 - **경계는 단순화 버전**입니다(kang 경고). ~0.8% 미매핑·경계 근처 오배정(예: DDP, 강남/송파 한강변) 가능. 정밀 경계 교체는 후속 이슈로.
 - **`tm_to_wgs84` 는 근사 역변환**입니다. 행정동 할당 용도이며 정밀 측지에는 부적합.
-- crosswalk 미매칭(총 10건, 소스 재편 기인): weather 측 7건(신설동·용두동·항동·개포3동·위례동·상일1·2동), boundary 측 3건(상일동·일원2동·용신동). `scripts/build_crosswalk.py` 재실행 시 stderr 리포트로 재확인 가능.
+- crosswalk 미매칭(총 10건, 소스 재편 기인): weather-grid 입력 7건(신설동·용두동·항동·개포3동·위례동·상일1·2동), dong-boundary 입력 3건(상일동·일원2동·용신동). `scripts/build_crosswalk.py` 재실행 시 stderr 리포트로 재확인 가능.
 
 ## seed 재생성
 
+입력 파일의 소유권은 소비 domain에 있다. 공용 package는 consumer 경로를 알거나 추측하지
+않으며, versioned source가 명시적으로 주입되지 않으면 builder는 즉시 실패한다.
+
 ```bash
-python packages/asac_axes/scripts/build_crosswalk.py    # stderr 에 매칭/미매칭 리포트
+python packages/asac_axes/scripts/build_crosswalk.py \
+  --weather-grid /path/to/weather-grid.csv \
+  --dong-boundary /path/to/dong-boundary.csv \
+  --gu-boundary /path/to/gu-boundary.csv \
+  --output-dir /path/to/generated-seeds
 ```
+
+`--weather-grid`, `--dong-boundary`, `--gu-boundary`는 각각 CSV file path를 받으며,
+`--output-dir`는 directory path를 받는다. `--output-dir`을 생략하면
+`packages/asac_axes/seeds`에 출력하고, 매칭/미매칭 리포트는 stderr로 출력한다.

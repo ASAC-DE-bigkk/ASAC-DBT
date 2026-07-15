@@ -4,4 +4,7 @@ __pycache__/
 /target/
 /dbt_packages/
 /logs/
+/domains/traffic_weather/target/
+/domains/traffic_weather/dbt_packages/
+/domains/traffic_weather/logs/
 **/.user.yml

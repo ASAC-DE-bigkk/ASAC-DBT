@@ -1,4 +1,0 @@
-packages:
-  - local: packages/asac_axes
-    name: asac_axes
-sha1_hash: 6b878b9826119c1128b06814d958628434dc7756

@@ -6,13 +6,14 @@ build_crosswalk.py — asac_axes 공용 seed 3종 생성기 (issue #48).
 행안부 10자리 행정동 코드를 canonical 키로, 통계청 7/5자리 코드를 alias 로 잇는
 서울 행정동 crosswalk 와, 여기에서 파생된 행정동/구 경계 seed 를 생성한다.
 
-소스
-  A) seeds/weather/weather_place_grid_mapping.csv
+소스는 CLI로 주입한다. 공용 package는 consumer domain의 디렉터리를 알지 않는다.
+
+  A) --weather-grid
        place_id(seoul_admd_<행안부10>), place_name, gu, admin_dong,
        latitude, longitude, mapping_method(snapshot 표기), source_admin_code(행안부10)
-  B) domains/population/seeds/seoul_dong_boundary.csv
+  B) --dong-boundary
        sigungu, sigungu_code(통계청5), dong, dong_code(통계청7), boundary_wkt
-  C) domains/population/seeds/seoul_gu_boundary.csv
+  C) --gu-boundary
        sigungu, sigungu_eng, sigungu_code(통계청5), boundary_wkt
 
 조인 키: (구명, 동명)  =  A.gu / A.admin_dong  ==  B.sigungu / B.dong
@@ -32,21 +33,27 @@ build_crosswalk.py — asac_axes 공용 seed 3종 생성기 (issue #48).
 미매칭 행은 버리지 않고 stderr 리포트로 남긴다(양쪽). 재실행 시 결정적 결과.
 """
 
+import argparse
 import csv
 import io
 import os
 import re
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))  # .../dbt
-SEED_OUT = os.path.abspath(os.path.join(HERE, "..", "seeds"))
-
-SRC_WEATHER = os.path.join(REPO, "seeds", "weather", "weather_place_grid_mapping.csv")
-SRC_DONG = os.path.join(
-    REPO, "domains", "population", "seeds", "seoul_dong_boundary.csv"
+DEFAULT_OUTPUT_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "seeds")
 )
-SRC_GU = os.path.join(REPO, "domains", "population", "seeds", "seoul_gu_boundary.csv")
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description="Build deterministic asac_axes crosswalk and boundary seeds."
+    )
+    parser.add_argument("--weather-grid", required=True)
+    parser.add_argument("--dong-boundary", required=True)
+    parser.add_argument("--gu-boundary", required=True)
+    parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
+    return parser
 
 
 def read_csv(path):
@@ -85,10 +92,14 @@ def write_csv(path, header, rows):
         w.writerows(rows)
 
 
-def main():
-    A = read_csv(SRC_WEATHER)
-    B = read_csv(SRC_DONG)
-    C = read_csv(SRC_GU)
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    seed_out = os.path.abspath(args.output_dir)
+    os.makedirs(seed_out, exist_ok=True)
+
+    A = read_csv(args.weather_grid)
+    B = read_csv(args.dong_boundary)
+    C = read_csv(args.gu_boundary)
 
     # gu -> 행안부 5자리 (source_admin_code 앞 5). gu 당 유일함을 검증.
     gu_to_hgu = {}
@@ -160,7 +171,7 @@ def main():
 
     cross_rows.sort(key=lambda x: x[0])
     write_csv(
-        os.path.join(SEED_OUT, "seoul_admin_dong_crosswalk.csv"),
+        os.path.join(seed_out, "seoul_admin_dong_crosswalk.csv"),
         cross_header,
         cross_rows,
     )
@@ -184,7 +195,7 @@ def main():
         admin_code = dong_to_admin.get(bkey, "")
         gu_code = gu_to_hgu.get(gnorm, "")
         b_rows.append([r[k] for k in B[0].keys()] + [admin_code, gu_code])
-    write_csv(os.path.join(SEED_OUT, "seoul_admin_dong_boundary.csv"), b_header, b_rows)
+    write_csv(os.path.join(seed_out, "seoul_admin_dong_boundary.csv"), b_header, b_rows)
 
     # ---- gu boundary seed: C 복사 + 행안부 gu_code 부가 ----
     c_header = list(C[0].keys()) + ["gu_code"]
@@ -196,7 +207,7 @@ def main():
         if not gu_code:
             unmatched_gu.append(r["sigungu"])
         c_rows.append([r[k] for k in C[0].keys()] + [gu_code])
-    write_csv(os.path.join(SEED_OUT, "seoul_gu_boundary.csv"), c_header, c_rows)
+    write_csv(os.path.join(seed_out, "seoul_gu_boundary.csv"), c_header, c_rows)
 
     # ---- 리포트 (stderr) ----
     e = sys.stderr
@@ -220,8 +231,9 @@ def main():
         "gu boundary rows     : %d (all coded=%s)\n"
         % (len(c_rows), all(row[-1] for row in c_rows))
     )
-    e.write("outputs -> %s\n" % SEED_OUT)
+    e.write("outputs -> %s\n" % seed_out)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
