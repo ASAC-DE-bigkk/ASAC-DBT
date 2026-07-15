@@ -8,7 +8,7 @@ transit:
       host: "{{ env_var('TRINO_HOST', 'trino') }}"
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       database: "{{ env_var('TRINO_ICEBERG_CATALOG', 'iceberg') }}"
-      schema: "{{ env_var('SMOKE_SCHEMA', 'ops_smoke') }}"
+      schema: "{{ env_var('TRANSIT_SCHEMA', 'transit') }}"
       http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
       threads: 4
       timeout_seconds: 300
@@ -20,8 +20,9 @@ transit:
       host: "{{ env_var('TRINO_HOST', 'trino') }}"
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       database: "{{ env_var('TRINO_DEV_ICEBERG_CATALOG', 'iceberg_dev') }}"
-      # 개인 샌드박스: DEV_SMOKE_SCHEMA 로 사용자 스키마 해석(예: dev_codingpoppy94).
-      schema: "{{ env_var('DEV_SMOKE_SCHEMA', 'dev_local') }}"
+      # 도메인 공용 스키마(#204): prod/dev 동일 transit, 환경 분리는 카탈로그가 담당.
+      # DAG 적재(bronze)와 같은 TRANSIT_SCHEMA 를 읽어야 bronze·silver 동일 스키마(#51)가 유지된다.
+      schema: "{{ env_var('TRANSIT_SCHEMA', 'transit') }}"
       http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
       threads: 4
       timeout_seconds: 300

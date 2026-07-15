@@ -77,10 +77,10 @@ sources:
 
   - name: transit_dong
     description: >
-      교통(버스·지하철·주차) 도메인 골드 (codingpoppy94). ⚠ 현재 dev sandbox 스키마라
-      transit 이 shared schema 로 퍼블리시되면 schema 를 교체할 것.
+      교통(버스·지하철·주차) 도메인 골드 — 도메인 공용 스키마 transit (ASAC-DBT#204 로
+      dev sandbox 스키마에서 전환).
     database: "{{ target.database }}"
-    schema: dev_codingpoppy94
+    schema: "{{ env_var('TRANSIT_SCHEMA', 'transit') }}"
     tables:
       - name: gold_transit_dong_hourly
         description: 행정동×시간 대중교통·주차 집계 — bus_congestion_avg·subway_wait_avg_s·parking_occupancy_avg 등.
