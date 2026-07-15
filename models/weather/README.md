@@ -23,11 +23,17 @@
 | normal place mart | `ask_seoul_weather_transform_place_mart` |
 | W1 bridge model/test | `ask_seoul_weather_w1_bridge` |
 | W1 seed 5종 | `ask_seoul_weather_w1_inputs` |
+| W2 recovery window model graph | `ask_seoul_weather_w2_recovery_window_models` |
+| W2 recovery window contracts | `ask_seoul_weather_w2_recovery_window_contracts` |
+| W2 recovery lineage contract | `ask_seoul_weather_w2_recovery_lineage_contract` |
+| W2 recovery final contract | `ask_seoul_weather_w2_recovery_final_contract` |
 
 `ask_seoul_weather_w1_inputs`는 asac_axes seed 3종과 Weather seed 2종만 소유한다.
 W1 bridge tag는 bridge 모델과 지정된 singular test 5개에만 직접 부여한다.
 나머지 special W2 모델·test는 이 두 W1 tag를 갖지 않는다.
 W2 recovery workset은 `bounded_reconcile`과 dev target에서만 명시적으로 실행하는 내부 검증 산출물이다.
+Recovery DAG는 model/test 이름을 알지 못하며 위 named selector만 호출한다.
+`window_models` 내부 실행 순서는 SQL의 `ref()` graph와 단일 thread 실행이 소유한다.
 
 ## Public producer
 

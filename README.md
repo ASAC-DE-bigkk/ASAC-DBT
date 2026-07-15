@@ -17,29 +17,8 @@ phase 목록을 이 문서에 복제하지 않고, 아래 source of truth부터 
 수정하지 않아도 해당 phase에 포함된다. contract gate만 source tag와 generic test 유형의
 교집합이다.
 
-| Domain | Selector | 책임 |
-| --- | --- | --- |
-| Traffic | `ask_seoul_traffic_transform_source` | Bronze source 계약 리소스 |
-| Traffic | `ask_seoul_traffic_transform_availability` | source availability singular test |
-| Traffic | `ask_seoul_traffic_transform_asac_axes` | 공통축 seed |
-| Traffic | `ask_seoul_traffic_transform_asac_axes_contract` | 공통축 seed 계약 |
-| Traffic | `ask_seoul_traffic_transform_common_admin` | canonical 행정동 model |
-| Traffic | `ask_seoul_traffic_transform_silver` | scheduled Silver model/test |
-| Traffic | `ask_seoul_traffic_transform_gold` | scheduled Gold model/test |
-| Traffic | `ask_seoul_traffic_recovery_silver` | recovery Silver |
-| Traffic | `ask_seoul_traffic_recovery_metadata` | recovery metadata anchor |
-| Traffic | `ask_seoul_traffic_recovery_gold` | recovery Gold |
-| Traffic | `traffic_transform_contract_gate` | Bronze source generic tests |
-| Weather | `ask_seoul_weather_transform_source` | Bronze source 계약 리소스 |
-| Weather | `ask_seoul_weather_transform_asac_axes` | 공통축 seed |
-| Weather | `ask_seoul_weather_transform_common_admin` | canonical 행정동 model |
-| Weather | `ask_seoul_weather_transform_place_mapping` | place mapping seed |
-| Weather | `ask_seoul_weather_transform_silver` | scheduled Silver model/test |
-| Weather | `ask_seoul_weather_transform_gold` | scheduled Gold model/test |
-| Weather | `ask_seoul_weather_transform_place_mart` | place mart model/test |
-| Weather | `ask_seoul_weather_w1_inputs` | W1 bridge input seeds |
-| Weather | `ask_seoul_weather_w1_bridge` | W1 bridge model/test |
-| Weather | `weather_transform_contract_gate` | Bronze source generic tests |
+전체 selector 이름과 정의는 [`selectors.yml`](selectors.yml), 리소스 책임은 각 도메인
+AI index에서 확인한다. 이 문서에는 phase registry를 복제하지 않는다.
 
 ## Graph 경계
 

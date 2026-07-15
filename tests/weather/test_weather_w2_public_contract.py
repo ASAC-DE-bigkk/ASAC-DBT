@@ -9,12 +9,12 @@ from tests.weather.w2_contract_fixtures import (
     NAMED_TESTS,
     REPO_ROOT,
     WEATHER_OPERATING_DOC,
-    W2_DATA_TESTS,
     W2_GOLD_MODEL,
     W2_GOLD_SCHEMA,
     W2_MACRO,
     W2_PUBLIC_CONTRACT_DOC,
     compact,
+    data_test_path,
     model_contract,
     read,
 )
@@ -197,7 +197,7 @@ def test_public_contract_declares_exact_schema_approved_axis_and_truthful_status
 
 def test_named_and_data_tests_exist_with_direct_dependency_hints() -> None:
     for test_name in DATA_TESTS:
-        sql = read(W2_DATA_TESTS / f"{test_name}.sql")
+        sql = read(data_test_path(test_name))
         first_lines = "\n".join(sql.splitlines()[:5])
         assert "-- depends_on:" in first_lines
         assert f"ref('{MODEL_NAME}')" in first_lines

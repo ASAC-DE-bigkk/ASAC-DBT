@@ -17,8 +17,8 @@ W1_BRIDGE_MODEL = Path("models/weather/special/w1/bridge_weather_admin_dong_grid
 W1_GRID_RECONCILIATION_TEST = Path(
     "tests/weather/special/assert_weather_grid_selection_reconciles.sql"
 )
-W1_OBSERVATION_RECONCILIATION_TEST = Path(
-    "tests/weather/special/"
+WEATHER_OBSERVATION_RECONCILIATION_TEST = Path(
+    "tests/weather/special/recovery/final/"
     "assert_weather_observation_publishable_and_counts_reconcile.sql"
 )
 W2_GOLD_MODEL = Path(
@@ -30,16 +30,18 @@ W2_LINEAGE_WORKSET_MODEL = Path(
     "weather_w2_observation_recovery_lineage_workset.sql"
 )
 W2_DATA_TESTS = Path("tests/weather/special")
+W2_RECOVERY_TESTS = W2_DATA_TESTS / "recovery"
 W2_REPAIR_RECONCILIATION_TEST = (
-    W2_DATA_TESTS / "assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql"
+    W2_RECOVERY_TESTS
+    / "reconciliation/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql"
 )
 W2_REPAIR_WINDOW_EXTRA_TEST = (
-    W2_DATA_TESTS
-    / "assert_gold_weather_forecast_by_admin_dong_repair_window_no_extra_rows.sql"
+    W2_RECOVERY_TESTS / "reconciliation/"
+    "assert_gold_weather_forecast_by_admin_dong_repair_window_no_extra_rows.sql"
 )
 W2_REPAIR_WINDOW_LINEAGE_TEST = (
-    W2_DATA_TESTS
-    / "assert_gold_weather_forecast_by_admin_dong_repair_window_lineage.sql"
+    W2_RECOVERY_TESTS
+    / "lineage/assert_gold_weather_forecast_by_admin_dong_repair_window_lineage.sql"
 )
 W2_PUBLIC_CONTRACT_DOC = Path(
     "domains/weather/contracts/docs/public-gold-ai-contract-v1.md"
@@ -116,6 +118,15 @@ def repo_path(relative_path: Path) -> Path:
 
 def read(relative_path: Path) -> str:
     return repo_path(relative_path).read_text(encoding="utf-8")
+
+
+def data_test_path(test_name: str) -> Path:
+    recovery_tests = {
+        W2_REPAIR_RECONCILIATION_TEST.stem: W2_REPAIR_RECONCILIATION_TEST,
+        W2_REPAIR_WINDOW_EXTRA_TEST.stem: W2_REPAIR_WINDOW_EXTRA_TEST,
+        W2_REPAIR_WINDOW_LINEAGE_TEST.stem: W2_REPAIR_WINDOW_LINEAGE_TEST,
+    }
+    return recovery_tests.get(test_name, W2_DATA_TESTS / f"{test_name}.sql")
 
 
 def compact(text: str) -> str:

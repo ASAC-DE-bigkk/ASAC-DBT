@@ -174,8 +174,9 @@ def test_every_execution_tag_has_one_described_named_selector() -> None:
     selectors = _yaml(REPO_ROOT / "selectors.yml")["selectors"]
     names = [selector["name"] for selector in selectors]
     configured_tags = _tag_values(_yaml(REPO_ROOT / "dbt_project.yml"))
-    configured_tags.update(_tag_values(_yaml(REPO_ROOT / "models/traffic/sources.yml")))
-    configured_tags.update(_tag_values(_yaml(REPO_ROOT / "models/weather/sources.yml")))
+    for domain in DOMAINS:
+        for properties_path in _domain_yaml_paths(domain):
+            configured_tags.update(_tag_values(_yaml(properties_path)))
     execution_tags = {
         tag
         for tag in configured_tags

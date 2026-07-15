@@ -12,8 +12,7 @@ from tests.weather.w2_contract_fixtures import (
     W1_GRID_RECONCILIATION_TEST,
     W1_MACRO,
     W1_OBSERVATION_MODEL,
-    W1_OBSERVATION_RECONCILIATION_TEST,
-    W2_DATA_TESTS,
+    WEATHER_OBSERVATION_RECONCILIATION_TEST,
     W2_GOLD_MODEL,
     W2_LINEAGE_WORKSET_MODEL,
     W2_MACRO,
@@ -21,6 +20,7 @@ from tests.weather.w2_contract_fixtures import (
     W2_REPAIR_WINDOW_EXTRA_TEST,
     W2_REPAIR_WINDOW_LINEAGE_TEST,
     compact,
+    data_test_path,
     read,
 )
 
@@ -186,8 +186,23 @@ def test_gold_repair_reconciliation_compacts_payload_before_winner_ranking() -> 
     assert "left join lineage_backed_products" in lineage_failure_query
 
 
-def test_repair_lineage_workset_is_bounded_and_dev_only() -> None:
-    workset = compact(read(W2_LINEAGE_WORKSET_MODEL))
+def test_repair_lineage_workset_is_parse_safe_and_runtime_fail_closed() -> None:
+    raw_workset = read(W2_LINEAGE_WORKSET_MODEL)
+    workset = compact(raw_workset)
+    dependency_hints = "\n".join(raw_workset.splitlines()[:8])
+    for dependency in (
+        "bridge_weather_admin_dong_grid",
+        "asac_axes', 'dim_admin_dong",
+        "silver_kma_vilage_fcst_grid",
+        "gold_weather_forecast_by_admin_dong",
+    ):
+        assert "-- depends_on:" in dependency_hints
+        assert dependency in dependency_hints
+    assert "{% set repair_mode = weather_w2_is_repair() %}" in raw_workset
+    assert "{% if execute and not repair_mode %}" in raw_workset
+    assert "{% if repair_mode %}" in raw_workset
+    assert "{% else %}" in raw_workset
+    assert "where false" in workset
     for token in (
         "materialized='table'",
         "alias='weather_w2_observation_recovery_lineage_workset'",
@@ -244,7 +259,7 @@ def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze() ->
 
 
 def test_observation_reconciliation_uses_explicit_trino_join_aliases() -> None:
-    reconciliation = compact(read(W1_OBSERVATION_RECONCILIATION_TEST))
+    reconciliation = compact(read(WEATHER_OBSERVATION_RECONCILIATION_TEST))
 
     for clause in (
         "from manifest as manifest_run",
@@ -358,7 +373,7 @@ def test_canonical_revision_is_pinned_and_validated_temp_drives_all_deletes() ->
 
 def test_dimension_backed_data_tests_use_the_approved_canonical_revision() -> None:
     for test_name in CANONICAL_DATA_TESTS:
-        sql = compact(read(W2_DATA_TESTS / f"{test_name}.sql"))
+        sql = compact(read(data_test_path(test_name)))
         assert "set canonical_contract = weather_w2_canonical_contract()" in sql
         assert (
             "revision_date as date) = date '{{ canonical_contract['revision_date'] }}'"

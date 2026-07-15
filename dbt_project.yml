@@ -143,3 +143,10 @@ data_tests:
       special:
         w1:
           +tags: ["ask_seoul_weather_w1_bridge"]
+        recovery:
+          reconciliation:
+            +tags: ["ask_seoul_weather_w2_recovery_window_contracts"]
+          lineage:
+            +tags: ["ask_seoul_weather_w2_recovery_lineage_contract"]
+          final:
+            +tags: ["ask_seoul_weather_w2_recovery_final_contract"]

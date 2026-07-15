@@ -5,6 +5,7 @@ models:
     description: 승인된 공통 행정동 revision 2025-04-01과 명시적 bridge v1을 사용해 행정동·예보시각·항목별 최신 KMA 예보를 게시하는 공개 Gold다.
     access: public
     config:
+      tags: ["ask_seoul_weather_w2_recovery_window_models"]
       meta:
         public_gold:
           contract_version: "1.0"

@@ -1,14 +1,22 @@
+-- depends_on: {{ ref('bridge_weather_admin_dong_grid') }}
+-- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
+-- depends_on: {{ ref('silver_kma_vilage_fcst_grid') }}
+-- depends_on: {{ ref('gold_weather_forecast_by_admin_dong') }}
+
 {{ config(
     materialized='table',
     alias='weather_w2_observation_recovery_lineage_workset'
 ) }}
 
-{% if not weather_w2_is_repair() %}
+{% set repair_mode = weather_w2_is_repair() %}
+
+{% if execute and not repair_mode %}
     {{ exceptions.raise_compiler_error(
         'Weather W2 lineage workset은 bounded_reconcile 복구에서만 생성할 수 있습니다.'
     ) }}
 {% endif %}
 
+{% if repair_mode %}
 {{ weather_w2_assert_gold_dev_target() }}
 {{ weather_w2_assert_repair_evidence() }}
 
@@ -188,3 +196,12 @@ from actual_repair_products as actual
 inner join ranked_actual_lineage_runs as run
     on actual.source_id = run.source_id
    and actual.dag_run_id = run.dag_run_id
+{% else %}
+select
+    cast(null as varchar) as product_row_id,
+    cast(null as timestamp(6)) as repair_start_at,
+    cast(null as timestamp(6)) as repair_cutoff_at,
+    cast(null as bigint) as lineage_run_bucket_ordinal,
+    cast(null as varchar) as lineage_payload
+where false
+{% endif %}

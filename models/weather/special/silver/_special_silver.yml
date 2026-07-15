@@ -4,6 +4,7 @@ models:
   - name: silver_kma_vilage_fcst_observation
     description: publishable run/raw page에서 관측된 동일 KMA item signature를 한 행으로 접고 replay·invalid time·raw lineage를 보존한 내부 Silver다.
     config:
+      tags: ["ask_seoul_weather_w2_recovery_window_models"]
       meta:
         row_meaning_ko: 한 publishable Airflow run의 한 raw page에서 관측된 동일 KMA item signature다.
         grain:
@@ -138,6 +139,7 @@ models:
   - name: silver_kma_vilage_fcst_grid
     description: 유효한 observation 중 결정적으로 선택된 nx·ny·발표·예보·항목 단위 native KMA 예보 사실 내부 Silver다.
     config:
+      tags: ["ask_seoul_weather_w2_recovery_window_models"]
       meta:
         row_meaning_ko: 동일 native Grid 예보 사실에서 tie-break로 선택된 한 observation이다.
         grain:

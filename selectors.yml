@@ -75,3 +75,16 @@ selectors:
           indirect_selection: cautious
         - method: test_type
           value: generic
+
+  - name: ask_seoul_weather_w2_recovery_window_models
+    description: Weather W2 bounded recovery window model graph phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_window_models, indirect_selection: cautious}
+  - name: ask_seoul_weather_w2_recovery_window_contracts
+    description: Weather W2 bounded recovery window reconciliation contract phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_window_contracts, indirect_selection: cautious}
+  - name: ask_seoul_weather_w2_recovery_lineage_contract
+    description: Weather W2 bounded recovery bucket lineage contract phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_lineage_contract, indirect_selection: cautious}
+  - name: ask_seoul_weather_w2_recovery_final_contract
+    description: Weather W2 bounded recovery final publishability contract phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_final_contract, indirect_selection: cautious}

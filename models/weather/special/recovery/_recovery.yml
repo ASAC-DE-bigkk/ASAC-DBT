@@ -5,6 +5,7 @@ models:
     description: W2 bounded recovery 창의 현재 Gold 행과 exact lineage payload를 materialize해 2GB Trino 한도 안에서 bucket별 검증을 가능하게 하는 dev 전용 내부 workset이다.
     access: private
     config:
+      tags: ["ask_seoul_weather_w2_recovery_window_models"]
       meta:
         row_meaning_ko: 현재 W2 repair 창에 속한 한 Gold 제품 행과 그 행을 설명하는 결정적 lineage payload다.
         grain:

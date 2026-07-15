@@ -14,11 +14,13 @@ lineage data test는 workset을 읽어 run 순번을 4개 bucket으로 나누고
 
 각 6시간 window는 다음 순서로 실행한다.
 
-1. Observation, Grid, Gold를 bounded W2 vars로 갱신한다.
-2. lineage workset을 한 번 materialize한다.
-3. expected-row 및 extra-row reconciliation을 실행한다.
-4. lineage test를 bucket `0`부터 `3`까지 직렬 실행한다.
-5. 네 bucket이 모두 통과한 경우에만 checkpoint를 기록한다.
+1. `ask_seoul_weather_w2_recovery_window_models` selector가 Observation, Grid, Gold, lineage workset을 dbt graph 순서로 갱신한다.
+2. `ask_seoul_weather_w2_recovery_window_contracts` selector가 expected-row 및 extra-row reconciliation을 실행한다.
+3. `ask_seoul_weather_w2_recovery_lineage_contract` selector를 bucket `0`부터 `3`까지 직렬 실행한다.
+4. 네 bucket이 모두 통과한 경우에만 checkpoint를 기록한다.
+
+모든 window 완료 후 `ask_seoul_weather_w2_recovery_final_contract` selector를 한 번 실행해 전체 publishability를 정산한다.
+DAG는 selector와 invocation identity만 전달하며 model/test 이름과 dbt project 경로는 소유하지 않는다.
 
 ## 안전 경계
 
