@@ -9,6 +9,7 @@
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'spot_id', 'observed_at'],
     on_table_exists='drop',
+    post_hook=dedup_latest(['area_cd', 'spot_id', 'observed_at'], order_col='observed_at'),
 ) }}
 
 with src as (

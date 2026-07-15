@@ -24,6 +24,14 @@ clean-targets:
 models:
   seoul_ppltn:
     +materialized: table
+    # gold 전체 재빌드 시 원자적 교체(CREATE OR REPLACE) — R2 delete+insert 중복 방지, drop 갭 없음
+    +on_table_exists: replace
+  # 티어 태그는 각 모델의 schema.yml `config: tags:` 에 있다(SQL=로직 / yml=메타 분리).
+  # cosmos DAG 가 `tag:fast`/`tag:slow` 로 선택 → 하드코딩 리스트 제거. 아래는 우리 소유가
+  # 아닌 패키지 모델이라 여기서 태깅(fast: 매 run 뷰 갱신으로 seed race 자가치유).
+  asac_axes:
+    dim_admin_dong:
+      +tags: ['fast']
 
 seeds:
   seoul_ppltn:

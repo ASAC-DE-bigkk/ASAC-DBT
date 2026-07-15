@@ -7,12 +7,8 @@
 -- 값 사용. 예보값이므로 관측이 아닌 '예보된 날씨 vs 실제 붐빔'. 크로스도메인 source()
 -- (schema=weather). 조인축 admin_dong_code(라이브 B). 커버리지=우리 핫플 동 한정.
 
--- view: R2 delete+insert 의 비원자성으로 incremental 시 시간별 재삽입 중복이 재발해
--- (unique_grain 5분마다 FAIL→알림) view 로 전환. 물리 write 없어 중복 불가·항상 라이브.
--- 시간 grain 조인이라 조회 시 재계산(~1-2s) 감당 가능.
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with ppltn_dong as (

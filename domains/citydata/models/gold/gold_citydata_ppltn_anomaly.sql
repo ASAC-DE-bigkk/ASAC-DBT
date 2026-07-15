@@ -4,12 +4,11 @@
 -- 붐벼?" / 사고·행사 이례 급증 자동 신호용. baseline = (장소×요일×시간) 과거 평균±표준편차,
 -- 현재 = 최신 관측. z-score·% 편차로 이례성 정량화.
 --
--- by_time 파생 view (조회 시 최신 baseline·현재 재계산 → 항상 라이브). 챗봇/API가 area_cd
+-- by_time 파생 table (조회 시 최신 baseline·현재 재계산 → 항상 라이브). 챗봇/API가 area_cd
 -- 로 1행 읽어 바로 답변.
 
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with src as (

@@ -6,10 +6,6 @@
 
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='incremental',
-    incremental_strategy='delete+insert',
-    unique_key=['event_at', 'area_cd'],
-    on_table_exists='drop',
 ) }}
 
 -- ⚠ silver가 incremental merge 과정에서 완전동일 중복행을 남길 수 있어(dbt-trino/Iceberg

@@ -6,11 +6,9 @@
 -- commerce.silver_license_current 는 전 서울 인허가 명부(현재)로 시계열이 아니라 '상태/맥락'
 -- 이라 동별 밀도(개수)로 집계해 붙인다. 크로스도메인 source()(schema=commerce). 조인축
 -- admin_dong_code(라이브 B). 커버리지=우리 핫플 동 한정. 90행짜리 가벼운 집계 + 5분 티어라
--- materialized=view (조회 시 계산·항상 최신·재생성 갭 없음). commerce 는 source 라 읽기만.
 
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with ppltn_dong as (
