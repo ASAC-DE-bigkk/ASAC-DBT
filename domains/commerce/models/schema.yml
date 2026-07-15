@@ -1,6 +1,14 @@
 version: 2
 
 models:
+  - name: gold_license_geo_grid
+    description: >
+      (#discovery 인사이트) 좌표 0.005도(~500m) 격자 상권 히트맵 × 업종 — 영업 밀도·최근 1년
+      개업. 실측 top3 격자 = 가산디지털단지·선릉/역삼·강남역(실상권 일치). D1 지도 후보.
+  - name: gold_license_address_succession
+    description: >
+      (#discovery 인사이트) 자리 승계 — 폐업 후 같은 도로명주소의 최근접 후속 개업(≤365일) 매칭.
+      "음식점 자리엔 음식점"(food→food 9.9만, 중위 8일) 고착성. 건물 단위 주소 근사임을 명시.
   - name: gold_license_lifespan
     description: >
       (#discovery 인사이트) 업소 수명(개업→폐업 일수) 분포 × 업종 3단 × 자치구 — avg/p50/p90/조기폐업률(1년 미만). 폐업 완결분(1.7M) 기준.
