@@ -1,0 +1,251 @@
+version: 2
+
+# culture gold 계약·테스트 (#200 — schema.yml 을 layer 별로 분리, 모델명 정렬).
+# published gold 전 모델 contract enforced(#180). silver 는 models/silver/_culture_silver__models.yml.
+
+models:
+  - name: gold_culture_activity_by_dong
+    description: 행정동(admin_dong_code) × 일자 문화활동 집계(#48). dim_admin_dong 426동 scaffold라 활동 0건 동도 0으로 존재. sports 제외.
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: admin_dong_code
+        data_type: varchar
+        tests: [not_null]
+      - name: admin_dong
+        data_type: varchar
+      - name: gu_code
+        data_type: varchar
+        tests: [not_null]
+      - name: gu
+        data_type: varchar
+      - name: stat_region_cd
+        data_type: varchar
+      - name: event_date
+        data_type: date
+        tests: [not_null]
+      - name: activities_count
+        data_type: bigint
+      - name: performances_count
+        data_type: bigint
+      - name: events_count
+        data_type: bigint
+      - name: festivals_count
+        data_type: bigint
+      - name: exhibitions_count
+        data_type: bigint
+      - name: sejong_count
+        data_type: bigint
+      - name: kcisa_count
+        data_type: bigint
+
+  - name: gold_culture_boxoffice_daily
+    description: 랭킹 스냅샷 (snapshot_date × rank_no)
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: snapshot_date
+        data_type: varchar
+      - name: rank_no
+        data_type: integer
+        tests: [not_null]
+      - name: performance_id
+        data_type: varchar
+      - name: performance_name
+        data_type: varchar
+      - name: genre
+        data_type: varchar
+      - name: venue_name
+        data_type: varchar
+      - name: event_start_date
+        data_type: date
+      - name: event_end_date
+        data_type: date
+      - name: perf_count
+        data_type: integer
+      - name: seat_count
+        data_type: integer
+      - name: gu_code
+        data_type: varchar
+      - name: gu
+        data_type: varchar
+
+  - name: gold_culture_event_schedule
+    description: 문화행사 목록 질의 표면 (행사 1행, #187). "이번 주말 ○○구 행사" = 기간 겹침 + gu_code 필터 단독 조회. 6개 silver union + norm_title×시작일×gu 크로스소스 dedup(전문 소스 우선).
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: event_ref
+        description: "소스 프리픽스 키 ('performance:12345') — 크로스소스 충돌 방지"
+        data_type: varchar
+        tests: [not_null, unique]
+      - name: event_type
+        data_type: varchar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [event, performance, exhibition, festival, sejong, kcisa]}
+      - name: title
+        data_type: varchar
+        tests: [not_null]
+      - name: category
+        data_type: varchar
+      - name: venue_name
+        data_type: varchar
+      - name: is_free
+        data_type: varchar
+      - name: event_start_date
+        data_type: date
+        tests: [not_null]
+      - name: event_end_date
+        data_type: date
+        tests: [not_null]
+      - name: event_at
+        data_type: timestamp(6)
+        tests: [not_null]
+      - name: gu
+        data_type: varchar
+      - name: gu_code
+        data_type: varchar
+      - name: admin_dong
+        data_type: varchar
+      - name: admin_dong_code
+        data_type: varchar
+      - name: latitude
+        data_type: double
+      - name: longitude
+        data_type: double
+      - name: quality_status
+        data_type: varchar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: gold_culture_location_daily
+    description: gu_code × 일자 문화활동 집계 (기간 겹침 전개)
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180) — 타입은 describe 실측(2026-07-14)
+    columns:
+      - name: gu_code
+        data_type: varchar
+        tests: [not_null]
+      - name: gu
+        data_type: varchar
+      - name: event_date
+        data_type: date
+        tests: [not_null]
+      - name: activities_count
+        data_type: bigint
+      - name: performances_count
+        data_type: bigint
+      - name: events_count
+        data_type: bigint
+      - name: festivals_count
+        data_type: bigint
+      - name: exhibitions_count
+        data_type: bigint
+      - name: sejong_count
+        data_type: bigint
+      - name: dong_precise_count
+        description: "좌표로 행정동까지 정밀한 활동 수(#111 quality_status='dong_precise')"
+        data_type: bigint
+        tests: [not_null]
+
+  - name: gold_culture_movie_boxoffice_daily
+    description: 일별 서울/전국 영화 관객 비중(서울 쏠림). 그레인 boxoffice_date. 시도 그레인이라 자치구 gold 미편입.
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180) — 스파이크 검증 모델
+    columns:
+      - name: boxoffice_date
+        description: 관객일(날짜 1행)
+        data_type: date
+        tests:
+          - not_null
+          - unique
+      - name: nation_top_audience
+        data_type: bigint
+      - name: seoul_top_audience
+        data_type: bigint
+      - name: seoul_audience_share
+        description: 서울 top10 관객합 / 전국 top10 관객합 (서울 쏠림 신호)
+        data_type: decimal(38,18)   # 1.0*x/y = Trino decimal 산술 — double 아님 주의
+        tests:
+          - not_null
+      - name: nation_top_movie
+        data_type: varchar
+      - name: seoul_top_movie
+        data_type: varchar
+
+  - name: gold_culture_reservation_daily
+    description: gu_code × 스냅샷일 예약 가용 현황
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: gu_code
+        data_type: varchar
+        tests: [not_null]
+      - name: gu
+        data_type: varchar
+      - name: snapshot_date
+        data_type: varchar   # 물리 varchar(YYYY-MM-DD 문자열) — date 아님 주의
+      - name: total_services
+        data_type: bigint
+      - name: culture_services
+        data_type: bigint
+      - name: sport_services
+        data_type: bigint
+      - name: open_services
+        data_type: bigint
+      - name: availability_rate
+        data_type: decimal(38,18)   # Trino decimal 산술 결과 — double 아님 주의
+      - name: dong_precise_count
+        description: "좌표로 행정동까지 정밀한 예약 수(#111 quality_status='dong_precise')"
+        data_type: bigint
+        tests: [not_null]
+
+  - name: gold_culture_sports_schedule
+    description: 서울 야구 경기 일정 질의 표면 (경기 1행). 최근접 미래 경기 = game_date>=current_date order by event_at.
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: game_date
+        data_type: date
+        tests: [not_null]
+      - name: event_at
+        data_type: timestamp(6)
+        tests: [not_null]
+      - name: game_time
+        data_type: varchar
+      - name: stadium
+        data_type: varchar
+        tests: [not_null]
+      - name: home_team
+        data_type: varchar
+      - name: away_team
+        data_type: varchar
+      - name: gu
+        data_type: varchar
+      - name: gu_code
+        data_type: varchar
+      - name: latitude
+        data_type: double
+      - name: longitude
+        data_type: double
+      - name: admin_dong
+        data_type: varchar
+      - name: admin_dong_code
+        data_type: varchar
+      - name: quality_status
+        data_type: varchar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
