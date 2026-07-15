@@ -51,8 +51,26 @@ end
 - **대분류(major)/중분류(category)/소분류(dataset)**: `commerce_dataset_taxonomy` 시드 조인
   (`short = dataset`; 분류 정본: dags docs/PROJECT.md §1 — culture 56 · health 51 · industry 32 · environment 13).
 - **업태(uptaenm)**: 19개 detail(56 dataset)이 payload 로 보유 — detail 조인으로 도출(§5).
-- entity ⋈ detail 조인키: `(dataset, opnsfteamcode, mgtno, content_hash)` — content_hash 까지
-  포함해야 detail(버전 이력)에서 **현재 버전 행**만 매칭된다.
+
+### 1.4 현재(최신) 버전 detail 확보 — 정본 패턴 [실측 검증]
+
+detail 은 **버전 이력**(grain = 자연키 × collected_at × content_hash)이다. 최신 버전만 얻는
+정본은 **entity 조인**(entity 가 곧 "현재 버전" 앵커):
+
+```sql
+select e.trdstategbn, e.trdstatenm, d.*          -- 상태값(공통)은 entity, 상이 컬럼은 detail
+from iceberg_dev.commerce.gold_license_entity e
+join iceberg_dev.commerce.commerce_<domain>_detail d
+  on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
+  and d.mgtno = e.mgtno and d.content_hash = e.content_hash;
+```
+
+- 검증(2026-07-15, food_sanitation 21 dataset): entity 1,121,462 = 조인 1,121,462 —
+  **커버리지 100%·팬아웃 0**. (A→B→A 원복으로 같은 content_hash 가 2버전 존재해도 검증상
+  팬아웃 0 — 안전벨트가 필요하면 조인에 `and d.collected_at = e.collected_at` 추가.)
+- detail 단독 window(`row_number() over (partition by 자연키 order by collected_at desc)`)는
+  **근사**다 — 버전 정렬의 정본은 updatedt 기반(silver)이고 detail 엔 collected_at 뿐이라
+  동시수집·재수집 케이스에서 어긋날 수 있다. entity 조인을 기본으로 쓸 것.
 
 ---
 
@@ -279,6 +297,83 @@ D1 원자 교체(또는 트랜잭션 내 `DELETE` 후 `INSERT`). **증분 upsert
 
 D1 은 UTC 기준이므로 KST 는 `'+9 hours'` 보정. `weekday 1`은 "다음 월요일"이므로 `-7 days`
 와 조합해 이번 주 월요일을 얻는다(일요일 시작이면 `weekday 0`).
+
+### 7.3 일일 리프레시 구문 세트 — DROP 후 재적재(준비 완료, 그대로 실행 가능)
+
+하루 단위로 값이 바뀌므로(당해/당월/이번주/어제) **매일 SQLite 를 DROP 하고 새로 적재**하는
+전제의 구문. 흐름: `[Trino 추출 E1·E2] → [SQLite R1 재적재] → [조회 Q]`.
+
+#### E1. Trino 추출 — 일 grain (agg_license_daily 적재분, 최근 400일)
+
+```sql
+with e as (
+  select t.major, t.category, e.dataset,
+         case when regexp_like(trim(coalesce(e.apvpermymd,'')), '^\d{4}-\d{2}-\d{2}$') then trim(e.apvpermymd) end o_iso,
+         case when regexp_like(trim(coalesce(e.dcbymd,'')),     '^\d{4}-\d{2}-\d{2}$') then trim(e.dcbymd)     end c_iso
+  from iceberg_dev.commerce.gold_license_entity e
+  join iceberg_dev.commerce.commerce_dataset_taxonomy t on t.short = e.dataset),
+ev as (
+  select o_iso dt, major, category, dataset, 1 o, 0 c from e where o_iso is not null
+  union all
+  select c_iso, major, category, dataset, 0, 1 from e where c_iso is not null)
+select dt, major, category, dataset, sum(o) opened, sum(c) closed
+from ev
+where dt >= cast(date_add('day', -400, current_date) as varchar)   -- 롤링 400일
+group by 1,2,3,4 order by 1,4;
+```
+
+#### E2. Trino 추출 — 월 grain (agg_license_monthly 적재분, 전 기간)
+
+```sql
+-- E1 의 ev 까지 동일, 마지막 select 만 교체:
+select substr(dt,1,7) ym, major, category, dataset, sum(o) opened, sum(c) closed
+from ev group by 1,2,3,4 order by 1,4;
+-- (suspended/cancelled 확장 시 §4.2·§4.3 detail 쿼리 결과를 같은 (ym, dataset) 그레인으로 union)
+```
+
+#### R1. SQLite 재적재 — DROP 후 재생성(단일 트랜잭션, 실패 시 원상)
+
+```sql
+BEGIN;
+DROP TABLE IF EXISTS agg_license_daily;
+DROP TABLE IF EXISTS agg_license_monthly;
+DROP TABLE IF EXISTS meta_refresh;
+
+CREATE TABLE agg_license_daily (
+  dt text not null, major text not null, category text not null, dataset text not null,
+  opened integer not null default 0, closed integer not null default 0,
+  primary key (dt, dataset));
+CREATE INDEX idx_daily_dt ON agg_license_daily(dt);
+
+CREATE TABLE agg_license_monthly (
+  ym text not null, major text not null, category text not null, dataset text not null,
+  opened integer not null default 0, closed integer not null default 0,
+  primary key (ym, dataset));
+CREATE INDEX idx_monthly_ym ON agg_license_monthly(ym);
+
+CREATE TABLE meta_refresh (loaded_at text not null, source_max_event_date text not null);
+
+-- E1/E2 결과를 그대로 multi-row INSERT (export 스크립트가 값 채움)
+INSERT INTO agg_license_daily   (dt, major, category, dataset, opened, closed) VALUES /* E1 rows */;
+INSERT INTO agg_license_monthly (ym, major, category, dataset, opened, closed) VALUES /* E2 rows */;
+INSERT INTO meta_refresh VALUES (datetime('now'), /* E1 의 max(dt) */);
+COMMIT;
+```
+
+> D1 배포 시엔 파일 통째 교체(`wrangler d1 import` / 신규 DB 스왑)가 위 트랜잭션과 등가 —
+> 어느 쪽이든 **증분 upsert 없이 전량 재생성**(§7.2 원칙).
+
+#### Q. 조회 — 어제/오늘/이번주/당월/당해 (KST 보정, 적재 후 그대로 사용)
+
+```sql
+-- 어제:    select major, sum(opened) opened, sum(closed) closed from agg_license_daily
+--          where dt = date('now','+9 hours','-1 day') group by major;
+-- 오늘:    where dt = date('now','+9 hours')            -- 일배치라 값은 최신 수집분 기준(§7.1)
+-- 이번주:  where dt between date('now','+9 hours','weekday 1','-7 days') and date('now','+9 hours')
+-- 당월:    select * from agg_license_monthly where ym = strftime('%Y-%m','now','+9 hours');
+-- 당해:    select major, sum(opened), sum(closed) from agg_license_monthly
+--          where ym like strftime('%Y','now','+9 hours')||'-%' group by major;
+```
 
 ---
 
