@@ -43,10 +43,7 @@ with raw_activities as (
 
 valid as (
     select * from raw_activities
-    where event_start_date is not null
-      and event_end_date is not null
-      and event_end_date >= event_start_date
-      and date_diff('day', event_start_date, event_end_date) <= 400
+    where {{ culture_valid_period() }}
 )
 
 select

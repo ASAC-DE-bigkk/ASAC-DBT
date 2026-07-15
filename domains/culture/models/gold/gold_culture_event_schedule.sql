@@ -4,7 +4,7 @@
 -- 크로스소스 dedup: norm_title×시작일×gu 일치 시 전문 소스 우선(performance>exhibition>festival>sejong>kcisa>event)
 --   — 서울문화행사(event)는 종합 수집 소스라 타 소스와 중복이 잦아 후순위. gu를 축에 넣어
 --   같은 제목·같은 날짜의 타 지역 별개 행사를 오병합하지 않는다.
--- 기간 검증은 int_culture_activity_days 와 동일 기준(시작≤종료, 400일 상한).
+-- 기간 검증은 culture_valid_period 매크로 공유(#199) — int_culture_activity_days 와 동일 기준.
 
 with unioned as (
     select
@@ -94,10 +94,7 @@ with unioned as (
 valid as (
     select * from unioned
     where title is not null
-      and event_start_date is not null
-      and event_end_date is not null
-      and event_end_date >= event_start_date
-      and date_diff('day', event_start_date, event_end_date) <= 400
+      and {{ culture_valid_period() }}
 ),
 
 deduped as (

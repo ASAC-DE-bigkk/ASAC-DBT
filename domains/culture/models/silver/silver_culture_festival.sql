@@ -29,17 +29,7 @@ latest as (
     ) where rn = 1
 ),
 
-fac as (
-    select facility_id, facility_name, longitude, latitude, gu, gu_code, admin_dong, admin_dong_code
-    from {{ ref('silver_culture_facility') }}
-),
-
-fac_by_name as (
-    select facility_name, min(facility_id) as facility_id
-    from fac
-    where facility_name is not null
-    group by facility_name
-),
+{{ culture_facility_by_name() }},
 
 stamped as (
 select

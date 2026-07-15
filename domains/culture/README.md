@@ -2,7 +2,7 @@
 
 **타 도메인에서 조인하러 온 분을 위한 문서입니다.** 서울의 문화활동(공연·행사·축제·전시·공공예약·영화 박스오피스·야구 일정)을 "언제(시간축) × 어디(공간축)" 그레인으로 제공합니다. 위치: dev = `iceberg_dev.culture` / prod = `iceberg.culture` (silver·gold·bronze 전부 같은 스키마).
 
-> 컬럼 계약·테스트: [models/schema.yml](models/schema.yml) · bronze 원천 정의: [models/sources.yml](models/sources.yml) · 설계 배경: [docs/design/](docs/design/) · 수집 파이프라인 내부(ASAC-DAG): `dags/domains/culture/`
+> 컬럼 계약·테스트: [silver](models/silver/_culture_silver__models.yml) · [gold](models/gold/_culture_gold__models.yml) (layer별 분리 #200) · bronze 원천 정의: [models/sources.yml](models/sources.yml) · 설계 배경: [docs/design/](docs/design/) · 수집 파이프라인 내부(ASAC-DAG): `dags/domains/culture/`
 
 ## 조인 계약 — 이것만 알면 됩니다 (#48 공통축)
 
@@ -105,6 +105,16 @@ dim (2): 시설 마스터
 - 즉 아침에 보는 데이터 = 전일까지 확정분 + 당일 새벽 스냅샷.
 - `movie_boxoffice`는 전일 관객(`boxoffice_date` = 수집일−1), `facility`는 주간 전수 리프레시(그 외 요일은 변화분만).
 - 원천 신선도는 `dbt source freshness`(collected_at 기준 30h warn/48h error)로 감시 중.
+
+## 새 행사(기간 fact) 소스를 추가한다면 — 체크리스트
+
+6-소스 union 이 의도적으로 **명시 SQL**로 4곳에 존재합니다(레지스트리 매크로화는 Jinja 복잡도 대비 소스 추가 빈도가 낮아 보류, #199). 새 silver 를 붙일 때 아래를 **전부** 갱신하세요 — 한 곳을 빼먹으면 컴파일 에러가 아니라 조용한 커버리지 구멍이 됩니다:
+
+1. `models/intermediate/int_culture_activity_days.sql` — union arm 추가 (집계 gold 2종 편입)
+2. `models/gold/gold_culture_event_schedule.sql` — union arm + source_priority 순위 결정 (행사 목록 편입)
+3. `tests/assert_culture_future_event_coverage.sql` — union arm (미래 재고 감시 편입)
+4. `tests/assert_culture_admin_dong_in_canonical.sql` — 공간축 보유 시 union arm (canonical 정합 감시)
+5. schema.yml(해당 layer) 계약 + README silver 카탈로그 표
 
 ## 더 깊이
 
