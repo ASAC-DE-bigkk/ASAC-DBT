@@ -218,3 +218,137 @@ sources:
             description: Airflow collection run lineage.
             tests:
               - not_null
+
+      - name: seoul_traffic_flow
+        identifier: bronze_seoul_traffic_flow
+        description: Seoul TOPIS TrafficInfo per-link speed and travel-time rows with raw XML lineage metadata.
+        freshness: null
+        columns:
+          - name: request_id
+            description: Deterministic request identifier for a link within one flow snapshot.
+            tests:
+              - not_null
+          - name: source_id
+            description: Fixed source identifier for Seoul TrafficInfo flow rows.
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['seoul_traffic_flow']
+          - name: request_params_json
+            description: Redacted request parameters including the requested link id.
+            tests:
+              - not_null
+          - name: link_id
+            description: TOPIS road-link identifier used to call TrafficInfo.
+            tests:
+              - not_null
+          - name: prcs_spd
+            description: TOPIS processed speed value before Silver casting.
+          - name: prcs_trv_time
+            description: TOPIS processed travel-time value before Silver casting.
+          - name: raw_object_key
+            description: R2 object key holding the original TrafficInfo JSON.
+            tests:
+              - not_null
+          - name: payload_hash
+            description: SHA-256 fingerprint of the original response.
+            tests:
+              - not_null
+          - name: http_status
+            description: HTTP status recorded for the link request.
+            tests:
+              - not_null
+          - name: result_code
+            description: TOPIS response result code.
+            tests:
+              - not_null
+          - name: result_msg
+            description: TOPIS response message.
+            tests:
+              - not_null
+          - name: list_total_count
+            description: TOPIS-reported response row count.
+            tests:
+              - not_null
+          - name: row_count
+            description: Number of parsed rows for this link response.
+            tests:
+              - not_null
+          - name: collected_at
+            description: Flow response collection timestamp.
+            tests:
+              - not_null
+          - name: load_date
+            description: KST ingestion partition date.
+            tests:
+              - not_null
+          - name: dag_run_id
+            description: Airflow flow Bronze collection run lineage.
+            tests:
+              - not_null
+
+      - name: seoul_traffic_flow_request_audit
+        identifier: bronze_seoul_traffic_flow_request_audit
+        description: Seoul TrafficInfo request-level audit rows, including valid no-data responses.
+        freshness: null
+        columns:
+          - name: request_id
+            description: Deterministic request identifier for a link within one flow snapshot.
+            tests:
+              - not_null
+          - name: source_id
+            description: Fixed source identifier for Seoul TrafficInfo flow requests.
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['seoul_traffic_flow']
+          - name: request_params_json
+            description: Redacted request parameters including the requested link id.
+            tests:
+              - not_null
+          - name: link_id
+            description: Requested TOPIS road-link identifier.
+            tests:
+              - not_null
+          - name: raw_object_key
+            description: R2 object key holding the original response.
+            tests:
+              - not_null
+          - name: payload_hash
+            description: SHA-256 fingerprint of the original response.
+            tests:
+              - not_null
+          - name: http_status
+            description: HTTP status recorded for the link request.
+            tests:
+              - not_null
+          - name: result_code
+            description: TOPIS response result code.
+            tests:
+              - not_null
+          - name: result_msg
+            description: TOPIS response message.
+            tests:
+              - not_null
+          - name: list_total_count
+            description: TOPIS-reported response row count.
+            tests:
+              - not_null
+          - name: row_count
+            description: Number of parsed rows for this link response.
+            tests:
+              - not_null
+          - name: collected_at
+            description: Flow response collection timestamp.
+            tests:
+              - not_null
+          - name: load_date
+            description: KST ingestion partition date.
+            tests:
+              - not_null
+          - name: dag_run_id
+            description: Airflow flow Bronze collection run lineage.
+            tests:
+              - not_null

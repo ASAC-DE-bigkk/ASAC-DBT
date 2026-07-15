@@ -31,3 +31,47 @@ models:
         description: Latest current incident occurrence timestamp in KST; null for a valid zero-incident snapshot.
       - name: last_collected_at
         description: Latest Bronze collection timestamp represented in the current snapshot; null for a valid zero-incident snapshot.
+
+  - name: gold_traffic_incident_x_flow
+    description: Current TOPIS incidents left-joined to the pinned per-link TrafficInfo speed and travel-time snapshot.
+    columns:
+      - name: source_record_id
+        description: Stable TOPIS incident identifier.
+        tests:
+          - not_null
+          - unique
+      - name: incident_source_id
+        description: Incident source identifier.
+        tests:
+          - not_null
+      - name: link_id
+        description: TOPIS road-link identifier shared by incident and flow data.
+      - name: occurred_at
+        description: Incident occurrence timestamp in KST.
+        tests:
+          - not_null
+      - name: incident_dag_run_id
+        description: Publishable incident Bronze snapshot used for the current incident row.
+        tests:
+          - not_null
+      - name: flow_speed
+        description: Speed from the matching TrafficInfo response; null when no flow row matched.
+      - name: flow_travel_time
+        description: Travel time from the matching TrafficInfo response; null when no flow row matched.
+      - name: flow_value_quality
+        description: Flow metric availability classification.
+      - name: flow_observed_at
+        description: Flow response collection timestamp.
+      - name: flow_raw_object_key
+        description: R2 raw lineage for the matching flow response.
+      - name: flow_payload_hash
+        description: SHA-256 lineage hash for the matching flow response.
+      - name: flow_dag_run_id
+        description: Publishable flow Bronze snapshot used for the join.
+      - name: flow_match_status
+        description: Join result; matched when a flow link row exists, otherwise missing_flow.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['matched', 'missing_flow']
