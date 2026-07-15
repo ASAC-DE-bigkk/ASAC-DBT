@@ -116,6 +116,11 @@ sources:
     tables:
       - name: silver_air_pollution_facility_detail
       - name: silver_water_pollution_facility_detail
+      - name: silver_emission_repair_agent_detail
+      - name: silver_mail_order_sale_detail
+      - name: silver_medical_institution_detail
+      - name: silver_medical_similar_detail
+      - name: silver_petroleum_alt_fuel_sale_detail
       - name: silver_amusement_park_detail
       - name: silver_animal_drug_wholesale_detail
       - name: silver_animal_hospital_detail

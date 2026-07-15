@@ -1,6 +1,15 @@
 version: 2
 
 models:
+  - name: gold_license_phone_succession
+    description: >
+      (#discovery 최종 비평 — 확실) 연쇄창업 — 동일 전화의 폐업→개업(≤3년·주소 상이·공용번호 컷)
+      업종전환 매트릭스. food→food 2.0만(중위 90일). 사업자 단위 행태의 유일한 축(근사 — 전화 44%).
+  - name: gold_detail_uptae_mix
+    description: >
+      (#discovery 최종 비평 — 준확실) 업태(uptaenm) 구성·플로우 — 소스의 마지막 미소비 분류 축
+      (일반음식점 내 한식 5.1만 등). 실물 컬럼 보유 19 detail union(lodging 은 카탈로그-실물
+      스키마 드리프트로 제외 — 후속 조치 대상).
   - name: gold_license_geo_grid
     description: >
       (#discovery 인사이트) 좌표 0.005도(~500m) 격자 상권 히트맵 × 업종 — 영업 밀도·최근 1년
