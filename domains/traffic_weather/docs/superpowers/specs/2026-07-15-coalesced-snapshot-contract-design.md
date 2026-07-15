@@ -31,6 +31,8 @@ flowchart LR
 
 - Weather: scheduled compatibility Silver와 W1 observation Silver가 `weather_snapshot_dag_run_id`를 필수로 소비한다. Gold는 이 Silver 입력만 참조한다.
 - Traffic: transform Silver/current, recovery Silver, current-state Gold의 exact manifest 확인과 legacy summary의 latest source 조회를 macro로 통일한다.
+- Traffic Flow: `silver_seoul_traffic_flow`도 `traffic_flow_snapshot_dag_run_id`로 pin된 run의 최신 manifest 상태를 먼저 선택한다. Flow snapshot이 없는 실행의 기존 optional 동작은 유지하되, 최신 상태가 `COALESCED`이면 과거 `SUCCESS`를 소비하지 않는다.
+- Traffic Flow Gold: `gold_traffic_incident_x_flow`는 incident를 driving relation으로 유지하며, flow match 여부와 무관하게 `silver_seoul_traffic_incident_current`와 동일한 incident cardinality를 보장한다.
 - singular test는 raw `SUCCESS` history가 아니라 macro의 effective publishable state를 검증한다.
 - Python contract test는 모든 정상 transform consumer가 macro를 사용하고 Weather var를 소비하는지 확인한다.
 

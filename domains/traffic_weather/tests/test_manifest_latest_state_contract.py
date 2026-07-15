@@ -27,6 +27,12 @@ PUBLISHABLE_INPUT_CONSUMERS = (
     / "traffic"
     / "transform"
     / "silver"
+    / "silver_seoul_traffic_flow.sql",
+    PROJECT_ROOT
+    / "models"
+    / "traffic"
+    / "transform"
+    / "silver"
     / "silver_seoul_traffic_incident.sql",
     PROJECT_ROOT
     / "models"
