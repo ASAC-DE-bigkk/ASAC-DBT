@@ -7,11 +7,19 @@ sources:
     description: Seoul transit Bronze Iceberg tables loaded by ASAC-DAG transit DAGs.
     database: "{{ target.database }}"
     schema: "{{ target.schema }}"
+    # 적재 지연(staleness) 게이트(#207): 실시간 DAG 20분 주기 기준 3회 연속 미적재에 warn,
+    # 9회에 error. event_at "미래" 이상치 필터(#66 vars 게이트)와는 별개 축으로 상보적.
+    loaded_at_field: ingested_at
+    freshness:
+      warn_after: {count: 60, period: minute}
+      error_after: {count: 180, period: minute}
     tables:
       # --- 마스터(정적) ---
       - name: subway_station_master
         identifier: bronze_subway_station_master
         description: 서울 지하철 역사 마스터(bldn_id·bldn_nm·route·lat·lot + 계보). #162 적재.
+        loaded_at_field: collected_at
+        freshness: null  # 주1회(@weekly) 참조 마스터 — 분 단위 신선도 게이트 비대상(소스 공통 기준 상속 차단)
         columns:
           - name: bldn_id
             description: 역사 코드(4자리) — 마스터 PK.
@@ -36,6 +44,8 @@ sources:
       - name: park_info_master
         identifier: bronze_park_info_master
         description: 서울 주차장 정보 마스터(pklt_cd·pklt_nm·addr·lat·lot 등 39필드 + 계보). #162 적재.
+        loaded_at_field: collected_at
+        freshness: null  # 주1회(@weekly) 참조 마스터 — 분 단위 신선도 게이트 비대상(소스 공통 기준 상속 차단)
         columns:
           - name: pklt_cd
             description: 주차장 코드 — 마스터 PK.
