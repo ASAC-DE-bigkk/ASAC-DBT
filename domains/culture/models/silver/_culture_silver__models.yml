@@ -1,0 +1,347 @@
+version: 2
+
+# culture silver 계약·테스트 (#200 — schema.yml 을 layer 별로 분리, 모델명 정렬).
+# gold 는 models/gold/_culture_gold__models.yml, bronze 원천은 models/sources.yml.
+
+models:
+  - name: silver_culture_boxoffice
+    description: KOPIS 예매상황판 일 스냅샷 — 그레인 (load_date, rank_no), 공간축 면제
+    columns:
+      - name: rank_no
+        tests: [not_null]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+
+  - name: silver_culture_event
+    description: 서울 문화행사 기간 fact. 기간 질의는 event_start_date <= D and D <= event_end_date (event_at 단독 필터 = 시작일 기준)
+    columns:
+      - name: event_key
+        tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.94}   # 실측 99.41% - 5%p (Task 18 확정)
+              config: {severity: warn}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.9}   # 실측 95.59% - 5%p (Task 18 확정)
+              config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_exhibition
+    description: 시립미술관 전시 기간 fact — 위치는 분관 seed 매칭
+    columns:
+      - name: exhibition_id
+        tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.82}   # 실측 87.13% - 5%p (Task 18 확정)
+              config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_facility
+    description: KOPIS 공연시설 dim — 목록+상세(좌표·좌석수) 병합. 좌표·좌석수는 detail 수집분만(부분 커버리지 — 설계 §5, 캡 상향 #206).
+    columns:
+      - name: facility_id
+        tests: [not_null, unique]
+      - name: seat_scale
+        description: 시설 총 좌석수. KOPIS seatscale — 0/공백(미상)은 null 로 정규화. 혼잡 규모 가중치용(#206 커버리지 확대 예정). 값이 있으면 양수(assert_facility_seat_scale_positive).
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (Task 18 확정, 상한 보정)
+              config: {severity: warn}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.06}   # 실측 11.88%(detail 캡) - 5%p (Task 18 확정)
+              config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_festival
+    description: KOPIS 축제 기간 fact — 시설 이름 매칭(미매칭 NULL)
+    columns:
+      - name: festival_id
+        tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (Task 18 확정, 상한 보정)
+              config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_kcisa_event
+    description: KCISA 한눈에보는문화정보 서울 행사 fact — 전 serviceName 편입, 3축(performance·event·exhibition) anti-join dedup 잔존분(#85). 그레인 event_id(=seq), 좌표 내장.
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+      - name: title
+        tests: [not_null]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.91}   # 실측 96.95% - 5%p (#85 확정)
+              config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_movie_boxoffice
+    description: KOBIS 일별 영화 박스오피스(전국+서울 한정). 그레인 region×boxoffice_date×rank, boxoffice_date=load_date-1. KOPIS 예매상황판 boxoffice와 별개 축.
+    columns:
+      - name: region
+        description: "'nation'(전국) / 'seoul'(서울 한정 wideAreaCd=0105001)"
+        tests:
+          - accepted_values:
+              values: ["nation", "seoul"]
+      - name: movie_cd
+        description: KOBIS 영화 코드(movieCd)
+        tests:
+          - not_null
+      - name: rank
+        description: 그날 region top10 순위(1~10)
+        tests:
+          - not_null
+      - name: boxoffice_date
+        description: 실제 관객일(load_date − 1일)
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+
+  - name: silver_culture_performance
+    description: KOPIS 공연 기간 fact — detail(mt10id) 정밀 시설 조인, 공간축은 facility 경유
+    columns:
+      - name: performance_id
+        tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: facility_match
+        tests:
+          - accepted_values:
+              arguments: {values: ["detail_id", "name"]}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (Task 18 확정, 상한 보정)
+              config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_reservation
+    description: 공공예약 일 스냅샷 fact — 그레인 (service_id, load_date)
+    columns:
+      - name: service_id
+        tests: [not_null]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: reservation_type
+        tests:
+          - accepted_values:
+              arguments: {values: ["culture", "sport"]}
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: gu_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.9}
+              config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_sejong
+    description: 세종문화회관 기간 fact — 위치 상수(seed)
+    columns:
+      - name: sejong_id
+        tests: [not_null, unique]
+      - name: event_at
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.95}   # 실측 100.00% - 5%p (#48 event_at 계약)
+              config: {severity: warn}
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: gu_code
+        tests: [not_null]   # 상수 위치 — 항상 채워져야 함
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_space
+    description: 서울 문화공간 dim (좌표 축 스왑 처리, space_key = NUM — Task 2 실측 채택)
+    columns:
+      - name: space_key
+        tests: [not_null, unique]
+      - name: load_date
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]
+      - name: longitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lon}
+      - name: latitude
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments: {kind: lat}
+      - name: admin_dong_code
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.94}   # 실측 99.06% - 5%p (Task 18 확정)
+              config: {severity: warn}
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  - name: silver_culture_sports_event
+    description: KBO 서울 홈경기 일정 fact (seed 원천, 그레인 game_date×stadium×game_time). 문화행사 축과 분리(sports).
+    columns:
+      - name: game_date
+        tests: [not_null]
+      - name: stadium
+        tests: [not_null]
+      - name: event_at
+        description: 경기 시작 시각 (KST, event_time)
+        tests: [not_null]
+      - name: gu_code
+        description: 자치구 코드 (#48 코드 축)
+        tests: [not_null]
+      - name: quality_status
+        description: "공간축 정밀도(#111) — dong_precise(좌표→행정동)/gu_only(구 레벨 근사)/unmatched"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [dong_precise, gu_only, unmatched]}

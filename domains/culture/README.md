@@ -2,7 +2,7 @@
 
 **타 도메인에서 조인하러 온 분을 위한 문서입니다.** 서울의 문화활동(공연·행사·축제·전시·공공예약·영화 박스오피스·야구 일정)을 "언제(시간축) × 어디(공간축)" 그레인으로 제공합니다. 위치: dev = `iceberg_dev.culture` / prod = `iceberg.culture` (silver·gold·bronze 전부 같은 스키마).
 
-> 컬럼 계약·테스트: [models/schema.yml](models/schema.yml) · bronze 원천 정의: [models/sources.yml](models/sources.yml) · 설계 배경: [docs/design/](docs/design/) · 수집 파이프라인 내부(ASAC-DAG): `dags/domains/culture/`
+> 컬럼 계약·테스트: [silver](models/silver/_culture_silver__models.yml) · [gold](models/gold/_culture_gold__models.yml) (layer별 분리 #200) · bronze 원천 정의: [models/sources.yml](models/sources.yml) · 설계 배경: [docs/design/](docs/design/) · 수집 파이프라인 내부(ASAC-DAG): `dags/domains/culture/`
 
 ## 조인 계약 — 이것만 알면 됩니다 (#48 공통축)
 
