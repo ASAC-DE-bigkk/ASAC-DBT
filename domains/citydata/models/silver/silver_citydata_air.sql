@@ -4,12 +4,16 @@
 -- 파싱한다. FCST24HOURS(예보)는 weather 도메인(KMA)이 canonical 이라 제외(#192 원칙).
 -- event_at = WEATHER_TIME("yyyy-MM-dd HH:mm", 실측 10분 주기) 파싱.
 
+-- post_hook 디둡(dedup_latest 매크로): 증분 delete+insert 가 R2 비원자성으로 이중삽입할 수
+-- 있어(연속 두 run이 같은 event_at 처리 → 가시성 지연) 매 run 끝에 출력을 grain 당 최신 1행으로
+-- self-replace 해 무중복 수렴. 상세는 macros/dedup_latest.sql 참고.
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
     materialized='incremental',
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'event_at'],
     on_table_exists='drop',
+    post_hook=dedup_latest(['area_cd', 'event_at']),
 ) }}
 
 with src as (

@@ -9,6 +9,7 @@
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'event_at', 'rsb_lrg_ctgr', 'rsb_mid_ctgr'],
     on_table_exists='drop',
+    post_hook=dedup_latest(['area_cd', 'event_at', 'rsb_lrg_ctgr', 'rsb_mid_ctgr']),
 ) }}
 
 with src as (

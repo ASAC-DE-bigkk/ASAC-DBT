@@ -3,11 +3,10 @@
 -- "지금 뜨는 상권 어디?" — 붐빔이 오르고(추세) + 구매력 높고(spend/붐빔) + 결제 볼륨 큰 곳을
 -- 결합한 종합 지수. 세 축을 백분위(0~1)로 정규화해 평균 → hot_index(0~1, 높을수록 핫).
 --
--- trend(붐빔 변화) + purchasing_power(구매력·결제, 최근일) 파생 view. 챗봇 "요즘 뜨는 상권?"용.
+-- trend(붐빔 변화) + purchasing_power(구매력·결제, 최근일) 파생 table. 챗봇 "요즘 뜨는 상권?"용.
 
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with pw as (

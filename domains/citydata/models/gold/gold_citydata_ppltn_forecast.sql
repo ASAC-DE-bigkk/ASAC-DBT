@@ -3,11 +3,10 @@
 -- "이번 주말 홍대 얼마나 붐벼?" / "평일 강남 저녁 붐빔?" — 장소×주말여부×시간대의 과거 평균
 -- 붐빔(±표준편차). 미래 시점 예상 혼잡을 조회. anomaly 의 baseline 을 독립 골드로 노출한 것.
 --
--- 2주 데이터라 요일 7분할 대신 주중/주말 2분할(표본 확보). by_time 파생 view. 챗봇 예보 조회용.
+-- 2주 데이터라 요일 7분할 대신 주중/주말 2분할(표본 확보). by_time 파생 table. 챗봇 예보 조회용.
 
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with src as (

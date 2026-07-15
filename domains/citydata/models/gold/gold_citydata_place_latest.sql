@@ -15,10 +15,6 @@
 -- **delete+insert** 로 한다: 매 run 창에 등장한 area_cd 를 지우고 다시 넣어 유일성 보장.
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='incremental',
-    incremental_strategy='delete+insert',
-    unique_key=['area_cd'],
-    on_table_exists='drop',
 ) }}
 
 {% set lookback = "timestamp '1970-01-01'" %}

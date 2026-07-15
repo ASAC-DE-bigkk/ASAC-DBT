@@ -7,10 +7,8 @@
 -- source 는 transit 도메인 공용 스키마(TRANSIT_SCHEMA=transit, ASAC-DBT#204 전환).
 -- 조인축 admin_dong_code + 시간.
 
--- view: R2 delete+insert 비원자성 중복 재발 방지 위해 view 전환(물리 write 없음·항상 라이브).
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with ppltn_dong as (

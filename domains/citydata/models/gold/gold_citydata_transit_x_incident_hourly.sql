@@ -11,10 +11,8 @@
 -- 크로스도메인: traffic 은 별도 프로젝트라 source()(같은 카탈로그, schema=traffic).
 -- 조인축 admin_dong_code. 동 이름/구는 dim_admin_dong 조인. 커버리지=우리 핫플 동 한정.
 
--- view: R2 delete+insert 비원자성 중복 재발 방지 위해 view 전환(물리 write 없음·항상 라이브).
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with transit_dong as (

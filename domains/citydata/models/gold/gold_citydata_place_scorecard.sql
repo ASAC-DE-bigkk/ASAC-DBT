@@ -4,11 +4,10 @@
 -- 상권(결제)·교통(승차)·날씨·따릉이(place_latest) + 평소대비 이상(anomaly) + 실시간 추세(trend)
 -- + 구매력(purchasing_power). LLM 이 area_cd 로 1행 읽어 바로 자연어 답변.
 --
--- 여러 골드를 area_cd 로 합친 view (조회 시 최신). Text-to-SQL/도구호출 챗봇의 대표 조회 대상.
+-- 여러 골드를 area_cd 로 합친 table (매 run 재빌드). Text-to-SQL/도구호출 챗봇의 대표 조회 대상.
 
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with pw as (

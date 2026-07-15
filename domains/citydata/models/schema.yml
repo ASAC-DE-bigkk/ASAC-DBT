@@ -118,6 +118,8 @@ seeds:
 
 models:
   - name: silver_citydata_ppltn
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
@@ -153,12 +155,42 @@ models:
         description: 추정 최소 인구 (integer)
       - name: area_ppltn_max
         description: 추정 최대 인구 (integer)
+      - name: male_ppltn_rate
+        description: 남성 인구 비율(%)
+      - name: female_ppltn_rate
+        description: 여성 인구 비율(%)
+      - name: ppltn_rate_0
+        description: 0~9세 인구 비율(%)
+      - name: ppltn_rate_10
+        description: 10대 인구 비율(%)
+      - name: ppltn_rate_20
+        description: 20대 인구 비율(%)
+      - name: ppltn_rate_30
+        description: 30대 인구 비율(%)
+      - name: ppltn_rate_40
+        description: 40대 인구 비율(%)
+      - name: ppltn_rate_50
+        description: 50대 인구 비율(%)
+      - name: ppltn_rate_60
+        description: 60대 인구 비율(%)
+      - name: ppltn_rate_70
+        description: 70대 이상 인구 비율(%)
+      - name: resnt_ppltn_rate
+        description: 상주 인구 비율(%)
+      - name: non_resnt_ppltn_rate
+        description: 비상주(유동) 인구 비율(%)
+      - name: replace_yn
+        description: 대체 데이터 여부 (Y/N — 원천 결측 시 대체값 사용 표시)
+      - name: fcst_yn
+        description: 예측값 여부 (Y/N — 관측 대신 예측 사용 표시)
       - name: event_at
         description: 대표 측정 시각 (KST timestamp — PPLTN_TIME 파싱, dedup grain·크로스도메인 시간축)
       - name: collected_at
         description: 수집 시각 (KST, dedup 시 최신 판단 기준)
 
   - name: gold_citydata_ppltn_by_time
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
@@ -170,6 +202,10 @@ models:
     columns:
       - name: event_at
         description: 대표 측정 시각 (KST timestamp, grain 축)
+      - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
+      - name: sido
+        description: 시도명 (서울)
       - name: area_nm
         description: 장소명
       - name: gu
@@ -188,12 +224,42 @@ models:
         description: 장소 중심점 위도 (WGS84)
       - name: area_congest_lvl
         description: 혼잡도 수준
+      - name: area_ppltn_min
+        description: 추정 최소 인구
+      - name: area_ppltn_max
+        description: 추정 최대 인구
       - name: avg_ppltn
         description: 평균 추정 인구 ((min + max) / 2)
+      - name: male_ppltn_rate
+        description: 남성 인구 비율(%)
+      - name: female_ppltn_rate
+        description: 여성 인구 비율(%)
+      - name: ppltn_rate_0
+        description: 0~9세 인구 비율(%)
+      - name: ppltn_rate_10
+        description: 10대 인구 비율(%)
+      - name: ppltn_rate_20
+        description: 20대 인구 비율(%)
+      - name: ppltn_rate_30
+        description: 30대 인구 비율(%)
+      - name: ppltn_rate_40
+        description: 40대 인구 비율(%)
+      - name: ppltn_rate_50
+        description: 50대 인구 비율(%)
+      - name: ppltn_rate_60
+        description: 60대 인구 비율(%)
+      - name: ppltn_rate_70
+        description: 70대 이상 인구 비율(%)
+      - name: resnt_ppltn_rate
+        description: 상주 인구 비율(%)
+      - name: non_resnt_ppltn_rate
+        description: 비상주(유동) 인구 비율(%)
       - name: collected_at
         description: 수집 시각
 
   - name: gold_citydata_ppltn_daily
+    config:
+      tags: ['slow']
     data_tests:
       - unique_grain:
           arguments:
@@ -211,6 +277,8 @@ models:
         description: 장소명
       - name: area_type
         description: 장소 분류
+      - name: sido
+        description: 시도명 (서울)
       - name: gu
         description: 자치구명
       - name: admin_dong
@@ -241,6 +309,8 @@ models:
   # ── citydata 계열 (#69, ASAC-DAG#192) ───────────────────────────────────────
 
   - name: dim_seoul_area
+    config:
+      tags: ['fast']
     description: >
       서울 주요 121장소 정적 차원 — seed 좌표 + asac_axes 경계 point-in-polygon으로
       #48 공통축(gu/admin_dong/행안부 코드)을 1회 계산. citydata silver들의 조인원.
@@ -248,14 +318,32 @@ models:
       - name: area_cd
         description: 장소 코드 (PK)
         data_tests: [unique, not_null]
+      - name: area_nm
+        description: 장소명
+      - name: area_category
+        description: 장소 분류
+      - name: sido
+        description: 시도명 (서울)
+      - name: gu
+        description: 자치구명
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
       - name: admin_dong_code
         description: 행안부 행정동 코드 10자리 (canonical)
         data_tests:
           - asac_axes.axis_coverage:
               arguments:
                 min_ratio: 0.99
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
 
   - name: silver_citydata_cmrcl
+    config:
+      tags: ['slow']
     data_tests:
       - unique_grain:
           arguments:
@@ -265,7 +353,16 @@ models:
       파싱(KST, 실측 10분 주기). incremental(merge), 30분 lookback, 배치 내 dedup.
     columns:
       - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
         data_tests: [not_null]
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 — 동 단위 조인 키
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
       - name: event_at
         description: 상권 데이터 갱신 시각 (KST)
         data_tests: [not_null]
@@ -273,8 +370,36 @@ models:
         description: 장소 상권 활성 수준 (한산한/보통/분주한/바쁜)
       - name: payment_count
         description: 실시간 신한카드 결제 건수 (10분 창)
+      - name: payment_amt_min
+        description: 결제금액 하한 (원)
+      - name: payment_amt_max
+        description: 결제금액 상한 (원)
+      - name: male_rate
+        description: 남성 결제 비율(%)
+      - name: female_rate
+        description: 여성 결제 비율(%)
+      - name: rate_10
+        description: 10대 결제 비율(%)
+      - name: rate_20
+        description: 20대 결제 비율(%)
+      - name: rate_30
+        description: 30대 결제 비율(%)
+      - name: rate_40
+        description: 40대 결제 비율(%)
+      - name: rate_50
+        description: 50대 결제 비율(%)
+      - name: rate_60
+        description: 60대 이상 결제 비율(%)
+      - name: personal_rate
+        description: 개인 결제 비율(%)
+      - name: corporation_rate
+        description: 법인 결제 비율(%)
+      - name: collected_at
+        description: 수집 시각 (KST)
 
   - name: silver_citydata_cmrcl_rsb
+    config:
+      tags: ['slow']
     data_tests:
       - unique_grain:
           arguments:
@@ -283,11 +408,41 @@ models:
       상권 업종별 상세 — grain (area_cd, event_at, 업종 대·중분류). CMRCL_RSB 배열
       UNNEST. incremental(merge).
     columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: event_at
+        description: 상권 데이터 갱신 시각 (KST) — grain 축
+      - name: rsb_lrg_ctgr
+        description: 업종 대분류 (요식/생활 등) — grain 축
       - name: rsb_mid_ctgr
-        description: 업종 중분류 (한식/편의점 등)
+        description: 업종 중분류 (한식/편의점 등) — grain 축
         data_tests: [not_null]
+      - name: payment_lvl
+        description: 그 업종 결제 활성 수준
+      - name: payment_count
+        description: 그 업종 결제 건수
+      - name: payment_amt_min
+        description: 그 업종 결제금액 하한
+      - name: payment_amt_max
+        description: 그 업종 결제금액 상한
+      - name: merchant_count
+        description: 그 업종 가맹점 수
+      - name: merchant_count_month
+        description: 그 업종 월간 가맹점 수
+      - name: collected_at
+        description: 수집 시각 (KST)
 
   - name: silver_citydata_transit_ppltn
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
@@ -295,14 +450,62 @@ models:
     description: >
       지하철/버스 승하차 인원 — grain (area_cd, mode, observed_at). 원천 시각 필드가
       없어 observed_at=collected_at(KST). 5/10/30분 창 + 당일 누적. incremental(merge).
+      승차=gton(get-on), 하차=gtoff(get-off). 원천이 범위(min~max)로 제공.
     columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
       - name: mode
-        description: subway | bus
+        description: subway | bus — grain 축
         data_tests: [not_null]
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 — 동 단위 조인 키
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
       - name: observed_at
+        description: 관측 시각 (=collected_at, KST) — grain 축
         data_tests: [not_null]
+      - name: gton_5min_min
+        description: 최근 5분 승차 하한
+      - name: gton_5min_max
+        description: 최근 5분 승차 상한
+      - name: gtoff_5min_min
+        description: 최근 5분 하차 하한
+      - name: gtoff_5min_max
+        description: 최근 5분 하차 상한
+      - name: gton_10min_min
+        description: 최근 10분 승차 하한
+      - name: gton_10min_max
+        description: 최근 10분 승차 상한
+      - name: gtoff_10min_min
+        description: 최근 10분 하차 하한
+      - name: gtoff_10min_max
+        description: 최근 10분 하차 상한
+      - name: gton_30min_min
+        description: 최근 30분 승차 하한
+      - name: gton_30min_max
+        description: 최근 30분 승차 상한
+      - name: gtoff_30min_min
+        description: 최근 30분 하차 하한
+      - name: gtoff_30min_max
+        description: 최근 30분 하차 상한
+      - name: gton_acml_min
+        description: 당일 누적 승차 하한
+      - name: gton_acml_max
+        description: 당일 누적 승차 상한
+      - name: gtoff_acml_min
+        description: 당일 누적 하차 하한
+      - name: gtoff_acml_max
+        description: 당일 누적 하차 상한
+      - name: station_count
+        description: 집계에 포함된 역/정류장 수
 
   - name: silver_citydata_sbike
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
@@ -311,11 +514,37 @@ models:
       따릉이 대여소 현황 — grain (area_cd, spot_id, observed_at). SBIKE_STTS 배열
       UNNEST, 대여소 좌표 포함. incremental(merge).
     columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
       - name: spot_id
-        description: 대여소 ID (ST-###)
+        description: 대여소 ID (ST-###) — grain 축
         data_tests: [not_null]
+      - name: spot_nm
+        description: 대여소명
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 (장소 기준)
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: spot_longitude
+        description: 대여소 자체 경도 (WGS84)
+      - name: spot_latitude
+        description: 대여소 자체 위도 (WGS84)
+      - name: observed_at
+        description: 관측 시각 (KST) — grain 축
+      - name: parking_count
+        description: 현재 주차(거치)된 따릉이 대수
+      - name: rack_count
+        description: 거치대 수
+      - name: shared_rate_percent
+        description: 거치율(%) = 주차/거치대
 
   - name: silver_citydata_air
+    config:
+      tags: ['slow']
     data_tests:
       - unique_grain:
           arguments:
@@ -324,42 +553,176 @@ models:
       날씨 실황 + 대기질 — grain (area_cd, event_at=WEATHER_TIME, 실측 10분).
       FCST24HOURS(예보)는 weather 도메인 canonical이라 제외. incremental(merge).
     columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
       - name: event_at
+        description: 실황 갱신 시각 (WEATHER_TIME, KST) — grain 축
         data_tests: [not_null]
+      - name: temperature
+        description: 기온 (°C)
+      - name: sensible_temperature
+        description: 체감온도 (°C)
+      - name: humidity
+        description: 습도 (%)
+      - name: precipitation
+        description: 강수량 (mm)
+      - name: precipitation_type
+        description: 강수형태 (없음/비/비눈/눈 등)
       - name: pm25
         description: 초미세먼지 농도
+      - name: pm25_index
+        description: 초미세먼지 지수 (좋음/보통/나쁨…)
       - name: pm10
         description: 미세먼지 농도
+      - name: pm10_index
+        description: 미세먼지 지수
+      - name: air_idx
+        description: 통합대기환경지수 등급
+      - name: air_idx_value
+        description: 통합대기환경지수 값
+      - name: uv_index_lvl
+        description: 자외선 지수 등급
+      - name: collected_at
+        description: 수집 시각 (KST)
 
   - name: gold_citydata_place_latest
+    config:
+      tags: ['fast']
     description: >
       장소별 최신 크로스 신호 스냅샷 (장소당 1행) — 혼잡도(silver_citydata_ppltn) ×
-      소비 × 승하차 × 따릉이 × 대기질. 실시간 지도/현황판 마트. incremental(merge,
-      key=area_cd) — 최근 6시간 창에서 신호별 최신값을 merge, 전체 재생성 없음.
+      소비 × 승하차 × 따릉이 × 대기질. 실시간 지도/현황판 마트. 신호별 최신값을 장소당
+      1행으로 통합. 매 run 전체 재빌드(table).
     columns:
       - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
         data_tests: [unique, not_null]
+      - name: area_nm
+        description: 장소명
+      - name: area_category
+        description: 장소 분류
+      - name: gu
+        description: 자치구명
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: area_congest_lvl
+        description: 최신 혼잡도 수준
+      - name: area_ppltn_min
+        description: 최신 추정 최소 인구
+      - name: area_ppltn_max
+        description: 최신 추정 최대 인구
+      - name: ppltn_at
+        description: 혼잡/인구 신호의 최신 시각 (KST)
+      - name: cmrcl_lvl
+        description: 최신 상권 활성 수준
+      - name: payment_count
+        description: 최신 결제 건수 (신한카드)
+      - name: payment_amt_min
+        description: 최신 결제금액 하한
+      - name: payment_amt_max
+        description: 최신 결제금액 상한
+      - name: cmrcl_at
+        description: 상권 신호의 최신 시각 (KST)
+      - name: subway_gton_30min
+        description: 최근 30분 지하철 승차 인원
+      - name: bus_gton_30min
+        description: 최근 30분 버스 승차 인원
+      - name: transit_at
+        description: 승하차 신호의 최신 시각 (KST)
+      - name: sbike_parking_total
+        description: 따릉이 주차 대수 합
+      - name: sbike_rack_total
+        description: 따릉이 거치대 수 합
+      - name: sbike_spot_count
+        description: 따릉이 대여소 수
+      - name: sbike_at
+        description: 따릉이 신호의 최신 시각 (KST)
+      - name: temperature
+        description: 최신 기온 (°C)
+      - name: pm25
+        description: 초미세먼지 농도
+      - name: pm25_index
+        description: 초미세먼지 지수 (좋음/보통/나쁨…)
+      - name: pm10
+        description: 미세먼지 농도
+      - name: pm10_index
+        description: 미세먼지 지수
+      - name: air_idx
+        description: 통합대기환경지수
+      - name: air_at
+        description: 대기질 신호의 최신 시각 (KST)
       - name: refreshed_at
-        description: 이 행에 반영된 신호들의 최신 시각 (증분 기준점)
+        description: 이 행에 반영된 신호들의 최신 시각
         data_tests: [not_null]
 
   - name: gold_citydata_cmrcl_daily
+    config:
+      tags: ['slow']
     data_tests:
       - unique_grain:
           arguments:
             columns: [event_date, area_cd]
     description: >
       장소별 일 소비 인사이트 — grain (event_date, area_cd). 결제 규모·피크 시간대·
-      활성 비율·측정 완결성. incremental(merge) — 최근 2일 재집계 후 merge.
+      활성 비율·측정 완결성. 매 run 전체 재빌드(table).
     columns:
       - name: event_date
+        description: 집계 날짜 (KST) — grain 축
         data_tests: [not_null]
       - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
         data_tests: [not_null]
+      - name: area_nm
+        description: 장소명
+      - name: area_category
+        description: 장소 분류
+      - name: gu
+        description: 자치구명
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: payment_count_total
+        description: 그날 결제 건수 합
+      - name: payment_count_avg
+        description: 슬라이스당 평균 결제 건수
+      - name: payment_amt_peak
+        description: 그날 최대 결제금액(상한)
+      - name: peak_at
+        description: 가장 결제 활발했던 시각 (KST)
+      - name: peak_cmrcl_lvl
+        description: 피크 시각의 상권 활성 수준
+      - name: busy_ratio_percent
+        description: 상권 '바쁨' 이었던 슬라이스 비율 (%)
+      - name: measurement_count
+        description: 그날 수집 슬라이스 수 (완결성 지표)
 
   # ── 신규 골드 (#122) ─────────────────────────────────────────────────────────
 
   - name: gold_citydata_purchasing_power_daily
+    config:
+      tags: ['slow']
     data_tests:
       - unique_grain:
           arguments:
@@ -367,12 +730,46 @@ models:
     description: >
       장소별 일 구매력·붐빔대비구매 — grain (event_date, area_cd). 유동인구(ppltn)와
       결제(cmrcl)를 일집계·조인해 buy/spend_per_crowd_idx 와 rank(전체·자치구내)를 낸다.
-      ⚠ 유동인구는 동시 체류 추정이라 지수는 장소 간 상대 비교용. incremental(delete+insert).
+      ⚠ 유동인구는 동시 체류 추정이라 지수는 장소 간 상대 비교용. 매 run 전체 재빌드(table).
     columns:
       - name: event_date
+        description: 집계 날짜 (KST) — grain 축
         data_tests: [not_null]
       - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
         data_tests: [not_null]
+      - name: area_nm
+        description: 장소명
+      - name: area_category
+        description: 장소 분류
+      - name: gu
+        description: 자치구명
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: ppltn_avg
+        description: 그날 평균 유동인구
+      - name: ppltn_peak
+        description: 그날 최대 유동인구
+      - name: congest_peak_lvl
+        description: 피크 시각의 혼잡도 수준
+      - name: payment_cnt_total
+        description: 그날 결제 건수 합
+      - name: payment_amt_total
+        description: 그날 결제금액 합
+      - name: payment_amt_peak
+        description: 그날 최대 결제금액
+      - name: ppltn_measure_count
+        description: 인구 측정 슬라이스 수 (완결성)
+      - name: cmrcl_measure_count
+        description: 상권 측정 슬라이스 수 (완결성)
       - name: buy_per_crowd_idx
         description: 결제건수 / 평균 유동인구 (붐빔 대비 구매, 상대 지수)
       - name: spend_per_crowd_idx
@@ -383,6 +780,8 @@ models:
         description: 그날 자치구 내 순위
 
   - name: gold_citydata_ppltn_x_culture_daily
+    config:
+      tags: ['slow']
     data_tests:
       - unique_grain:
           arguments:
@@ -390,12 +789,26 @@ models:
     description: >
       인구혼잡 × 문화활동(통합) — grain (event_date, admin_dong_code). 우리 인구를 동×일
       롤업하고 그날 그 동 활성 문화활동 6종(행사·축제·공연·전시·세종·KCISA)을 UNION 해
-      붙인다. 크로스도메인(source). 커버리지=우리 핫플 동 한정. incremental(delete+insert).
+      붙인다. 크로스도메인(source). 커버리지=우리 핫플 동 한정. 매 run 전체 재빌드(table).
     columns:
       - name: event_date
+        description: 집계 날짜 (KST) — grain 축
         data_tests: [not_null]
       - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 — grain 축·조인 키
         data_tests: [not_null]
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: gu
+        description: 자치구명
+      - name: hotspot_count
+        description: 그 동에 속한 우리 핫플 장소 수
+      - name: ppltn_avg
+        description: 그 동×일 평균 붐빔
+      - name: ppltn_peak
+        description: 그 동×일 최대 붐빔
       - name: event_count
         description: 그날 그 동에 활성인 문화활동 총수 6종 합 (0 포함)
       - name: has_event
@@ -410,6 +823,8 @@ models:
         description: 존재하는 문화활동 유형 목록 (예 '행사, 공연, 전시')
 
   - name: gold_citydata_transit_x_incident_hourly
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
@@ -417,18 +832,40 @@ models:
     description: >
       승하차 × 교통돌발 — grain (time_bucket=시, admin_dong_code). 우리 승하차를 동×시 롤업하고
       그 시간 그 동 활성 교통돌발(traffic.silver_seoul_traffic_incident)을 붙인다. 승하차는
-      5분창 중앙값의 시간내 평균(대표 강도). 크로스도메인(source). incremental(delete+insert).
+      5분창 중앙값의 시간내 평균(대표 강도). 크로스도메인(source). 매 run 전체 재빌드(table).
     columns:
       - name: time_bucket
+        description: 시간 버킷 (KST, date_trunc hour) — grain 축
         data_tests: [not_null]
       - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 — grain 축·조인 키
         data_tests: [not_null]
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: gu
+        description: 자치구명
+      - name: hotspot_count
+        description: 그 동에 속한 우리 핫플 장소 수
+      - name: mode_count
+        description: 집계에 포함된 교통수단(지하철·버스) 종류 수
+      - name: board_5min_avg
+        description: 5분창 승차(중앙값)의 시간내 평균 — 대표 승차 강도
+      - name: alight_5min_avg
+        description: 5분창 하차(중앙값)의 시간내 평균 — 대표 하차 강도
+      - name: board_5min_peak
+        description: 그 시간 최대 5분 승차
       - name: incident_count
         description: 그 시간 그 동에 활성인 돌발 수 (0 포함)
       - name: has_incident
         description: 돌발 존재 여부 (boolean)
+      - name: acc_types
+        description: 활성 돌발의 유형 목록 (사고·공사 등)
 
   - name: gold_citydata_ppltn_x_weather_hourly
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
@@ -436,20 +873,44 @@ models:
     description: >
       인구혼잡 × 날씨(예보) — grain (time_bucket=시, admin_dong_code). 우리 인구를 동×시 롤업하고
       기상청 단기예보(weather, 최신 발표분)를 피벗해 붙인다. 크로스도메인(source=weather).
-      예보값(관측 아님). incremental(delete+insert).
+      예보값(관측 아님). 매 run 전체 재빌드(table).
     columns:
       - name: time_bucket
+        description: 시간 버킷 (KST, date_trunc hour) — grain 축
         data_tests: [not_null]
       - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 — grain 축·조인 키
         data_tests: [not_null]
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: gu
+        description: 자치구명
+      - name: hotspot_count
+        description: 그 동에 속한 우리 핫플 장소 수
+      - name: ppltn_avg
+        description: 그 동×시간 평균 붐빔
+      - name: ppltn_peak
+        description: 그 동×시간 최대 붐빔
       - name: temp_c
         description: 기온(°C) 예보
       - name: precip_prob
         description: 강수확률(%) 예보
+      - name: humidity
+        description: 습도(%) 예보
+      - name: wind_ms
+        description: 풍속(m/s) 예보
+      - name: sky_code
+        description: 하늘 상태 코드 (1맑음/3구름많음/4흐림)
+      - name: precip_type
+        description: 강수형태 코드 (0없음/1비/2비눈/3눈/4소나기)
       - name: is_raining
         description: 강수형태 예보로 판단한 비/눈 여부 (boolean)
 
   - name: gold_citydata_ppltn_x_commerce_dong
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
@@ -460,69 +921,237 @@ models:
       명부는 시계열 아닌 현재 상태라 밀도로 집계. materialized=table.
     columns:
       - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 (grain 축·동 조인 키)
         data_tests: [unique, not_null]
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: gu
+        description: 자치구명
+      - name: hotspot_count
+        description: 그 동에 속한 우리 핫플 장소 수
+      - name: ppltn_avg
+        description: 그 동 핫플들의 평균 붐빔 (전 기간)
+      - name: ppltn_peak
+        description: 그 동 핫플 최대 붐빔
+      - name: license_total
+        description: 그 동의 전체 인허가 수 (영업+폐업 등)
       - name: license_active
         description: 그 동의 영업중 인허가 수 (상가 밀도)
       - name: restaurant_active
         description: 그중 음식점(일반/휴게) 영업중 수
+      - name: beauty_active
+        description: 그중 미용실 영업중 수
 
   - name: gold_citydata_ppltn_anomaly
+    config:
+      tags: ['fast']
     description: >
-      인구혼잡 이상탐지 — grain area_cd(장소 현재 1행). (장소×주말여부×시간) 과거 baseline 평균±표준편차
-      대비 현재 편차. z_score·pct_vs_normal 로 "지금 평소보다 붐벼?" 판단. by_time 파생 view.
+      인구혼잡 이상탐지 — grain area_cd(장소 현재 1행). (장소×주말여부×시간) 과거 baseline
+      평균±표준편차 대비 현재 편차. z_score·pct_vs_normal 로 "지금 평소보다 붐벼?" 판단.
+      by_time 파생, 매 run 전체 재빌드(table).
     columns:
       - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
         data_tests: [unique, not_null]
+      - name: area_nm
+        description: 장소명
+      - name: gu
+        description: 자치구명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong
+        description: 행정동명
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: event_at
+        description: 현재(최신) 측정 시각 (KST)
+      - name: is_weekend
+        description: 주말 여부 — baseline 분할 기준 (토·일 = true)
+      - name: hr
+        description: 현재 시각의 시(0~23) — baseline 매칭 기준
+      - name: cur_ppltn
+        description: 현재 붐빔 (최신 avg_ppltn)
+      - name: area_congest_lvl
+        description: 현재 혼잡도 수준
+      - name: base_mean
+        description: 평소값 — 같은 (장소·주말여부·시간) 과거 평균 붐빔
+      - name: deviation
+        description: 현재 − 평소 (절대 편차, 명)
       - name: pct_vs_normal
         description: 현재 붐빔 ÷ 평소 − 1 (예 +0.4 = 평소보다 40% 더)
       - name: z_score
         description: (현재−평소)/표준편차 — 이례성 (|z|>2 강한 이례)
+      - name: base_n
+        description: baseline 표본 수 (작으면 신뢰도 낮음)
 
   - name: gold_citydata_ppltn_trend
+    config:
+      tags: ['fast']
     description: >
       인구혼잡 실시간 추세 — grain area_cd. 최근 30분 vs 이전 30분 평균 붐빔 변화율. "지금 뜨는 곳".
-      by_time(5분) 최근 12버킷 파생 view.
+      by_time(5분) 최근 12버킷 파생, 매 run 전체 재빌드(table).
     columns:
       - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
         data_tests: [unique, not_null]
+      - name: area_nm
+        description: 장소명
+      - name: gu
+        description: 자치구명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong
+        description: 행정동명
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: event_at
+        description: 현재(최신) 측정 시각 (KST)
+      - name: cur_ppltn
+        description: 현재 붐빔 (최신 avg_ppltn)
+      - name: area_congest_lvl
+        description: 현재 혼잡도 수준
+      - name: last_30min
+        description: 최근 30분(6버킷) 평균 붐빔
+      - name: prev_30min
+        description: 그 이전 30분(6버킷) 평균 붐빔
       - name: change_pct
         description: 최근30분 ÷ 이전30분 − 1 (붐빔 변화율)
       - name: trend
         description: 증가/감소/유지 (±5% 기준)
 
   - name: gold_citydata_place_scorecard
+    config:
+      tags: ['fast']
     description: >
       장소 스코어카드 — grain area_cd(장소 1행). 현재 혼잡·상권·교통·날씨·따릉이(place_latest)
-      + 이상(anomaly) + 추세(trend) + 구매력(purchasing_power)을 한 행에 통합. 챗봇 "강남 어때?"용 view.
+      + 이상(anomaly) + 추세(trend) + 구매력(purchasing_power)을 한 행에 통합. 챗봇 "강남 어때?"
+      의 대표 조회 대상. 매 run 전체 재빌드(table).
     columns:
       - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
         data_tests: [unique, not_null]
+      - name: area_nm
+        description: 장소명
+      - name: area_category
+        description: 장소 분류
+      - name: gu
+        description: 자치구명
+      - name: admin_dong
+        description: 행정동명
+      - name: area_congest_lvl
+        description: 현재 혼잡도 수준 (여유/보통/약간붐빔/붐빔)
+      - name: area_ppltn_min
+        description: 현재 추정 최소 인구
+      - name: area_ppltn_max
+        description: 현재 추정 최대 인구
+      - name: cmrcl_lvl
+        description: 현재 상권 활성 수준
+      - name: payment_count
+        description: 현재 결제 건수 (신한카드)
+      - name: subway_gton_30min
+        description: 최근 30분 지하철 승차 인원
+      - name: bus_gton_30min
+        description: 최근 30분 버스 승차 인원
+      - name: sbike_parking_total
+        description: 따릉이 주차 대수 합
+      - name: sbike_rack_total
+        description: 따릉이 거치대 수 합
+      - name: temperature
+        description: 현재 기온 (°C)
+      - name: pm25
+        description: 초미세먼지 농도
+      - name: pm25_index
+        description: 초미세먼지 지수 (좋음/보통/나쁨…)
+      - name: base_mean
+        description: 평소값 — 같은 시간대 과거 평균 붐빔 (anomaly)
+      - name: pct_vs_normal
+        description: 평소 대비 붐빔 변화율 (anomaly)
+      - name: z_score
+        description: 이례성 z-score (anomaly)
+      - name: change_pct
+        description: 최근 30분 붐빔 변화율 (trend)
+      - name: trend
+        description: 증가/감소/유지 (trend)
+      - name: spend_per_crowd_idx
+        description: 붐빔 대비 결제 지수 = 구매력 (purchasing_power, 최근일)
+      - name: rank_spend
+        description: 구매력 지수 순위 (최근일)
+      - name: refreshed_at
+        description: place_latest 스냅샷 기준 시각
 
   - name: gold_citydata_hot_commerce
+    config:
+      tags: ['fast']
     description: >
       뜨는 상권 지수 — grain area_cd. 붐빔추세+구매력+결제를 백분위 정규화 평균한 hot_index(0~1).
-      "요즘 뜨는 상권?" trend+purchasing_power 파생 view.
+      "요즘 뜨는 상권?" trend+purchasing_power 파생, 매 run 전체 재빌드(table).
     columns:
       - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
         data_tests: [unique, not_null]
+      - name: area_nm
+        description: 장소명
+      - name: gu
+        description: 자치구명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong
+        description: 행정동명
+      - name: cur_ppltn
+        description: 현재 붐빔 (최신 avg_ppltn)
+      - name: change_pct
+        description: 최근 30분 붐빔 변화율 (trend)
+      - name: trend
+        description: 증가/감소/유지 (trend)
+      - name: spend_idx
+        description: 붐빔 대비 결제 지수 = 구매력 (purchasing_power)
+      - name: payment_total
+        description: 결제 건수 합 (purchasing_power)
       - name: hot_index
-        description: 세 축 백분위 평균 (0~1, 높을수록 핫)
+        description: 세 축(변화율·구매력·결제) 백분위 평균 (0~1, 높을수록 핫)
 
   - name: gold_citydata_ppltn_forecast
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
             columns: [area_cd, is_weekend, hr]
     description: >
       인구혼잡 예보(패턴) — grain (area_cd, is_weekend, hr). 장소×주말여부×시간대 과거 평균 붐빔±표준편차.
-      "이번 주말 홍대 붐벼?" 미래 예상 조회. by_time 파생 view.
+      "이번 주말 홍대 붐벼?" 미래 예상 조회. by_time 파생, 매 run 전체 재빌드(table).
     columns:
       - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
         data_tests: [not_null]
+      - name: area_nm
+        description: 장소명
+      - name: gu
+        description: 자치구명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong
+        description: 행정동명
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: is_weekend
+        description: 주말 여부 — 예보 분할 축 (토·일 = true)
+      - name: hr
+        description: 시(0~23) — 예보 분할 축
       - name: expected_ppltn
-        description: 그 장소·주말여부·시간대 과거 평균 붐빔
+        description: 그 장소·주말여부·시간대 과거 평균 붐빔 (= 예상값)
+      - name: ppltn_std
+        description: 그 셀의 붐빔 표준편차 (변동성)
+      - name: peak_ppltn
+        description: 그 셀의 과거 최대 붐빔
+      - name: base_n
+        description: 표본 수 (작으면 신뢰도 낮음)
 
   - name: gold_citydata_ppltn_x_transit_hourly
+    config:
+      tags: ['fast']
     data_tests:
       - unique_grain:
           arguments:
@@ -533,8 +1162,80 @@ models:
       incremental(delete+insert).
     columns:
       - name: time_bucket
+        description: 시간 버킷 (KST, date_trunc hour) — grain 축
         data_tests: [not_null]
       - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 — grain 축·조인 키
         data_tests: [not_null]
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: gu
+        description: 자치구명
+      - name: hotspot_count
+        description: 그 동에 속한 우리 핫플 장소 수
+      - name: ppltn_avg
+        description: 그 동×시간 평균 붐빔
+      - name: ppltn_peak
+        description: 그 동×시간 최대 붐빔
+      - name: bus_congestion_avg
+        description: 버스 혼잡도 평균 (transit_dong)
+      - name: bus_full_ratio
+        description: 만차 버스 비율 (transit_dong)
+      - name: subway_arrival_cnt
+        description: 지하철 도착 횟수 (transit_dong)
+      - name: subway_wait_avg_s
+        description: 지하철 평균 대기 시간(초, transit_dong)
+      - name: parking_lot_cnt
+        description: 주차장 수 (transit_dong)
       - name: parking_occupancy_avg
         description: 주차 점유율 평균 (0~1, 높을수록 만차)
+      - name: parking_full_lot_cnt
+        description: 만차 주차장 수 (transit_dong)
+
+  - name: gold_citydata_ppltn_demographics
+    config:
+      tags: ['slow']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, dow, hour, segment_type, segment]
+    description: >
+      장소×요일×시간대 인구 **성별·나이대 세그먼트** 패턴 (챗봇 서빙용, R2→D1 export 소스).
+      silver_ppltn 의 wide 비율을 long 으로 언피벗해 요일×시간대 평균 집계. "토요일 14시
+      20대가 많은 지역" 류를 segment 필터 + avg_est_headcount 정렬로 답한다. 성별×나이대
+      교차는 원본에 없어 미포함 — 챗봇/D1 이 age headcount × gender rate 로 근사(독립가정).
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###, grain 축)
+      - name: area_nm
+        description: 장소명 (예 홍대 관광특구)
+      - name: area_category
+        description: 장소 분류 (관광특구/발달상권/공원 등)
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: dow
+        description: 요일 (Trino day_of_week — 1=월 … 6=토 … 7=일, grain 축)
+      - name: hour
+        description: 시각 (0~23, KST event_at 기준, grain 축)
+      - name: segment_type
+        description: 세그먼트 차원 — gender | age (grain 축)
+      - name: segment
+        description: 세그먼트 값 — gender=male/female, age=0/10/…/70(대) (grain 축)
+      - name: avg_rate_pct
+        description: 그 (요일,시간) 버킷 세그먼트 비율(%) 평균
+      - name: avg_est_headcount
+        description: 추정 인원수 평균 = avg(인구 중간값 × 비율/100). "많은" 랭킹 키. ⚠ 인구범위 중간값 기반 추정치(교차분포 아님)
+      - name: avg_ppltn
+        description: 인구 중간값(min·max 평균) 평균 — 세그먼트 무관 참고
+      - name: avg_congest_score
+        description: 혼잡도 평균 (1 여유·2 보통·3 약간붐빔·4 붐빔)
+      - name: sample_count
+        description: 집계된 5분 실측 스냅샷 수 (신뢰도 지표)

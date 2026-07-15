@@ -3,11 +3,10 @@
 -- "지금 뜨는/식는 곳" — 최근 30분 평균 붐빔 vs 그 이전 30분 평균의 변화율. 챗봇 "지금 어디
 -- 뜨고 있어?" / 급증 감지용. by_time(5분 간격) 최근 12버킷(=1시간)을 반으로 나눠 비교.
 --
--- by_time 파생 view (조회 시 최신). area_cd 로 1행 읽어 상승/하락·변화율 답변.
+-- by_time 파생 table (조회 시 최신). area_cd 로 1행 읽어 상승/하락·변화율 답변.
 
 {{ config(
     schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
-    materialized='view',
 ) }}
 
 with ranked as (

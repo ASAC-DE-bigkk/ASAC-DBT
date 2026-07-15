@@ -11,6 +11,7 @@
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'mode', 'observed_at'],
     on_table_exists='drop',
+    post_hook=dedup_latest(['area_cd', 'mode', 'observed_at'], order_col='observed_at'),
 ) }}
 
 {% set modes = [('LIVE_SUB_PPLTN', 'subway', 'SUB'), ('LIVE_BUS_PPLTN', 'bus', 'BUS')] %}
