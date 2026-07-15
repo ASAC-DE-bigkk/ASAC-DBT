@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   validate-traffic-weather-monoproject:
-    name: validate-traffic-weather-monoproject
+    # External compatibility contract required by the dev branch ruleset.
+    name: validate-traffic-manifest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

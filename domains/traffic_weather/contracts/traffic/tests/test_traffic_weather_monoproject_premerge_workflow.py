@@ -45,6 +45,19 @@ def test_workflow_is_the_single_traffic_weather_monoproject_gate() -> None:
     assert re.search(r"(?m)^  validate-traffic-weather-monoproject:\s*$", workflow)
 
 
+def test_workflow_reports_the_required_dev_ruleset_context() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    job = re.search(
+        r"(?ms)^  validate-traffic-weather-monoproject:\s*\n(?P<body>.*?)(?=^  \S|\Z)",
+        workflow,
+    )
+
+    assert job is not None
+    assert re.search(
+        r"(?m)^    name:\s+validate-traffic-manifest\s*$", job.group("body")
+    )
+
+
 def test_root_workflow_is_only_a_github_discovery_adapter() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
