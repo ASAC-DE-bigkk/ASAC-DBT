@@ -1,9 +1,9 @@
-# gold 상태·기간 집계 쿼리 — 개업/폐업/상태별 × 연/월 × 업종
+# 상태·기간 집계 쿼리 — 개업/폐업/상태별 × 연/월 × 업종 (silver 원형 + gold 집계)
 
-gold(Iceberg) 기반 **개업·폐업·상태별 기간 집계**의 정본 쿼리 모음. 전 쿼리는 dev 실데이터로
+silver 원형 정리본(entity/detail — 레이어 재분류 #70) + gold 집계 기반 **개업·폐업·상태별 기간 집계** 정본 쿼리 모음. 전 쿼리는 dev 실데이터로
 **실행 검증**됐다(2026-07-15, entity 289만 행). D1(SQLite) 서빙 시 집계 관리 방안은 §7.
 
-- 대상: `iceberg_dev.commerce.gold_license_entity`(현재 상태) + `commerce_<domain>_detail`(API 별
+- 대상: `iceberg_dev.commerce.silver_license_entity`(현재 상태) + `silver_<domain>_detail`(API 별
   상이 컬럼) + `commerce_dataset_taxonomy`(업종 분류 시드) — 구조: dags `docs/PROJECT.md` §4.3
 - 실행: Trino(DBeaver 등). prod 는 `iceberg_dev` → `iceberg`.
 
@@ -59,8 +59,8 @@ detail 은 **버전 이력**(grain = 자연키 × collected_at × content_hash)�
 
 ```sql
 select e.trdstategbn, e.trdstatenm, d.*          -- 상태값(공통)은 entity, 상이 컬럼은 detail
-from iceberg_dev.commerce.gold_license_entity e
-join iceberg_dev.commerce.commerce_<domain>_detail d
+from iceberg_dev.commerce.silver_license_entity e
+join iceberg_dev.commerce.silver_<domain>_detail d
   on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
   and d.mgtno = e.mgtno and d.content_hash = e.content_hash;
 ```
@@ -87,7 +87,7 @@ with e as (
               when regexp_like(trim(coalesce(e.dcbymd,'')), '^\d{8}$')
               then substr(trim(e.dcbymd),1,4)||'-'||substr(trim(e.dcbymd),5,2)||'-'||substr(trim(e.dcbymd),7,2)
          end c_iso
-  from iceberg_dev.commerce.gold_license_entity e
+  from iceberg_dev.commerce.silver_license_entity e
   join iceberg_dev.commerce.commerce_dataset_taxonomy t on t.short = e.dataset
 ),
 ev as (
@@ -124,7 +124,7 @@ with e as (
   select substr(trim(trdstategbn),1,2) st, t.major, t.category, e.dataset,
          case when regexp_like(trim(coalesce(e.apvpermymd,'')), '^\d{4}-\d{2}-\d{2}$') then trim(e.apvpermymd) end o_iso,
          case when regexp_like(trim(coalesce(e.dcbymd,'')),     '^\d{4}-\d{2}-\d{2}$') then trim(e.dcbymd)     end c_iso
-  from iceberg_dev.commerce.gold_license_entity e
+  from iceberg_dev.commerce.silver_license_entity e
   join iceberg_dev.commerce.commerce_dataset_taxonomy t on t.short = e.dataset
 ),
 ev as (select st, major, category, dataset,
@@ -151,8 +151,8 @@ order by 1 desc, 2;
 ```sql
 select substr(trim(d.clgstdt),1,4) suspend_year,   -- 월별: substr(...,1,7)
        e.dataset, count(*) n
-from iceberg_dev.commerce.gold_license_entity e
-join iceberg_dev.commerce.commerce_amusement_park_detail d
+from iceberg_dev.commerce.silver_license_entity e
+join iceberg_dev.commerce.silver_amusement_park_detail d
   on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
   and d.mgtno = e.mgtno and d.content_hash = e.content_hash        -- 현재 버전 매칭
 where regexp_like(trim(coalesce(d.clgstdt,'')), '^\d{4}-\d{2}-\d{2}')
@@ -165,8 +165,8 @@ group by 1,2 order by 1 desc;
 
 ```sql
 select substr(trim(d.apvcancelymd),1,4) cancel_year, e.dataset, count(*) n
-from iceberg_dev.commerce.gold_license_entity e
-join iceberg_dev.commerce.commerce_amusement_park_detail d
+from iceberg_dev.commerce.silver_license_entity e
+join iceberg_dev.commerce.silver_amusement_park_detail d
   on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
   and d.mgtno = e.mgtno and d.content_hash = e.content_hash
 where substr(trim(e.trdstategbn),1,2) = '04'
@@ -182,7 +182,7 @@ select e.dataset, e.dtlstategbn, max(e.dtlstatenm) dtlstatenm,
        substr(c_iso,1,4) y, count(*) n
 from ( select dataset, dtlstategbn, dtlstatenm,
               case when regexp_like(trim(coalesce(dcbymd,'')), '^\d{4}-\d{2}-\d{2}$') then trim(dcbymd) end c_iso
-       from iceberg_dev.commerce.gold_license_entity ) e
+       from iceberg_dev.commerce.silver_license_entity ) e
 where c_iso is not null
 group by 1,2,4 order by 1, 5 desc;
 ```
@@ -195,8 +195,8 @@ taxonomy(대/중/소분류)보다 세밀한 **업태 구분**은 detail 의 `upt
 ```sql
 select t.major, t.category, e.dataset, d.uptaenm,
        substr(trim(e.apvpermymd),1,4) y, count(*) opened
-from iceberg_dev.commerce.gold_license_entity e
-join iceberg_dev.commerce.commerce_food_sanitation_business_detail d
+from iceberg_dev.commerce.silver_license_entity e
+join iceberg_dev.commerce.silver_food_sanitation_business_detail d
   on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
   and d.mgtno = e.mgtno and d.content_hash = e.content_hash
 join iceberg_dev.commerce.commerce_dataset_taxonomy t on t.short = e.dataset
@@ -212,7 +212,7 @@ group by 1,2,3,4,5 order by 5 desc, 6 desc;
 
 ```sql
 select object, members
-from iceberg_dev.commerce.gold_catalog
+from iceberg_dev.commerce.meta_detail_catalog
 where payload_columns like '%clgstdt%'             -- 원하는 컬럼으로 교체
 order by object;
 ```
@@ -225,7 +225,7 @@ order by object;
 with e as (
   select case when regexp_like(trim(coalesce(apvpermymd,'')), '^\d{4}-\d{2}-\d{2}$') then trim(apvpermymd) end o,
          case when regexp_like(trim(coalesce(dcbymd,'')),     '^\d{4}-\d{2}-\d{2}$') then trim(dcbymd)     end c
-  from iceberg_dev.commerce.gold_license_entity)
+  from iceberg_dev.commerce.silver_license_entity)
 select '당해'  k, count_if(substr(o,1,4) = substr(cast(current_date as varchar),1,4)) opened,
                  count_if(substr(c,1,4) = substr(cast(current_date as varchar),1,4)) closed from e
 union all
@@ -310,7 +310,7 @@ with e as (
   select t.major, t.category, e.dataset,
          case when regexp_like(trim(coalesce(e.apvpermymd,'')), '^\d{4}-\d{2}-\d{2}$') then trim(e.apvpermymd) end o_iso,
          case when regexp_like(trim(coalesce(e.dcbymd,'')),     '^\d{4}-\d{2}-\d{2}$') then trim(e.dcbymd)     end c_iso
-  from iceberg_dev.commerce.gold_license_entity e
+  from iceberg_dev.commerce.silver_license_entity e
   join iceberg_dev.commerce.commerce_dataset_taxonomy t on t.short = e.dataset),
 ev as (
   select o_iso dt, major, category, dataset, 1 o, 0 c from e where o_iso is not null
@@ -381,3 +381,6 @@ COMMIT;
 
 - 2026-07-15: 최초 작성 — 전 쿼리 dev 실측 검증(상태 census·날짜 형식·커버리지 포함).
   Trino 482 `try()` 복합식 버그 회피(문자열 substr 규약) 명시. D1 관리 방안(§7.2) 제안.
+
+- 2026-07-15: **레이어 재분류(#70) 반영** — 원형(entity/entity_history/detail)은 silver_ 명칭,
+  카탈로그는 meta_detail_catalog, 집계(dong_summary)만 gold. 쿼리 내 테이블 명칭 전면 치환.

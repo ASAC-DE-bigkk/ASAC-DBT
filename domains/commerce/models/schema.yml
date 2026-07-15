@@ -1,13 +1,13 @@
 version: 2
 
 models:
-  # ── gold 코어(Iceberg — dags docs/PROJECT.md §4) ─────────────────────────────
-  - name: gold_license_entity
+  # ── 원형 정리본(silver — 레이어 재분류 2026-07-15, dags docs/PROJECT.md §4) ────
+  - name: silver_license_entity
     description: >
       업소 현재 상태(공통 컬럼 서빙 프로젝션, Iceberg 정본). grain = 자연키
       (dataset, opnsfteamcode, mgtno) — silver_license_current 와 1:1(D1/SQLite 특성상
       DB 발급 서러게이트 금지, PROJECT.md §4.2). record_json 등 대형/내부 컬럼 제외.
-      API 별 상이 컬럼은 카탈로그 구동 detail(commerce_<domain>_detail, dags include/gold/) 담당.
+      API 별 상이 컬럼은 카탈로그 구동 detail(silver_<domain>_detail, dags include/gold/) 담당.
     columns:
       - name: dataset
         tests:
@@ -19,7 +19,7 @@ models:
         tests:
           - not_null
 
-  - name: gold_license_entity_history
+  - name: silver_license_entity_history
     description: >
       업소 버전 이력 프로젝션(append-only, Iceberg 전용 — D1 export 금지·대용량).
       증분 = collected_at 워터마크(silver history 가 append-only 라 신규 버전 행만 승계).
