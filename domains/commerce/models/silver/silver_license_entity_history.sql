@@ -1,7 +1,7 @@
--- gold_license_entity_history — 업소 버전 이력(서빙 프로젝션, Iceberg 전용 · D1 export 금지).
+-- silver_license_entity_history — 업소 버전 이력(원형 정리본 프로젝션).
 --
--- 서빙 레이어 정책(dags docs/PROJECT.md §4): 대용량 이력은 D1(SQLite) 용량 상한 때문에 export
--- 하지 않고 Iceberg gold 에만 둔다(§4.2·§4.3). silver_license_history(append-only 변경로그)의
+-- 레이어 재분류(2026-07-15, PROJECT.md §4): 원형은 silver. 대용량 이력은 D1 export 금지
+-- (§4.2·§4.3 — Iceberg 전용). silver_license_history(append-only 변경로그)의
 -- 서빙 프로젝션 — record_json/정렬키/수집 계보 제외, 버전 식별 grain 은 silver 와 동일하게
 -- (dataset, opnsfteamcode, mgtno, collected_at, content_hash).
 --

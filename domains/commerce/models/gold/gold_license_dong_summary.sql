@@ -20,6 +20,6 @@ select
     count(distinct dataset)                           as dataset_count,
     count(*) filter (where latitude is not null)      as geocoded_count,
     max(collected_at)                                 as latest_collected_at
-from {{ ref('gold_license_entity') }}
+from {{ ref('silver_license_entity') }}
 where admin_dong_code is not null
 group by admin_dong_code

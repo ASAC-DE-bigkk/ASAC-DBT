@@ -13,11 +13,11 @@ exposures:
       name: data-eng
     description: >
       commerce_load_gold DAG(ASAC-DAG) 가 gold 코어(dbt·Iceberg)와 카탈로그 구동 detail
-      (commerce_<domain>_detail — API 별 상이 컬럼 평탄화, dags include/gold/)을 구축한다.
+      (silver_<domain>_detail — API 별 상이 컬럼 평탄화, dags include/gold/)을 구축한다.
       서빙은 gold 중 선별 소수 테이블만 D1(SQLite) 로 export(후속 구현 — PROJECT.md §4.3):
-      gold_license_dong_summary(1순위)·gold_license_entity(필터/컬럼 축소 후보).
+      gold_license_dong_summary(1순위)·silver_license_entity(필터/컬럼 축소 후보).
       기존 serving Postgres 경로는 폐기(2026-07-14).
     depends_on:
-      - ref('gold_license_entity')
-      - ref('gold_license_entity_history')
+      - ref('silver_license_entity')
+      - ref('silver_license_entity_history')
       - ref('gold_license_dong_summary')

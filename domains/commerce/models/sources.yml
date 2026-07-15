@@ -103,3 +103,16 @@ sources:
           - name: event_at
             tests:
               - not_null
+
+  # ── silver detail(카탈로그 구동 — dags include/gold 적재) 중 dbt gold 가 소비하는 것만 ────
+  # detail 은 dbt 외부(Python) 적재라 source 로 참조. 물리명 = OL stitch 키.
+  - name: commerce_silver_details
+    description: >
+      silver_<domain>_detail(원형 — API 별 상이 컬럼, #70) 중 gold 집계가 입력으로 쓰는 테이블.
+      가동시간·일수 축(영업시간 필드는 LOCALDATA 원천 부재 — 환경 v2 2종만 보유).
+    database: "{{ target.database }}"
+    schema: "{{ env_var('COMMERCE_SCHEMA', 'commerce') }}"
+    freshness: null    # 적재 주체는 silver DAG — 신선도는 그쪽 계약
+    tables:
+      - name: silver_air_pollution_facility_detail
+      - name: silver_water_pollution_facility_detail

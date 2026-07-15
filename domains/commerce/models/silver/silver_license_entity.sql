@@ -1,8 +1,9 @@
--- gold_license_entity — 업소 현재 상태(서빙 프로젝션, Iceberg 정본).
+-- silver_license_entity — 업소 현재 상태(원형 정리본 — JOIN 가능한 모델링).
 --
--- 서빙 레이어 정책(dags docs/PROJECT.md §4): gold 는 bronze/silver 와 동일한 Iceberg 카탈로그에
--- dbt 로 만들고, D1(SQLite) 에는 선별 소수 테이블만 export 한다(예정). 이 모델은 그 정본 계층의
--- "현재 상태" 테이블 — D1 export 시 필터/컬럼 축소 후보.
+-- 레이어 재분류(2026-07-15 사용자 확정, dags docs/PROJECT.md §4): 테이블 원형(정리·표준화·
+-- JOIN 모델링)은 **silver**, 업무 목적 집계·지표만 gold. 이 모델은 silver_license_current 의
+-- 서빙 프로젝션(원형) — record_json 등 내부 컬럼을 제외한 "정리된 테이블 단위". gold 집계
+-- (gold_license_dong_summary)와 D1 export 가 이걸 입력으로 쓴다.
 --
 -- grain = 자연키 (dataset, opnsfteamcode, mgtno) — silver_license_current 와 1:1.
 --   D1/SQLite 특성상 DB 발급 서러게이트(bigserial) 금지 → 자연키가 식별자(PROJECT.md §4.2).
