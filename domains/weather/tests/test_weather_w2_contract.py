@@ -59,6 +59,8 @@ DATA_TESTS = NAMED_TESTS | {
     "assert_gold_weather_forecast_by_admin_dong_latest_grid_record",
     "assert_gold_weather_forecast_by_admin_dong_bridge_exclusions_reconcile",
     "assert_gold_weather_forecast_by_admin_dong_repair_reconciles",
+    "assert_gold_weather_forecast_by_admin_dong_repair_window_no_extra_rows",
+    "assert_gold_weather_forecast_by_admin_dong_repair_window_lineage",
     "assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade",
 }
 CANONICAL_DATA_TESTS = DATA_TESTS - {
@@ -220,6 +222,121 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed():
     assert "weather_w2_shared_dev_build_allowed" in w1_macro
     assert "weather_w2_assert_repair_evidence" in w1_macro
     assert "flags.full_refresh" in w1_macro
+
+
+def test_gold_repair_reconciliation_compacts_payload_before_winner_ranking():
+    raw = read("tests/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql")
+    compacted = compact(raw)
+    ranked = raw[
+        raw.index("ranked_grid_candidate_keys as") : raw.index(
+            "winning_grid_candidate_keys as"
+        )
+    ]
+
+    assert "ranked_grid_candidate_keys as" in raw
+    assert "winning_grid_candidate_keys as" in raw
+    assert "candidate_payload_hash" not in raw
+    assert "sha256(" not in compacted
+    assert "canonical_payload" in raw
+    assert compacted.count("json_format(cast(row(") == 2
+    assert "joined_candidates.*" not in ranked
+    assert "from grid_candidates" in ranked
+    assert "left join {{ ref('gold_weather_forecast_by_admin_dong') }} as actual" in raw
+    assert "full outer join" not in compacted
+    assert "weather_w2_gold_winner_is_not_older" in raw
+    for field in (
+        "admin_dong",
+        "gu_code",
+        "gu",
+        "admin_dong_revision_date",
+        "bridge_version",
+        "nx",
+        "ny",
+        "source_grid_place_id",
+        "issued_at",
+        "collected_at",
+        "published_at",
+        "fcst_value_raw",
+        "fcst_value_num",
+        "value_representation",
+        "value_num",
+        "value_lower_bound",
+        "value_upper_bound",
+        "qualitative_code",
+        "forecast_lead_hours",
+        "source_id",
+        "dag_run_id",
+        "raw_object_key",
+        "request_id",
+    ):
+        assert f"cast(candidate.{field} as" in compacted
+        assert f"cast(actual.{field} as" in compacted
+
+    extra_rows = compact(
+        read("tests/assert_gold_weather_forecast_by_admin_dong_repair_window_no_extra_rows.sql")
+    )
+    assert "ranked_grid_candidate_keys as" in extra_rows
+    assert "actual_window as" in extra_rows
+    assert "unexpected_window_gold_row" in extra_rows
+    assert "published_at as timestamp(6)) >= timestamp" in extra_rows
+
+    lineage_raw = read(
+        "tests/assert_gold_weather_forecast_by_admin_dong_repair_window_lineage.sql"
+    )
+    lineage = compact(lineage_raw)
+    assert "weather_w2_lineage_run_bucket_count" in lineage
+    assert "weather_w2_lineage_run_bucket_index" in lineage
+    assert "weather_w2_observation_recovery_lineage_workset" in lineage
+    assert "workset_for_window as" in lineage
+    assert "selected_workset as" in lineage
+    assert "run_query(" not in lineage
+    assert "lineage_backed_products as" in lineage
+    assert "repair_product_keys as" not in lineage
+    assert "actual_repair_products as" not in lineage
+    assert "forecast_lineage_not_backed_by_one_grid_row" in lineage
+    assert "lineage_workset_window_missing" in lineage
+    assert "cast(lineage_run_bucket_ordinal as bigint) as lineage_run_bucket_ordinal" in lineage
+    assert "cast(nx as integer) as nx" in lineage
+    assert "cast(raw_object_key as varchar) as raw_object_key" in lineage
+    assert "mod(lineage_run_bucket_ordinal, {{ lineage_run_bucket_count }})" in lineage
+    assert "lineage_payload" in lineage
+    assert "json_format(cast(row(" in lineage
+    assert "grid.source_id as varchar) = actual.source_id" in lineage
+    assert "grid.selected_dag_run_id as varchar) = actual.dag_run_id" in lineage
+    assert "grid.forecast_at as timestamp(6)) = actual.forecast_at" in lineage
+    assert "grid.raw_object_key as varchar) = actual.raw_object_key" in lineage
+    assert "is not distinct from actual." not in lineage
+    assert "lineage_grid_payloads as" not in lineage
+    assert "where cast(actual.published_at" not in lineage
+    assert "actual.published_at >= timestamp" not in lineage
+    assert "actual.published_at <= timestamp" not in lineage
+    assert "all_grid_records as" not in lineage
+
+    lineage_failure_query = lineage_raw[
+        lineage_raw.rindex("select\n    actual.product_row_id,") : lineage_raw.rindex("{% else %}")
+    ]
+    assert "from selected_workset as actual" in lineage_failure_query
+    assert "left join lineage_backed_products" in lineage_failure_query
+
+
+def test_repair_lineage_workset_is_bounded_and_dev_only():
+    workset = compact(
+        read("models/operations/weather_w2_observation_recovery_lineage_workset.sql")
+    )
+    for token in (
+        "materialized='table'",
+        "alias='weather_w2_observation_recovery_lineage_workset'",
+        "weather_w2_is_repair",
+        "weather_w2_assert_gold_dev_target",
+        "weather_w2_assert_repair_evidence",
+        "weather_w2_bridge_version",
+        "weather_w2_gold_winner_is_not_older",
+        "repair_start_at",
+        "repair_cutoff_at",
+        "lineage_run_bucket_ordinal",
+        "json_format(cast(row(",
+    ):
+        assert token in workset
 
 
 def test_repair_evidence_ranks_latest_state_then_checks_manifest_and_bronze():
