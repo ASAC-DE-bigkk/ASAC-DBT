@@ -18,6 +18,14 @@ SNAPSHOT_RECONCILIATION_TEST_PATH = (
     / "gold"
     / "assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql"
 )
+FLOW_INCIDENT_CARDINALITY_TEST_PATH = (
+    PROJECT_ROOT
+    / "tests"
+    / "traffic"
+    / "transform"
+    / "gold"
+    / "assert_gold_traffic_incident_x_flow_preserves_incidents.sql"
+)
 
 
 def _assert_fragments_are_ordered(text: str, fragments: tuple[str, ...]) -> None:
@@ -157,3 +165,12 @@ def test_snapshot_reconciliation_keeps_one_current_evidence_row_when_current_is_
         "count_if(current_rows.source_id is distinct from configured_run.source_id)"
         in current_evidence_sql
     )
+
+
+def test_flow_gold_incident_cardinality_preserves_incidents():
+    sql = FLOW_INCIDENT_CARDINALITY_TEST_PATH.read_text(encoding="utf-8")
+
+    assert "ref('gold_traffic_incident_x_flow')" in sql
+    assert "ref('silver_seoul_traffic_incident_current')" in sql
+    assert "gold_row_count <> incident_row_count" in sql
+    assert "gold_incident_count <> incident_incident_count" in sql
