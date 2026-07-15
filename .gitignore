@@ -8,3 +8,8 @@ __pycache__/
 /domains/traffic_weather/dbt_packages/
 /domains/traffic_weather/logs/
 **/.user.yml
+
+# dbt 빌드 산출물 (도메인 공통 — 도메인별 개별 나열 대체)
+domains/*/target/
+domains/*/dbt_packages/
+domains/*/logs/
