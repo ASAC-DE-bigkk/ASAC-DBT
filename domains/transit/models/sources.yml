@@ -1,7 +1,7 @@
 version: 2
 
-# transit 브론즈 원천. ASAC-DAG transit DAG 들이 dev iceberg_dev.<user_schema> 에 적재.
-# database/schema 는 프로필(target)이 해석 → bronze·silver 동일 스키마(dev 실증 위치).
+# transit 브론즈 원천. ASAC-DAG transit DAG 들이 iceberg[_dev].<TRANSIT_SCHEMA> 에 적재.
+# database/schema 는 프로필(target)이 해석 → bronze·silver 동일 스키마(#51, #204).
 sources:
   - name: transit_bronze
     description: Seoul transit Bronze Iceberg tables loaded by ASAC-DAG transit DAGs.
