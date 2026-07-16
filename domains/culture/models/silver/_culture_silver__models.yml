@@ -345,3 +345,35 @@ models:
           - not_null
           - accepted_values:
               arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  # --- SLO 마트 (tag:slo, #110). 관측 메타라 공간축 면제. 도메인 중립(domain 컬럼). ---
+  - name: silver_culture_slo_run
+    description: run 그레인 SLO — coverage 4분해 + slo_passed 교정(raw AND expected>0, 초록위장 사후판정)
+    columns:
+      - name: run_id
+        tests: [not_null, unique]
+      - name: domain
+        tests: [not_null]
+      - name: slo_passed
+        tests: [not_null]
+      - name: run_kind
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [scheduled, manual, backfill]}
+  - name: silver_culture_slo_dataset
+    description: run×dataset 그레인 — datasets[] UNNEST, 병목 추이(duration_sec) 원천. 그레인 유일성은 단일 테스트
+    columns:
+      - name: run_id
+        tests: [not_null]
+      - name: dataset_name
+        tests: [not_null]
+  - name: silver_culture_dag_run
+    description: DAG run 그레인 — Airflow dag_run 스냅샷(KST). 그레인(dag_id,run_id) 유일성은 단일 테스트
+    columns:
+      - name: dag_id
+        tests: [not_null]
+      - name: run_id
+        tests: [not_null]
+      - name: state
+        tests: [not_null]

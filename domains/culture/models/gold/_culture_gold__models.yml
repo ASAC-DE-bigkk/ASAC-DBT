@@ -249,3 +249,38 @@ models:
           - not_null
           - accepted_values:
               arguments: {values: [dong_precise, gu_only, unmatched]}
+
+  # --- SLO 마트 gold (tag:slo, #110). contract enforced. 도메인 중립(#6). 비율=decimal(38,18). ---
+  - name: gold_culture_slo_daily
+    description: 날짜 1행 SLO — scheduled/eod 가용(분모 둘 다)·green_disguise·적재추세. 7/7 회귀 케이스의 기준표.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: domain
+        data_type: varchar
+        tests: [not_null]
+      - name: event_date
+        data_type: date
+        tests: [not_null, unique]
+      - name: scheduled_slo_passed
+        data_type: boolean
+      - name: eod_slo_passed
+        data_type: boolean
+      - name: best_coverage_pct
+        data_type: decimal(38,18)
+      - name: failed_dataset_count
+        data_type: bigint
+      - name: violation_count
+        data_type: bigint
+      - name: total_rows
+        data_type: bigint
+      - name: ingest_duration_min
+        data_type: decimal(38,18)
+      - name: transform_runs
+        data_type: bigint
+      - name: transform_all_success
+        data_type: boolean
+      - name: maintenance_ran
+        data_type: boolean
+      - name: green_disguise_runs
+        data_type: bigint
