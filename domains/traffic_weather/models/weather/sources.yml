@@ -123,3 +123,27 @@ sources:
           - name: event_at
             description: manifest 상태 이벤트의 UTC 기록 시각이며 Silver에서 published_at KST로 별도 노출한다.
             tests: [not_null]
+
+  - name: culture_gold
+    description: Culture 도메인이 게시한 Gold 물리 테이블을 Weather cross-domain context에서 읽기만 하는 source다.
+    database: "{{ target.database }}"
+    schema: culture
+    tables:
+      - name: gold_culture_activity_by_dong
+        description: 행정동×일자 문화활동 Gold. Weather는 upstream보다 강한 freshness/nullability 테스트를 선언하지 않는다.
+
+  - name: transit_gold
+    description: Transit 도메인이 게시한 Gold 물리 테이블을 Weather cross-domain context에서 읽기만 하는 source다.
+    database: "{{ target.database }}"
+    schema: transit
+    tables:
+      - name: gold_transit_dong_hourly
+        description: 행정동×시간 교통 Gold. Weather는 upstream보다 강한 freshness/nullability 테스트를 선언하지 않는다.
+
+  - name: commerce_gold
+    description: Commerce 도메인이 게시한 Gold 물리 테이블을 Weather cross-domain context에서 읽기만 하는 source다.
+    database: "{{ target.database }}"
+    schema: commerce
+    tables:
+      - name: gold_license_dong_summary
+        description: 행정동 사업체 stock Gold. Weather는 upstream보다 강한 freshness/nullability 테스트를 선언하지 않는다.
