@@ -2,7 +2,7 @@
 --
 -- 인사이트 계약(#71·#73): "연 단위" 집계 — **이미 적재된 연도는 추가 적재하지 않는다** = 기적재
 -- 최대연 초과 완결연만 append. **재실행 시 신규 완결연 없으면 0건**(사용자 확정 — 멱등 확인 대상).
--- D1 도 동일(max(y) 초과). 지연 도착(과거연 소급)은 --full-refresh 로 흡수(commerce_load_gold_refresh).
+-- D1 서빙은 롤업 전량 교체 스냅샷(서빙 정본 §1.4). 지연 도착(과거연 소급)은 --full-refresh 로 흡수(commerce_load_gold_refresh).
 
 {{ config(
     materialized='incremental',
