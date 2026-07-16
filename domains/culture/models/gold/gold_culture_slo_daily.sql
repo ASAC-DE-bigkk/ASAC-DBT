@@ -14,7 +14,7 @@ dag_runs as (
 run_daily as (
     select
         domain,
-        load_date                                                            as event_date,
+        cast(load_date as date)                                              as event_date,
         -- 자정 스케줄런 기준(그 날 scheduled run 이 모두 통과). scheduled 없으면 null→false.
         bool_and(case when run_kind = 'scheduled' then slo_passed end)        as scheduled_slo_passed,
         -- 일 최종(그 날 아무 run 이든 하나라도 통과 = 복구 성공 인정).

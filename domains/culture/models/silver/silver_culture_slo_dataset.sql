@@ -7,20 +7,30 @@ with bronze as (
         json_extract_scalar(record_json, '$.domain') as domain,
         run_id,
         load_date,
+        ingest_ts,
+        raw_object_key,
         record_json
     from {{ source('culture_bronze', 'bronze_culture_run_report') }}
 ),
 
+latest as (  -- run_id 당 최신 리포트 1건 (slo_run 과 동일 dedup) — grain(run_id×dataset) 유일성 보장
+    select
+        *,
+        row_number() over (partition by run_id order by {{ culture_dedup_order() }}) as rn
+    from bronze
+),
+
 exploded as (
     select
-        b.domain,
-        b.run_id,
-        b.load_date,
+        l.domain,
+        l.run_id,
+        l.load_date,
         ds
-    from bronze b
+    from latest l
     cross join unnest(
-        cast(json_extract(b.record_json, '$.datasets') as array(json))
+        cast(json_extract(l.record_json, '$.datasets') as array(json))
     ) as t(ds)
+    where l.rn = 1
 ),
 
 typed as (
