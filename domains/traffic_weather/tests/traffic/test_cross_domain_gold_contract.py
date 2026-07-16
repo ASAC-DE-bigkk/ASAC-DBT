@@ -1,0 +1,143 @@
+from pathlib import Path
+
+import yaml
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+GOLD_DIR = PROJECT_ROOT / "models" / "traffic" / "transform" / "gold"
+TRAFFIC_DOCS_DIR = PROJECT_ROOT / "docs" / "traffic"
+TRAFFIC_SOURCES_PATH = PROJECT_ROOT / "models" / "traffic" / "sources.yml"
+WEATHER_MODEL_PATH = GOLD_DIR / "gold_traffic_incident_x_weather_current_hourly.sql"
+CITYDATA_MODEL_PATH = (
+    GOLD_DIR / "gold_traffic_incident_x_citydata_crowding_current_hourly.sql"
+)
+GOLD_METADATA_PATH = GOLD_DIR / "_gold.yml"
+
+
+def _compact(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def _gold_models() -> dict[str, dict]:
+    document = yaml.safe_load(GOLD_METADATA_PATH.read_text(encoding="utf-8")) or {}
+    return {model["name"]: model for model in document.get("models", [])}
+
+
+def test_design_and_implementation_plan_exist_for_issue_234() -> None:
+    specs = list(
+        (TRAFFIC_DOCS_DIR / "superpowers" / "specs").glob(
+            "2026-07-16-traffic-cross-domain-gold*.md"
+        )
+    )
+    plans = list(
+        (TRAFFIC_DOCS_DIR / "superpowers" / "plans").glob(
+            "2026-07-16-traffic-cross-domain-gold*.md"
+        )
+    )
+
+    assert specs, "missing issue #234 design spec"
+    assert plans, "missing issue #234 implementation plan"
+    combined = "\n".join(
+        path.read_text(encoding="utf-8") for path in sorted(specs + plans)
+    )
+    assert "gold_traffic_incident_x_weather_current_hourly" in combined
+    assert "gold_traffic_incident_x_citydata_crowding_current_hourly" in combined
+    assert "issued_at <= traffic.status_observed_at" in combined
+    assert "do not mark either new model with `traffic_quality_product: true`" in combined
+
+
+def test_cross_domain_gold_metadata_locks_exact_two_models_and_grains() -> None:
+    models = _gold_models()
+    expected = {
+        "gold_traffic_incident_x_weather_current_hourly",
+        "gold_traffic_incident_x_citydata_crowding_current_hourly",
+    }
+    actual = {
+        name
+        for name, model in models.items()
+        if model.get("config", {}).get("meta", {}).get("cross_domain_gold") is True
+    }
+
+    assert actual == expected
+    for name in expected:
+        meta = models[name]["config"]["meta"]
+        assert meta.get("traffic_quality_product") is False
+        assert "admin_dong_code" in meta["grain"]
+        assert "hour_at" in meta["grain"]
+
+
+def test_weather_cross_domain_gold_contract() -> None:
+    sql = WEATHER_MODEL_PATH.read_text(encoding="utf-8")
+    compact_sql = _compact(sql)
+
+    assert "ref('gold_traffic_incident_current_by_admin_dong_hourly')" in sql
+    assert "ref('asac_seoul', 'gold_weather_forecast_by_admin_dong')" in sql
+    assert "traffic.admin_dong_code = weather.admin_dong_code" in compact_sql
+    assert (
+        "cast(date_trunc('hour', weather.forecast_at) as timestamp(6)) = traffic.hour_at"
+        in compact_sql
+    )
+    assert "weather.issued_at <= traffic.status_observed_at" in compact_sql
+    assert "lower(weather.category) in ('tmp', 'pop', 'reh', 'wsd', 'sky', 'pty')" in compact_sql
+    assert "cast(weather.value_num as double) as value_num" in compact_sql
+    assert "cast(weather.qualitative_code as varchar) as qualitative_code" in compact_sql
+    assert "count(distinct category) as weather_category_coverage_count" in compact_sql
+    assert "max(issued_at) as weather_latest_issued_at" in compact_sql
+    assert "max(collected_at) as weather_latest_collected_at" in compact_sql
+    assert "max(published_at) as weather_latest_published_at" in compact_sql
+    assert "cast(weather.published_at as timestamp(6)) as published_at" in compact_sql
+    assert "qualitative_code end) = '0' then false" in compact_sql
+    assert (
+        "qualitative_code end) in ('1', '2', '3', '4', '5', '6', '7') then true"
+        in compact_sql
+    )
+    assert "coalesce(weather_hourly." not in compact_sql
+    assert "traffic.incident_count" in compact_sql
+    assert "traffic.has_incident" in compact_sql
+    assert "traffic.quality_state" in compact_sql
+
+
+def test_citydata_source_contract_lives_in_traffic_sources() -> None:
+    document = yaml.safe_load(TRAFFIC_SOURCES_PATH.read_text(encoding="utf-8")) or {}
+    sources = {source["name"]: source for source in document.get("sources", [])}
+
+    assert "citydata_gold" in sources
+    citydata = sources["citydata_gold"]
+    assert citydata["schema"] == "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    tables = {table["name"]: table for table in citydata["tables"]}
+    table = tables["gold_citydata_ppltn_by_time"]
+    assert table["identifier"] == "gold_citydata_ppltn_by_time"
+    column_defs = {column["name"]: column for column in table["columns"]}
+    columns = {column["name"] for column in table["columns"]}
+    assert {
+        "event_at",
+        "area_cd",
+        "admin_dong_code",
+        "avg_ppltn",
+        "collected_at",
+    }.issubset(columns)
+    assert "tests" not in column_defs["admin_dong_code"]
+
+
+def test_citydata_cross_domain_gold_contract() -> None:
+    sql = CITYDATA_MODEL_PATH.read_text(encoding="utf-8")
+    compact_sql = _compact(sql)
+
+    assert "ref('gold_traffic_incident_current_by_admin_dong_hourly')" in sql
+    assert "source('citydata_gold', 'gold_citydata_ppltn_by_time')" in sql
+    assert "traffic.admin_dong_code = crowding.admin_dong_code" in compact_sql
+    assert (
+        "cast(date_trunc('hour', crowding.event_at) as timestamp(6)) = traffic.hour_at"
+        in compact_sql
+    )
+    assert "row_number() over (" in compact_sql
+    assert "partition by admin_dong_code, hour_at, area_cd" in compact_sql
+    assert "order by event_at desc nulls last, collected_at desc nulls last" in compact_sql
+    assert "count(*) as monitored_place_count" in compact_sql
+    assert "avg(avg_ppltn) as avg_place_avg_ppltn" in compact_sql
+    assert "max(avg_ppltn) as peak_place_avg_ppltn" in compact_sql
+    assert "sum(avg_ppltn)" not in compact_sql
+    assert "resident" not in compact_sql
+    assert "traffic.incident_count" in compact_sql
+    assert "traffic.has_incident" in compact_sql
+    assert "traffic.quality_state" in compact_sql

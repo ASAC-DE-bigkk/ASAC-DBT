@@ -352,3 +352,28 @@ sources:
             description: Airflow flow Bronze collection run lineage.
             tests:
               - not_null
+
+  - name: citydata_gold
+    description: Seoul Citydata Gold tables consumed as cross-domain context by Traffic-owned marts.
+    database: "{{ target.database }}"
+    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    tables:
+      - name: gold_citydata_ppltn_by_time
+        identifier: gold_citydata_ppltn_by_time
+        description: Place-level Seoul Citydata population/crowding observations by event timestamp.
+        freshness: null
+        columns:
+          - name: event_at
+            description: Observation timestamp for the Citydata place crowding row.
+            tests:
+              - not_null
+          - name: area_cd
+            description: Seoul Citydata monitored place identifier.
+            tests:
+              - not_null
+          - name: admin_dong_code
+            description: Canonical admin-dong code assigned by the Citydata product.
+          - name: avg_ppltn
+            description: Average observed place population/crowding estimate for the monitored place.
+          - name: collected_at
+            description: Timestamp when the Citydata row was collected.
