@@ -25,7 +25,8 @@ kst as (
 
 select e.admin_dong_code, max(e.admin_dong) as admin_dong,
        e.gu_code, max(e.gu) as gu,
-       e.major, e.category,
+       e.major, {{ label_major_ko('e.major') }} as major_ko,
+       e.category, {{ label_category_ko('e.category') }} as category_ko,
        count_if(e.st = '01')                            as active_cnt,
        count(*)                                          as total_cnt,
        count_if(e.o_iso >= cast(cast(from_iso8601_date(k.today) - interval '365' day as date) as varchar)

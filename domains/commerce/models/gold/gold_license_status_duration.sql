@@ -53,8 +53,11 @@ dur as (
 )
 
 select d.dataset,
+       max(t.name_ko)  as dataset_ko,
        max(t.major)    as major,
+       {{ label_major_ko('max(t.major)') }}    as major_ko,
        max(t.category) as category,
+       {{ label_category_ko('max(t.category)') }} as category_ko,
        d.st            as status_code,
        case d.st when '01' then '영업/정상' when '02' then '휴업' when '03' then '폐업'
                  when '04' then '취소/말소' when '05' then '제외/전출' else '기타' end as status_group,

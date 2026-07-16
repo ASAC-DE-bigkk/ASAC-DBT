@@ -8,14 +8,14 @@
 
 with ent as (
     select t.major, t.category, e.dataset, e.opnsfteamcode, e.mgtno, e.content_hash,
-           coalesce(e.gu_code, 'UNK') as gu_code
+           coalesce(e.gu_code, 'UNK') as gu_code, t.name_ko, e.gu
     from {{ ref('silver_license_entity') }} e
     join {{ ref('commerce_dataset_taxonomy') }} t on t.short = e.dataset
     where substr(trim(coalesce(e.trdstategbn, '')), 1, 2) = '01'
 ),
 
 raw as (
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -23,7 +23,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -31,7 +31,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -39,7 +39,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -47,7 +47,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -55,7 +55,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -63,7 +63,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -71,7 +71,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -79,7 +79,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -87,7 +87,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -95,7 +95,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -103,7 +103,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -111,7 +111,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -119,7 +119,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -127,7 +127,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -135,7 +135,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -143,7 +143,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -151,7 +151,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -159,7 +159,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -167,7 +167,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -175,7 +175,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -183,7 +183,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -191,7 +191,7 @@ raw as (
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code,
+    select e.major, e.category, e.dataset, e.gu_code, e.name_ko, e.gu,
            case when regexp_like(trim(coalesce(d.sitearea, '')), '^[0-9]+(\.[0-9]+)?$')
                 then cast(trim(d.sitearea) as double) end as area_m2
     from ent e
@@ -201,6 +201,10 @@ raw as (
 )
 
 select major, category, dataset, gu_code,
+       {{ label_major_ko('major') }}           as major_ko,
+       {{ label_category_ko('category') }}     as category_ko,
+       max(name_ko)                            as dataset_ko,
+       max(gu)                                 as gu,
        count(area_m2)                          as n_with_area,
        round(avg(area_m2), 1)                  as avg_m2,
        approx_percentile(area_m2, 0.5)         as p50_m2,

@@ -6,7 +6,9 @@
 
 {{ config(materialized='table', tags=['gold', 'insight']) }}
 
-select t.major, t.category, e.dataset,
+select t.major, {{ label_major_ko('t.major') }} as major_ko,
+       t.category, {{ label_category_ko('t.category') }} as category_ko,
+       e.dataset, max(t.name_ko) as dataset_ko,
        count(*)                                                          as total_rows,
        count_if(substr(trim(coalesce(e.trdstategbn,'')),1,2) = '01')     as active_rows,
        round(1.0 * count_if(e.sitetel is not null and trim(e.sitetel) <> '') / count(*), 4)  as phone_coverage,
@@ -19,4 +21,4 @@ select t.major, t.category, e.dataset,
        round(1.0 * count_if(e.bplcnm is not null and trim(e.bplcnm) <> '') / count(*), 4)    as name_coverage
 from {{ ref('silver_license_entity') }} e
 join {{ ref('commerce_dataset_taxonomy') }} t on t.short = e.dataset
-group by 1, 2, 3
+group by t.major, t.category, e.dataset

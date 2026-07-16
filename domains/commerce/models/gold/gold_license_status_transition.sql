@@ -35,6 +35,11 @@ select t.major, t.category, tr.dataset,
                            when '04' then '취소/말소' when '05' then '제외/전출' else '기타' end as from_group,
        case tr.to_status   when '01' then '영업' when '02' then '휴업' when '03' then '폐업'
                            when '04' then '취소/말소' when '05' then '제외/전출' else '기타' end as to_group,
+       -- add-only 라벨: positional GROUP BY(1,2,3,4,5) 보존 위해 grain 컬럼 뒤에 배치.
+       -- major_ko/category_ko 는 그룹키(t.major/t.category)의 함수적 종속 식, dataset_ko 는 max() 집계 → grain 불변.
+       {{ label_major_ko('t.major') }} as major_ko,
+       {{ label_category_ko('t.category') }} as category_ko,
+       max(t.name_ko) as dataset_ko,
        count(*) as transitions
 from trans tr
 join {{ ref('commerce_dataset_taxonomy') }} t on t.short = tr.dataset

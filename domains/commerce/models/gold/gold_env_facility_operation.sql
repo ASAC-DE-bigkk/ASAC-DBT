@@ -45,7 +45,7 @@ typed as (
     from fac
 )
 
-select dataset, gu_code, max(gu) as gu,
+select dataset, max(t.name_ko) as dataset_ko, gu_code, max(gu) as gu,
        count(*)                          as facility_rows,
        count(op_days)                    as with_operating_days,
        round(avg(op_days), 1)            as avg_operating_days_per_year,
@@ -54,4 +54,5 @@ select dataset, gu_code, max(gu) as gu,
        round(avg(op_hours), 1)           as avg_operating_hours,
        approx_percentile(op_hours, 0.5)  as p50_operating_hours
 from typed
+join {{ ref('commerce_dataset_taxonomy') }} t on t.short = typed.dataset
 group by dataset, gu_code

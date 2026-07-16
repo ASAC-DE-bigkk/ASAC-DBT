@@ -17,6 +17,8 @@
 
 with e as (
     select t.major, t.category, e.dataset,
+           t.name_ko,
+           e.gu, e.admin_dong, e.legal_dong,
            coalesce(e.gu_code, 'UNK')         as gu_code,
            coalesce(e.admin_dong_code, 'UNK') as admin_dong_code,
            coalesce(e.legal_code, 'UNK')      as legal_code,
@@ -33,22 +35,30 @@ with e as (
 ),
 
 ev as (
-    select 'opened' as event_type, o_iso as event_date,
-           major, category, dataset, gu_code, admin_dong_code, legal_code
+    select 'opened' as event_type, try(cast(o_iso as date)) as event_date,
+           major, category, dataset, gu_code, admin_dong_code, legal_code,
+           name_ko, gu, admin_dong, legal_dong
     from e where o_iso is not null
     union all
-    select 'closed', c_iso, major, category, dataset, gu_code, admin_dong_code, legal_code
+    select 'closed', try(cast(c_iso as date)), major, category, dataset, gu_code, admin_dong_code, legal_code,
+           name_ko, gu, admin_dong, legal_dong
     from e where c_iso is not null
 )
 
-select event_date, event_type, dataset, gu_code, admin_dong_code, legal_code,
-       max(major) as major, max(category) as category,
+select event_date, event_type, {{ label_event_type_ko('event_type') }} as event_type_ko,
+       dataset, max(name_ko) as dataset_ko,
+       gu_code, max(gu) as gu,
+       admin_dong_code, max(admin_dong) as admin_dong,
+       legal_code, max(legal_dong) as legal_dong,
+       max(major) as major, {{ label_major_ko('max(major)') }} as major_ko,
+       max(category) as category, {{ label_category_ko('max(category)') }} as category_ko,
        count(*)   as cnt
 from ev
 -- 완결일만(KST 오늘 제외 — 당일분은 다음 실행이 확정 적재)
-where event_date < cast(cast(current_timestamp at time zone 'Asia/Seoul' as date) as varchar)
+where event_date is not null
+  and event_date < cast(current_timestamp at time zone 'Asia/Seoul' as date)
 {% if is_incremental() %}
   -- append-only: 기적재 최대일 **초과** 완결일만(문자열 비교 — 신규 없으면 0건 → 재실행 멱등)
-  and event_date > (select coalesce(max(event_date), '0000-00-00') from {{ this }})
+  and event_date > (select coalesce(max(event_date), date '0001-01-01') from {{ this }})
 {% endif %}
-group by 1, 2, 3, 4, 5, 6
+group by event_date, event_type, dataset, gu_code, admin_dong_code, legal_code

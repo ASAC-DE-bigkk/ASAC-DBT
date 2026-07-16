@@ -12,10 +12,12 @@ models:
   # ═══ 화면 1: 상권 흐름(market-flow) ═══
   - name: gold_license_flow_daily
     description: 개업/폐업 흐름 일 grain × 업종3단 × 지역3축 — '언제·어디서·무슨 업종이 생기고 닫혔나' 추이 정본. 완결일만(append, 재실행 0건).
+    config:
+      contract: {enforced: true}
     columns:
       - name: event_date
-        data_type: varchar
-        description: 이벤트 발생일(개업 apvpermymd/폐업 dcbymd) — 문자열 ISO(YYYY-MM-DD). 완결일만(당일 제외).
+        data_type: date
+        description: 이벤트 발생일(개업 apvpermymd/폐업 dcbymd) — date 타입. 완결일만(당일 제외), 무효일자 제외.
         tests: [not_null]
       - name: event_type
         data_type: varchar
@@ -56,13 +58,38 @@ models:
         data_type: bigint
         description: 해당 grain 개업/폐업 건수.
         tests: [not_null]
-
+      - name: event_type_ko
+        data_type: varchar
+        description: 이벤트 유형 한글(개업/폐업)
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: gu
+        data_type: varchar
+        description: 자치구명(한글)
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명(한글)
+      - name: legal_dong
+        data_type: varchar
+        description: 법정동명(한글)
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
   - name: gold_license_flow_monthly
     description: 개업/폐업 흐름 월 grain × 업종3단 × 지역3축 — 월별 상권 증감 추이(화면 기본 해상도). 완결월만(append, 재실행 0건).
+    config:
+      contract: {enforced: true}
     columns:
       - name: ym
         data_type: varchar
         description: 이벤트 발생 연월(YYYY-MM, 문자열). 완결월만(당월 제외).
+      - name: y
+        data_type: integer
+        description: 연(정수, ym 파생) — 월 데이터의 연 단위 집계용.
         tests: [not_null]
       - name: event_type
         data_type: varchar
@@ -99,13 +126,35 @@ models:
         data_type: bigint
         description: 월별 개업/폐업 건수.
         tests: [not_null]
-
+      - name: event_type_ko
+        data_type: varchar
+        description: 이벤트 유형 한글(개업/폐업)
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: gu
+        data_type: varchar
+        description: 자치구명(한글)
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명(한글)
+      - name: legal_dong
+        data_type: varchar
+        description: 법정동명(한글)
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
   - name: gold_license_flow_yearly
     description: 개업/폐업 흐름 연 grain × 업종3단 × 지역3축 — 장기(수십 년) 상권 추세. 완결연만(append, 재실행 0건).
+    config:
+      contract: {enforced: true}
     columns:
       - name: y
-        data_type: varchar
-        description: 이벤트 발생 연도(YYYY, 문자열). 완결연만(당해 제외). 원천 커버리지 1900~2025.
+        data_type: integer
+        description: 이벤트 발생 연도(정수). 완결연만(당해 제외). 원천 커버리지 1900~2025.
         tests: [not_null]
       - name: event_type
         data_type: varchar
@@ -142,9 +191,31 @@ models:
         data_type: bigint
         description: 연별 개업/폐업 건수.
         tests: [not_null]
-
+      - name: event_type_ko
+        data_type: varchar
+        description: 이벤트 유형 한글(개업/폐업)
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: gu
+        data_type: varchar
+        description: 자치구명(한글)
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명(한글)
+      - name: legal_dong
+        data_type: varchar
+        description: 법정동명(한글)
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
   - name: gold_license_seasonality
     description: 개업/폐업 월중 계절성(1~12월) × 업종 — '어느 달에 개·폐업 몰리나'(연도 무관, 최근 10개 완결연).
+    config:
+      contract: {enforced: true}
     columns:
       - name: event_type
         data_type: varchar
@@ -155,8 +226,8 @@ models:
               arguments:
                 values: ['opened', 'closed']
       - name: month_of_year
-        data_type: varchar
-        description: 월(01~12, 문자열) — 연도 제거한 월중 집계축.
+        data_type: integer
+        description: 월(1~12 정수) — 연도 제거한 월중 집계축.
         tests: [not_null]
       - name: major
         data_type: varchar
@@ -172,13 +243,26 @@ models:
         data_type: bigint
         description: 해당 월 개업/폐업 누적 건수(최근 10년 완결연 합).
         tests: [not_null]
-
+      - name: event_type_ko
+        data_type: varchar
+        description: 이벤트 유형 한글(개업/폐업)
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
   - name: gold_license_churn_yearly
     description: 상권 역동성 — 연도별 개업/폐업/순증·교체율·신생비 × 업종 × 자치구. 순증형 vs 교체형 진단(최근 20개 완결연).
+    config:
+      contract: {enforced: true}
     columns:
       - name: y
-        data_type: varchar
-        description: 연도(YYYY). 실측 2006~2025.
+        data_type: integer
+        description: 연도(정수). 실측 2006~2025.
         tests: [not_null]
       - name: major
         data_type: varchar
@@ -213,8 +297,22 @@ models:
         description: 신생비 = opened / stock_start(근사).
 
   # ═══ 화면 2: 업종 생존·수명·상태(survival) ═══
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: gu
+        data_type: varchar
+        description: 자치구명(한글)
   - name: gold_license_lifespan
     description: 이 업종 얼마나 버티나 — 폐업 완결분 수명(개업→폐업 일수) 분포 × 업종 × 자치구. 조기폐업률 포함(폐업분 기준 편향 주의).
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -251,9 +349,22 @@ models:
       - name: survived_10y_then_closed
         data_type: bigint
         description: 10년 이상 영업 후 폐업한 업소 수(장수 후 폐업).
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: gu
+        data_type: varchar
+        description: 자치구명(한글)
   - name: gold_license_cohort_survival
     description: 창업 생존율 곡선 — 개업연도 코호트의 경과연차별 생존율 × 대/중분류. 우측검열 차단(관측 가능 연차만), 연 단위 근사.
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -263,8 +374,8 @@ models:
         data_type: varchar
         description: 중분류.
       - name: cohort_y
-        data_type: varchar
-        description: 개업연도 코호트(YYYY).
+        data_type: integer
+        description: 개업연도 코호트(정수).
         tests: [not_null]
       - name: years_elapsed
         data_type: bigint
@@ -279,9 +390,16 @@ models:
       - name: survival_rate
         data_type: decimal(38,18)
         description: 생존율 = survivors / cohort_n.
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
   - name: gold_license_status_duration
     description: 휴업하면 얼마나 쉬나 — 상태(영업/휴업/폐업/취소) 세그먼트 지속기간 요약 × 업종·상태군. 이력 기반(씨앗 — 표본 축적 중).
+    config:
+      contract: {enforced: true}
     columns:
       - name: dataset
         data_type: varchar
@@ -317,9 +435,19 @@ models:
       - name: max_days
         data_type: bigint
         description: 최대 지속 일수.
-
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
   - name: gold_license_status_transition
     description: 휴업 다음은 재개? 폐업? — 상태 전이 매트릭스(from→to) × 업종. 씨앗 지표(이력 축적에 따라 성장).
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -350,8 +478,19 @@ models:
         tests: [not_null]
 
   # ═══ 화면 3: 지역 프로파일·지도(geo-place) ═══
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
   - name: gold_license_dong_summary
     description: 우리 동네 상권 요약 — 행정동별 업소 현황 스냅샷(전체·영업·폐업·업종수·지도표시 가능). 동 지도/요약 서빙 표면.
+    config:
+      contract: {enforced: true}
     columns:
       - name: admin_dong_code
         data_type: varchar
@@ -388,6 +527,8 @@ models:
 
   - name: gold_license_dong_category_matrix
     description: 우리 동네엔 뭐가 많나 — 행정동 × 중분류 스톡(영업/전체) + 최근 1년 신규 개업. 동네 프로파일/지도 서빙.
+    config:
+      contract: {enforced: true}
     columns:
       - name: admin_dong_code
         data_type: varchar
@@ -418,9 +559,16 @@ models:
       - name: opened_last_365d
         data_type: bigint
         description: 최근 365일 개업 수(동네 활력 — 개업일 보유분 기준).
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
   - name: gold_license_geo_grid
     description: 상권 밀집 히트맵 — 좌표 0.005도(약 500m) 격자 × 업종 영업 밀도·최근 신규. 지도 핫스팟 질의(좌표 84%만).
+    config:
+      contract: {enforced: true}
     columns:
       - name: grid_lat
         data_type: double
@@ -443,9 +591,16 @@ models:
       - name: opened_last_365d_active
         data_type: bigint
         description: 격자 내 최근 365일 개업(현재 영업) 수 — 신규 핫스팟.
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
   - name: gold_license_gu_specialization
     description: 우리 구 특화 업종 — 자치구별 업종 특화지수(LQ)·구성비. LQ>1 이면 서울 평균 대비 밀집.
+    config:
+      contract: {enforced: true}
     columns:
       - name: gu_code
         data_type: varchar
@@ -470,9 +625,16 @@ models:
       - name: lq
         data_type: decimal(38,6)
         description: 입지계수 LQ = 구 업종비중 / 서울 업종비중. 1 초과=특화(예 성동 축산 5.8).
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
   - name: gold_license_stock_age_band
     description: 신상 상권 vs 노포 상권 — 영업 업소의 업력 밴드(1년 미만~20년+) 분포 × 업종 × 자치구.
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -497,8 +659,25 @@ models:
         tests: [not_null]
 
   # ═══ 화면 4: 업소 특성·규모·업태(biz-profile) ═══
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: gu
+        data_type: varchar
+        description: 자치구명(한글)
+      - name: age_band_ko
+        data_type: varchar
+        description: 업력 구간 한글(1년 미만~20년+)
   - name: gold_detail_area_profile
     description: 이 업종 가게 크기 — 영업장 면적(sitearea) 분포 × 업종 × 자치구. avg/p50/p90 + 소형/대형 비중(면적 보유분 기준).
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -532,9 +711,22 @@ models:
       - name: ge_330m2
         data_type: bigint
         description: 330제곱미터 이상(대형) 업소 수.
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: gu
+        data_type: varchar
+        description: 자치구명(한글)
   - name: gold_detail_uptae_mix
     description: 업종 속 세부 업태 — 업태(uptaenm) 구성·플로우 × 업종. 소분류보다 깊은 축(일반음식점 안 한식/커피숍). lodging 제외.
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -562,9 +754,22 @@ models:
       - name: opened_last_365d
         data_type: bigint
         description: 최근 365일 개업 수(성장 주도 업태 판단).
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
+      - name: gu
+        data_type: varchar
+        description: 자치구명(한글)
   - name: gold_license_multi_site
     description: 체인·다점포 비율 — 동일 전화 다지점(체인/다점포 추정) 비율 × 업종. 근사(전화 44%·번호공유 노이즈).
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -591,9 +796,19 @@ models:
       - name: max_sites_per_operator
         data_type: bigint
         description: 단일 전화 최대 지점 수(20+ 공용번호는 컷).
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
   - name: gold_license_change_activity
     description: 간판·자리 자주 바꾸는 업종 — 업소당 버전수·개명/이전 발생률 × 업종. 씨앗 지표(이력 축적 초기, 상대순위로 해석).
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -628,8 +843,19 @@ models:
         description: 이전율 = with_relocation / businesses.
 
   # ═══ 화면 5: 자리 승계·연쇄창업(succession) — 근사(분모 없는 매칭 성사 건, 상대 비교만) ═══
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
   - name: gold_license_address_succession
     description: 이 자리엔 다음에 뭐가? — 폐업 후 같은 도로명주소 후속 개업(365일 이내 최근접 1건) 업종 승계. 건물 단위 주소 근사.
+    config:
+      contract: {enforced: true}
     columns:
       - name: closed_major
         data_type: varchar
@@ -658,9 +884,22 @@ models:
       - name: within_90d
         data_type: bigint
         description: 90일 이내 승계 건수(빠른 회전).
-
+      - name: closed_major_ko
+        data_type: varchar
+        description: 폐업(선행) 업소 대분류 한글
+      - name: closed_category_ko
+        data_type: varchar
+        description: 폐업(선행) 업소 중분류 한글
+      - name: opened_major_ko
+        data_type: varchar
+        description: 후속 개업 업소 대분류 한글
+      - name: opened_category_ko
+        data_type: varchar
+        description: 후속 개업 업소 중분류 한글
   - name: gold_license_phone_succession
     description: 폐업 사장님의 재도전 — 동일 전화의 폐업→개업(3년 이내·주소 상이) 업종 전환. 연쇄창업 근사(전화 44%).
+    config:
+      contract: {enforced: true}
     columns:
       - name: closed_major
         data_type: varchar
@@ -691,8 +930,22 @@ models:
         description: 1년 이내 재도전 건수.
 
   # ═══ 화면 6: 데이터 품질·환경 특수축(governance) ═══
+      - name: closed_major_ko
+        data_type: varchar
+        description: 폐업(선행) 업소 대분류 한글
+      - name: closed_category_ko
+        data_type: varchar
+        description: 폐업(선행) 업소 중분류 한글
+      - name: opened_major_ko
+        data_type: varchar
+        description: 후속 개업 업소 대분류 한글
+      - name: opened_category_ko
+        data_type: varchar
+        description: 후속 개업 업소 중분류 한글
   - name: gold_license_data_quality
     description: 데이터 신뢰도 진단 — dataset(API)별 필드 커버리지(전화/좌표/행정동/주소/폐업일/상호). 거버넌스·수집 우선순위.
+    config:
+      contract: {enforced: true}
     columns:
       - name: major
         data_type: varchar
@@ -728,9 +981,19 @@ models:
       - name: name_coverage
         data_type: decimal(38,18)
         description: 상호명 보유율.
-
+      - name: major_ko
+        data_type: varchar
+        description: 대분류 한글(보건/문화/산업/환경)
+      - name: category_ko
+        data_type: varchar
+        description: 중분류 한글
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)
   - name: gold_env_facility_operation
     description: 우리 구 배출시설 가동 — 환경 배출시설(대기/수질) 자치구별 연간 가동일수·가동시간. 영업시간 필드는 LOCALDATA 원천 부재(수질 가동필드 결측 큼).
+    config:
+      contract: {enforced: true}
     columns:
       - name: dataset
         data_type: varchar
@@ -763,3 +1026,6 @@ models:
       - name: p50_operating_hours
         data_type: double
         description: 중앙값 가동시간(approx_percentile).
+      - name: dataset_ko
+        data_type: varchar
+        description: 데이터셋 한글명(registry name_ko)

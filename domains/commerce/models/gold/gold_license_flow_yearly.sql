@@ -12,6 +12,7 @@
 
 with e as (
     select t.major, t.category, e.dataset,
+           t.name_ko, e.gu, e.admin_dong, e.legal_dong,
            coalesce(e.gu_code, 'UNK')         as gu_code,
            coalesce(e.admin_dong_code, 'UNK') as admin_dong_code,
            coalesce(e.legal_code, 'UNK')      as legal_code,
@@ -28,22 +29,28 @@ with e as (
 ),
 
 ev as (
-    select 'opened' as event_type, substr(o_iso, 1, 4) as y,
-           major, category, dataset, gu_code, admin_dong_code, legal_code
+    select 'opened' as event_type, cast(substr(o_iso, 1, 4) as integer) as y,
+           major, category, dataset, gu_code, admin_dong_code, legal_code,
+           name_ko, gu, admin_dong, legal_dong
     from e where o_iso is not null
     union all
-    select 'closed', substr(c_iso, 1, 4), major, category, dataset, gu_code, admin_dong_code, legal_code
+    select 'closed', cast(substr(c_iso, 1, 4) as integer), major, category, dataset, gu_code, admin_dong_code, legal_code,
+           name_ko, gu, admin_dong, legal_dong
     from e where c_iso is not null
 )
 
-select y, event_type, dataset, gu_code, admin_dong_code, legal_code,
-       max(major) as major, max(category) as category,
+select y, event_type, {{ label_event_type_ko('event_type') }} as event_type_ko,
+       dataset, max(name_ko) as dataset_ko,
+       gu_code, admin_dong_code, legal_code,
+       max(gu) as gu, max(admin_dong) as admin_dong, max(legal_dong) as legal_dong,
+       max(major) as major, {{ label_major_ko('max(major)') }} as major_ko,
+       max(category) as category, {{ label_category_ko('max(category)') }} as category_ko,
        count(*)   as cnt
 from ev
 -- 완결연만(KST 당해 제외 — 당해분은 연이 닫힌 뒤 확정 적재)
-where y < substr(cast(cast(current_timestamp at time zone 'Asia/Seoul' as date) as varchar), 1, 4)
+where y < cast(substr(cast(cast(current_timestamp at time zone 'Asia/Seoul' as date) as varchar), 1, 4) as integer)
 {% if is_incremental() %}
   -- append-only: 기적재 최대연 **초과** 완결연만(문자열 비교 — 신규 없으면 0건 → 재실행 멱등)
-  and y > (select coalesce(max(y), '0000') from {{ this }})
+  and y > (select coalesce(max(y), 0) from {{ this }})
 {% endif %}
-group by 1, 2, 3, 4, 5, 6
+group by y, event_type, dataset, gu_code, admin_dong_code, legal_code

@@ -24,10 +24,10 @@ kst as (
     select cast(cast(current_timestamp at time zone 'Asia/Seoul' as date) as varchar) as today
 )
 
-select grid_lat, grid_lng, major, category,
+select grid_lat, grid_lng, major, {{ label_major_ko('major') }} as major_ko, category, {{ label_category_ko('category') }} as category_ko,
        count_if(st = '01')                              as active_cnt,
        count_if(e.o_iso >= cast(cast(from_iso8601_date(k.today) - interval '365' day as date) as varchar)
                 and e.o_iso < k.today and st = '01')     as opened_last_365d_active
 from e cross join kst k
-group by 1, 2, 3, 4
+group by grid_lat, grid_lng, major, category
 having count_if(st = '01') > 0

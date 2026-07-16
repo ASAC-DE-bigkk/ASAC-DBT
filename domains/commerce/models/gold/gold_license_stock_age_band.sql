@@ -8,6 +8,7 @@
 
 with e as (
     select t.major, t.category, e.dataset, coalesce(e.gu_code, 'UNK') as gu_code,
+           t.name_ko, e.gu,
            date_diff('day',
                try(from_iso8601_date(case when regexp_like(trim(coalesce(e.apvpermymd,'')), '^\d{4}-\d{2}-\d{2}$')
                                           then trim(e.apvpermymd) end)),
@@ -18,7 +19,7 @@ with e as (
 ),
 
 banded as (
-    select major, category, dataset, gu_code,
+    select major, category, dataset, gu_code, name_ko, gu,
            case when age_days < 365        then '0_lt1y'
                 when age_days < 365 * 3    then '1_1to3y'
                 when age_days < 365 * 5    then '2_3to5y'
@@ -30,6 +31,12 @@ banded as (
 )
 
 select major, category, dataset, gu_code, age_band,
-       count(*) as active_cnt
+       count(*) as active_cnt,
+       -- add-only 라벨 컬럼(포지셔널 GROUP BY 1..5 보존 위해 code 컬럼 뒤 일괄 배치; 모두 group key 종속 → grain 불변)
+       {{ label_major_ko('major') }} as major_ko,
+       {{ label_category_ko('category') }} as category_ko,
+       max(name_ko) as dataset_ko,
+       max(gu) as gu,
+       {{ label_age_band_ko('age_band') }} as age_band_ko
 from banded
 group by 1, 2, 3, 4, 5
