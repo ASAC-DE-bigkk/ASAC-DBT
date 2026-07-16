@@ -1,8 +1,8 @@
 -- gold_license_flow_daily — 일 단위 개업/폐업 흐름 × 업종 3단 × 지역 3축(시군구/행정동/법정동).
 --
 -- 인사이트 계약(#71, PROJECT.md §4.3): "업종별 하루 단위" 집계의 정본. 추이 분석은 이 테이블에
--- 기간 조건절(event_date between …)로 수행한다. D1 export 시에도 기간 grain 이라 **D1 의
--- max(event_date) 초과분만 append** 하면 중복 없이 증분 적재된다(§7 문서).
+-- 기간 조건절(event_date between …)로 수행한다. D1 서빙은 **화면 축 롤업의 전량 교체 스냅샷**
+-- (append 아님 — full-refresh 소급 반영 위해. 서빙 정본: docs/DB/gold/opus-serving-build-instructions.md §1.4).
 --
 -- 증분 계약(#73, 사용자 확정): **완결일만**(KST 오늘 제외) + **기적재 최대일 초과분만 append**
 -- → 재실행 시 신규 완결일 없으면 **0건**(멱등 확인 대상). 지연 도착(과거일 소급 신고)은

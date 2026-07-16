@@ -383,7 +383,10 @@ COMMIT;
 기간 초과분만 append**(incremental_strategy=append). **재실행 시 신규 완결 기간이 없으면
 `INSERT 0 rows`** (append-only 멱등 — 실증: 재실행 2·3회차 모두 0건, 22 테이블 행수 불변).
 지연 도착(과거 기간 소급 신고)은 이 경로로 안 잡히므로 **정기 `--full-refresh`**
-(commerce_load_gold_refresh)로 스윕한다. D1 export 도 동일하게 D1 max(기간키) 초과분만 append.
+(commerce_load_gold_refresh)로 스윕한다. ~~D1 export 도 동일하게 D1 max(기간키) 초과분만 append.~~
+**(폐기 — 서빙 설계 확정)** D1 export 는 **전량 교체 스냅샷**이 정본이다(opus-serving-build-instructions.md §1.4):
+full-refresh 소급 스윕이 과거 기간을 재작성하므로 append 로는 D1 에 반영 불가하고, 롤업 후 최대
+~18만 행이라 전량 교체 비용이 무해하다.
 
 ## 변경 이력
 
