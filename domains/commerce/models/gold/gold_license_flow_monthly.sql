@@ -1,13 +1,13 @@
 -- gold_license_flow_monthly — 월 단위 개업/폐업 흐름 × 업종 3단 × 지역 3축(시군구/행정동/법정동).
 --
--- 인사이트 계약(#71): "달 단위" 집계 — **이미 이전달까지 적재됐다면 그 이전은 다시 뽑지 않는다**
--- (완결월만 + 최근 3개월 지연보정 창 delete+insert). D1 export 는 D1 의 max(ym) 초과분만 append.
--- grain = unique_key 6컬럼 — 재실행 멱등(중복 불가).
+-- 인사이트 계약(#71·#73): "달 단위" 집계 — **이미 적재된 달은 다시 뽑지 않는다** = 기적재 최대월
+-- 초과 완결월만 append. **재실행 시 신규 완결월 없으면 0건**(사용자 확정 — 멱등 확인 대상).
+-- D1 export 도 동일(max(ym) 초과분만). 지연 도착(과거 달 소급 신고)은 --full-refresh 로 흡수
+-- (완결월 append-only 의 트레이드오프 — 정기 full-refresh 스윕: commerce_load_gold_refresh).
 
 {{ config(
     materialized='incremental',
-    incremental_strategy='delete+insert',
-    unique_key=['ym', 'event_type', 'dataset', 'gu_code', 'admin_dong_code', 'legal_code'],
+    incremental_strategy='append',
     on_schema_change='fail'
 ) }}
 
@@ -44,9 +44,7 @@ from ev
 -- 완결월만(KST 당월 제외 — 당월분은 월이 닫힌 뒤 확정 적재)
 where ym < substr(cast(cast(current_timestamp at time zone 'Asia/Seoul' as date) as varchar), 1, 7)
 {% if is_incremental() %}
-  -- 지연 도착 보정 창: 기적재 최대월 - 3개월부터 재계산(delete+insert 교체 — 중복 불가)
-  and ym >= substr(cast(
-        coalesce(try(from_iso8601_date((select max(ym) from {{ this }}) || '-01')),
-                 date '1900-01-01') - interval '3' month as varchar), 1, 7)
+  -- append-only: 기적재 최대월 **초과** 완결월만(문자열 비교 — 신규 없으면 0건 → 재실행 멱등)
+  and ym > (select coalesce(max(ym), '0000-00') from {{ this }})
 {% endif %}
 group by 1, 2, 3, 4, 5, 6
