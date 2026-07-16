@@ -7,7 +7,7 @@
 {{ config(materialized='table', tags=['gold', 'insight']) }}
 
 with e as (
-    select t.major, t.category, e.dataset,
+    select t.major, t.category, e.dataset, t.name_ko,
            case when regexp_like(trim(coalesce(e.apvpermymd,'')), '^\d{4}-\d{2}-\d{2}$') then trim(e.apvpermymd) end as o_iso,
            case when regexp_like(trim(coalesce(e.dcbymd,'')), '^\d{4}-\d{2}-\d{2}$') then trim(e.dcbymd) end as c_iso
     from {{ ref('silver_license_entity') }} e
@@ -19,13 +19,13 @@ bounds as (
 ),
 
 ev as (
-    select 'opened' as event_type, substr(o_iso, 6, 2) as month_of_year, major, category, dataset
+    select 'opened' as event_type, substr(o_iso, 6, 2) as month_of_year, major, category, dataset, name_ko
     from e cross join bounds
     where o_iso is not null
       and substr(o_iso, 1, 4) >= cast(cast(cur_y as integer) - 10 as varchar)
       and substr(o_iso, 1, 4) <  cur_y                    -- 완결연도만
     union all
-    select 'closed', substr(c_iso, 6, 2), major, category, dataset
+    select 'closed', substr(c_iso, 6, 2), major, category, dataset, name_ko
     from e cross join bounds
     where c_iso is not null
       and substr(c_iso, 1, 4) >= cast(cast(cur_y as integer) - 10 as varchar)
@@ -33,6 +33,11 @@ ev as (
 )
 
 select event_type, month_of_year, major, category, dataset,
+       {{ label_event_type_ko('event_type') }} as event_type_ko,
+       {{ label_month_ko('month_of_year') }} as month_ko,
+       {{ label_major_ko('major') }} as major_ko,
+       {{ label_category_ko('category') }} as category_ko,
+       max(name_ko) as dataset_ko,
        count(*) as cnt
 from ev
 where month_of_year between '01' and '12'

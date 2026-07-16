@@ -33,7 +33,9 @@ per_biz as (
     group by 1, 2, 3
 )
 
-select t.major, t.category, p.dataset,
+select t.major, {{ label_major_ko('t.major') }} as major_ko,
+       t.category, {{ label_category_ko('t.category') }} as category_ko,
+       p.dataset, max(t.name_ko) as dataset_ko,
        count(*)                                     as businesses,
        round(avg(p.versions), 2)                    as avg_versions,
        max(p.versions)                              as max_versions,
@@ -43,4 +45,4 @@ select t.major, t.category, p.dataset,
        round(1.0 * count_if(p.relocations > 0) / count(*), 4)  as relocation_ratio
 from per_biz p
 join {{ ref('commerce_dataset_taxonomy') }} t on t.short = p.dataset
-group by 1, 2, 3
+group by t.major, t.category, p.dataset

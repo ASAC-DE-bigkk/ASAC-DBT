@@ -8,7 +8,7 @@
 {{ config(materialized='table', tags=['gold', 'insight']) }}
 
 with ent as (
-    select t.major, t.category, e.dataset, e.opnsfteamcode, e.mgtno, e.content_hash,
+    select t.major, t.category, t.name_ko, e.gu, e.dataset, e.opnsfteamcode, e.mgtno, e.content_hash,
            coalesce(e.gu_code, 'UNK') as gu_code,
            substr(trim(coalesce(e.trdstategbn, '')), 1, 2) as st,
            case when regexp_like(trim(coalesce(e.apvpermymd,'')), '^\d{4}-\d{2}-\d{2}$') then trim(e.apvpermymd) end as o_iso
@@ -21,133 +21,133 @@ kst as (
 ),
 
 raw as (
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_amusement_park_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_animal_sale_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_emission_repair_agent_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_feed_manufacturing_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_food_sanitation_business_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_high_pressure_gas_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_hospital_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_large_store_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_livestock_processing_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_livestock_sale_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_livestock_storage_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_livestock_transport_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_mail_order_sale_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_medical_institution_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_medical_similar_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_petroleum_alt_fuel_sale_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_petroleum_sale_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_public_sanitation_service_detail') }} d
       on  d.dataset = e.dataset and d.opnsfteamcode = e.opnsfteamcode
       and d.mgtno = e.mgtno and d.content_hash = e.content_hash
     union all
-    select e.major, e.category, e.dataset, e.gu_code, e.st, e.o_iso,
+    select e.major, e.category, e.name_ko, e.gu, e.dataset, e.gu_code, e.st, e.o_iso,
            nullif(trim(d.uptaenm), '') as uptaenm
     from ent e
     join {{ source('commerce_silver_details', 'silver_sports_facility_detail') }} d
@@ -156,6 +156,10 @@ raw as (
 )
 
 select r.major, r.category, r.dataset, r.uptaenm, r.gu_code,
+       {{ label_major_ko('r.major') }} as major_ko,
+       {{ label_category_ko('r.category') }} as category_ko,
+       max(r.name_ko) as dataset_ko,
+       max(r.gu) as gu,
        count_if(r.st = '01')                            as active_cnt,
        count(*)                                          as total_cnt,
        count_if(r.o_iso >= cast(cast(from_iso8601_date(k.today) - interval '365' day as date) as varchar)

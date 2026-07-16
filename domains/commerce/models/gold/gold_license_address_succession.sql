@@ -40,6 +40,10 @@ matched as (
 )
 
 select closed_major, closed_category, opened_major, opened_category,
+       {{ label_major_ko('closed_major') }}       as closed_major_ko,
+       {{ label_category_ko('closed_category') }} as closed_category_ko,
+       {{ label_major_ko('opened_major') }}       as opened_major_ko,
+       {{ label_category_ko('opened_category') }} as opened_category_ko,
        count(*)                              as successions,
        round(avg(gap_days), 1)               as avg_gap_days,
        approx_percentile(gap_days, 0.5)      as p50_gap_days,

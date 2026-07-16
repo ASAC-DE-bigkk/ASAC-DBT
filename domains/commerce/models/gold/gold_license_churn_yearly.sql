@@ -9,6 +9,7 @@
 
 with e as (
     select t.major, t.category, e.dataset, coalesce(e.gu_code, 'UNK') as gu_code,
+           t.name_ko, e.gu,
            case when regexp_like(trim(coalesce(e.apvpermymd,'')), '^\d{4}-\d{2}-\d{2}$')
                 then substr(trim(e.apvpermymd), 1, 4) end as o_y,
            case when regexp_like(trim(coalesce(e.dcbymd,'')), '^\d{4}')
@@ -28,6 +29,7 @@ years as (
 
 agg as (
     select y.y, e.major, e.category, e.dataset, e.gu_code,
+           max(e.name_ko) as name_ko, max(e.gu) as gu,
            count_if(e.o_y = y.y)                          as opened,
            count_if(e.c_y = y.y)                          as closed,
            count_if(e.o_y < y.y and (e.c_y is null or e.c_y >= y.y)) as stock_start
@@ -36,7 +38,9 @@ agg as (
     group by 1, 2, 3, 4, 5
 )
 
-select y, major, category, dataset, gu_code,
+select y, major, {{ label_major_ko('major') }} as major_ko,
+       category, {{ label_category_ko('category') }} as category_ko,
+       dataset, name_ko as dataset_ko, gu_code, gu,
        opened, closed,
        opened - closed                                            as net_change,
        stock_start,

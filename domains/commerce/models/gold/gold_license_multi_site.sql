@@ -9,7 +9,7 @@
 {{ config(materialized='table', tags=['gold', 'insight']) }}
 
 with p as (
-    select t.major, t.category, e.dataset,
+    select t.major, t.category, e.dataset, t.name_ko,
            regexp_replace(trim(e.sitetel), '[^0-9]', '') as tel
     from {{ ref('silver_license_entity') }} e
     join {{ ref('commerce_dataset_taxonomy') }} t on t.short = e.dataset
@@ -23,12 +23,15 @@ tel_sites as (
 ),
 
 joined as (
-    select p.major, p.category, p.dataset, p.tel, ts.n_sites
+    select p.major, p.category, p.dataset, p.name_ko, p.tel, ts.n_sites
     from p join tel_sites ts on ts.tel = p.tel
     where ts.n_sites < 20                                 -- 공용번호 컷
 )
 
 select major, category, dataset,
+       {{ label_major_ko('major') }}                       as major_ko,
+       {{ label_category_ko('category') }}                 as category_ko,
+       max(name_ko)                                        as dataset_ko,
        count(*)                                            as sites_with_phone,
        count_if(n_sites >= 2)                              as multi_site_locations,
        round(1.0 * count_if(n_sites >= 2) / count(*), 4)   as multi_site_ratio,

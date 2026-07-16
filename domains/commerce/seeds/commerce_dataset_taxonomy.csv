@@ -1,153 +1,153 @@
-short,major,category,sub_category,fmt
-affiliated_medical,health,health_medical,institution,v1
-air_pollution_facility,environment,environment,pollution,v2
-amusement_etc,culture,culture,amusement,v1
-animal_drug_wholesale,health,animal,animal_drug,v1
-animal_hospital,health,animal,veterinary,v1
-animal_medical_device_sale,health,animal,animal_drug,v1
-animal_pharmacy,health,animal,animal_drug,v1
-animal_sale,industry,industry,animal,v1
-auto_campground,culture,culture,camping,v1
-bakery,health,food,bakery,v1
-barber_shop,health,hygiene_beauty,beauty,v1
-bathhouse,health,hygiene_beauty,bath,v1
-beauty_shop,health,hygiene_beauty,beauty,v1
-billiard_hall,culture,culture,sports,v1
-building_sanitation,environment,environment,sanitation,v2
-caregiver_academy,industry,industry,education,v1
-cinema,culture,culture,film_video,v1
-city_tour_bus,culture,culture,tourism,v1
-clinic,health,health_medical,institution,v1
-combined_game_arcade,culture,culture,game,v1
-combined_video_service,culture,culture,film_video,v1
-construction_waste,environment,environment,waste,v2
-container_pkg_mfg,health,food,manufacturing,v1
-contract_meal_service,health,food,meal_service,v1
-convention_facility,culture,culture,tourism,v1
-convention_planning,culture,culture,tourism,v1
-culture_arts_corporation,culture,culture,culture_arts,v1
-dance_academy,culture,culture,sports,v1
-dance_hall,culture,culture,sports,v1
-dental_lab,health,optical_dental,dental,v1
-disinfection,health,hygiene_beauty,sanitation,v1
-distribution_sale,industry,industry,sales,v1
-domestic_travel_agency,culture,culture,travel,v1
-door_to_door_sale,industry,industry,sales,v1
-edible_ice_sale,health,food,sale,v1
-emission_repair_agent,industry,industry,emission,v1
-entertainment_bar,health,food,bar,v1
-env_construction,environment,environment,env_service,v2
-env_consulting,environment,environment,env_service,v2
-env_measurement,environment,environment,env_service,v2
-feed_manufacturing,industry,industry,animal,v1
-film_distribution,culture,culture,film_video,v1
-film_import,culture,culture,film_video,v1
-film_production,culture,culture,film_video,v1
-film_screening,culture,culture,film_video,v1
-fitness_center,culture,culture,sports,v1
-food_additive_mfg,health,food,manufacturing,v1
-food_cold_storage,health,food,logistics,v1
-food_mfg,health,food,manufacturing,v1
-food_sale_etc,health,food,sale,v1
-food_subdivision,health,food,sale,v1
-food_transport,health,food,logistics,v1
-food_vending,health,food,vending,v1
-foreigner_entertainment_bar,health,food,bar,v1
-free_job_agency,industry,industry,job_agency,v1
-full_amusement_park,culture,culture,amusement,v1
-funeral_director_academy,industry,industry,education,v1
-game_distribution,culture,culture,game,v1
-game_production,culture,culture,game,v1
-garbage_bag_sale,environment,environment,waste,v2
-general_amusement_park,culture,culture,amusement,v1
-general_campground,culture,culture,camping,v1
-general_game_arcade,culture,culture,game,v1
-general_restaurant,health,food,restaurant,v1
-general_travel_agency,culture,culture,travel,v1
-golf_course,culture,culture,sports,v1
-golf_range,culture,culture,sports,v1
-groundwater_construction,industry,industry,groundwater,v1
-groundwater_purification,industry,industry,groundwater,v1
-groundwater_survey,industry,industry,groundwater,v1
-group_meal_facility,health,food,meal_service,v1
-group_meal_food_sale,health,food,sale,v1
-hfood_dist_sale,health,food,sale,v1
-hfood_general_sale,health,food,sale,v1
-high_pressure_gas,industry,industry,gas,v1
-hospital,health,health_medical,institution,v1
-ice_rink,culture,culture,sports,v1
-instant_sale_mfg,health,food,manufacturing,v1
-internet_game_cafe,culture,culture,game,v1
-karaoke_room,culture,culture,music,v1
-large_store,industry,industry,sales,v1
-laundry,health,hygiene_beauty,laundry,v1
-livestock_breeding,health,animal,breeding,v1
-livestock_manure_transport,environment,environment,manure,v2
-livestock_processing,health,livestock,processing,v1
-livestock_sale,health,livestock,sale,v1
-livestock_storage,health,livestock,logistics,v1
-livestock_transport,health,livestock,logistics,v1
-lodging,health,lodging,lodging,v1
-log_production,industry,industry,timber,v1
-mail_order_sale,industry,industry,sales,v1
-manure_facility_mgmt,environment,environment,manure,v2
-martial_arts_gym,culture,culture,sports,v1
-meat_packaging,health,livestock,processing,v1
-medical_corporation,health,health_medical,institution,v1
-medical_device_repair,health,health_medical,medical_device,v1
-medical_device_sale,health,health_medical,medical_device,v1
-medical_similar,health,health_medical,care,v1
-meter_certification,industry,industry,meter,v1
-meter_import,industry,industry,meter,v1
-meter_manufacturing,industry,industry,meter,v1
-meter_repair,industry,industry,meter,v1
-mlm_sale,industry,industry,sales,v1
-music_video_distribution,culture,culture,music,v1
-music_video_production,culture,culture,music,v1
-mutual_aid_funeral,industry,industry,funeral,v1
-online_music_service,culture,culture,music,v1
-optical_shop,health,optical_dental,optical,v1
-outdoor_advertising,culture,culture,publishing,v1
-overseas_travel_agency,culture,culture,travel,v1
-paid_job_agency,industry,industry,job_agency,v1
-performance_hall,culture,culture,performance,v1
-petroleum_alt_fuel_sale,industry,industry,petroleum,v1
-petroleum_sale,industry,industry,petroleum,v1
-pharmacy,health,pharmacy,pharmacy,v1
-pop_culture_agency,culture,culture,culture_arts,v1
-postpartum_care,health,health_medical,care,v1
-pressure_equipment,industry,industry,gas,v1
-printing_shop,culture,culture,publishing,v1
-publisher,culture,culture,publishing,v1
-resort_complex,culture,culture,amusement,v1
-rest_restaurant,health,food,restaurant,v1
-safety_otc_drug_sale,health,health_medical,drug_sale,v1
-septic_tank_construction,environment,environment,sewage,v2
-sewage_transport,environment,environment,sewage,v2
-singing_bar,health,food,bar,v1
-sled_park,culture,culture,sports,v1
-special_high_pressure_gas,industry,industry,gas,v1
-sponsored_door_sale,industry,industry,sales,v1
-sports_complex,culture,culture,sports,v1
-swimming_pool,culture,culture,sports,v1
-telemarketing_sale,industry,industry,sales,v1
-timber_import_dist,industry,industry,timber,v1
-tobacco_import_sale,industry,industry,tobacco,v1
-tobacco_retail,industry,industry,tobacco,v1
-tobacco_wholesale,industry,industry,tobacco,v1
-tour_cruise,culture,culture,tourism,v1
-tour_entertainment_bar,health,food,bar,v1
-tour_restaurant,health,food,restaurant,v1
-tourism_operator,culture,culture,tourism,v1
-tourist_cabaret,culture,culture,performance,v1
-tourist_performance_hall,culture,culture,performance,v1
-traditional_temple,culture,culture,tourism,v1
-video_distribution,culture,culture,film_video,v1
-video_production,culture,culture,film_video,v1
-video_small_theater,culture,culture,film_video,v1
-video_viewing_room,culture,culture,film_video,v1
-video_viewing_service,culture,culture,film_video,v1
-water_pollution_facility,environment,environment,pollution,v2
-water_tank_cleaning,environment,environment,sanitation,v2
-yacht_marina,culture,culture,sports,v1
-youth_game_arcade,culture,culture,game,v1
+short,major,category,sub_category,fmt,major_ko,category_ko,mid_ko,name_ko
+affiliated_medical,health,health_medical,institution,v1,보건,의료,의료,서울시 부속의료기관 인허가 정보
+air_pollution_facility,environment,environment,pollution,v2,환경,환경,수질오염,서울시 대기오염물질배출시설설치사업장 인허가 정보
+amusement_etc,culture,culture,amusement,v1,문화,문화,유원시설,서울시 유원시설업(기타) 인허가 정보
+animal_drug_wholesale,health,animal,animal_drug,v1,보건,동물,동물,서울시 동물용의약품도매상 인허가 정보
+animal_hospital,health,animal,veterinary,v1,보건,동물,동물,서울시 동물병원 인허가 정보
+animal_medical_device_sale,health,animal,animal_drug,v1,보건,동물,동물,서울시 동물용의료용구판매업 인허가 정보
+animal_pharmacy,health,animal,animal_drug,v1,보건,동물,동물,서울시 동물약국 인허가 정보
+animal_sale,industry,industry,animal,v1,산업,산업,animal,서울시 동물판매업 인허가 정보
+auto_campground,culture,culture,camping,v1,문화,문화,야영장,서울시 자동차야영장업 인허가 정보
+bakery,health,food,bakery,v1,보건,식품,식품,서울시 제과점영업 인허가 정보
+barber_shop,health,hygiene_beauty,beauty,v1,보건,위생·미용,위생·미용,서울시 이용업 인허가 정보
+bathhouse,health,hygiene_beauty,bath,v1,보건,위생·미용,위생·미용,서울시 목욕장업 인허가 정보
+beauty_shop,health,hygiene_beauty,beauty,v1,보건,위생·미용,위생·미용,서울시 미용업 인허가 정보
+billiard_hall,culture,culture,sports,v1,문화,문화,체육시설,서울시 당구장업 인허가 정보
+building_sanitation,environment,environment,sanitation,v2,환경,환경,위생용품,서울시 건물위생관리업 인허가 정보
+caregiver_academy,industry,industry,education,v1,산업,산업,평생교육,서울시 요양보호사교육기관 인허가 정보
+cinema,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 영화상영관 인허가 정보
+city_tour_bus,culture,culture,tourism,v1,문화,문화,관광,서울시 시내순환관광업 인허가 정보
+clinic,health,health_medical,institution,v1,보건,의료,의료,서울시 의원 인허가 정보
+combined_game_arcade,culture,culture,game,v1,문화,문화,게임제공업,서울시 복합유통게임제공업 인허가 정보
+combined_video_service,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 복합영상물제공업 인허가 정보
+construction_waste,environment,environment,waste,v2,환경,환경,폐기물,서울시 건설폐기물처리업 인허가 정보
+container_pkg_mfg,health,food,manufacturing,v1,보건,식품,식품,서울시 용기·포장지제조업 인허가 정보
+contract_meal_service,health,food,meal_service,v1,보건,식품,식품,서울시 위탁급식영업 인허가 정보
+convention_facility,culture,culture,tourism,v1,문화,문화,관광,서울시 국제회의시설업 인허가 정보
+convention_planning,culture,culture,tourism,v1,문화,문화,관광,서울시 국제회의기획업 인허가 정보
+culture_arts_corporation,culture,culture,culture_arts,v1,문화,문화,문화예술,서울시 문화예술법인 인허가 정보
+dance_academy,culture,culture,sports,v1,문화,문화,체육시설,서울시 무도학원업 인허가 정보
+dance_hall,culture,culture,sports,v1,문화,문화,체육시설,서울시 무도장업 인허가 정보
+dental_lab,health,optical_dental,dental,v1,보건,안경·치과,안경·치과,서울시 치과기공소 인허가 정보
+disinfection,health,hygiene_beauty,sanitation,v1,보건,위생·미용,위생·미용,서울시 소독업 인허가 정보
+distribution_sale,industry,industry,sales,v1,산업,산업,판매업,서울시 유통전문판매업 인허가 정보
+domestic_travel_agency,culture,culture,travel,v1,문화,문화,여행업,서울시 국내여행업 인허가 정보
+door_to_door_sale,industry,industry,sales,v1,산업,산업,판매업,서울시 방문판매업 인허가 정보
+edible_ice_sale,health,food,sale,v1,보건,식품,식품,서울시 식용얼음판매업 인허가 정보
+emission_repair_agent,industry,industry,emission,v1,산업,산업,대기배출,서울시 배출가스전문정비사업자(확인검사대행자) 인허가 정보
+entertainment_bar,health,food,bar,v1,보건,식품,식품,서울시 유흥주점영업 인허가 정보
+env_construction,environment,environment,env_service,v2,환경,환경,환경관리업,서울시 환경전문공사업 인허가 정보
+env_consulting,environment,environment,env_service,v2,환경,환경,환경관리업,서울시 환경컨설팅회사 인허가 정보
+env_measurement,environment,environment,env_service,v2,환경,환경,환경관리업,서울시 환경측정대행업 인허가 정보
+feed_manufacturing,industry,industry,animal,v1,산업,산업,animal,서울시 사료제조업 인허가 정보
+film_distribution,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 영화배급업 인허가 정보
+film_import,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 영화수입업 인허가 정보
+film_production,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 영화제작업 인허가 정보
+film_screening,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 영화상영업 인허가 정보
+fitness_center,culture,culture,sports,v1,문화,문화,체육시설,서울시 체력단련장업 인허가 정보
+food_additive_mfg,health,food,manufacturing,v1,보건,식품,식품,서울시 식품첨가물제조업 인허가 정보
+food_cold_storage,health,food,logistics,v1,보건,식품,식품,서울시 식품냉동냉장업 인허가 정보
+food_mfg,health,food,manufacturing,v1,보건,식품,식품,서울시 식품제조가공업 인허가 정보
+food_sale_etc,health,food,sale,v1,보건,식품,식품,서울시 식품판매업(기타) 인허가 정보
+food_subdivision,health,food,sale,v1,보건,식품,식품,서울시 식품소분업 인허가 정보
+food_transport,health,food,logistics,v1,보건,식품,식품,서울시 식품운반업 인허가 정보
+food_vending,health,food,vending,v1,보건,식품,식품,서울시 식품자동판매기업 인허가 정보
+foreigner_entertainment_bar,health,food,bar,v1,보건,식품,식품,서울시 외국인전용유흥음식점업 인허가 정보
+free_job_agency,industry,industry,job_agency,v1,산업,산업,직업소개,서울시 무료직업소개소 인허가 정보
+full_amusement_park,culture,culture,amusement,v1,문화,문화,유원시설,서울시 종합유원시설업 인허가 정보
+funeral_director_academy,industry,industry,education,v1,산업,산업,평생교육,서울시 장례지도사 교육기관 인허가 정보
+game_distribution,culture,culture,game,v1,문화,문화,게임제공업,서울시 게임물배급업 인허가 정보
+game_production,culture,culture,game,v1,문화,문화,게임제공업,서울시 게임물제작업 인허가 정보
+garbage_bag_sale,environment,environment,waste,v2,환경,환경,폐기물,서울시 쓰레기종량제봉투판매업 인허가 정보
+general_amusement_park,culture,culture,amusement,v1,문화,문화,유원시설,서울시 일반유원시설업 인허가 정보
+general_campground,culture,culture,camping,v1,문화,문화,야영장,서울시 일반야영장업 인허가 정보
+general_game_arcade,culture,culture,game,v1,문화,문화,게임제공업,서울시 일반게임제공업 인허가 정보
+general_restaurant,health,food,restaurant,v1,보건,식품,식품,서울시 일반음식점 인허가 정보
+general_travel_agency,culture,culture,travel,v1,문화,문화,여행업,서울시 일반여행업 인허가 정보
+golf_course,culture,culture,sports,v1,문화,문화,체육시설,서울시 골프장 인허가 정보
+golf_range,culture,culture,sports,v1,문화,문화,체육시설,서울시 골프연습장업 인허가 정보
+groundwater_construction,industry,industry,groundwater,v1,산업,산업,지하수,서울시 지하수시공업체 인허가 정보
+groundwater_purification,industry,industry,groundwater,v1,산업,산업,지하수,서울시 지하수정화업체 인허가 정보
+groundwater_survey,industry,industry,groundwater,v1,산업,산업,지하수,서울시 지하수영향조사기관 인허가 정보
+group_meal_facility,health,food,meal_service,v1,보건,식품,식품,서울시 집단급식소 인허가 정보
+group_meal_food_sale,health,food,sale,v1,보건,식품,식품,서울시 집단급식소식품판매업 인허가 정보
+hfood_dist_sale,health,food,sale,v1,보건,식품,식품,서울시 건강기능식품유통전문판매업 인허가 정보
+hfood_general_sale,health,food,sale,v1,보건,식품,식품,서울시 건강기능식품일반판매업 인허가 정보
+high_pressure_gas,industry,industry,gas,v1,산업,산업,가스,서울시 고압가스업 인허가 정보
+hospital,health,health_medical,institution,v1,보건,의료,의료,서울시 병원 인허가 정보
+ice_rink,culture,culture,sports,v1,문화,문화,체육시설,서울시 빙상장업 인허가 정보
+instant_sale_mfg,health,food,manufacturing,v1,보건,식품,식품,서울시 즉석판매제조가공업 인허가 정보
+internet_game_cafe,culture,culture,game,v1,문화,문화,게임제공업,서울시 인터넷컴퓨터게임시설제공업 인허가 정보
+karaoke_room,culture,culture,music,v1,문화,문화,음악,서울시 노래연습장업 인허가 정보
+large_store,industry,industry,sales,v1,산업,산업,판매업,서울시 대규모점포 인허가 정보
+laundry,health,hygiene_beauty,laundry,v1,보건,위생·미용,위생·미용,서울시 세탁업 인허가 정보
+livestock_breeding,health,animal,breeding,v1,보건,동물,동물,서울시 가축사육업 인허가 정보
+livestock_manure_transport,environment,environment,manure,v2,환경,환경,가축분뇨,서울시 가축분뇨 수집운반업 인허가 정보
+livestock_processing,health,livestock,processing,v1,보건,축산,축산,서울시 축산가공업 인허가 정보
+livestock_sale,health,livestock,sale,v1,보건,축산,축산,서울시 축산판매업 인허가 정보
+livestock_storage,health,livestock,logistics,v1,보건,축산,축산,서울시 축산물보관업 인허가 정보
+livestock_transport,health,livestock,logistics,v1,보건,축산,축산,서울시 축산물운반업 인허가 정보
+lodging,health,lodging,lodging,v1,보건,숙박,숙박,서울시 숙박업 인허가 정보
+log_production,industry,industry,timber,v1,산업,산업,목재,서울시 원목생산업 인허가 정보
+mail_order_sale,industry,industry,sales,v1,산업,산업,판매업,서울시 통신판매업 인허가 정보
+manure_facility_mgmt,environment,environment,manure,v2,환경,환경,가축분뇨,서울시 가축분뇨배출시설관리업(사업장) 인허가 정보
+martial_arts_gym,culture,culture,sports,v1,문화,문화,체육시설,서울시 체육도장업 인허가 정보
+meat_packaging,health,livestock,processing,v1,보건,축산,축산,서울시 식육포장처리업 인허가 정보
+medical_corporation,health,health_medical,institution,v1,보건,의료,의료,서울시 의료법인 인허가 정보
+medical_device_repair,health,health_medical,medical_device,v1,보건,의료,의료,서울시 의료기기수리업 인허가 정보
+medical_device_sale,health,health_medical,medical_device,v1,보건,의료,의료,서울시 의료기기판매(임대)업 인허가 정보
+medical_similar,health,health_medical,care,v1,보건,의료,의료,서울시 의료유사업 인허가 정보
+meter_certification,industry,industry,meter,v1,산업,산업,계량기,서울시 계량기증명업 인허가 정보
+meter_import,industry,industry,meter,v1,산업,산업,계량기,서울시 계량기수입업 인허가 정보
+meter_manufacturing,industry,industry,meter,v1,산업,산업,계량기,서울시 계량기제조업 인허가 정보
+meter_repair,industry,industry,meter,v1,산업,산업,계량기,서울시 계량기수리업 인허가 정보
+mlm_sale,industry,industry,sales,v1,산업,산업,판매업,서울시 다단계판매업체 인허가 정보
+music_video_distribution,culture,culture,music,v1,문화,문화,음악,서울시 음반·음악영상물배급업 인허가 정보
+music_video_production,culture,culture,music,v1,문화,문화,음악,서울시 음반·음악영상물제작업 인허가 정보
+mutual_aid_funeral,industry,industry,funeral,v1,산업,산업,장사,서울시 상조업 인허가 정보
+online_music_service,culture,culture,music,v1,문화,문화,음악,서울시 온라인음악서비스제공업 인허가 정보
+optical_shop,health,optical_dental,optical,v1,보건,안경·치과,안경·치과,서울시 안경업 인허가 정보
+outdoor_advertising,culture,culture,publishing,v1,문화,문화,출판·인쇄,서울시 옥외광고업 인허가 정보
+overseas_travel_agency,culture,culture,travel,v1,문화,문화,여행업,서울시 국외여행업 인허가 정보
+paid_job_agency,industry,industry,job_agency,v1,산업,산업,직업소개,서울시 유료직업소개소 인허가 정보
+performance_hall,culture,culture,performance,v1,문화,문화,공연,서울시 공연장 인허가 정보
+petroleum_alt_fuel_sale,industry,industry,petroleum,v1,산업,산업,석유,서울시 석유및석유대체연료판매업체 인허가 정보
+petroleum_sale,industry,industry,petroleum,v1,산업,산업,석유,서울시 석유판매업 인허가 정보
+pharmacy,health,pharmacy,pharmacy,v1,보건,약국,약국,서울시 약국 인허가 정보
+pop_culture_agency,culture,culture,culture_arts,v1,문화,문화,문화예술,서울시 대중문화예술기획업 인허가 정보
+postpartum_care,health,health_medical,care,v1,보건,의료,의료,서울시 산후조리업 인허가 정보
+pressure_equipment,industry,industry,gas,v1,산업,산업,가스,서울시 용기냉동기특정설비 인허가 정보
+printing_shop,culture,culture,publishing,v1,문화,문화,출판·인쇄,서울시 인쇄사 인허가 정보
+publisher,culture,culture,publishing,v1,문화,문화,출판·인쇄,서울시 출판사 인허가 정보
+resort_complex,culture,culture,amusement,v1,문화,문화,유원시설,서울시 종합휴양업 인허가 정보
+rest_restaurant,health,food,restaurant,v1,보건,식품,식품,서울시 휴게음식점 인허가 정보
+safety_otc_drug_sale,health,health_medical,drug_sale,v1,보건,의료,의료,서울시 안전상비의약품 판매업소 인허가 정보
+septic_tank_construction,environment,environment,sewage,v2,환경,환경,물재생·정화,서울시 단독정화조오수처리시설설계시공업 인허가 정보
+sewage_transport,environment,environment,sewage,v2,환경,환경,물재생·정화,서울시 분뇨수집운반업 인허가 정보
+singing_bar,health,food,bar,v1,보건,식품,식품,서울시 단란주점영업 인허가 정보
+sled_park,culture,culture,sports,v1,문화,문화,체육시설,서울시 썰매장업 인허가 정보
+special_high_pressure_gas,industry,industry,gas,v1,산업,산업,가스,서울시 특정고압가스업 인허가 정보
+sponsored_door_sale,industry,industry,sales,v1,산업,산업,판매업,서울시 후원방문판매업체 인허가 정보
+sports_complex,culture,culture,sports,v1,문화,문화,체육시설,서울시 종합체육시설업 인허가 정보
+swimming_pool,culture,culture,sports,v1,문화,문화,체육시설,서울시 수영장업 인허가 정보
+telemarketing_sale,industry,industry,sales,v1,산업,산업,판매업,서울시 전화권유판매업 인허가 정보
+timber_import_dist,industry,industry,timber,v1,산업,산업,목재,서울시 목재수입유통업 인허가 정보
+tobacco_import_sale,industry,industry,tobacco,v1,산업,산업,담배,서울시 담배수입판매업체 인허가 정보
+tobacco_retail,industry,industry,tobacco,v1,산업,산업,담배,서울시 담배소매업 인허가 정보
+tobacco_wholesale,industry,industry,tobacco,v1,산업,산업,담배,서울시 담배도매업 인허가 정보
+tour_cruise,culture,culture,tourism,v1,문화,문화,관광,서울시 관광유람선업 인허가 정보
+tour_entertainment_bar,health,food,bar,v1,보건,식품,식품,서울시 관광유흥음식점업 인허가 정보
+tour_restaurant,health,food,restaurant,v1,보건,식품,식품,서울시 관광식당 인허가 정보
+tourism_operator,culture,culture,tourism,v1,문화,문화,관광,서울시 관광사업자 인허가 정보
+tourist_cabaret,culture,culture,performance,v1,문화,문화,공연,서울시 관광극장유흥업 인허가 정보
+tourist_performance_hall,culture,culture,performance,v1,문화,문화,공연,서울시 관광공연장업 인허가 정보
+traditional_temple,culture,culture,tourism,v1,문화,문화,관광,서울시 전통사찰 인허가 정보
+video_distribution,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 비디오물배급업 인허가 정보
+video_production,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 비디오물제작업 인허가 정보
+video_small_theater,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 비디오물소극장업 인허가 정보
+video_viewing_room,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 비디오물감상실업 인허가 정보
+video_viewing_service,culture,culture,film_video,v1,문화,문화,영화·비디오,서울시 비디오물시청제공업 인허가 정보
+water_pollution_facility,environment,environment,pollution,v2,환경,환경,수질오염,서울시 수질오염설치시설(기타) 인허가 정보
+water_tank_cleaning,environment,environment,sanitation,v2,환경,환경,위생용품,서울시 저수조청소업 인허가 정보
+yacht_marina,culture,culture,sports,v1,문화,문화,체육시설,서울시 요트장업 인허가 정보
+youth_game_arcade,culture,culture,game,v1,문화,문화,게임제공업,서울시 청소년게임제공업 인허가 정보

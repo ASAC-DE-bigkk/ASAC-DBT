@@ -27,7 +27,7 @@ seoul_all as (
     select sum(n) as seoul_total from active
 )
 
-select a.gu_code, max(a.gu) as gu, a.major, a.category,
+select a.gu_code, max(a.gu) as gu, a.major, {{ label_major_ko('a.major') }} as major_ko, a.category, {{ label_category_ko('a.category') }} as category_ko,
        sum(a.n)                                          as active_cnt,
        round(1.0 * sum(a.n) / max(t.gu_total), 4)        as share_in_gu,
        round((1.0 * sum(a.n) / max(t.gu_total))
