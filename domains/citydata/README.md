@@ -27,7 +27,9 @@ bronze_seoul_citydata (source)  ─ ASAC-DAG가 적재. (장소×블록) 행 + �
 
 | 파일 | 역할 |
 |------|------|
-| `models/schema.yml` | source(bronze/bronze_citydata) + seed/모델/컬럼 문서 + 테스트 선언 |
+| `models/sources.yml` | source(bronze_citydata + 크로스도메인) + seed 문서 |
+| `models/silver/_citydata_silver__models.yml` | silver(+dim) 모델·컬럼 문서·태그·테스트 |
+| `models/gold/_citydata_gold__models.yml` | gold 모델·컬럼 문서·태그·테스트 |
 | `models/silver/silver_seoul_ppltn.sql` | citydata bronze의 `LIVE_PPLTN_STTS` 블록을 파싱·dedup (인구) |
 | `models/silver/silver_citydata_*.sql` | 상권·업종·승하차·따릉이·대기질 블록별 grain 파싱 |
 | `models/gold/gold_seoul_ppltn_by_time.sql`·`_daily.sql` | 인구 시간별/일 파생 |
@@ -86,7 +88,7 @@ where block_name = 'LIVE_PPLTN_STTS'
 ## dev/prod 분리
 
 - `profiles.yml`: dev → `iceberg_dev`(seoul-dev), prod → `iceberg`(seoul).
-- `schema.yml`의 source `database: "{{ target.database }}"` → 타깃 카탈로그와 자동 정렬.
+- `sources.yml`의 source `database: "{{ target.database }}"` → 타깃 카탈로그와 자동 정렬.
 - 기본 target은 dev. **prod는 팀 합의 없이 쓰지 않습니다.**
 
 ## 실행

@@ -1,6 +1,6 @@
 -- 복합 grain 유일성 제네릭 테스트 (dbt_utils 미사용 — 자체 구현).
 -- incremental merge 중복 누적 같은 회귀를 grain 단위로 잡는다.
--- 사용(schema.yml):
+-- 사용(레이어별 모델 yml):
 --   data_tests:
 --     - unique_grain:
 --         arguments:

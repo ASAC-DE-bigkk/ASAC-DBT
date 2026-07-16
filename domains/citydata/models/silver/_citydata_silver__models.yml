@@ -1,0 +1,361 @@
+version: 2
+
+# citydata silver 문서·태그·테스트 (레이어 분리). dim_seoul_area(참조 차원) 포함.
+# gold 는 gold/_citydata_gold__models.yml · sources 는 models/sources.yml.
+
+models:
+  - name: silver_citydata_ppltn
+    config:
+      tags: ['fast']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at]
+    description: >
+      bronze payload를 json_extract로 개별 필드 분해 후 (area_cd, event_at) 기준 최신
+      1건으로 중복 제거한 정제 테이블. 공간축은 코드·좌표(area_cd·admin_dong_code·gu_code·
+      lon·lat)만 담고 이름은 dim_seoul_area 조인으로 얻는다(#115). incremental(delete+insert).
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리 — 구 단위 조인·롤업 키
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 (canonical) — 동 단위 도메인 통합 조인 키
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84, seed 조인)
+        data_tests:
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lon
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84, seed 조인)
+        data_tests:
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lat
+      - name: area_congest_lvl
+        description: 혼잡도 수준 (여유/보통/약간 붐빔/붐빔) — 소문자 정규화
+      - name: area_congest_msg
+        description: 혼잡도 안내 메시지
+      - name: area_ppltn_min
+        description: 추정 최소 인구 (integer)
+      - name: area_ppltn_max
+        description: 추정 최대 인구 (integer)
+      - name: male_ppltn_rate
+        description: 남성 인구 비율(%)
+      - name: female_ppltn_rate
+        description: 여성 인구 비율(%)
+      - name: ppltn_rate_0
+        description: 0~9세 인구 비율(%)
+      - name: ppltn_rate_10
+        description: 10대 인구 비율(%)
+      - name: ppltn_rate_20
+        description: 20대 인구 비율(%)
+      - name: ppltn_rate_30
+        description: 30대 인구 비율(%)
+      - name: ppltn_rate_40
+        description: 40대 인구 비율(%)
+      - name: ppltn_rate_50
+        description: 50대 인구 비율(%)
+      - name: ppltn_rate_60
+        description: 60대 인구 비율(%)
+      - name: ppltn_rate_70
+        description: 70대 이상 인구 비율(%)
+      - name: resnt_ppltn_rate
+        description: 상주 인구 비율(%)
+      - name: non_resnt_ppltn_rate
+        description: 비상주(유동) 인구 비율(%)
+      - name: replace_yn
+        description: 대체 데이터 여부 (Y/N — 원천 결측 시 대체값 사용 표시)
+      - name: fcst_yn
+        description: 예측값 여부 (Y/N — 관측 대신 예측 사용 표시)
+      - name: event_at
+        description: 대표 측정 시각 (KST timestamp — PPLTN_TIME 파싱, dedup grain·크로스도메인 시간축)
+      - name: collected_at
+        description: 수집 시각 (KST, dedup 시 최신 판단 기준)
+
+  - name: dim_seoul_area
+    config:
+      tags: ['fast']
+    description: >
+      서울 주요 121장소 정적 차원 — seed 좌표 + asac_axes 경계 point-in-polygon으로
+      #48 공통축(gu/admin_dong/행안부 코드)을 1회 계산. citydata silver들의 조인원.
+    columns:
+      - name: area_cd
+        description: 장소 코드 (PK)
+        data_tests: [unique, not_null]
+      - name: area_nm
+        description: 장소명
+      - name: area_category
+        description: 장소 분류
+      - name: sido
+        description: 시도명 (서울)
+      - name: gu
+        description: 자치구명
+      - name: admin_dong
+        description: 행정동명
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 (canonical)
+        data_tests:
+          - asac_axes.axis_coverage:
+              arguments:
+                min_ratio: 0.99
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+
+  - name: silver_citydata_cmrcl
+    config:
+      tags: ['slow']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at]
+    description: >
+      실시간 상권(신한카드) 요약 — grain (area_cd, event_at). event_at = CMRCL_TIME
+      파싱(KST, 실측 10분 주기). incremental(merge), 30분 lookback, 배치 내 dedup.
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+        data_tests: [not_null]
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 — 동 단위 조인 키
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: event_at
+        description: 상권 데이터 갱신 시각 (KST)
+        data_tests: [not_null]
+      - name: cmrcl_lvl
+        description: 장소 상권 활성 수준 (한산한/보통/분주한/바쁜)
+      - name: payment_count
+        description: 실시간 신한카드 결제 건수 (10분 창)
+      - name: payment_amt_min
+        description: 결제금액 하한 (원)
+      - name: payment_amt_max
+        description: 결제금액 상한 (원)
+      - name: male_rate
+        description: 남성 결제 비율(%)
+      - name: female_rate
+        description: 여성 결제 비율(%)
+      - name: rate_10
+        description: 10대 결제 비율(%)
+      - name: rate_20
+        description: 20대 결제 비율(%)
+      - name: rate_30
+        description: 30대 결제 비율(%)
+      - name: rate_40
+        description: 40대 결제 비율(%)
+      - name: rate_50
+        description: 50대 결제 비율(%)
+      - name: rate_60
+        description: 60대 이상 결제 비율(%)
+      - name: personal_rate
+        description: 개인 결제 비율(%)
+      - name: corporation_rate
+        description: 법인 결제 비율(%)
+      - name: collected_at
+        description: 수집 시각 (KST)
+
+  - name: silver_citydata_cmrcl_rsb
+    config:
+      tags: ['slow']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at, rsb_lrg_ctgr, rsb_mid_ctgr]
+    description: >
+      상권 업종별 상세 — grain (area_cd, event_at, 업종 대·중분류). CMRCL_RSB 배열
+      UNNEST. incremental(merge).
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: event_at
+        description: 상권 데이터 갱신 시각 (KST) — grain 축
+      - name: rsb_lrg_ctgr
+        description: 업종 대분류 (요식/생활 등) — grain 축
+      - name: rsb_mid_ctgr
+        description: 업종 중분류 (한식/편의점 등) — grain 축
+        data_tests: [not_null]
+      - name: payment_lvl
+        description: 그 업종 결제 활성 수준
+      - name: payment_count
+        description: 그 업종 결제 건수
+      - name: payment_amt_min
+        description: 그 업종 결제금액 하한
+      - name: payment_amt_max
+        description: 그 업종 결제금액 상한
+      - name: merchant_count
+        description: 그 업종 가맹점 수
+      - name: merchant_count_month
+        description: 그 업종 월간 가맹점 수
+      - name: collected_at
+        description: 수집 시각 (KST)
+
+  - name: silver_citydata_transit_ppltn
+    config:
+      tags: ['fast']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, mode, observed_at]
+    description: >
+      지하철/버스 승하차 인원 — grain (area_cd, mode, observed_at). 원천 시각 필드가
+      없어 observed_at=collected_at(KST). 5/10/30분 창 + 당일 누적. incremental(merge).
+      승차=gton(get-on), 하차=gtoff(get-off). 원천이 범위(min~max)로 제공.
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: mode
+        description: subway | bus — grain 축
+        data_tests: [not_null]
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 — 동 단위 조인 키
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: observed_at
+        description: 관측 시각 (=collected_at, KST) — grain 축
+        data_tests: [not_null]
+      - name: gton_5min_min
+        description: 최근 5분 승차 하한
+      - name: gton_5min_max
+        description: 최근 5분 승차 상한
+      - name: gtoff_5min_min
+        description: 최근 5분 하차 하한
+      - name: gtoff_5min_max
+        description: 최근 5분 하차 상한
+      - name: gton_10min_min
+        description: 최근 10분 승차 하한
+      - name: gton_10min_max
+        description: 최근 10분 승차 상한
+      - name: gtoff_10min_min
+        description: 최근 10분 하차 하한
+      - name: gtoff_10min_max
+        description: 최근 10분 하차 상한
+      - name: gton_30min_min
+        description: 최근 30분 승차 하한
+      - name: gton_30min_max
+        description: 최근 30분 승차 상한
+      - name: gtoff_30min_min
+        description: 최근 30분 하차 하한
+      - name: gtoff_30min_max
+        description: 최근 30분 하차 상한
+      - name: gton_acml_min
+        description: 당일 누적 승차 하한
+      - name: gton_acml_max
+        description: 당일 누적 승차 상한
+      - name: gtoff_acml_min
+        description: 당일 누적 하차 하한
+      - name: gtoff_acml_max
+        description: 당일 누적 하차 상한
+      - name: station_count
+        description: 집계에 포함된 역/정류장 수
+
+  - name: silver_citydata_sbike
+    config:
+      tags: ['fast']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, spot_id, observed_at]
+    description: >
+      따릉이 대여소 현황 — grain (area_cd, spot_id, observed_at). SBIKE_STTS 배열
+      UNNEST, 대여소 좌표 포함. incremental(merge).
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: spot_id
+        description: 대여소 ID (ST-###) — grain 축
+        data_tests: [not_null]
+      - name: spot_nm
+        description: 대여소명
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 (장소 기준)
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: spot_longitude
+        description: 대여소 자체 경도 (WGS84)
+      - name: spot_latitude
+        description: 대여소 자체 위도 (WGS84)
+      - name: observed_at
+        description: 관측 시각 (KST) — grain 축
+      - name: parking_count
+        description: 현재 주차(거치)된 따릉이 대수
+      - name: rack_count
+        description: 거치대 수
+      - name: shared_rate_percent
+        description: 거치율(%) = 주차/거치대
+
+  - name: silver_citydata_air
+    config:
+      tags: ['slow']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at]
+    description: >
+      날씨 실황 + 대기질 — grain (area_cd, event_at=WEATHER_TIME, 실측 10분).
+      FCST24HOURS(예보)는 weather 도메인 canonical이라 제외. incremental(merge).
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: event_at
+        description: 실황 갱신 시각 (WEATHER_TIME, KST) — grain 축
+        data_tests: [not_null]
+      - name: temperature
+        description: 기온 (°C)
+      - name: sensible_temperature
+        description: 체감온도 (°C)
+      - name: humidity
+        description: 습도 (%)
+      - name: precipitation
+        description: 강수량 (mm)
+      - name: precipitation_type
+        description: 강수형태 (없음/비/비눈/눈 등)
+      - name: pm25
+        description: 초미세먼지 농도
+      - name: pm25_index
+        description: 초미세먼지 지수 (좋음/보통/나쁨…)
+      - name: pm10
+        description: 미세먼지 농도
+      - name: pm10_index
+        description: 미세먼지 지수
+      - name: air_idx
+        description: 통합대기환경지수 등급
+      - name: air_idx_value
+        description: 통합대기환경지수 값
+      - name: uv_index_lvl
+        description: 자외선 지수 등급
+      - name: collected_at
+        description: 수집 시각 (KST)
