@@ -1,23 +1,69 @@
 version: 2
 
-# gold 소비처 선언 — 서빙 레이어 정책(dags docs/PROJECT.md §4, 2026-07-14 개편).
-# gold 코어는 dbt 모델(Iceberg)이라 그래프에 직접 존재한다. 이 exposure 는 그 하류 소비 계약 —
-# (1) 카탈로그 구동 detail 적재(dags include/gold/ — commerce_<domain>_detail, 물리명 stitch)
-# (2) D1(SQLite) 선별 export(예정 — dong_summary 1순위, entity 선별 후보)를 문서화한다.
+# gold 소비처·크로스도메인 계보 선언 — "이 모델을 고치면 무엇이 깨지나"를 dbt lineage 에 노출.
+# gold 코어는 dbt 모델(Iceberg)이라 그래프에 직접 존재한다. 아래 exposure 는 그 하류 소비 계약.
 exposures:
+  # ── 크로스도메인(culture 연계) — culture cross_domain_join_contract 의 commerce 측 대칭 ──
+  - name: cross_domain_activity_join
+    label: 크로스도메인 조인 — commerce 상권 × culture 문화활동 (행정동/gu × 기간)
+    type: analysis
+    maturity: medium
+    url: https://github.com/ASAC-DE-bigkk/ASAC-DBT/blob/dev/domains/culture/models/exposures.yml
+    description: >
+      commerce gold 를 culture gold 와 **공통축(gu_code·admin_dong_code × 기간)**으로 조인하는
+      크로스도메인 소비 계약(culture 의 cross_domain_join_contract 와 대칭 — 양방향).
+      culture.gold_culture_activity_by_dong(행정동 × event_date) ↔ commerce 의 동일 축 gold —
+      gold_license_dong_category_matrix·gold_license_dong_summary(행정동 스톡)·gold_license_flow_daily
+      (행정동 × 일자 개폐업) — 를 붙여 "문화활동이 활발한 동네의 상권 개폐업/구성" 교차 분석을 만든다.
+      Marquez/OpenLineage 는 물리 테이블명으로 두 도메인 dbt 그래프를 stitch(계보 계승)한다.
+      주의 — 조인키 grain(admin_dong_code 10자리·gu_code 5자리)·결측 규약(commerce 는 결측 'UNK',
+      culture 는 426 scaffold 0)이 서로 다르므로 조인 전 UNK 제외·축 정합을 맞춘다. 공통축 컬럼·
+      그레인 변경 시 culture 계약(#48)과 소비 분석에 공지 필요.
+    depends_on:
+      - ref('gold_license_dong_category_matrix')
+      - ref('gold_license_dong_summary')
+      - ref('gold_license_flow_daily')
+    owner:
+      name: data-eng
+
+  # ── D1 서빙 소비처(예정 — PROJECT.md §4, docs/DB/gold/serving-design.md) ──
   - name: commerce_gold_serving
     label: commerce gold 서빙 — Iceberg 정본 → D1(SQLite) 선별 export(예정)
     type: application
     maturity: medium
+    url: https://github.com/ASAC-DE-bigkk/ASAC-DBT/blob/dev/domains/commerce/docs/DB/gold/opus-serving-build-instructions.md
     owner:
       name: data-eng
     description: >
       commerce_load_gold DAG(ASAC-DAG) 가 gold 코어(dbt·Iceberg)와 카탈로그 구동 detail
       (silver_<domain>_detail — API 별 상이 컬럼 평탄화, dags include/gold/)을 구축한다.
-      서빙은 gold 중 선별 소수 테이블만 D1(SQLite) 로 export(후속 구현 — PROJECT.md §4.3):
-      gold_license_dong_summary(1순위)·silver_license_entity(필터/컬럼 축소 후보).
+      서빙은 gold 를 Cloudflare D1(SQLite) 로 선별 export → API·화면 6종 소비(후속 구현, PROJECT.md
+      §4.3). 서빙 tier(d1_direct/d1_rollup/iceberg_api)·화면 매핑은 docs/DB/gold/serving-design.md,
+      구현 계약은 opus-serving-build-instructions.md. gold 그레인·컬럼 변경은 D1 스키마·API 응답·화면
+      바인딩을 깨므로 여기서 영향을 추적한다. 대용량(flow_daily 등)은 D1 미적재·Iceberg 직조회.
       기존 serving Postgres 경로는 폐기(2026-07-14).
     depends_on:
       - ref('silver_license_entity')
       - ref('silver_license_entity_history')
+      - ref('gold_license_flow_daily')
+      - ref('gold_license_flow_monthly')
+      - ref('gold_license_flow_yearly')
+      - ref('gold_license_seasonality')
+      - ref('gold_license_churn_yearly')
+      - ref('gold_license_lifespan')
+      - ref('gold_license_cohort_survival')
+      - ref('gold_license_status_duration')
+      - ref('gold_license_status_transition')
       - ref('gold_license_dong_summary')
+      - ref('gold_license_dong_category_matrix')
+      - ref('gold_license_geo_grid')
+      - ref('gold_license_gu_specialization')
+      - ref('gold_license_stock_age_band')
+      - ref('gold_detail_area_profile')
+      - ref('gold_detail_uptae_mix')
+      - ref('gold_license_multi_site')
+      - ref('gold_license_change_activity')
+      - ref('gold_license_address_succession')
+      - ref('gold_license_phone_succession')
+      - ref('gold_license_data_quality')
+      - ref('gold_env_facility_operation')
