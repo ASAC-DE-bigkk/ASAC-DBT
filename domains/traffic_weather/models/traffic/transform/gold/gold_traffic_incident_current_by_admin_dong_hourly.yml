@@ -6,6 +6,7 @@ models:
     access: public
     config:
       meta:
+        traffic_quality_product: true
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
