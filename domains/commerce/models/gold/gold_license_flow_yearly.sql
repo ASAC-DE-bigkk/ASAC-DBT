@@ -1,13 +1,12 @@
 -- gold_license_flow_yearly — 연 단위 개업/폐업 흐름 × 업종 3단 × 지역 3축(시군구/행정동/법정동).
 --
--- 인사이트 계약(#71): "연 단위" 집계 — **이미 전연도까지 적재됐다면 추가 적재하지 않는다**
--- (완결연만 + 최근 1개 연도 지연보정 창 delete+insert). D1 export 는 D1 의 max(y) 초과분만 append.
--- grain = unique_key 6컬럼 — 재실행 멱등(중복 불가).
+-- 인사이트 계약(#71·#73): "연 단위" 집계 — **이미 적재된 연도는 추가 적재하지 않는다** = 기적재
+-- 최대연 초과 완결연만 append. **재실행 시 신규 완결연 없으면 0건**(사용자 확정 — 멱등 확인 대상).
+-- D1 도 동일(max(y) 초과). 지연 도착(과거연 소급)은 --full-refresh 로 흡수(commerce_load_gold_refresh).
 
 {{ config(
     materialized='incremental',
-    incremental_strategy='delete+insert',
-    unique_key=['y', 'event_type', 'dataset', 'gu_code', 'admin_dong_code', 'legal_code'],
+    incremental_strategy='append',
     on_schema_change='fail'
 ) }}
 
@@ -44,7 +43,7 @@ from ev
 -- 완결연만(KST 당해 제외 — 당해분은 연이 닫힌 뒤 확정 적재)
 where y < substr(cast(cast(current_timestamp at time zone 'Asia/Seoul' as date) as varchar), 1, 4)
 {% if is_incremental() %}
-  -- 지연 도착 보정 창: 기적재 최대 연도부터 재계산(delete+insert 교체 — 중복 불가)
-  and y >= (select coalesce(max(y), '1900') from {{ this }})
+  -- append-only: 기적재 최대연 **초과** 완결연만(문자열 비교 — 신규 없으면 0건 → 재실행 멱등)
+  and y > (select coalesce(max(y), '0000') from {{ this }})
 {% endif %}
 group by 1, 2, 3, 4, 5, 6
