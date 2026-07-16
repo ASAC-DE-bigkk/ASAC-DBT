@@ -66,14 +66,14 @@ models:
 
   - name: gold_license_flow_monthly
     description: >
-      (#71) 월 단위 흐름 — 이미 이전달까지 적재됐으면 재적재하지 않음(완결월 + 3개월 보정 창).
+      (#71) 월 단위 흐름 — 이미 적재된 달은 재적재 안 함(완결월 초과분만 append — 재실행 0건).
     columns:
       - name: ym
         tests: [not_null]
 
   - name: gold_license_flow_yearly
     description: >
-      (#71) 연 단위 흐름 — 전연도까지 적재됐으면 추가 적재하지 않음(완결연 + 1개 연도 보정 창).
+      (#71) 연 단위 흐름 — 전연도까지 적재됐으면 추가 적재 안 함(완결연 초과분만 append — 재실행 0건).
     columns:
       - name: y
         tests: [not_null]

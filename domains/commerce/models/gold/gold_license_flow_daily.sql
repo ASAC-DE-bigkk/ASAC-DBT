@@ -4,16 +4,14 @@
 -- 기간 조건절(event_date between …)로 수행한다. D1 export 시에도 기간 grain 이라 **D1 의
 -- max(event_date) 초과분만 append** 하면 중복 없이 증분 적재된다(§7 문서).
 --
--- 증분 계약(중복 불가): **완결일만**(KST 오늘 제외) 적재. is_incremental 시 최근 90일 창을
--- delete+insert 로 재계산 — 폐업일(dcbymd)은 소급 신고가 흔해(지연 도착) 안정 기간을 다시
--- 열지 않으면 유실되기 때문. 90일보다 늦은 소급분은 --full-refresh 로 흡수(문서 명시).
--- grain = unique_key 6컬럼 — delete+insert 가 창 내 기존 행을 교체하므로 재실행 멱등.
+-- 증분 계약(#73, 사용자 확정): **완결일만**(KST 오늘 제외) + **기적재 최대일 초과분만 append**
+-- → 재실행 시 신규 완결일 없으면 **0건**(멱등 확인 대상). 지연 도착(과거일 소급 신고)은
+-- --full-refresh 로 흡수(append-only 트레이드오프 — 정기 스윕: commerce_load_gold_refresh).
 -- 날짜 규약: 문자열 ISO(사전순=날짜순, docs/DB/gold/status-aggregation-queries.md §1.2).
 
 {{ config(
     materialized='incremental',
-    incremental_strategy='delete+insert',
-    unique_key=['event_date', 'event_type', 'dataset', 'gu_code', 'admin_dong_code', 'legal_code'],
+    incremental_strategy='append',
     on_schema_change='fail'
 ) }}
 
@@ -50,11 +48,7 @@ from ev
 -- 완결일만(KST 오늘 제외 — 당일분은 다음 실행이 확정 적재)
 where event_date < cast(cast(current_timestamp at time zone 'Asia/Seoul' as date) as varchar)
 {% if is_incremental() %}
-  -- 지연 도착 보정 창: 기적재 최대일 - 90일부터 재계산(delete+insert 교체 — 중복 불가)
-  -- 문자열 max(사전순=날짜순) 먼저, date 변환은 그 1개만 — 전 행 변환 시 원천 무효
-  -- 날짜(예: 2006-02-29, ISO 형식이지만 실존하지 않는 날)에서 파싱 폭발(실측).
-  and event_date >= cast(
-        coalesce(try(from_iso8601_date((select max(event_date) from {{ this }}))),
-                 date '1900-01-01') - interval '90' day as varchar)
+  -- append-only: 기적재 최대일 **초과** 완결일만(문자열 비교 — 신규 없으면 0건 → 재실행 멱등)
+  and event_date > (select coalesce(max(event_date), '0000-00-00') from {{ this }})
 {% endif %}
 group by 1, 2, 3, 4, 5, 6
