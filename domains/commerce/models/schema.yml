@@ -18,7 +18,7 @@ models:
   - name: gold_license_stock_age_band
     description: 영업 중 업소 업력 밴드(<1y~20y+) 분포 × 업종 × 자치구 — '신생 상권 vs 노포 상권' 구분.
   - name: gold_license_gu_specialization
-    description: 자치구 업종 특화지수(LQ) — '이 구는 어떤 업종에 특화됐나'. LQ>1=서울 평균 대비 밀집(예: 성동 축산 5.8).
+    description: "자치구 업종 특화지수(LQ) — '이 구는 어떤 업종에 특화됐나'. LQ>1=서울 평균 대비 밀집(예: 성동 축산 5.8)."
   - name: gold_license_churn_yearly
     description: 연도별 순증·교체율·신생비 × 업종 × 자치구 — '이 업종 상권이 얼마나 역동적인가'(폐업/기초스톡). 최근 20개 완결연.
   - name: gold_license_data_quality
