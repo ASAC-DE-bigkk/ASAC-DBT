@@ -359,3 +359,58 @@ models:
         description: 자외선 지수 등급
       - name: collected_at
         description: 수집 시각 (KST)
+
+  - name: silver_citydata_charger
+    config:
+      tags: ['fast']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, stat_id, charger_id, observed_at]
+    description: >
+      citydata 전기차 충전소·충전기 현황 (#192 신규 가치, 팀 미보유). CHARGER_STTS 블록을
+      이중 언네스트(충전소→개별 충전기)해 충전기 1개 = 1행. observed_at=STATUPDDT(상태갱신
+      시각) — 상태 안 바뀌면 유지, 바뀌면 새 행(상태 변경 로그). incremental + dedup post-hook.
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84)
+      - name: stat_id
+        description: 충전소 ID (STAT_ID) — grain 축
+      - name: stat_nm
+        description: 충전소명
+      - name: stat_addr
+        description: 충전소 주소
+      - name: stat_longitude
+        description: 충전소 경도 (STAT_X)
+      - name: stat_latitude
+        description: 충전소 위도 (STAT_Y)
+      - name: use_time
+        description: 이용가능시간 (예 24시간 이용가능)
+      - name: parking_pay_yn
+        description: 주차료 부과 여부 (Y/N)
+      - name: limit_yn
+        description: 이용제한 여부 (Y/N)
+      - name: place_kind
+        description: 충전소 장소 구분 (마트(쇼핑몰) 등)
+      - name: charger_id
+        description: 개별 충전기 ID — grain 축
+      - name: charger_type
+        description: 충전기 타입 (AC완속·DC콤보·DC급속 등)
+      - name: charger_stat
+        description: 충전기 상태 (사용가능/충전중/점검중/통신이상/운영중지/상태미확인) — ★ 가용 판단
+      - name: output_kw
+        description: 충전 출력 (kW)
+      - name: method
+        description: 충전 방식 (단독/동시)
+      - name: observed_at
+        description: 상태 갱신 시각 (STATUPDDT, KST) — grain 축
+      - name: collected_at
+        description: 수집 시각 (KST, dedup 최신 판단 기준)
