@@ -40,7 +40,8 @@ ev as (
     from e where c_iso is not null
 )
 
-select ym, event_type, {{ label_event_type_ko('event_type') }} as event_type_ko,
+select ym, cast(substr(ym, 1, 4) as integer) as y,
+       event_type, {{ label_event_type_ko('event_type') }} as event_type_ko,
        dataset, max(name_ko) as dataset_ko,
        gu_code, max(gu) as gu,
        admin_dong_code, max(admin_dong) as admin_dong,

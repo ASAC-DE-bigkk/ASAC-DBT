@@ -47,7 +47,7 @@ expanded as (
 
 select major, {{ label_major_ko('major') }} as major_ko,
        category, {{ label_category_ko('category') }} as category_ko,
-       cohort_y, years_elapsed,
+       cast(cohort_y as integer) as cohort_y, years_elapsed,
        cohort_n, survivors,
        round(1.0 * survivors / cohort_n, 4) as survival_rate
 from expanded

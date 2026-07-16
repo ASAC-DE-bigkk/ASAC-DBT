@@ -38,7 +38,7 @@ agg as (
     group by 1, 2, 3, 4, 5
 )
 
-select y, major, {{ label_major_ko('major') }} as major_ko,
+select cast(y as integer) as y, major, {{ label_major_ko('major') }} as major_ko,
        category, {{ label_category_ko('category') }} as category_ko,
        dataset, name_ko as dataset_ko, gu_code, gu,
        opened, closed,

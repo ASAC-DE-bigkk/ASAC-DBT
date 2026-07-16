@@ -16,8 +16,8 @@ models:
       contract: {enforced: true}
     columns:
       - name: event_date
-        data_type: varchar
-        description: 이벤트 발생일(개업 apvpermymd/폐업 dcbymd) — 문자열 ISO(YYYY-MM-DD). 완결일만(당일 제외).
+        data_type: date
+        description: 이벤트 발생일(개업 apvpermymd/폐업 dcbymd) — date 타입. 완결일만(당일 제외), 무효일자 제외.
         tests: [not_null]
       - name: event_type
         data_type: varchar
@@ -87,6 +87,9 @@ models:
       - name: ym
         data_type: varchar
         description: 이벤트 발생 연월(YYYY-MM, 문자열). 완결월만(당월 제외).
+      - name: y
+        data_type: integer
+        description: 연(정수, ym 파생) — 월 데이터의 연 단위 집계용.
         tests: [not_null]
       - name: event_type
         data_type: varchar
@@ -150,8 +153,8 @@ models:
       contract: {enforced: true}
     columns:
       - name: y
-        data_type: varchar
-        description: 이벤트 발생 연도(YYYY, 문자열). 완결연만(당해 제외). 원천 커버리지 1900~2025.
+        data_type: integer
+        description: 이벤트 발생 연도(정수). 완결연만(당해 제외). 원천 커버리지 1900~2025.
         tests: [not_null]
       - name: event_type
         data_type: varchar
@@ -223,8 +226,8 @@ models:
               arguments:
                 values: ['opened', 'closed']
       - name: month_of_year
-        data_type: varchar
-        description: 월(01~12, 문자열) — 연도 제거한 월중 집계축.
+        data_type: integer
+        description: 월(1~12 정수) — 연도 제거한 월중 집계축.
         tests: [not_null]
       - name: major
         data_type: varchar
@@ -243,9 +246,6 @@ models:
       - name: event_type_ko
         data_type: varchar
         description: 이벤트 유형 한글(개업/폐업)
-      - name: month_ko
-        data_type: varchar
-        description: 월 한글(N월)
       - name: major_ko
         data_type: varchar
         description: 대분류 한글(보건/문화/산업/환경)
@@ -261,8 +261,8 @@ models:
       contract: {enforced: true}
     columns:
       - name: y
-        data_type: varchar
-        description: 연도(YYYY). 실측 2006~2025.
+        data_type: integer
+        description: 연도(정수). 실측 2006~2025.
         tests: [not_null]
       - name: major
         data_type: varchar
@@ -374,8 +374,8 @@ models:
         data_type: varchar
         description: 중분류.
       - name: cohort_y
-        data_type: varchar
-        description: 개업연도 코호트(YYYY).
+        data_type: integer
+        description: 개업연도 코호트(정수).
         tests: [not_null]
       - name: years_elapsed
         data_type: bigint

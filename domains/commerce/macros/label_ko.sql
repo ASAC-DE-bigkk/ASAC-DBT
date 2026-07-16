@@ -26,6 +26,3 @@ case {{ col }} when '0_lt1y' then '1년 미만' when '1_1to3y' then '1~3년' whe
      when '3_5to10y' then '5~10년' when '4_10to20y' then '10~20년' when '5_ge20y' then '20년+' else {{ col }} end
 {%- endmacro %}
 
-{% macro label_month_ko(col) -%}
-cast(cast({{ col }} as integer) as varchar) || '월'
-{%- endmacro %}
