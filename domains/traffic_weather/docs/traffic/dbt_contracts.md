@@ -292,6 +292,16 @@ materialization은 변경하지 않는다.
 종료 판정 규칙을 안전하게 확정할 수 없다. `expected_clear_at`을 실제 `ended_at`으로
 간주하지 않으며, observation history와 명시적 종료 규칙이 생길 때 후속 모델로 분리한다.
 
+## Traffic Quality Gold five-product contract
+
+Traffic Quality Gold 승인 ship set은 current-by-admin-hour, incident-x-flow, materialized request-audit coverage, expected-clearance evidence profile, spatial mapping quality의 5개 제품으로 고정한다. gold_traffic_incident_summary는 current snapshot 검증과 소규모 집계를 지원하는 support-only relation이다.
+
+gold_traffic_incident_collection_coverage_5m의 grain은 source_id × coverage_window_at_utc다. coverage_window_at_utc는 실제 request-audit collected_at을 UTC-naive 5분 경계로 내린 값이며 evidence_scope는 materialized_snapshot_only다. source/run별 latest effective manifest state를 먼저 선택한 뒤 상태를 판정한다. audit가 없는 5분 구간, 미착륙 schedule slot, Airflow missed run은 row로 만들지 않으므로 이 모델은 scheduled collection SLO가 아니다.
+
+gold_traffic_incident_expected_clearance_profile_by_admin_dong_daily의 grain은 profile_day × mapping_bucket이다. profile_day는 pinned current incident의 occurred_at KST date다. expected_clear_at이 null인 incident도 incident_count와 missing ratio에 포함한다. expected_clearance_lead_minutes는 expected_clear_at과 occurred_at의 source-provided 예상 간격이며 실제 해결시간이 아니다.
+
+gold_traffic_incident_spatial_mapping_quality_daily의 grain은 quality_day × mapping_bucket이다. mapping_bucket은 canonical admin_dong_code 또는 __UNMAPPED__이다. unmapped row의 admin_dong_code와 canonical stamp는 null이며 source-coordinate missing, WGS84 conversion/bbox miss, boundary match miss, canonical dimension miss를 별도 count로 제공한다.
+
 ## PR checklist
 
 traffic dbt PR 본문에는 최소한 아래 항목을 남긴다.
