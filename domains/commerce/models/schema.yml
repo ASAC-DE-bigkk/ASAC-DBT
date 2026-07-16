@@ -1,68 +1,10 @@
 version: 2
 
+# silver(원형)·seed 계약·테스트. gold 는 models/gold/_commerce_gold__models.yml 로 분리(culture 패턴).
+# 레이어 재분류 2026-07-15 — 원형(entity/entity_history/history/current/detail)은 silver 소속(PROJECT.md §4).
+
 models:
-  - name: gold_license_phone_succession
-    description: 연쇄창업 — '같은 사업자가 폐업 후 무엇으로 재도전하나'(동일 전화·주소 상이·공용번호 컷). 근사(전화 44%).
-  - name: gold_detail_uptae_mix
-    description: 업태(uptaenm) 구성·플로우 × 업종 — 소분류보다 깊은 업태 축(일반음식점 안 한식/커피숍). 19 detail union.
-  - name: gold_license_geo_grid
-    description: 좌표 ~500m 격자 상권 히트맵 × 업종 — 지도 밀도/핫스팟 질의. 실측 top=가산·선릉·강남역. D1 지도 후보.
-  - name: gold_license_address_succession
-    description: 자리 승계 — '폐업 후 같은 주소에 무엇이 들어오나'(<=365일). food->food 고착성. 건물 단위 주소 근사.
-  - name: gold_license_lifespan
-    description: 업소 수명(개업→폐업 일수) 분포 × 업종 × 자치구 — '이 업종은 보통 몇 년 버티나'. avg/p50/p90/조기폐업률. 폐업 완결분 기준.
-  - name: gold_license_cohort_survival
-    description: 개업연도 코호트 생존곡선 × 대/중분류 — 'Y년 개업분이 k년 뒤 몇 % 생존'. 관측 가능 연차만(우측검열 차단).
-  - name: gold_license_seasonality
-    description: 개업/폐업 월중 계절성(1~12월) × 업종 — '어느 달에 개·폐업 몰리나'. 최근 10개 완결연.
-  - name: gold_license_stock_age_band
-    description: 영업 중 업소 업력 밴드(<1y~20y+) 분포 × 업종 × 자치구 — '신생 상권 vs 노포 상권' 구분.
-  - name: gold_license_gu_specialization
-    description: "자치구 업종 특화지수(LQ) — '이 구는 어떤 업종에 특화됐나'. LQ>1=서울 평균 대비 밀집(예: 성동 축산 5.8)."
-  - name: gold_license_churn_yearly
-    description: 연도별 순증·교체율·신생비 × 업종 × 자치구 — '이 업종 상권이 얼마나 역동적인가'(폐업/기초스톡). 최근 20개 완결연.
-  - name: gold_license_data_quality
-    description: dataset(API)별 커버리지 진단 — '어느 API가 결측 심한가'. 전화/좌표/행정동/폐업일 보유율(거버넌스·수집 우선순위).
-  - name: gold_license_status_transition
-    description: 상태 전이 매트릭스(from→to) × 업종 — '휴업하면 재개하나 폐업하나'. ※이력 축적에 따라 성장하는 씨앗 지표.
-  - name: gold_license_dong_category_matrix
-    description: 행정동 × 중분류 스톡(+최근 1년 개업) — '이 동네엔 뭐가 많고 뭐가 새로 생기나'. 동네 프로파일/지도 서빙.
-  - name: gold_license_change_activity
-    description: 업소당 버전수·개명/이전 발생률 × 업종 — '정보가 얼마나 자주 바뀌나'. ※이력 축적 초기(씨앗 지표).
-  - name: gold_detail_area_profile
-    description: 영업장 면적(sitearea m2) 분포 × 업종 × 자치구 — '이 업종 가게 크기'. avg/p50/p90/소형/대형. 23개 detail union.
-  - name: gold_license_multi_site
-    description: 동일 전화 다지점(체인/다점포 추정) 비율 × 업종 — '이 업종 프랜차이즈화 정도'. 20+ 공용번호 컷, 근사(전화 44%).
-  - name: gold_license_flow_daily
-    description: 개업/폐업 흐름 일 grain × 업종3단 × 지역3축(gu·행정동·법정동) — '언제·어디서·무슨 업종이 생기고 닫혔나' 추이 질의. 완결일 초과분만 append(재실행 0건).
-    columns:
-      - name: event_date
-        tests: [not_null]
-      - name: event_type
-        tests: [not_null]
-
-  - name: gold_license_flow_monthly
-    description: 개업/폐업 흐름 월 grain × 업종3단 × 지역3축 — 월별 상권 증감 추이. 완결월 초과분만 append(재실행 0건).
-    columns:
-      - name: ym
-        tests: [not_null]
-
-  - name: gold_license_flow_yearly
-    description: 개업/폐업 흐름 연 grain × 업종3단 × 지역3축 — 장기 상권 추세. 완결연 초과분만 append(재실행 0건).
-    columns:
-      - name: y
-        tests: [not_null]
-
-  - name: gold_license_status_duration
-    description: 상태 세그먼트 지속기간 요약 × 업종·상태군 — '휴업/폐업이 보통 며칠 유지되나'. avg/p50/p90/진행중. 이력 기반.
-    columns:
-      - name: status_code
-        tests: [not_null]
-
-  - name: gold_env_facility_operation
-    description: 환경 배출시설(대기/수질) 가동 시간·일수 × 자치구 — '이 구 배출시설 연간 가동'. (영업시간 필드는 LOCALDATA 원천 부재).
-
-  # ── 원형 정리본(silver — 레이어 재분류 2026-07-15, dags docs/PROJECT.md §4) ────
+  # ── 원형 정리본(silver) ──────────────────────────────────────────────
   - name: silver_license_entity
     description: >
       업소 현재 상태(공통 컬럼 서빙 프로젝션, Iceberg 정본). grain = 자연키
@@ -95,14 +37,6 @@ models:
       - name: content_hash
         tests:
           - not_null
-
-  - name: gold_license_dong_summary
-    description: 행정동(admin_dong_code) × 업소 현황 스냅샷 — '이 동네 업소 수·영업률'. 영업(01)·폐업(03)·좌표보유 카운트. 동 지도/요약 서빙 표면.
-    columns:
-      - name: admin_dong_code
-        tests:
-          - not_null
-          - unique
 
   - name: silver_license_history
     description: >
