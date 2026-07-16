@@ -22,6 +22,18 @@ coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weath
 - Place dimension: `dim_weather_place`
 - User-facing forecast mart: `gold_weather_forecast_by_place`
 
+## Weather #231 quality and cross-domain Gold contract
+
+Weather #231 adds exactly five internal Weather Gold products marked with `weather_new_gold_product: true`; `gold_weather_forecast_by_admin_dong remains the only Weather published producer`.
+
+| Relation | Grain | Anchor and denominator | Key guardrail |
+|---|---|---|---|
+| `gold_weather_forecast_completeness_by_admin_dong_hourly` | `admin_dong_code × forecast_at` | Observed grains from `gold_weather_forecast_by_admin_dong`; core8 TMP, REH, WSD, POP, SKY, PTY, PCP, SNO | Entirely absent forecast slots are out of scope |
+| `gold_weather_forecast_issue_cycle_coverage_daily` | `issued_at × forecast_date` | `silver_kma_vilage_fcst_grid` issue slots × bridge v1 canonical 425 admin dongs × core8 | not forecast accuracy; not official schedule adherence |
+| `gold_weather_x_culture_activity_daily` | `admin_dong_code × forecast_date` | Weather daily anchor plus `source('culture_gold','gold_culture_activity_by_dong')` | present zero preserved, absent metrics NULL, `not_exposed_by_upstream_gold` |
+| `gold_weather_x_transit_hourly` | `admin_dong_code × hour_at` | Weather hourly anchor plus `source('transit_gold','gold_transit_dong_hourly')` | separate bus/subway/parking presence, sparse subway, parking null risk, `not_exposed_by_upstream_gold` |
+| `gold_weather_x_commerce_business_exposure_daily` | `admin_dong_code × forecast_date` | Weather daily anchor plus `source('commerce_gold','gold_license_dong_summary')` | no hindsight: `date(latest_collected_at) <= forecast_date`; no causal or damage claims |
+
 ## Source contract
 
 `models/weather/sources.yml`은 KMA Bronze table을 다음 기준으로 선언한다.

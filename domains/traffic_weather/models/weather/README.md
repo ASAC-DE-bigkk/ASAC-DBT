@@ -42,6 +42,16 @@ Recovery DAG는 model/test 이름을 알지 못하며 위 named selector만 호�
 - 계약: [`special/gold/gold_weather_forecast_by_admin_dong.yml`](special/gold/gold_weather_forecast_by_admin_dong.yml)
 - normal 호환 Gold/place mart와 special Silver/W1 bridge는 도메인 내부 구현이다.
 
+## Weather #231 quality and cross-domain Gold
+
+Weather #231 adds exactly five internal Weather Gold products with `weather_new_gold_product: true`; `gold_weather_forecast_by_admin_dong remains the only Weather published producer`.
+
+- `gold_weather_forecast_completeness_by_admin_dong_hourly` — grain `admin_dong_code × forecast_at`; core8 TMP, REH, WSD, POP, SKY, PTY, PCP, SNO presence completeness over observed Weather forecast grains. Entirely absent forecast slots are out of scope.
+- `gold_weather_forecast_issue_cycle_coverage_daily` — grain `issued_at × forecast_date`; issue-history expected-cell denominator over forecast slots × canonical bridge v1 admin dongs × core8. This is not forecast accuracy and not official schedule adherence.
+- `gold_weather_x_culture_activity_daily` — grain `admin_dong_code × forecast_date`; Weather daily anchor with Culture activity presence. Upstream freshness is `not_exposed_by_upstream_gold`.
+- `gold_weather_x_transit_hourly` — grain `admin_dong_code × hour_at`; Weather hourly anchor with separate transit, bus, subway, and parking presence. It documents sparse subway coverage and parking null risk; upstream freshness is `not_exposed_by_upstream_gold`.
+- `gold_weather_x_commerce_business_exposure_daily` — grain `admin_dong_code × forecast_date`; Weather daily anchor with Commerce stock as-of context and no hindsight join on collected date.
+
 ## cross-domain ref 규칙
 
 다른 group·package는 `access: public`인 producer만 명시적 package ref로 소비한다.
