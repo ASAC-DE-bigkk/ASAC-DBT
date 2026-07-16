@@ -13,6 +13,10 @@ APPROVED_PRODUCTS = {
     "gold_traffic_incident_spatial_mapping_quality_daily",
 }
 SUMMARY_MODEL = "gold_traffic_incident_summary"
+CROSS_DOMAIN_GOLD_PRODUCTS = {
+    "gold_traffic_incident_x_weather_current_hourly",
+    "gold_traffic_incident_x_citydata_crowding_current_hourly",
+}
 
 
 def _gold_model_metadata() -> dict[str, dict]:
@@ -59,7 +63,17 @@ def test_traffic_quality_gold_physical_ship_set_is_exactly_five() -> None:
     actual = {
         path.stem
         for path in GOLD_DIR.glob("gold_traffic_incident_*.sql")
-        if path.stem != SUMMARY_MODEL
+        if path.stem != SUMMARY_MODEL and path.stem not in CROSS_DOMAIN_GOLD_PRODUCTS
     }
 
     assert actual == APPROVED_PRODUCTS
+
+
+def test_cross_domain_gold_products_are_not_traffic_quality_products() -> None:
+    models = _gold_model_metadata()
+
+    assert set(CROSS_DOMAIN_GOLD_PRODUCTS).issubset(models)
+    for name in CROSS_DOMAIN_GOLD_PRODUCTS:
+        meta = _meta(models[name])
+        assert meta.get("cross_domain_gold") is True
+        assert meta.get("traffic_quality_product") is False
