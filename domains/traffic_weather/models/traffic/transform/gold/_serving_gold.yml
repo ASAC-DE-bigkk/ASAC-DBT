@@ -1,0 +1,175 @@
+version: 2
+
+# This file documents only the new SQL models in this change.  The authoritative
+# 15+15 serving-candidate registry, including preserved existing models, lives
+# in domains/traffic_weather/contracts/serving_gold_catalog.yml.
+
+models:
+  - name: gold_traffic_incident_active_latest
+    description: 최신 publishable TOPIS 돌발정보 한 건을 보존해 현재 어떤 돌발이 어디에 있는지 묻는 에이전트 질의의 원천 행을 제공합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 지금 활성 돌발은 무엇이며 언제 수집되었습니까?
+        grain: source_record_id마다 한 행입니다.
+        limitations: TOPIS 현재 스냅샷이며 과거에 사라진 돌발 이력이나 실제 해소 여부를 뜻하지 않습니다.
+    columns:
+      - name: source_record_id
+        description: TOPIS 돌발정보의 안정 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_incident_type_mix_latest
+    description: 최신 돌발을 유형과 세부유형으로 집계해 지금 어떤 종류의 돌발이 많은지 비교합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 현재 돌발은 유형별로 몇 건입니까?
+        grain: acc_type과 acc_dtype 조합마다 한 행입니다.
+        limitations: 유형 미기재는 __UNKNOWN__으로 보존하며 원인·심각도를 추론하지 않습니다.
+    columns:
+      - name: product_row_id
+        description: 유형과 세부유형을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_incident_clearance_watchlist
+    description: 현재 돌발의 원천 예상 해제시각과 관측시각을 나란히 제공해 해제 예정 상태를 확인합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 아직 해제되지 않았을 수 있는 돌발의 원천 예상 해제시각은 언제입니까?
+        grain: source_record_id마다 한 행입니다.
+        limitations: expected_clear_at은 TOPIS의 예상값이며 실제 해소시간·SLA·지연 원인이 아닙니다.
+    columns:
+      - name: product_row_id
+        description: source_record_id와 같은 결정적 제품 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_incident_clearance_horizon_latest
+    description: 최신 돌발을 원천 예상 해제시각의 남은 구간으로 집계해 향후 해제 예상 분포를 확인합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 현재 돌발 중 30분·60분 이내 또는 그 이후에 해제될 것으로 예상되는 건수는 얼마입니까?
+        grain: expected_clearance_horizon마다 한 행입니다.
+        limitations: TOPIS 예상 해제시각의 분포이며 실제 해소시간·교통 정상화·운영 SLA를 의미하지 않습니다.
+    columns:
+      - name: product_row_id
+        description: 예상 해제 구간과 같은 결정적 제품 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_flow_link_latest
+    description: 도로 링크별 가장 최근 속도와 통행시간 관측을 제공해 지금 어느 링크의 상태가 최신인지 확인합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 각 도로 링크의 가장 최근 속도와 통행시간은 무엇입니까?
+        grain: link_id마다 한 행입니다.
+        limitations: 링크별 관측시각이 다를 수 있으므로 서로 같은 순간의 전수 비교로 해석하면 안 됩니다.
+    columns:
+      - name: product_row_id
+        description: link_id와 같은 결정적 제품 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_flow_congestion_hotspots_hourly
+    description: KST 시간대 안에서 가장 느린 관측 링크를 순위화해 특정 시간의 저속 후보를 찾습니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 특정 시간에 관측 속도가 가장 낮은 링크는 어디입니까?
+        grain: hour_at과 link_id 조합마다 한 행입니다.
+        limitations: 순위는 해당 관측 집합의 상대순위이며 도로등급 보정이나 공식 혼잡등급이 아닙니다.
+    columns:
+      - name: product_row_id
+        description: 시간과 링크를 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_flow_change_latest
+    description: 링크별 최신 관측과 직전 관측의 속도·통행시간 차이를 제공해 악화 또는 개선 후보를 찾습니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 링크별 최신 속도는 직전 관측보다 어떻게 변했습니까?
+        grain: link_id마다 한 행입니다.
+        limitations: 관측 간격이 링크마다 다르고 결측은 변화 없음이 아니라 비교 불가입니다.
+    columns:
+      - name: product_row_id
+        description: link_id와 같은 결정적 제품 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_flow_link_time_profile
+    description: 링크별 요일·시간대 관측 패턴을 집계해 평소 저속 시간대를 비교합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 이 링크는 평소 어느 요일과 시간대에 느립니까?
+        grain: link_id와 KST 요일·시 조합마다 한 행입니다.
+        limitations: 이력 관측량이 적은 조합은 대표성이 낮으며 결측을 0으로 채우지 않습니다.
+    columns:
+      - name: product_row_id
+        description: 링크·요일·시를 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_incident_x_transit_hourly
+    description: 현재 행정동별 돌발 상태에 같은 시간의 버스·지하철·주차 관측을 붙여 이동 맥락을 확인합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 돌발이 있는 동의 같은 시간 대중교통과 주차 상태는 어떻습니까?
+        grain: admin_dong_code와 hour_at 조합마다 한 행입니다.
+        limitations: Transit 미관측은 0이 아니라 null이며 지하철과 주차의 공간 커버리지는 희소할 수 있습니다.
+    columns:
+      - name: product_row_id
+        description: Traffic canonical anchor의 결정적 식별자를 보존합니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_incident_x_culture_activity_daily
+    description: 현재 돌발 행정동에 같은 날짜의 문화활동 집계를 붙여 행사·공연 맥락을 확인합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 돌발이 있는 동에서 오늘 어떤 문화활동 규모가 예상됩니까?
+        grain: admin_dong_code와 hour_at 조합마다 한 행입니다.
+        limitations: Culture의 0은 scaffold상 활동 없음이고 달력 행 자체가 없으면 null입니다.
+    columns:
+      - name: product_row_id
+        description: Traffic canonical anchor의 결정적 식별자를 보존합니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_incident_x_culture_event_schedule_daily
+    description: 현재 돌발 행정동에 동까지 정밀 매핑된 같은 날짜 문화행사 수를 붙여 현장 맥락을 확인합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 돌발이 있는 동에 오늘 예정된 정확한 위치의 문화행사는 몇 건입니까?
+        grain: admin_dong_code와 hour_at 조합마다 한 행입니다.
+        limitations: gu_only·unmatched 행사는 동 단위 fan-out을 막기 위해 제외합니다.
+    columns:
+      - name: product_row_id
+        description: Traffic canonical anchor의 결정적 식별자를 보존합니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_incident_x_commerce_business_exposure_current
+    description: 현재 돌발 행정동에 관측시점 이전의 사업체 stock을 붙여 상권 노출 맥락을 확인합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 돌발이 있는 동에는 어떤 규모의 사업체가 노출되어 있습니까?
+        grain: admin_dong_code와 hour_at 조합마다 한 행입니다.
+        limitations: 사업체 수는 실시간 방문자·피해·매출이 아니며 no-hindsight 조건을 만족한 stock만 붙습니다.
+    columns:
+      - name: product_row_id
+        description: Traffic canonical anchor의 결정적 식별자를 보존합니다.
+        tests: [not_null, unique]
+
+  - name: gold_traffic_incident_x_citydata_live_context_current
+    description: 현재 돌발 행정동에 관측시점 이전의 Citydata 혼잡·결제·승하차·따릉이 신호를 붙입니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 돌발이 있는 동의 당시 핫플 혼잡과 이동·상권 신호는 어떻습니까?
+        grain: admin_dong_code와 hour_at 조합마다 한 행입니다.
+        limitations: Citydata는 모니터링 장소 합계이며 거주인구나 행정동 전체 총량이 아니고 신호별 시각이 다릅니다.
+    columns:
+      - name: product_row_id
+        description: Traffic canonical anchor의 결정적 식별자를 보존합니다.
+        tests: [not_null, unique]

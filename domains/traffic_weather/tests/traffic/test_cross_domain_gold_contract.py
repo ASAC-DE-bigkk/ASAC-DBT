@@ -101,8 +101,8 @@ def test_citydata_source_contract_lives_in_traffic_sources() -> None:
     document = yaml.safe_load(TRAFFIC_SOURCES_PATH.read_text(encoding="utf-8")) or {}
     sources = {source["name"]: source for source in document.get("sources", [])}
 
-    assert "citydata_gold" in sources
-    citydata = sources["citydata_gold"]
+    assert "traffic_citydata_gold" in sources
+    citydata = sources["traffic_citydata_gold"]
     assert citydata["schema"] == "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
     tables = {table["name"]: table for table in citydata["tables"]}
     table = tables["gold_citydata_ppltn_by_time"]
@@ -124,7 +124,7 @@ def test_citydata_cross_domain_gold_contract() -> None:
     compact_sql = _compact(sql)
 
     assert "ref('gold_traffic_incident_current_by_admin_dong_hourly')" in sql
-    assert "source('citydata_gold', 'gold_citydata_ppltn_by_time')" in sql
+    assert "source('traffic_citydata_gold', 'gold_citydata_ppltn_by_time')" in sql
     assert "traffic.admin_dong_code = crowding.admin_dong_code" in compact_sql
     assert (
         "cast(date_trunc('hour', crowding.event_at) as timestamp(6)) = traffic.hour_at"

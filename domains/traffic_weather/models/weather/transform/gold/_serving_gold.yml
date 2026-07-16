@@ -1,0 +1,149 @@
+version: 2
+
+# This file documents only the new SQL models in this change.  The authoritative
+# 15+15 serving-candidate registry, including preserved existing models, lives
+# in domains/traffic_weather/contracts/serving_gold_catalog.yml.
+
+models:
+  - name: gold_weather_place_hourly_outlook
+    description: 주요 장소별 KMA 예보를 시간 단위 wide 형태로 제공해 특정 장소의 시간별 날씨 질문을 해결합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 특정 장소의 시간별 기온·강수·바람 예보는 무엇입니까?
+        grain: place_id와 forecast_at 조합마다 한 행입니다.
+        limitations: 모든 수치는 예보이며 category coverage가 낮으면 일부 지표가 null일 수 있습니다.
+    columns:
+      - name: product_row_id
+        description: 장소와 예보시각을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_place_current_outlook
+    description: 장소마다 현재 KST 시 이후 가장 이른 예보 한 행을 제공해 지금의 예보 맥락을 빠르게 답합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 지금 이 장소의 가장 가까운 기상 예보는 무엇입니까?
+        grain: place_id마다 한 행입니다.
+        limitations: current는 실측이 아니라 가장 가까운 미래 forecast_at이며 재물질화 시점에 따라 달라집니다.
+    columns:
+      - name: product_row_id
+        description: place_id와 같은 결정적 제품 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_place_daily_outlook
+    description: 장소별 일 단위 기온 범위·강수 가능성·강수 시간 수를 제공해 방문일 비교를 돕습니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 특정 장소의 날짜별 날씨와 비 가능성은 어떻습니까?
+        grain: place_id와 forecast_date 조합마다 한 행입니다.
+        limitations: 일 집계는 관측된 예보 시간만 반영하며 forecast_hour_count를 함께 읽어야 합니다.
+    columns:
+      - name: product_row_id
+        description: 장소와 예보일을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_place_precipitation_window
+    description: 장소별 연속 강수 예보 구간을 제공해 비·눈이 예상되는 방문 시간대를 찾습니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 특정 장소에서 비나 눈이 연속으로 예보된 시간대는 언제입니까?
+        grain: place_id와 window_start_at 조합마다 한 행입니다.
+        limitations: 강수 창은 PTY 예보의 연속성으로 만들며 실제 강수 관측이나 보장을 뜻하지 않습니다.
+    columns:
+      - name: product_row_id
+        description: 장소와 강수 창 시작시각을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_place_temperature_change_event
+    description: 장소별 인접 예보 시간의 큰 기온 변화를 골라 급격한 체감 변화 후보를 찾습니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 특정 장소에서 다음 시간대에 기온이 크게 변하는 예보는 언제입니까?
+        grain: place_id와 forecast_at 조합마다 한 행입니다.
+        limitations: 3도 이상 변화라는 설명용 임계값이며 공식 경보나 실제 체감온도 판정이 아닙니다.
+    columns:
+      - name: product_row_id
+        description: 장소와 예보시각을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_place_risk_window
+    description: 장소별 폭염·한파·호우·대설·강풍 후보 예보를 명시적 임계값과 함께 제공합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 특정 장소에서 날씨로 인해 방문·이동 주의가 필요한 예보 시간은 언제입니까?
+        grain: place_id와 forecast_at 조합마다 한 행입니다.
+        limitations: risk_labels는 자체 설명용 후보이며 기상청 공식 특보가 아닙니다.
+    columns:
+      - name: product_row_id
+        description: 장소와 예보시각을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_gu_hourly_outlook
+    description: 자치구별 행정동 예보를 시간 단위로 집계해 구 단위 이동·행사 계획의 기상 맥락을 제공합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 특정 자치구의 시간별 평균 기온과 강수 가능성은 어떻습니까?
+        grain: gu_code와 forecast_at 조합마다 한 행입니다.
+        limitations: 동 수 coverage를 보존한 집계이며 구 전체 단일 관측이나 공식 예보가 아닙니다.
+    columns:
+      - name: product_row_id
+        description: 자치구와 예보시각을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_citywide_hourly_outlook
+    description: 서울 전체의 시간별 예보를 행정동 집계와 coverage로 제공해 도시 수준 상황 요약을 돕습니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 서울 전체의 다음 시간대 기온·강수·바람 예보는 어떻습니까?
+        grain: forecast_at마다 한 행입니다.
+        limitations: source_admin_dong_count가 분모이며 서울 전역 공식 단일 관측값으로 해석하면 안 됩니다.
+    columns:
+      - name: product_row_id
+        description: 예보시각을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_x_citydata_ppltn_hourly
+    description: 관측된 핫플 생활인구에 그 시점 이전에 발표된 KMA 예보만 붙여 날씨·혼잡 동시 맥락을 제공합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 핫플이 붐빈 시점의 날씨 예보와 혼잡 수준은 어떠했습니까?
+        grain: area_cd와 event_at 조합마다 한 행입니다.
+        limitations: Citydata 장소 관측이 anchor이며 KMA 예보는 no-hindsight 조건을 만족할 때만 존재합니다.
+    columns:
+      - name: product_row_id
+        description: 장소와 관측시각을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_x_citydata_live_context_current
+    description: 장소별 가까운 예보에 기준 발표시각 이전 Citydata 최신 신호를 붙여 현재 방문 맥락을 제공합니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 이 장소의 가까운 날씨 예보와 당시 혼잡·따릉이·승하차 신호는 어떻습니까?
+        grain: place_id마다 한 행입니다.
+        limitations: Citydata는 모니터링 장소 합계이며 개별 신호의 관측시각이 다르고 KMA 발행시각을 cutoff로 사용합니다.
+    columns:
+      - name: product_row_id
+        description: place_id와 같은 결정적 제품 식별자입니다.
+        tests: [not_null, unique]
+
+  - name: gold_weather_x_culture_event_risk_daily
+    description: 동까지 정밀 매핑된 문화행사 일자에 일별 기상 위험 후보를 붙여 방문·운영 준비를 돕습니다.
+    config:
+      meta:
+        serving_gold_candidate: true
+        product_question: 특정 문화행사 날짜에 날씨로 주의할 예보가 있습니까?
+        grain: event_ref와 event_date 조합마다 한 행입니다.
+        limitations: gu_only·unmatched 행사는 제외하고 risk_labels는 공식 기상특보가 아닌 예보 임계값 후보입니다.
+    columns:
+      - name: product_row_id
+        description: 행사와 행사일을 직렬화한 결정적 식별자입니다.
+        tests: [not_null, unique]

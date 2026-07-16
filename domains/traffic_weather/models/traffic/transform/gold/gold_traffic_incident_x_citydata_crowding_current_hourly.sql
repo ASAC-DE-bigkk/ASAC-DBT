@@ -34,7 +34,7 @@ crowding_candidates as (
         cast(crowding.collected_at as timestamp(6)) as collected_at,
         cast(crowding.avg_ppltn as double) as avg_ppltn
     from traffic
-    inner join {{ source('citydata_gold', 'gold_citydata_ppltn_by_time') }} as crowding
+    inner join {{ source('traffic_citydata_gold', 'gold_citydata_ppltn_by_time') }} as crowding
         on traffic.admin_dong_code = crowding.admin_dong_code
        and cast(date_trunc('hour', crowding.event_at) as timestamp(6)) = traffic.hour_at
 ),

@@ -1,0 +1,54 @@
+version: 1
+portfolio_name: traffic_weather_serving_gold_candidate
+catalog_status: dev_pending
+description: 사람이 아닌 에이전트도 모델의 질문·grain·제한을 고르게 하기 위한 Traffic·Weather 최종 서빙 후보 목록입니다. 운영·품질 제품과 canonical producer는 이 목록의 소비 표면이 아닙니다.
+
+domains:
+  traffic:
+    schema: traffic
+    serving_models:
+      - gold_traffic_incident_active_latest
+      - gold_traffic_incident_type_mix_latest
+      - gold_traffic_incident_clearance_watchlist
+      - gold_traffic_incident_clearance_horizon_latest
+      - gold_traffic_flow_link_latest
+      - gold_traffic_flow_congestion_hotspots_hourly
+      - gold_traffic_flow_change_latest
+      - gold_traffic_flow_link_time_profile
+      - gold_traffic_incident_x_weather_current_hourly
+      - gold_traffic_incident_x_citydata_crowding_current_hourly
+      - gold_traffic_incident_x_transit_hourly
+      - gold_traffic_incident_x_culture_activity_daily
+      - gold_traffic_incident_x_culture_event_schedule_daily
+      - gold_traffic_incident_x_commerce_business_exposure_current
+      - gold_traffic_incident_x_citydata_live_context_current
+
+  weather:
+    schema: weather
+    serving_models:
+      - gold_weather_place_current_outlook
+      - gold_weather_place_hourly_outlook
+      - gold_weather_place_daily_outlook
+      - gold_weather_place_precipitation_window
+      - gold_weather_place_temperature_change_event
+      - gold_weather_place_risk_window
+      - gold_weather_gu_hourly_outlook
+      - gold_weather_citywide_hourly_outlook
+      - gold_weather_alert_by_admin_dong
+      - gold_weather_x_transit_hourly
+      - gold_weather_x_culture_activity_daily
+      - gold_weather_x_commerce_business_exposure_daily
+      - gold_weather_x_citydata_ppltn_hourly
+      - gold_weather_x_citydata_live_context_current
+      - gold_weather_x_culture_event_risk_daily
+
+operations_or_quality_models:
+  - gold_traffic_incident_current_by_admin_dong_hourly
+  - gold_traffic_incident_x_flow
+  - gold_traffic_incident_collection_coverage_5m
+  - gold_traffic_incident_expected_clearance_profile_by_admin_dong_daily
+  - gold_traffic_incident_spatial_mapping_quality_daily
+  - gold_traffic_incident_summary
+  - gold_weather_forecast_completeness_by_admin_dong_hourly
+  - gold_weather_forecast_issue_cycle_coverage_daily
+  - gold_weather_forecast_summary
