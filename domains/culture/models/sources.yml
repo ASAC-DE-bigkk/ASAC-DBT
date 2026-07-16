@@ -122,3 +122,39 @@ sources:
             description: 적재 파티션 일자(KST)
           - name: ingest_ts
             description: 적재 실행 식별 타임스탬프(UTC)
+      - name: bronze_culture_run_report
+        description: culture_slo 로더 적재 — run_report.json 원본(record_json). silver가 json_extract로 파싱(#257/#110)
+        columns:
+          - name: record_json
+            description: run_report 전문(JSON 문자열) — domain·coverage·datasets[]·slo_passed 등
+          - name: load_date
+            description: 적재 파티션 일자(KST) = 리포트 load_date
+          - name: ingest_ts
+            description: 적재 실행 식별 타임스탬프(UTC) = 리포트 ingest_ts
+          - name: raw_object_key
+            description: 원본 R2 객체 경로(_reports/.../run_report.json)
+      - name: bronze_culture_dag_runs
+        description: culture_slo 로더 적재 — Airflow dag_run 타입드 스냅샷(14일 윈도우 멱등, culture 4 DAG)
+        loaded_at_field: start_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 48, period: hour}
+        columns:
+          - name: domain
+            description: 도메인(culture) — 도메인 중립 마트용(§6)
+          - name: dag_id
+            description: DAG 식별자
+          - name: run_id
+            description: run 식별자
+          - name: state
+            description: run 상태(success/failed/running 등)
+          - name: run_type
+            description: scheduled/manual/backfill
+          - name: start_at
+            description: 시작 시각(KST ISO 문자열)
+          - name: end_at
+            description: 종료 시각(KST ISO, running이면 null)
+          - name: duration_sec
+            description: 소요(초, double)
+          - name: load_date
+            description: 파티션 일자(KST, start 기준)
