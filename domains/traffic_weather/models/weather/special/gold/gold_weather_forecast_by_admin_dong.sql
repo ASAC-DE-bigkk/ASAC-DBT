@@ -220,196 +220,49 @@ joined_candidates as (
     where validated_canonical_contract.canonical_contract_guard
 ),
 
-ranked_candidates as (
+winning_candidates as (
     select
         admin_dong_code,
-        admin_dong,
-        gu_code,
-        gu,
-        admin_dong_revision_date,
-        bridge_version,
-        nx,
-        ny,
-        source_grid_place_id,
-        issued_at,
         forecast_at,
         category,
-        collected_at,
-        published_at,
-        fcst_value_raw,
-        fcst_value_num,
-        value_representation,
-        value_num,
-        value_lower_bound,
-        value_upper_bound,
-        qualitative_code,
-        forecast_lead_hours,
-        source_id,
-        dag_run_id,
-        raw_object_key,
-        request_id,
-        row_number() over (
-            partition by admin_dong_code, forecast_at, category
-            order by
-                issued_at desc,
-                collected_at desc,
-                raw_object_key desc,
-                request_id desc,
-                dag_run_id desc,
-                source_grid_place_id desc,
-                nx desc,
-                ny desc
-        ) as product_row_num
+        max_by(
+            {{ weather_w2_gold_candidate_row('joined_candidates') }},
+            {{ weather_w2_grid_winner_order_key('joined_candidates') }}
+        ) as winner
     from joined_candidates
+    group by admin_dong_code, forecast_at, category
 ),
 
 expected_rows as (
     select
-        concat(admin_dong_code, '|', to_iso8601(cast(forecast_at as timestamp(6))), '|', category) as product_row_id,
-        admin_dong_code,
-        forecast_at,
-        category,
-        admin_dong,
-        gu_code,
-        gu,
-        admin_dong_revision_date,
-        bridge_version,
-        nx,
-        ny,
-        source_grid_place_id,
-        issued_at,
-        collected_at,
-        published_at,
-        fcst_value_raw,
-        fcst_value_num,
-        value_representation,
-        value_num,
-        value_lower_bound,
-        value_upper_bound,
-        qualitative_code,
-        forecast_lead_hours,
-        source_id,
-        dag_run_id,
-        raw_object_key,
-        request_id
-    from ranked_candidates
-    where product_row_num = 1
-)
-
-{% if is_incremental() %}
-,
-canonical_retained_rows as (
-    select
-        target.product_row_id,
-        target.admin_dong_code,
-        target.forecast_at,
-        target.category,
-        canonical.admin_dong,
-        canonical.gu_code,
-        canonical.gu,
-        canonical.admin_dong_revision_date,
-        target.bridge_version,
-        target.nx,
-        target.ny,
-        target.source_grid_place_id,
-        target.issued_at,
-        target.collected_at,
-        target.published_at,
-        target.fcst_value_raw,
-        target.fcst_value_num,
-        target.value_representation,
-        target.value_num,
-        target.value_lower_bound,
-        target.value_upper_bound,
-        target.qualitative_code,
-        target.forecast_lead_hours,
-        target.source_id,
-        target.dag_run_id,
-        target.raw_object_key,
-        target.request_id
-    from {{ this }} as target
-    inner join canonical
-        on target.admin_dong_code = canonical.admin_dong_code
-    cross join validated_canonical_contract
-    where validated_canonical_contract.canonical_contract_guard
-    {% if weather_w2_is_repair() %}
-      and not (
-          target.published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
-          and target.published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
-      )
-    {% endif %}
-      and not exists (
-          select 1
-          from expected_rows as expected
-          where expected.admin_dong_code = target.admin_dong_code
-            and expected.forecast_at = target.forecast_at
-            and expected.category = target.category
-      )
-)
-{% endif %}
-,
-product_rows as (
-    select
-        product_row_id,
-        admin_dong_code,
-        forecast_at,
-        category,
-        admin_dong,
-        gu_code,
-        gu,
-        admin_dong_revision_date,
-        bridge_version,
-        nx,
-        ny,
-        source_grid_place_id,
-        issued_at,
-        collected_at,
-        published_at,
-        fcst_value_raw,
-        fcst_value_num,
-        value_representation,
-        value_num,
-        value_lower_bound,
-        value_upper_bound,
-        qualitative_code,
-        forecast_lead_hours,
-        source_id,
-        dag_run_id,
-        raw_object_key,
-        request_id
-    from expected_rows
-    {% if is_incremental() %}
-    union all
-    select
-        product_row_id,
-        admin_dong_code,
-        forecast_at,
-        category,
-        admin_dong,
-        gu_code,
-        gu,
-        admin_dong_revision_date,
-        bridge_version,
-        nx,
-        ny,
-        source_grid_place_id,
-        issued_at,
-        collected_at,
-        published_at,
-        fcst_value_raw,
-        fcst_value_num,
-        value_representation,
-        value_num,
-        value_lower_bound,
-        value_upper_bound,
-        qualitative_code,
-        forecast_lead_hours,
-        source_id,
-        dag_run_id,
-        raw_object_key,
-        request_id
-    from canonical_retained_rows
-    {% endif %}
+        concat(winner.admin_dong_code, '|', to_iso8601(cast(winner.forecast_at as timestamp(6))), '|', winner.category) as product_row_id,
+        winner.admin_dong_code,
+        winner.forecast_at,
+        winner.category,
+        winner.admin_dong,
+        winner.gu_code,
+        winner.gu,
+        winner.admin_dong_revision_date,
+        winner.bridge_version,
+        winner.nx,
+        winner.ny,
+        winner.source_grid_place_id,
+        winner.issued_at,
+        winner.collected_at,
+        winner.published_at,
+        winner.fcst_value_raw,
+        winner.fcst_value_num,
+        winner.value_representation,
+        winner.value_num,
+        winner.value_lower_bound,
+        winner.value_upper_bound,
+        winner.qualitative_code,
+        winner.forecast_lead_hours,
+        winner.source_id,
+        winner.dag_run_id,
+        winner.raw_object_key,
+        winner.request_id
+    from winning_candidates
 )
 
 select
@@ -440,7 +293,7 @@ select
     dag_run_id,
     raw_object_key,
     request_id
-from product_rows
+from expected_rows
 union all
 select
     product_row_id,

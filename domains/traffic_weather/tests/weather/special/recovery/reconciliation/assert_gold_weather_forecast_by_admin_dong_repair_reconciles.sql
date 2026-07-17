@@ -99,113 +99,56 @@ joined_candidates as (
         on bridge.admin_dong_code = canonical.admin_dong_code
 ),
 
-ranked_grid_candidate_keys as (
+winning_candidates as (
     select
-        nx,
-        ny,
+        admin_dong_code,
         forecast_at,
         category,
-        issued_at,
-        collected_at,
-        raw_object_key,
-        request_id,
-        dag_run_id,
-        source_grid_place_id,
-        row_number() over (
-            partition by nx, ny, forecast_at, category
-            order by
-                issued_at desc,
-                collected_at desc,
-                raw_object_key desc,
-                request_id desc,
-                dag_run_id desc,
-                source_grid_place_id desc,
-                nx desc,
-                ny desc
-        ) as product_row_num
-    from grid_candidates
-),
-
-winning_grid_candidate_keys as (
-    select
-        nx,
-        ny,
-        forecast_at,
-        category,
-        issued_at,
-        collected_at,
-        raw_object_key,
-        request_id,
-        dag_run_id,
-        source_grid_place_id
-    from ranked_grid_candidate_keys
-    where product_row_num = 1
+        max_by(
+            {{ weather_w2_gold_candidate_row('joined_candidates') }},
+            {{ weather_w2_grid_winner_order_key('joined_candidates') }}
+        ) as winner
+    from joined_candidates
+    group by admin_dong_code, forecast_at, category
 ),
 
 boundary_expected as (
     select
         concat(
-            candidate.admin_dong_code,
+            winner.admin_dong_code,
             '|',
-            to_iso8601(cast(candidate.forecast_at as timestamp(6))),
+            to_iso8601(cast(winner.forecast_at as timestamp(6))),
             '|',
-            candidate.category
+            winner.category
         ) as product_row_id,
-        candidate.admin_dong_code,
-        candidate.forecast_at,
-        candidate.category,
-        candidate.issued_at,
-        candidate.collected_at,
-        candidate.published_at,
-        candidate.source_id,
-        candidate.dag_run_id,
-        candidate.raw_object_key,
-        candidate.request_id,
-        candidate.source_grid_place_id,
-        candidate.nx,
-        candidate.ny,
-        -- Ordered, typed JSON is a collision-free canonical representation of
-        -- every payload field. It is computed only after the narrow winner rank.
-        json_format(cast(row(
-            cast(candidate.admin_dong_code as varchar),
-            cast(candidate.forecast_at as timestamp(6)),
-            cast(candidate.category as varchar),
-            cast(candidate.admin_dong as varchar),
-            cast(candidate.gu_code as varchar),
-            cast(candidate.gu as varchar),
-            cast(candidate.admin_dong_revision_date as date),
-            cast(candidate.bridge_version as varchar),
-            cast(candidate.nx as integer),
-            cast(candidate.ny as integer),
-            cast(candidate.source_grid_place_id as varchar),
-            cast(candidate.issued_at as timestamp(6)),
-            cast(candidate.collected_at as timestamp(6)),
-            cast(candidate.published_at as timestamp(6)),
-            cast(candidate.fcst_value_raw as varchar),
-            cast(candidate.fcst_value_num as double),
-            cast(candidate.value_representation as varchar),
-            cast(candidate.value_num as double),
-            cast(candidate.value_lower_bound as double),
-            cast(candidate.value_upper_bound as double),
-            cast(candidate.qualitative_code as varchar),
-            cast(candidate.forecast_lead_hours as bigint),
-            cast(candidate.source_id as varchar),
-            cast(candidate.dag_run_id as varchar),
-            cast(candidate.raw_object_key as varchar),
-            cast(candidate.request_id as varchar)
-        ) as json)) as canonical_payload
-    from joined_candidates as candidate
-    inner join winning_grid_candidate_keys as winner
-        on candidate.nx = winner.nx
-       and candidate.ny = winner.ny
-       and candidate.forecast_at = winner.forecast_at
-       and candidate.category = winner.category
-       and candidate.issued_at is not distinct from winner.issued_at
-       and candidate.collected_at is not distinct from winner.collected_at
-       and candidate.raw_object_key is not distinct from winner.raw_object_key
-       and candidate.request_id is not distinct from winner.request_id
-       and candidate.dag_run_id is not distinct from winner.dag_run_id
-       and candidate.source_grid_place_id is not distinct from winner.source_grid_place_id
+        winner.admin_dong_code,
+        winner.forecast_at,
+        winner.category,
+        winner.admin_dong,
+        winner.gu_code,
+        winner.gu,
+        winner.admin_dong_revision_date,
+        winner.bridge_version,
+        winner.nx,
+        winner.ny,
+        winner.source_grid_place_id,
+        winner.issued_at,
+        winner.collected_at,
+        winner.published_at,
+        winner.fcst_value_raw,
+        winner.fcst_value_num,
+        winner.value_representation,
+        winner.value_num,
+        winner.value_lower_bound,
+        winner.value_upper_bound,
+        winner.qualitative_code,
+        winner.forecast_lead_hours,
+        winner.source_id,
+        winner.dag_run_id,
+        winner.raw_object_key,
+        winner.request_id,
+        winner as expected_payload
+    from winning_candidates
 )
 
 select
@@ -237,35 +180,8 @@ or (
             )
         )
     )
-    and expected.canonical_payload is distinct from
-        json_format(cast(row(
-            cast(actual.admin_dong_code as varchar),
-            cast(actual.forecast_at as timestamp(6)),
-            cast(actual.category as varchar),
-            cast(actual.admin_dong as varchar),
-            cast(actual.gu_code as varchar),
-            cast(actual.gu as varchar),
-            cast(actual.admin_dong_revision_date as date),
-            cast(actual.bridge_version as varchar),
-            cast(actual.nx as integer),
-            cast(actual.ny as integer),
-            cast(actual.source_grid_place_id as varchar),
-            cast(actual.issued_at as timestamp(6)),
-            cast(actual.collected_at as timestamp(6)),
-            cast(actual.published_at as timestamp(6)),
-            cast(actual.fcst_value_raw as varchar),
-            cast(actual.fcst_value_num as double),
-            cast(actual.value_representation as varchar),
-            cast(actual.value_num as double),
-            cast(actual.value_lower_bound as double),
-            cast(actual.value_upper_bound as double),
-            cast(actual.qualitative_code as varchar),
-            cast(actual.forecast_lead_hours as bigint),
-            cast(actual.source_id as varchar),
-            cast(actual.dag_run_id as varchar),
-            cast(actual.raw_object_key as varchar),
-            cast(actual.request_id as varchar)
-        ) as json))
+    and {{ weather_w2_gold_candidate_row('actual') }}
+        is distinct from expected.expected_payload
 )
 {% else %}
 select cast(null as varchar) as failure_reason

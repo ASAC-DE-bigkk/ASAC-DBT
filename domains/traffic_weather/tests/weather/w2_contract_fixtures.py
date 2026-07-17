@@ -43,6 +43,10 @@ W2_REPAIR_WINDOW_LINEAGE_TEST = (
     W2_RECOVERY_TESTS
     / "lineage/assert_gold_weather_forecast_by_admin_dong_repair_window_lineage.sql"
 )
+W2_REPAIR_NO_DOWNGRADE_TEST = (
+    W2_RECOVERY_TESTS
+    / "winner/assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql"
+)
 W2_PUBLIC_CONTRACT_DOC = Path(
     "contracts/weather/docs/public-gold-ai-contract-v1.md"
 )
@@ -125,6 +129,7 @@ def data_test_path(test_name: str) -> Path:
         W2_REPAIR_RECONCILIATION_TEST.stem: W2_REPAIR_RECONCILIATION_TEST,
         W2_REPAIR_WINDOW_EXTRA_TEST.stem: W2_REPAIR_WINDOW_EXTRA_TEST,
         W2_REPAIR_WINDOW_LINEAGE_TEST.stem: W2_REPAIR_WINDOW_LINEAGE_TEST,
+        W2_REPAIR_NO_DOWNGRADE_TEST.stem: W2_REPAIR_NO_DOWNGRADE_TEST,
     }
     return recovery_tests.get(test_name, W2_DATA_TESTS / f"{test_name}.sql")
 

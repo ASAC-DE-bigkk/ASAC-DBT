@@ -20,7 +20,7 @@ CANONICAL_CONTRACT_PATHS = {
     "tests/weather/special/assert_gold_weather_forecast_by_admin_dong_grain_unique.sql",
     "tests/weather/special/assert_gold_weather_forecast_by_admin_dong_latest_grid_record.sql",
     "tests/weather/special/assert_gold_weather_forecast_by_admin_dong_product_row_id_reproducible.sql",
-    "tests/weather/special/assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql",
+    "tests/weather/special/recovery/winner/assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql",
     "tests/weather/special/recovery/reconciliation/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql",
 }
 
