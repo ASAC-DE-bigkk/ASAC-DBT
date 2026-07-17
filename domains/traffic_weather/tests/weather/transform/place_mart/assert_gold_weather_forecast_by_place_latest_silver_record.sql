@@ -1,21 +1,35 @@
-with ranked_silver as (
+-- Preserve the full-history winner order without a global row_number/TopN plan.
+-- Exact ties are equivalent because every projected lineage field is part of the key.
+with latest_silver as (
     select
         place_id,
         category,
         forecast_at,
-        issued_at,
-        request_id,
-        raw_object_key,
-        collected_at,
-        row_number() over (
-            partition by place_id, forecast_at, category
-            order by
-                issued_at desc,
-                collected_at desc,
-                raw_object_key desc,
-                request_id desc
-        ) as row_num
+        max_by(
+            cast(row(
+                cast(issued_at as timestamp(6)),
+                cast(request_id as varchar),
+                cast(raw_object_key as varchar),
+                cast(collected_at as timestamp(6))
+            ) as row(
+                issued_at timestamp(6),
+                request_id varchar,
+                raw_object_key varchar,
+                collected_at timestamp(6)
+            )),
+            row(
+                cast(issued_at is not null as tinyint),
+                cast(issued_at as timestamp(6)),
+                cast(collected_at is not null as tinyint),
+                cast(collected_at as timestamp(6)),
+                cast(raw_object_key is not null as tinyint),
+                cast(raw_object_key as varchar),
+                cast(request_id is not null as tinyint),
+                cast(request_id as varchar)
+            )
+        ) as latest_record
     from {{ ref('silver_weather_forecast_by_admin_dong') }}
+    group by place_id, forecast_at, category
 ),
 
 expected_gold as (
@@ -23,12 +37,11 @@ expected_gold as (
         place_id,
         category,
         forecast_at,
-        issued_at,
-        request_id,
-        raw_object_key,
-        collected_at
-    from ranked_silver
-    where row_num = 1
+        latest_record.issued_at as issued_at,
+        latest_record.request_id as request_id,
+        latest_record.raw_object_key as raw_object_key,
+        latest_record.collected_at as collected_at
+    from latest_silver
 )
 
 select
