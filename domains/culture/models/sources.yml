@@ -136,9 +136,11 @@ sources:
       - name: bronze_culture_dag_runs
         description: culture_slo 로더 적재 — Airflow dag_run 타입드 스냅샷(14일 윈도우 멱등, culture 4 DAG)
         loaded_at_field: start_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 48, period: hour}
+        # v1 은 load_dag_runs 가 Airflow 3 태스크 격리(ASAC-DAG#303)로 graceful-skip → 0행.
+        # 빈 테이블 freshness 는 max(start_at)=NULL 로 error 가 되므로 명시적 비활성(#238).
+        # 제거만 하면 소스 레벨(collected_at) 설정을 상속받아 컬럼 부재 에러 — null 이어야 한다.
+        # dag_run enrichment v2(PostgresHook)가 적재를 시작하면 재활성.
+        freshness: null
         columns:
           - name: domain
             description: 도메인(culture) — 도메인 중립 마트용(§6)
