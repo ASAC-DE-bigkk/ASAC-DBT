@@ -146,6 +146,8 @@ data_tests:
         recovery:
           reconciliation:
             +tags: ["ask_seoul_weather_w2_recovery_window_contracts"]
+          winner:
+            +tags: ["ask_seoul_weather_w2_recovery_winner_contract"]
           lineage:
             +tags: ["ask_seoul_weather_w2_recovery_lineage_contract"]
           final:

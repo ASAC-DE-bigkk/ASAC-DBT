@@ -38,23 +38,24 @@ def test_gold_sql_has_exact_refs_grain_winner_row_id_and_approved_revision_snaps
         "cast(canonical.revision_date as date)",
         "date '{{ canonical_contract['revision_date'] }}'",
         "validated_canonical_contract",
-        "canonical_retained_rows",
-        "to_iso8601(cast(forecast_at as timestamp(6)))",
-        "from {{ this }}",
+        "winning_candidates",
+        "max_by(",
+        "weather_w2_gold_candidate_row('joined_candidates')",
+        "weather_w2_grid_winner_order_key('joined_candidates')",
+        "group by admin_dong_code, forecast_at, category",
+        "to_iso8601(cast(winner.forecast_at as timestamp(6)))",
     ):
         assert token in sql
-    required_prefix = (
-        "issued_at desc, collected_at desc, raw_object_key desc, request_id desc"
-    )
-    assert required_prefix in sql
     expected_row_id = (
-        "concat(admin_dong_code, '|', "
-        "to_iso8601(cast(forecast_at as timestamp(6))), '|', category)"
+        "concat(winner.admin_dong_code, '|', "
+        "to_iso8601(cast(winner.forecast_at as timestamp(6))), '|', winner.category)"
     )
     assert expected_row_id in sql
     assert "select *" not in sql
+    assert "row_number() over" not in sql
+    assert "canonical_retained_rows" not in sql
     projected_columns = f"select {', '.join(EXPECTED_COLUMNS)}"
-    assert f"{projected_columns} from product_rows" in sql
+    assert f"{projected_columns} from expected_rows" in sql
     assert sql.endswith(f"{projected_columns} from canonical_contract_failure_rows")
 
 
@@ -102,12 +103,12 @@ def test_gold_source_guard_covers_latest_canonical_and_initial_ctas_contract() -
         "canonical_contract['canonical_count']",
         "canonical_contract['mapped_canonical_count']",
         "canonical_contract['revision_date']",
-        "canonical_orphan_count",
         "repair_expected_count",
         "repair_null_contract_count",
         "repair_duplicate_count",
-        "row_number() over",
-        "where product_row_num = 1",
+        "max_by(",
+        "weather_w2_grid_winner_order_key('repair_candidates')",
+        "group by admin_dong_code, forecast_at, category",
         "admin_dong is null",
         "gu_code is null",
         "gu is null",
@@ -118,6 +119,11 @@ def test_gold_source_guard_covers_latest_canonical_and_initial_ctas_contract() -
         "source_id is null",
     ):
         assert token in source_guard
+
+    assert "row_number() over" not in source_guard
+    assert "product_row_num" not in source_guard
+    assert "canonical_orphan_count" not in source_guard
+    assert "from {{ this }} as target" not in source_guard
 
     strategy = macro[macro.index("macro get_incremental_weather_w2_reconcile_sql") :]
     for token in (
@@ -136,7 +142,8 @@ def test_gold_source_guard_covers_latest_canonical_and_initial_ctas_contract() -
         "source_id is null",
     ):
         assert token in strategy
-    assert "or dbt_internal_source.__w2_force_replace" in strategy
+    assert "dbt_internal_source.__w2_force_replace" in strategy
+    assert "__w2_source_is_not_older" not in strategy
 
 
 def test_public_contract_declares_exact_schema_approved_axis_and_truthful_status() -> (

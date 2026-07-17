@@ -10,6 +10,7 @@
 {%- set timestamp_pattern = '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}$' -%}
 {%- set expected_bridge_version = 'weather_admin_dong_grid_bridge_v1' -%}
 {%- set approved_revision_date = '2025-04-01' -%}
+{%- set is_test_node = model is defined and model.resource_type == 'test' -%}
 
 {%- if flags.FULL_REFRESH -%}
     {{ exceptions.raise_compiler_error('Weather W2는 --full-refresh를 허용하지 않습니다.') }}
@@ -76,7 +77,11 @@
 {%- endif -%}
 {%- if target.name != 'dev'
     or target.database != 'iceberg_dev'
-    or this.schema != weather_schema_name() -%}
+    or (
+        execute
+        and not is_test_node
+        and this.schema != weather_schema_name()
+    ) -%}
     {{ exceptions.raise_compiler_error(
         'Weather W2 bounded repair는 dev/iceberg_dev/weather에서만 실행할 수 있습니다.'
     ) }}
@@ -443,7 +448,6 @@ cross join params
 {%- set bridge_version = weather_w2_bridge_version() -%}
 {%- set canonical_contract = weather_w2_canonical_contract() -%}
 {%- set repair_mode = weather_w2_is_repair() -%}
-{%- set incremental_mode = is_incremental() -%}
 {%- set source_contract_sql -%}
 with active_bridge as (
     select
@@ -520,22 +524,7 @@ repair_candidates as (
         cast(grid.source_id as varchar) as source_id,
         cast(grid.selected_dag_run_id as varchar) as dag_run_id,
         cast(grid.raw_object_key as varchar) as raw_object_key,
-        cast(grid.request_id as varchar) as request_id,
-        row_number() over (
-            partition by
-                bridge.source_admin_code,
-                cast(grid.forecast_at as timestamp(6)),
-                cast(grid.category as varchar)
-            order by
-                cast(grid.issued_at as timestamp(6)) desc,
-                cast(grid.collected_at as timestamp(6)) desc,
-                cast(grid.raw_object_key as varchar) desc,
-                cast(grid.request_id as varchar) desc,
-                cast(grid.selected_dag_run_id as varchar) desc,
-                cast(grid.source_grid_place_id as varchar) desc,
-                cast(grid.nx as integer) desc,
-                cast(grid.ny as integer) desc
-        ) as product_row_num
+        cast(grid.request_id as varchar) as request_id
     from {{ ref('silver_kma_vilage_fcst_grid') }} as grid
     inner join eligible_manifest_anchors as anchor
         on cast(grid.source_id as varchar) = anchor.anchor_source_id
@@ -551,13 +540,80 @@ repair_candidates as (
           <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
 ),
 repair_expected as (
-    select *
+    select
+        admin_dong_code,
+        forecast_at,
+        category,
+        max_by(
+            cast(row(
+                admin_dong,
+                gu_code,
+                gu,
+                admin_dong_revision_date,
+                bridge_version,
+                nx,
+                ny,
+                source_grid_place_id,
+                issued_at,
+                collected_at,
+                published_at,
+                value_representation,
+                forecast_lead_hours,
+                source_id,
+                dag_run_id,
+                raw_object_key,
+                request_id
+            ) as row(
+                admin_dong varchar,
+                gu_code varchar,
+                gu varchar,
+                admin_dong_revision_date date,
+                bridge_version varchar,
+                nx integer,
+                ny integer,
+                source_grid_place_id varchar,
+                issued_at timestamp(6),
+                collected_at timestamp(6),
+                published_at timestamp(6),
+                value_representation varchar,
+                forecast_lead_hours bigint,
+                source_id varchar,
+                dag_run_id varchar,
+                raw_object_key varchar,
+                request_id varchar
+            )),
+            {{ weather_w2_grid_winner_order_key('repair_candidates') }}
+        ) as winner
     from repair_candidates
-    where product_row_num = 1
+    group by admin_dong_code, forecast_at, category
+),
+repair_expected_rows as (
+    select
+        admin_dong_code,
+        forecast_at,
+        category,
+        winner.admin_dong as admin_dong,
+        winner.gu_code as gu_code,
+        winner.gu as gu,
+        winner.admin_dong_revision_date as admin_dong_revision_date,
+        winner.bridge_version as bridge_version,
+        winner.nx as nx,
+        winner.ny as ny,
+        winner.source_grid_place_id as source_grid_place_id,
+        winner.issued_at as issued_at,
+        winner.collected_at as collected_at,
+        winner.published_at as published_at,
+        winner.value_representation as value_representation,
+        winner.forecast_lead_hours as forecast_lead_hours,
+        winner.source_id as source_id,
+        winner.dag_run_id as dag_run_id,
+        winner.raw_object_key as raw_object_key,
+        winner.request_id as request_id
+    from repair_expected
 ),
 repair_expected_duplicate_grain as (
     select admin_dong_code, forecast_at, category
-    from repair_expected
+    from repair_expected_rows
     group by admin_dong_code, forecast_at, category
     having count(*) > 1
 ),
@@ -587,19 +643,7 @@ repair_expected_summary as (
             or request_id is null
         ) as repair_null_contract_count,
         (select count(*) from repair_expected_duplicate_grain) as repair_duplicate_count
-    from repair_expected
-)
-{% endif %}
-{% if incremental_mode %}
-,
-target_canonical_orphans as (
-    select target.admin_dong_code
-    from {{ this }} as target
-    where not exists (
-        select 1
-        from canonical
-        where canonical.admin_dong_code = target.admin_dong_code
-    )
+    from repair_expected_rows
 )
 {% endif %}
 ,
@@ -643,12 +687,7 @@ select
     cast(null as bigint),
     cast(null as bigint),
     cast(null as bigint)
-    {% endif %},
-    {% if incremental_mode %}
-    (select count(*) from target_canonical_orphans)
-    {% else %}
-    cast(null as bigint)
-    {% endif %} as canonical_orphan_count
+    {% endif %}
 from source_summary
 {%- endset -%}
 {%- set source_contract = run_query(source_contract_sql) -%}
@@ -675,6 +714,26 @@ from source_summary
     ) }}
 {%- endif -%}
 {{ return('') }}
+{%- endmacro %}
+
+{% macro weather_w2_canonical_grain_bucket(candidate_alias, bucket_count) -%}
+mod(
+    mod(
+        from_big_endian_64(
+            xxhash64(
+                to_utf8(
+                    json_format(cast(row(
+                        cast({{ candidate_alias }}.admin_dong_code as varchar),
+                        cast({{ candidate_alias }}.forecast_at as timestamp(6)),
+                        cast({{ candidate_alias }}.category as varchar)
+                    ) as json))
+                )
+            )
+        ),
+        cast({{ bucket_count }} as bigint)
+    ) + cast({{ bucket_count }} as bigint),
+    cast({{ bucket_count }} as bigint)
+)
 {%- endmacro %}
 
 {% macro weather_w2_gold_winner_is_not_older(source_alias, dest_alias) -%}
@@ -718,11 +777,91 @@ from source_summary
 )
 {%- endmacro %}
 
+{% macro weather_w2_grid_winner_order_key(candidate_alias) -%}
+row(
+    cast({{ candidate_alias }}.issued_at is not null as tinyint),
+    cast({{ candidate_alias }}.issued_at as timestamp(6)),
+    cast({{ candidate_alias }}.collected_at is not null as tinyint),
+    cast({{ candidate_alias }}.collected_at as timestamp(6)),
+    cast({{ candidate_alias }}.raw_object_key is not null as tinyint),
+    cast({{ candidate_alias }}.raw_object_key as varchar),
+    cast({{ candidate_alias }}.request_id is not null as tinyint),
+    cast({{ candidate_alias }}.request_id as varchar),
+    cast({{ candidate_alias }}.dag_run_id is not null as tinyint),
+    cast({{ candidate_alias }}.dag_run_id as varchar),
+    cast({{ candidate_alias }}.source_grid_place_id is not null as tinyint),
+    cast({{ candidate_alias }}.source_grid_place_id as varchar),
+    cast({{ candidate_alias }}.nx is not null as tinyint),
+    cast({{ candidate_alias }}.nx as integer),
+    cast({{ candidate_alias }}.ny is not null as tinyint),
+    cast({{ candidate_alias }}.ny as integer)
+)
+{%- endmacro %}
+
+{% macro weather_w2_gold_candidate_row(candidate_alias) -%}
+cast(row(
+    cast({{ candidate_alias }}.admin_dong_code as varchar),
+    cast({{ candidate_alias }}.admin_dong as varchar),
+    cast({{ candidate_alias }}.gu_code as varchar),
+    cast({{ candidate_alias }}.gu as varchar),
+    cast({{ candidate_alias }}.admin_dong_revision_date as date),
+    cast({{ candidate_alias }}.bridge_version as varchar),
+    cast({{ candidate_alias }}.nx as integer),
+    cast({{ candidate_alias }}.ny as integer),
+    cast({{ candidate_alias }}.source_grid_place_id as varchar),
+    cast({{ candidate_alias }}.issued_at as timestamp(6)),
+    cast({{ candidate_alias }}.forecast_at as timestamp(6)),
+    cast({{ candidate_alias }}.category as varchar),
+    cast({{ candidate_alias }}.collected_at as timestamp(6)),
+    cast({{ candidate_alias }}.published_at as timestamp(6)),
+    cast({{ candidate_alias }}.fcst_value_raw as varchar),
+    cast({{ candidate_alias }}.fcst_value_num as double),
+    cast({{ candidate_alias }}.value_representation as varchar),
+    cast({{ candidate_alias }}.value_num as double),
+    cast({{ candidate_alias }}.value_lower_bound as double),
+    cast({{ candidate_alias }}.value_upper_bound as double),
+    cast({{ candidate_alias }}.qualitative_code as varchar),
+    cast({{ candidate_alias }}.forecast_lead_hours as bigint),
+    cast({{ candidate_alias }}.source_id as varchar),
+    cast({{ candidate_alias }}.dag_run_id as varchar),
+    cast({{ candidate_alias }}.raw_object_key as varchar),
+    cast({{ candidate_alias }}.request_id as varchar)
+) as row(
+    admin_dong_code varchar,
+    admin_dong varchar,
+    gu_code varchar,
+    gu varchar,
+    admin_dong_revision_date date,
+    bridge_version varchar,
+    nx integer,
+    ny integer,
+    source_grid_place_id varchar,
+    issued_at timestamp(6),
+    forecast_at timestamp(6),
+    category varchar,
+    collected_at timestamp(6),
+    published_at timestamp(6),
+    fcst_value_raw varchar,
+    fcst_value_num double,
+    value_representation varchar,
+    value_num double,
+    value_lower_bound double,
+    value_upper_bound double,
+    qualitative_code varchar,
+    forecast_lead_hours bigint,
+    source_id varchar,
+    dag_run_id varchar,
+    raw_object_key varchar,
+    request_id varchar
+))
+{%- endmacro %}
+
 {% macro get_incremental_weather_w2_reconcile_sql(arg_dict) -%}
 {%- do weather_w2_assert_gold_dev_target() -%}
 {%- set canonical_contract = weather_w2_canonical_contract() -%}
 {%- set target_relation = arg_dict['target_relation'] -%}
 {%- set temp_relation = arg_dict['temp_relation'] -%}
+{%- set canonical_relation = ref('asac_axes', 'dim_admin_dong') -%}
 {%- set repair_mode = weather_w2_is_repair() -%}
 {%- if repair_mode -%}
     {%- set start_literal = weather_w2_repair_start_at() -%}
@@ -730,7 +869,17 @@ from source_summary
 {%- endif -%}
 
 {%- set preflight_sql -%}
-with temp_summary as (
+with DBT_INTERNAL_CANONICAL as (
+    select
+        cast(admin_dong_code as varchar) as admin_dong_code,
+        cast(admin_dong as varchar) as admin_dong,
+        cast(gu_code as varchar) as gu_code,
+        cast(gu as varchar) as gu,
+        cast(revision_date as date) as admin_dong_revision_date
+    from {{ canonical_relation }}
+    where cast(revision_date as date) = date '{{ canonical_contract['revision_date'] }}'
+),
+temp_summary as (
     select
         count_if(
             admin_dong_code is null
@@ -764,72 +913,122 @@ with temp_summary as (
         )
         {% else %}
         cast(null as bigint)
-        {% endif %} as in_window_expected_count,
-        count(distinct admin_dong_code) as temp_mapped_canonical_code_count,
-        count(distinct admin_dong_revision_date) as temp_canonical_revision_count,
-        min(admin_dong_revision_date) as temp_min_canonical_revision,
-        max(admin_dong_revision_date) as temp_max_canonical_revision
+        {% endif %} as in_window_expected_count
     from {{ temp_relation }}
 ),
-target_summary as (
+temp_canonical_summary as (
     select
         count_if(
-            product_row_id is null
-            or admin_dong_code is null
-            or forecast_at is null
-            or category is null
+            canonical.admin_dong_code is null
+            or temp.admin_dong is distinct from canonical.admin_dong
+            or temp.gu_code is distinct from canonical.gu_code
+            or temp.gu is distinct from canonical.gu
+            or temp.admin_dong_revision_date is distinct from canonical.admin_dong_revision_date
+        ) as temp_canonical_mismatch_count
+    from {{ temp_relation }} as temp
+    left join DBT_INTERNAL_CANONICAL as canonical
+        on temp.admin_dong_code = canonical.admin_dong_code
+),
+canonical_summary as (
+    select
+        count(*) as canonical_count,
+        count(distinct admin_dong_code) as canonical_code_count,
+        count(distinct admin_dong_revision_date) as canonical_revision_count,
+        min(admin_dong_revision_date) as canonical_min_revision,
+        max(admin_dong_revision_date) as canonical_max_revision,
+        count_if(
+            admin_dong_code is null
             or admin_dong is null
             or gu_code is null
             or gu is null
             or admin_dong_revision_date is null
-            or bridge_version is null
-            or nx is null
-            or ny is null
-            or source_grid_place_id is null
-            or issued_at is null
-            or collected_at is null
-            or published_at is null
-            or value_representation is null
-            or forecast_lead_hours is null
-            or source_id is null
-            or dag_run_id is null
-            or raw_object_key is null
-            or request_id is null
-        ) as target_null_contract_count
-    from {{ target_relation }}
+        ) as canonical_null_count
+    from DBT_INTERNAL_CANONICAL
+),
+DBT_INTERNAL_AFFECTED_KEYS as (
+    select distinct
+        admin_dong_code,
+        forecast_at,
+        category
+    from {{ temp_relation }}
+),
+affected_target_grain as (
+    select
+        target.admin_dong_code,
+        target.forecast_at,
+        target.category,
+        count(*) as target_row_count,
+        count_if(
+            target.product_row_id is null
+            or target.admin_dong is null
+            or target.gu_code is null
+            or target.gu is null
+            or target.admin_dong_revision_date is null
+            or target.bridge_version is null
+            or target.nx is null
+            or target.ny is null
+            or target.source_grid_place_id is null
+            or target.issued_at is null
+            or target.collected_at is null
+            or target.published_at is null
+            or target.value_representation is null
+            or target.forecast_lead_hours is null
+            or target.source_id is null
+            or target.dag_run_id is null
+            or target.raw_object_key is null
+            or target.request_id is null
+        ) as affected_target_null_contract_count,
+        count_if(
+            canonical.admin_dong_code is null
+            or target.admin_dong is distinct from canonical.admin_dong
+            or target.gu_code is distinct from canonical.gu_code
+            or target.gu is distinct from canonical.gu
+            or target.admin_dong_revision_date
+                is distinct from canonical.admin_dong_revision_date
+        ) as affected_target_canonical_mismatch_count
+    from {{ target_relation }} as target
+    inner join DBT_INTERNAL_AFFECTED_KEYS as DBT_INTERNAL_KEY
+        on DBT_INTERNAL_KEY.admin_dong_code = target.admin_dong_code
+       and DBT_INTERNAL_KEY.forecast_at = target.forecast_at
+       and DBT_INTERNAL_KEY.category = target.category
+    left join DBT_INTERNAL_CANONICAL as canonical
+        on target.admin_dong_code = canonical.admin_dong_code
+    group by target.admin_dong_code, target.forecast_at, target.category
+),
+affected_target_summary as (
+    select
+        coalesce(sum(affected_target_null_contract_count), 0)
+            as affected_target_null_contract_count,
+        coalesce(sum(affected_target_canonical_mismatch_count), 0)
+            as affected_target_canonical_mismatch_count,
+        count_if(target_row_count > 1) as affected_target_duplicate_count
+    from affected_target_grain
 ),
 temp_duplicate_grain as (
     select admin_dong_code, forecast_at, category
     from {{ temp_relation }}
     group by admin_dong_code, forecast_at, category
     having count(*) > 1
-),
-target_duplicate_grain as (
-    select admin_dong_code, forecast_at, category
-    from {{ target_relation }}
-    group by admin_dong_code, forecast_at, category
-    having count(*) > 1
-),
-duplicate_summary as (
-    select
-        (select count(*) from temp_duplicate_grain) as temp_duplicate_count,
-        (select count(*) from target_duplicate_grain) as target_duplicate_count
 )
 select
     temp_summary.null_grain_count,
     temp_summary.null_lineage_count,
-    temp_summary.in_window_expected_count,
-    temp_summary.temp_mapped_canonical_code_count,
-    temp_summary.temp_canonical_revision_count,
-    temp_summary.temp_min_canonical_revision,
-    temp_summary.temp_max_canonical_revision,
-    target_summary.target_null_contract_count,
-    duplicate_summary.temp_duplicate_count,
-    duplicate_summary.target_duplicate_count,
-    case when temp_summary.in_window_expected_count = 0 then 1 else 0 end as empty_window_count
+    temp_canonical_summary.temp_canonical_mismatch_count,
+    affected_target_summary.affected_target_null_contract_count,
+    affected_target_summary.affected_target_canonical_mismatch_count,
+    (select count(*) from temp_duplicate_grain) as temp_duplicate_count,
+    affected_target_summary.affected_target_duplicate_count,
+    canonical_summary.canonical_count,
+    canonical_summary.canonical_code_count,
+    canonical_summary.canonical_revision_count,
+    canonical_summary.canonical_min_revision,
+    canonical_summary.canonical_max_revision,
+    canonical_summary.canonical_null_count,
+    temp_summary.in_window_expected_count
 from temp_summary
-cross join target_summary
-cross join duplicate_summary
+cross join temp_canonical_summary
+cross join affected_target_summary
+cross join canonical_summary
 {%- endset -%}
 {%- set preflight = run_query(preflight_sql) -%}
 {%- if preflight is none or preflight.rows | length != 1 -%}
@@ -838,29 +1037,40 @@ cross join duplicate_summary
 {%- set preflight_row = preflight.rows[0] -%}
 {%- set null_grain_count = preflight_row[0] | int -%}
 {%- set null_lineage_count = preflight_row[1] | int -%}
-{%- set in_window_expected_count = preflight_row[2] | int if repair_mode else none -%}
-{%- set temp_mapped_canonical_code_count = preflight_row[3] | int -%}
-{%- set temp_canonical_revision_count = preflight_row[4] | int -%}
-{%- set temp_min_canonical_revision = preflight_row[5] | string -%}
-{%- set temp_max_canonical_revision = preflight_row[6] | string -%}
-{%- set target_null_contract_count = preflight_row[7] | int -%}
-{%- set temp_duplicate_count = preflight_row[8] | int -%}
-{%- set target_duplicate_count = preflight_row[9] | int -%}
-{%- set empty_window_count = preflight_row[10] | int -%}
+{%- set temp_canonical_mismatch_count = preflight_row[2] | int -%}
+{%- set affected_target_null_contract_count = preflight_row[3] | int -%}
+{%- set affected_target_canonical_mismatch_count = preflight_row[4] | int -%}
+{%- set temp_duplicate_count = preflight_row[5] | int -%}
+{%- set affected_target_duplicate_count = preflight_row[6] | int -%}
+{%- set canonical_count = preflight_row[7] | int -%}
+{%- set canonical_code_count = preflight_row[8] | int -%}
+{%- set canonical_revision_count = preflight_row[9] | int -%}
+{%- set canonical_min_revision = preflight_row[10] | string -%}
+{%- set canonical_max_revision = preflight_row[11] | string -%}
+{%- set canonical_null_count = preflight_row[12] | int -%}
+{%- set in_window_expected_count = preflight_row[13] | int if repair_mode else none -%}
 {%- if null_grain_count > 0
     or null_lineage_count > 0
-    or temp_mapped_canonical_code_count != canonical_contract['mapped_canonical_count']
-    or temp_canonical_revision_count != 1
-    or temp_min_canonical_revision != canonical_contract['revision_date']
-    or temp_max_canonical_revision != canonical_contract['revision_date']
-    or target_null_contract_count > 0
+    or temp_canonical_mismatch_count > 0
+    or affected_target_null_contract_count > 0
     or temp_duplicate_count > 0
-    or target_duplicate_count > 0 -%}
+    or affected_target_duplicate_count > 0
+    or canonical_count != canonical_contract['canonical_count']
+    or canonical_code_count != canonical_contract['canonical_count']
+    or canonical_revision_count != 1
+    or canonical_min_revision != canonical_contract['revision_date']
+    or canonical_max_revision != canonical_contract['revision_date']
+    or canonical_null_count > 0 -%}
     {{ exceptions.raise_compiler_error(
         'Weather W2 Gold preflight가 null grain/lineage 또는 duplicate grain을 발견했습니다.'
     ) }}
 {%- endif -%}
-{%- if weather_w2_is_repair() and empty_window_count > 0 -%}
+{%- if affected_target_canonical_mismatch_count > 0 -%}
+    {{ exceptions.raise_compiler_error(
+        'Weather W2 target canonical revision이 승인 축과 다릅니다. 정규 run의 자동 restamp는 금지되며 명시적 keyed canonical migration이 필요합니다.'
+    ) }}
+{%- endif -%}
+{%- if repair_mode and in_window_expected_count == 0 -%}
     {{ exceptions.raise_compiler_error(
         'Weather W2 bounded repair는 window 내부 expected Gold 행이 1개 이상이어야 합니다.'
     ) }}
@@ -880,11 +1090,9 @@ using (
           and DBT_INTERNAL_ANCHOR_SOURCE.published_at
               <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
     ),
-    {% endif %}
     DBT_INTERNAL_UPSERT_CLASSIFIED as (
         select
             DBT_INTERNAL_UPSERT.*,
-            {% if repair_mode %}
             case
                 when DBT_INTERNAL_CURRENT.admin_dong_code is not null
                  and DBT_INTERNAL_CURRENT.published_at
@@ -894,33 +1102,61 @@ using (
                  and DBT_INTERNAL_CURRENT_ANCHOR.anchor_source_id is null
                 then true
                 else false
-            end
-            {% else %}
-            false
-            {% endif %} as __w2_force_replace,
-            {{ weather_w2_gold_winner_is_not_older(
-                'DBT_INTERNAL_UPSERT', 'DBT_INTERNAL_CURRENT'
-            ) }} as __w2_winner_is_not_older
+            end as __w2_force_replace
         from {{ temp_relation }} as DBT_INTERNAL_UPSERT
         left join {{ target_relation }} as DBT_INTERNAL_CURRENT
             on DBT_INTERNAL_UPSERT.admin_dong_code = DBT_INTERNAL_CURRENT.admin_dong_code
            and DBT_INTERNAL_UPSERT.forecast_at = DBT_INTERNAL_CURRENT.forecast_at
            and DBT_INTERNAL_UPSERT.category = DBT_INTERNAL_CURRENT.category
-        {% if repair_mode %}
         left join DBT_INTERNAL_ELIGIBLE_ANCHORS as DBT_INTERNAL_CURRENT_ANCHOR
             on DBT_INTERNAL_CURRENT.source_id = DBT_INTERNAL_CURRENT_ANCHOR.anchor_source_id
            and DBT_INTERNAL_CURRENT.dag_run_id = DBT_INTERNAL_CURRENT_ANCHOR.anchor_dag_run_id
-        {% endif %}
     ),
-    DBT_INTERNAL_UPSERT_ROWS as (
+    {% else %}
+    DBT_INTERNAL_UPSERT_CLASSIFIED as (
         select
-            DBT_INTERNAL_SOURCE.*,
-            (
-                DBT_INTERNAL_SOURCE.__w2_winner_is_not_older
-                or DBT_INTERNAL_SOURCE.__w2_force_replace
-            ) as __w2_source_is_not_older
+            DBT_INTERNAL_UPSERT.*,
+            false as __w2_force_replace
+        from {{ temp_relation }} as DBT_INTERNAL_UPSERT
+    ),
+    {% endif %}
+    DBT_INTERNAL_UPSERT_ROWS as (
+        select DBT_INTERNAL_SOURCE.*
         from DBT_INTERNAL_UPSERT_CLASSIFIED as DBT_INTERNAL_SOURCE
     )
+    {% if repair_mode %}
+    ,
+    -- The complete desired key set inside the bounded repair window. Rows
+    -- outside the window are retained by definition and never enter delete input.
+    DBT_INTERNAL_DESIRED_KEYS as (
+        select
+            DBT_INTERNAL_DESIRED.admin_dong_code,
+            DBT_INTERNAL_DESIRED.forecast_at,
+            DBT_INTERNAL_DESIRED.category
+        from {{ temp_relation }} as DBT_INTERNAL_DESIRED
+    ),
+    DBT_INTERNAL_DELETE_KEYS as (
+        select distinct
+            DBT_INTERNAL_DEST.admin_dong_code,
+            DBT_INTERNAL_DEST.forecast_at,
+            DBT_INTERNAL_DEST.category
+        from {{ target_relation }} as DBT_INTERNAL_DEST
+        where DBT_INTERNAL_DEST.published_at
+                  >= timestamp '{{ weather_w2_repair_start_at() }}'
+          and DBT_INTERNAL_DEST.published_at
+                  <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+          and not exists (
+              select 1
+              from DBT_INTERNAL_DESIRED_KEYS as DBT_INTERNAL_DESIRED
+              where DBT_INTERNAL_DESIRED.admin_dong_code
+                        = DBT_INTERNAL_DEST.admin_dong_code
+                and DBT_INTERNAL_DESIRED.forecast_at
+                        = DBT_INTERNAL_DEST.forecast_at
+                and DBT_INTERNAL_DESIRED.category
+                        = DBT_INTERNAL_DEST.category
+          )
+    )
+    {% endif %}
     select
         DBT_INTERNAL_UPSERT.product_row_id,
         DBT_INTERNAL_UPSERT.admin_dong_code,
@@ -950,49 +1186,42 @@ using (
         DBT_INTERNAL_UPSERT.raw_object_key,
         false as __w2_delete,
         DBT_INTERNAL_UPSERT.__w2_force_replace,
-        DBT_INTERNAL_UPSERT.__w2_source_is_not_older,
         DBT_INTERNAL_UPSERT.request_id
     from DBT_INTERNAL_UPSERT_ROWS as DBT_INTERNAL_UPSERT
+    {% if repair_mode %}
     union all
     select
-        DBT_INTERNAL_DEST.product_row_id,
-        DBT_INTERNAL_DEST.admin_dong_code,
-        DBT_INTERNAL_DEST.forecast_at,
-        DBT_INTERNAL_DEST.category,
-        DBT_INTERNAL_DEST.admin_dong,
-        DBT_INTERNAL_DEST.gu_code,
-        DBT_INTERNAL_DEST.gu,
-        DBT_INTERNAL_DEST.admin_dong_revision_date,
-        DBT_INTERNAL_DEST.bridge_version,
-        DBT_INTERNAL_DEST.nx,
-        DBT_INTERNAL_DEST.ny,
-        DBT_INTERNAL_DEST.source_grid_place_id,
-        DBT_INTERNAL_DEST.issued_at,
-        DBT_INTERNAL_DEST.collected_at,
-        DBT_INTERNAL_DEST.published_at,
-        DBT_INTERNAL_DEST.fcst_value_raw,
-        DBT_INTERNAL_DEST.fcst_value_num,
-        DBT_INTERNAL_DEST.value_representation,
-        DBT_INTERNAL_DEST.value_num,
-        DBT_INTERNAL_DEST.value_lower_bound,
-        DBT_INTERNAL_DEST.value_upper_bound,
-        DBT_INTERNAL_DEST.qualitative_code,
-        DBT_INTERNAL_DEST.forecast_lead_hours,
-        DBT_INTERNAL_DEST.source_id,
-        DBT_INTERNAL_DEST.dag_run_id,
-        DBT_INTERNAL_DEST.raw_object_key,
+        cast(null as varchar) as product_row_id,
+        DBT_INTERNAL_DELETE.admin_dong_code,
+        DBT_INTERNAL_DELETE.forecast_at,
+        DBT_INTERNAL_DELETE.category,
+        cast(null as varchar) as admin_dong,
+        cast(null as varchar) as gu_code,
+        cast(null as varchar) as gu,
+        cast(null as date) as admin_dong_revision_date,
+        cast(null as varchar) as bridge_version,
+        cast(null as integer) as nx,
+        cast(null as integer) as ny,
+        cast(null as varchar) as source_grid_place_id,
+        cast(null as timestamp(6)) as issued_at,
+        cast(null as timestamp(6)) as collected_at,
+        cast(null as timestamp(6)) as published_at,
+        cast(null as varchar) as fcst_value_raw,
+        cast(null as double) as fcst_value_num,
+        cast(null as varchar) as value_representation,
+        cast(null as double) as value_num,
+        cast(null as double) as value_lower_bound,
+        cast(null as double) as value_upper_bound,
+        cast(null as varchar) as qualitative_code,
+        cast(null as bigint) as forecast_lead_hours,
+        cast(null as varchar) as source_id,
+        cast(null as varchar) as dag_run_id,
+        cast(null as varchar) as raw_object_key,
         true as __w2_delete,
         false as __w2_force_replace,
-        false as __w2_source_is_not_older,
-        DBT_INTERNAL_DEST.request_id
-    from {{ target_relation }} as DBT_INTERNAL_DEST
-    where not exists (
-        select 1
-        from {{ temp_relation }} as DBT_INTERNAL_VALIDATED
-        where DBT_INTERNAL_VALIDATED.admin_dong_code = DBT_INTERNAL_DEST.admin_dong_code
-          and DBT_INTERNAL_VALIDATED.forecast_at = DBT_INTERNAL_DEST.forecast_at
-          and DBT_INTERNAL_VALIDATED.category = DBT_INTERNAL_DEST.category
-    )
+        cast(null as varchar) as request_id
+    from DBT_INTERNAL_DELETE_KEYS as DBT_INTERNAL_DELETE
+    {% endif %}
 ) as DBT_INTERNAL_SOURCE
 on DBT_INTERNAL_SOURCE.admin_dong_code = DBT_INTERNAL_DEST.admin_dong_code
 and DBT_INTERNAL_SOURCE.forecast_at = DBT_INTERNAL_DEST.forecast_at
@@ -1001,61 +1230,62 @@ when matched and DBT_INTERNAL_SOURCE.__w2_delete then delete
 when matched
   and not DBT_INTERNAL_SOURCE.__w2_delete
   and (
-      DBT_INTERNAL_DEST.admin_dong is distinct from DBT_INTERNAL_SOURCE.admin_dong
+      DBT_INTERNAL_SOURCE.__w2_force_replace
+      or {{ weather_w2_gold_winner_is_not_older(
+          'DBT_INTERNAL_SOURCE', 'DBT_INTERNAL_DEST'
+      ) }}
+  )
+  and (
+      DBT_INTERNAL_DEST.product_row_id is distinct from DBT_INTERNAL_SOURCE.product_row_id
+      or DBT_INTERNAL_DEST.admin_dong is distinct from DBT_INTERNAL_SOURCE.admin_dong
       or DBT_INTERNAL_DEST.gu_code is distinct from DBT_INTERNAL_SOURCE.gu_code
       or DBT_INTERNAL_DEST.gu is distinct from DBT_INTERNAL_SOURCE.gu
       or DBT_INTERNAL_DEST.admin_dong_revision_date is distinct from DBT_INTERNAL_SOURCE.admin_dong_revision_date
-      or (
-          DBT_INTERNAL_SOURCE.__w2_source_is_not_older
-          and (
-              DBT_INTERNAL_DEST.product_row_id is distinct from DBT_INTERNAL_SOURCE.product_row_id
-              or DBT_INTERNAL_DEST.bridge_version is distinct from DBT_INTERNAL_SOURCE.bridge_version
-              or DBT_INTERNAL_DEST.nx is distinct from DBT_INTERNAL_SOURCE.nx
-              or DBT_INTERNAL_DEST.ny is distinct from DBT_INTERNAL_SOURCE.ny
-              or DBT_INTERNAL_DEST.source_grid_place_id is distinct from DBT_INTERNAL_SOURCE.source_grid_place_id
-              or DBT_INTERNAL_DEST.issued_at is distinct from DBT_INTERNAL_SOURCE.issued_at
-              or DBT_INTERNAL_DEST.collected_at is distinct from DBT_INTERNAL_SOURCE.collected_at
-              or DBT_INTERNAL_DEST.published_at is distinct from DBT_INTERNAL_SOURCE.published_at
-              or DBT_INTERNAL_DEST.fcst_value_raw is distinct from DBT_INTERNAL_SOURCE.fcst_value_raw
-              or DBT_INTERNAL_DEST.fcst_value_num is distinct from DBT_INTERNAL_SOURCE.fcst_value_num
-              or DBT_INTERNAL_DEST.value_representation is distinct from DBT_INTERNAL_SOURCE.value_representation
-              or DBT_INTERNAL_DEST.value_num is distinct from DBT_INTERNAL_SOURCE.value_num
-              or DBT_INTERNAL_DEST.value_lower_bound is distinct from DBT_INTERNAL_SOURCE.value_lower_bound
-              or DBT_INTERNAL_DEST.value_upper_bound is distinct from DBT_INTERNAL_SOURCE.value_upper_bound
-              or DBT_INTERNAL_DEST.qualitative_code is distinct from DBT_INTERNAL_SOURCE.qualitative_code
-              or DBT_INTERNAL_DEST.forecast_lead_hours is distinct from DBT_INTERNAL_SOURCE.forecast_lead_hours
-              or DBT_INTERNAL_DEST.source_id is distinct from DBT_INTERNAL_SOURCE.source_id
-              or DBT_INTERNAL_DEST.dag_run_id is distinct from DBT_INTERNAL_SOURCE.dag_run_id
-              or DBT_INTERNAL_DEST.raw_object_key is distinct from DBT_INTERNAL_SOURCE.raw_object_key
-              or DBT_INTERNAL_DEST.request_id is distinct from DBT_INTERNAL_SOURCE.request_id
-          )
-      )
+      or DBT_INTERNAL_DEST.bridge_version is distinct from DBT_INTERNAL_SOURCE.bridge_version
+      or DBT_INTERNAL_DEST.nx is distinct from DBT_INTERNAL_SOURCE.nx
+      or DBT_INTERNAL_DEST.ny is distinct from DBT_INTERNAL_SOURCE.ny
+      or DBT_INTERNAL_DEST.source_grid_place_id is distinct from DBT_INTERNAL_SOURCE.source_grid_place_id
+      or DBT_INTERNAL_DEST.issued_at is distinct from DBT_INTERNAL_SOURCE.issued_at
+      or DBT_INTERNAL_DEST.collected_at is distinct from DBT_INTERNAL_SOURCE.collected_at
+      or DBT_INTERNAL_DEST.published_at is distinct from DBT_INTERNAL_SOURCE.published_at
+      or DBT_INTERNAL_DEST.fcst_value_raw is distinct from DBT_INTERNAL_SOURCE.fcst_value_raw
+      or DBT_INTERNAL_DEST.fcst_value_num is distinct from DBT_INTERNAL_SOURCE.fcst_value_num
+      or DBT_INTERNAL_DEST.value_representation is distinct from DBT_INTERNAL_SOURCE.value_representation
+      or DBT_INTERNAL_DEST.value_num is distinct from DBT_INTERNAL_SOURCE.value_num
+      or DBT_INTERNAL_DEST.value_lower_bound is distinct from DBT_INTERNAL_SOURCE.value_lower_bound
+      or DBT_INTERNAL_DEST.value_upper_bound is distinct from DBT_INTERNAL_SOURCE.value_upper_bound
+      or DBT_INTERNAL_DEST.qualitative_code is distinct from DBT_INTERNAL_SOURCE.qualitative_code
+      or DBT_INTERNAL_DEST.forecast_lead_hours is distinct from DBT_INTERNAL_SOURCE.forecast_lead_hours
+      or DBT_INTERNAL_DEST.source_id is distinct from DBT_INTERNAL_SOURCE.source_id
+      or DBT_INTERNAL_DEST.dag_run_id is distinct from DBT_INTERNAL_SOURCE.dag_run_id
+      or DBT_INTERNAL_DEST.raw_object_key is distinct from DBT_INTERNAL_SOURCE.raw_object_key
+      or DBT_INTERNAL_DEST.request_id is distinct from DBT_INTERNAL_SOURCE.request_id
   )
 then update set
-    product_row_id = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.product_row_id else DBT_INTERNAL_DEST.product_row_id end,
+    product_row_id = DBT_INTERNAL_SOURCE.product_row_id,
     admin_dong = DBT_INTERNAL_SOURCE.admin_dong,
     gu_code = DBT_INTERNAL_SOURCE.gu_code,
     gu = DBT_INTERNAL_SOURCE.gu,
     admin_dong_revision_date = DBT_INTERNAL_SOURCE.admin_dong_revision_date,
-    bridge_version = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.bridge_version else DBT_INTERNAL_DEST.bridge_version end,
-    nx = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.nx else DBT_INTERNAL_DEST.nx end,
-    ny = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.ny else DBT_INTERNAL_DEST.ny end,
-    source_grid_place_id = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.source_grid_place_id else DBT_INTERNAL_DEST.source_grid_place_id end,
-    issued_at = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.issued_at else DBT_INTERNAL_DEST.issued_at end,
-    collected_at = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.collected_at else DBT_INTERNAL_DEST.collected_at end,
-    published_at = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.published_at else DBT_INTERNAL_DEST.published_at end,
-    fcst_value_raw = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.fcst_value_raw else DBT_INTERNAL_DEST.fcst_value_raw end,
-    fcst_value_num = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.fcst_value_num else DBT_INTERNAL_DEST.fcst_value_num end,
-    value_representation = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.value_representation else DBT_INTERNAL_DEST.value_representation end,
-    value_num = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.value_num else DBT_INTERNAL_DEST.value_num end,
-    value_lower_bound = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.value_lower_bound else DBT_INTERNAL_DEST.value_lower_bound end,
-    value_upper_bound = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.value_upper_bound else DBT_INTERNAL_DEST.value_upper_bound end,
-    qualitative_code = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.qualitative_code else DBT_INTERNAL_DEST.qualitative_code end,
-    forecast_lead_hours = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.forecast_lead_hours else DBT_INTERNAL_DEST.forecast_lead_hours end,
-    source_id = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.source_id else DBT_INTERNAL_DEST.source_id end,
-    dag_run_id = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.dag_run_id else DBT_INTERNAL_DEST.dag_run_id end,
-    raw_object_key = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.raw_object_key else DBT_INTERNAL_DEST.raw_object_key end,
-    request_id = case when DBT_INTERNAL_SOURCE.__w2_source_is_not_older then DBT_INTERNAL_SOURCE.request_id else DBT_INTERNAL_DEST.request_id end
+    bridge_version = DBT_INTERNAL_SOURCE.bridge_version,
+    nx = DBT_INTERNAL_SOURCE.nx,
+    ny = DBT_INTERNAL_SOURCE.ny,
+    source_grid_place_id = DBT_INTERNAL_SOURCE.source_grid_place_id,
+    issued_at = DBT_INTERNAL_SOURCE.issued_at,
+    collected_at = DBT_INTERNAL_SOURCE.collected_at,
+    published_at = DBT_INTERNAL_SOURCE.published_at,
+    fcst_value_raw = DBT_INTERNAL_SOURCE.fcst_value_raw,
+    fcst_value_num = DBT_INTERNAL_SOURCE.fcst_value_num,
+    value_representation = DBT_INTERNAL_SOURCE.value_representation,
+    value_num = DBT_INTERNAL_SOURCE.value_num,
+    value_lower_bound = DBT_INTERNAL_SOURCE.value_lower_bound,
+    value_upper_bound = DBT_INTERNAL_SOURCE.value_upper_bound,
+    qualitative_code = DBT_INTERNAL_SOURCE.qualitative_code,
+    forecast_lead_hours = DBT_INTERNAL_SOURCE.forecast_lead_hours,
+    source_id = DBT_INTERNAL_SOURCE.source_id,
+    dag_run_id = DBT_INTERNAL_SOURCE.dag_run_id,
+    raw_object_key = DBT_INTERNAL_SOURCE.raw_object_key,
+    request_id = DBT_INTERNAL_SOURCE.request_id
 when not matched and not DBT_INTERNAL_SOURCE.__w2_delete then insert (
     product_row_id,
     admin_dong_code,

@@ -16,6 +16,7 @@ from tests.weather.w2_contract_fixtures import (
     W2_GOLD_MODEL,
     W2_LINEAGE_WORKSET_MODEL,
     W2_MACRO,
+    W2_REPAIR_NO_DOWNGRADE_TEST,
     W2_REPAIR_RECONCILIATION_TEST,
     W2_REPAIR_WINDOW_EXTRA_TEST,
     W2_REPAIR_WINDOW_LINEAGE_TEST,
@@ -82,6 +83,14 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed() -> None:
     ):
         assert condition in macro
     assert "target.schema" not in raw_macro
+    assert (
+        "set is_test_node = model is defined and model.resource_type == 'test'"
+        in raw_macro
+    )
+    assert (
+        "execute and not is_test_node and this.schema != weather_schema_name()"
+        in macro
+    )
 
     w1_macro = compact(read(W1_MACRO))
     assert "bounded_isolated_smoke" in w1_macro
@@ -90,53 +99,30 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed() -> None:
     assert "flags.full_refresh" in w1_macro
 
 
-def test_gold_repair_reconciliation_compacts_payload_before_winner_ranking() -> None:
+def test_gold_repair_reconciliation_uses_grouped_winner_without_topn_or_join_back() -> (
+    None
+):
     raw = read(W2_REPAIR_RECONCILIATION_TEST)
     compacted = compact(raw)
-    ranked = raw[
-        raw.index("ranked_grid_candidate_keys as") : raw.index(
-            "winning_grid_candidate_keys as"
-        )
+    winner = raw[
+        raw.index("winning_candidates as") : raw.index("boundary_expected as")
     ]
 
-    assert "ranked_grid_candidate_keys as" in raw
-    assert "winning_grid_candidate_keys as" in raw
+    assert "winning_candidates as" in raw
+    assert "max_by(" in winner
+    assert "weather_w2_gold_candidate_row('joined_candidates')" in winner
+    assert "weather_w2_grid_winner_order_key('joined_candidates')" in winner
+    assert "group by admin_dong_code, forecast_at, category" in winner
     assert "candidate_payload_hash" not in raw
     assert "sha256(" not in compacted
-    assert "canonical_payload" in raw
-    assert compacted.count("json_format(cast(row(") == 2
-    assert "joined_candidates.*" not in ranked
-    assert "from grid_candidates" in ranked
+    assert "json_format(" not in compacted
+    assert "row_number() over" not in compacted
+    assert "winning_grid_candidate_keys" not in raw
     assert "left join {{ ref('gold_weather_forecast_by_admin_dong') }} as actual" in raw
     assert "full outer join" not in compacted
     assert "weather_w2_gold_winner_is_not_older" in raw
-    for field in (
-        "admin_dong",
-        "gu_code",
-        "gu",
-        "admin_dong_revision_date",
-        "bridge_version",
-        "nx",
-        "ny",
-        "source_grid_place_id",
-        "issued_at",
-        "collected_at",
-        "published_at",
-        "fcst_value_raw",
-        "fcst_value_num",
-        "value_representation",
-        "value_num",
-        "value_lower_bound",
-        "value_upper_bound",
-        "qualitative_code",
-        "forecast_lead_hours",
-        "source_id",
-        "dag_run_id",
-        "raw_object_key",
-        "request_id",
-    ):
-        assert f"cast(candidate.{field} as" in compacted
-        assert f"cast(actual.{field} as" in compacted
+    assert "weather_w2_gold_candidate_row('actual')" in raw
+    assert "is distinct from expected.expected_payload" in compacted
 
     extra_rows = compact(read(W2_REPAIR_WINDOW_EXTRA_TEST))
     assert "ranked_grid_candidate_keys as" in extra_rows
@@ -184,6 +170,76 @@ def test_gold_repair_reconciliation_compacts_payload_before_winner_ranking() -> 
     ]
     assert "from selected_workset as actual" in lineage_failure_query
     assert "left join lineage_backed_products" in lineage_failure_query
+
+
+def test_repair_no_downgrade_is_bucketed_before_narrow_winner_aggregation() -> None:
+    raw = read(W2_REPAIR_NO_DOWNGRADE_TEST)
+    compacted = compact(raw)
+    dependency_preamble = raw[: raw.index("{% if repair_mode %}")]
+    assert "{% set repair_mode = weather_w2_is_repair() %}" in dependency_preamble
+
+    for relation_binding in (
+        "{% set gold_relation = ref('gold_weather_forecast_by_admin_dong') %}",
+        "{% set bridge_relation = ref('bridge_weather_admin_dong_grid') %}",
+        "{% set canonical_relation = ref('asac_axes', 'dim_admin_dong') %}",
+        "{% set grid_relation = ref('silver_kma_vilage_fcst_grid') %}",
+    ):
+        assert relation_binding in dependency_preamble
+
+    for token in (
+        "weather_w2_winner_bucket_count",
+        "weather_w2_winner_bucket_index",
+        "weather_w2_canonical_grain_bucket",
+        "exceptions.raise_compiler_error",
+        "grid_candidates as",
+        "joined_candidates as",
+        "bucketed_candidates as",
+        "winning_candidates as",
+        "max_by(",
+        "weather_w2_grid_winner_order_key('bucketed_candidates')",
+        "group by admin_dong_code, forecast_at, category",
+        "weather_w2_gold_winner_is_not_older",
+    ):
+        assert token in compacted
+    assert "var('weather_w2_winner_bucket_count', 8)" in compacted
+    assert "repair_mode and winner_bucket_count != 8" not in compacted
+
+    assert compacted.index("grid_candidates as") < compacted.index(
+        "joined_candidates as"
+    )
+    assert compacted.index("joined_candidates as") < compacted.index(
+        "bucketed_candidates as"
+    )
+    assert compacted.index("bucketed_candidates as") < compacted.index(
+        "winning_candidates as"
+    )
+    assert "published_at as timestamp(6)) >= timestamp" in compacted
+    assert "all_grid_records as" not in compacted
+    assert "row_number() over" not in compacted
+    assert "mixed_or_unbacked_lineage as" not in compacted
+    assert "forecast_lineage_not_backed_by_one_grid_row" not in compacted
+    assert "fcst_value_raw" not in compacted
+    assert "weather_w2_gold_candidate_row" not in compacted
+    for relation_name in (
+        "gold_relation",
+        "bridge_relation",
+        "canonical_relation",
+        "grid_relation",
+    ):
+        assert f"from {{{{ {relation_name} }}}}" in raw
+
+    macro = compact(read(W2_MACRO))
+    bucket_macro = macro[
+        macro.index("macro weather_w2_canonical_grain_bucket") : macro.index(
+            "endmacro", macro.index("macro weather_w2_canonical_grain_bucket")
+        )
+    ]
+    assert "xxhash64" in bucket_macro
+    assert "json_format(cast(row(" in bucket_macro
+    assert "admin_dong_code" in bucket_macro
+    assert "forecast_at" in bucket_macro
+    assert "category" in bucket_macro
+    assert bucket_macro.count("mod(") >= 2
 
 
 def test_repair_lineage_workset_is_parse_safe_and_runtime_fail_closed() -> None:
@@ -333,7 +389,9 @@ def test_gold_execute_time_contract_dependencies_are_explicit() -> None:
     assert "-- depends_on: {{ ref('silver_kma_vilage_fcst_grid') }}" in gold_hints
 
 
-def test_canonical_revision_is_pinned_and_validated_temp_drives_all_deletes() -> None:
+def test_canonical_revision_is_pinned_and_affected_keys_fail_closed_without_restamp() -> (
+    None
+):
     model = compact(read(W2_GOLD_MODEL))
     macro = compact(read(W2_MACRO))
     strategy = macro[macro.index("macro get_incremental_weather_w2_reconcile_sql") :]
@@ -344,7 +402,6 @@ def test_canonical_revision_is_pinned_and_validated_temp_drives_all_deletes() ->
         f"'bridge_count': {EXPECTED_BRIDGE_V1_COUNT}",
         f"'mapped_canonical_count': {EXPECTED_MAPPED_CANONICAL_COUNT}",
         "validated_canonical_contract",
-        "canonical_retained_rows",
         "cross join validated_canonical_contract",
     ):
         assert token in model or token in macro
@@ -352,23 +409,21 @@ def test_canonical_revision_is_pinned_and_validated_temp_drives_all_deletes() ->
         "cast(canonical.revision_date as date) = "
         "date '{{ canonical_contract['revision_date'] }}'" in model
     )
-    assert "temp_mapped_canonical_code_count" in strategy
-    assert "temp_canonical_revision_count" in strategy
-    assert "temp_min_canonical_revision" in strategy
-    assert "temp_max_canonical_revision" in strategy
-    assert "ref('asac_axes', 'dim_admin_dong')" not in strategy
-    assert "from {{ temp_relation }} as dbt_internal_validated" in strategy
+    for token in (
+        "dbt_internal_affected_keys as",
+        "affected_target_grain as",
+        "affected_target_summary as",
+        "affected_target_canonical_mismatch_count",
+        "keyed canonical migration",
+    ):
+        assert token in strategy
     for key in ("admin_dong_code", "forecast_at", "category"):
-        assert f"dbt_internal_validated.{key} = dbt_internal_dest.{key}" in strategy
+        assert f"dbt_internal_key.{key} = target.{key}" in strategy
 
-    retained = model[
-        model.index("canonical_retained_rows as") : model.index("product_rows as")
-    ]
-    assert "inner join canonical" in retained
-    assert "cross join validated_canonical_contract" in retained
-    assert "not ( target.published_at >= timestamp" in retained
-    assert "not exists" in retained
-    assert "target.admin_dong is distinct from canonical.admin_dong" not in retained
+    assert "canonical_retained_rows" not in model
+    assert "cross join target_summary" not in strategy
+    assert "target_duplicate_grain as" not in strategy
+    assert "target_summary.target_canonical_mismatch_count" not in strategy
 
 
 def test_dimension_backed_data_tests_use_the_approved_canonical_revision() -> None:
@@ -395,10 +450,10 @@ def test_initial_ctas_evaluates_canonical_contract_when_product_rows_are_empty()
     assert "from validated_canonical_contract" in failure_rows
     assert "if( canonical_contract_guard" in failure_rows
     assert "where not canonical_contract_guard" in failure_rows
-    assert "union all select" in model[model.index("from product_rows") :]
+    assert "union all select" in model[model.index("from expected_rows") :]
     assert (
         "from canonical_contract_failure_rows"
-        in model[model.index("from product_rows") :]
+        in model[model.index("from expected_rows") :]
     )
 
 
@@ -415,40 +470,33 @@ def test_custom_strategy_is_one_atomic_merge_with_bounded_delete_and_no_downgrad
     assert "weather_w2_repair_start_at" in strategy
     assert "weather_w2_publishable_cutoff_at" in strategy
     assert "is distinct from" in strategy
+
+
     assert "weather_w2_gold_winner_is_not_older" in strategy
     for preflight in (
-        "in_window_expected_count = 0",
-        "target_null_contract_count",
+        "in_window_expected_count == 0",
+        "affected_target_null_contract_count",
+        "affected_target_canonical_mismatch_count",
+        "affected_target_duplicate_count > 0",
+        "temp_canonical_mismatch_count",
         "admin_dong_code is null",
         "forecast_at is null",
         "category is null",
         "group by admin_dong_code, forecast_at, category",
         "having count(*) > 1",
-        "target_duplicate_count > 0",
-        "temp_mapped_canonical_code_count",
-        "temp_canonical_revision_count",
     ):
         assert preflight in strategy
     assert "set repair_mode = weather_w2_is_repair()" in strategy
     assert "{% if repair_mode %}" in strategy
-    assert "not exists ( select 1 from" in strategy
+    assert "dbt_internal_desired_keys as" in strategy
+    assert "not exists ( select 1 from dbt_internal_desired_keys" in strategy
     for key in ("admin_dong_code", "forecast_at", "category"):
-        assert f"dbt_internal_validated.{key} = dbt_internal_dest.{key}" in strategy
+        assert f"dbt_internal_desired.{key} = dbt_internal_dest.{key}" in strategy
     assert "when matched and dbt_internal_source.__w2_delete then delete" in strategy
-    assert "case when" in strategy
     assert "dbt_internal_source.admin_dong_revision_date" in strategy
-    assert "dbt_internal_dest.raw_object_key" in strategy
-    assert "dbt_internal_dest.request_id" in strategy
-    assert (
-        "raw_object_key = case when" in strategy
-        and "then dbt_internal_source.raw_object_key else dbt_internal_dest.raw_object_key end"
-        in strategy
-    )
-    assert (
-        "request_id = case when" in strategy
-        and "then dbt_internal_source.request_id else dbt_internal_dest.request_id end"
-        in strategy
-    )
+    assert "raw_object_key = dbt_internal_source.raw_object_key" in strategy
+    assert "request_id = dbt_internal_source.request_id" in strategy
+    assert "__w2_source_is_not_older" not in strategy
     assert "when matched" in strategy
     assert (
         strategy.index("then delete")
@@ -457,10 +505,46 @@ def test_custom_strategy_is_one_atomic_merge_with_bounded_delete_and_no_downgrad
     )
 
 
-def test_custom_strategy_evaluates_winner_order_once_per_source_row() -> None:
+def test_atomic_merge_delete_markers_are_unique_by_canonical_grain() -> None:
+    strategy = compact(read(W2_MACRO))
+    strategy = strategy[strategy.index("macro get_incremental_weather_w2_reconcile_sql") :]
+
+    assert "dbt_internal_delete_keys as" in strategy
+    delete_keys = strategy[
+        strategy.index("dbt_internal_delete_keys as") : strategy.index(
+            "select dbt_internal_upsert.product_row_id"
+        )
+    ]
+    assert "select distinct" in delete_keys
+    for grain_column in ("admin_dong_code", "forecast_at", "category"):
+        assert f"dbt_internal_dest.{grain_column}" in delete_keys
+    assert "not exists" in delete_keys
+
+    delete_markers = strategy[
+        strategy.index("union all", strategy.index("dbt_internal_delete_keys as")) :
+        strategy.index(") as dbt_internal_source")
+    ]
+    assert "from dbt_internal_delete_keys as dbt_internal_delete" in delete_markers
+    assert "from {{ target_relation }} as dbt_internal_dest" not in delete_markers
+
+
+def test_normal_merge_compares_winner_at_match_time_without_source_target_self_join() -> (
+    None
+):
     macro = compact(read(W2_MACRO))
     strategy = macro[macro.index("macro get_incremental_weather_w2_reconcile_sql") :]
+    classified = strategy[
+        strategy.index("dbt_internal_upsert_classified as") : strategy.index(
+            "dbt_internal_upsert_rows as"
+        )
+    ]
+    normal_branch = classified[
+        classified.index("{% else %}") : classified.index("{% endif %}")
+    ]
 
     assert strategy.count("weather_w2_gold_winner_is_not_older") == 1
-    assert "__w2_source_is_not_older" in strategy
-    assert "{{ source_is_not_older }}" not in strategy
+    assert "from {{ temp_relation }} as dbt_internal_upsert" in normal_branch
+    assert "false as __w2_force_replace" in normal_branch
+    assert "join {{ target_relation }}" not in normal_branch
+    assert "__w2_source_is_not_older" not in strategy
+    assert "dbt_internal_source.__w2_force_replace" in strategy

@@ -9,6 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RECOVERY_SELECTORS = {
     "ask_seoul_weather_w2_recovery_window_models",
     "ask_seoul_weather_w2_recovery_window_contracts",
+    "ask_seoul_weather_w2_recovery_winner_contract",
     "ask_seoul_weather_w2_recovery_lineage_contract",
     "ask_seoul_weather_w2_recovery_final_contract",
 }
@@ -53,6 +54,7 @@ def test_weather_recovery_singular_tests_live_in_phase_owned_folders() -> None:
     recovery = project["data_tests"]["asac_seoul"]["weather"]["special"]["recovery"]
     assert recovery == {
         "reconciliation": {"+tags": ["ask_seoul_weather_w2_recovery_window_contracts"]},
+        "winner": {"+tags": ["ask_seoul_weather_w2_recovery_winner_contract"]},
         "lineage": {"+tags": ["ask_seoul_weather_w2_recovery_lineage_contract"]},
         "final": {"+tags": ["ask_seoul_weather_w2_recovery_final_contract"]},
     }
@@ -62,6 +64,8 @@ def test_weather_recovery_singular_tests_live_in_phase_owned_folders() -> None:
         "assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql",
         "tests/weather/special/recovery/reconciliation/"
         "assert_gold_weather_forecast_by_admin_dong_repair_window_no_extra_rows.sql",
+        "tests/weather/special/recovery/winner/"
+        "assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql",
         "tests/weather/special/recovery/lineage/"
         "assert_gold_weather_forecast_by_admin_dong_repair_window_lineage.sql",
         "tests/weather/special/recovery/final/"

@@ -25,6 +25,7 @@
 | W1 seed 5종 | `ask_seoul_weather_w1_inputs` |
 | W2 recovery window model graph | `ask_seoul_weather_w2_recovery_window_models` |
 | W2 recovery window contracts | `ask_seoul_weather_w2_recovery_window_contracts` |
+| W2 recovery winner no-downgrade contract | `ask_seoul_weather_w2_recovery_winner_contract` |
 | W2 recovery lineage contract | `ask_seoul_weather_w2_recovery_lineage_contract` |
 | W2 recovery final contract | `ask_seoul_weather_w2_recovery_final_contract` |
 
