@@ -88,3 +88,26 @@ selectors:
   - name: ask_seoul_weather_w2_recovery_final_contract
     description: Weather W2 bounded recovery final publishability contract phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_w2_recovery_final_contract, indirect_selection: cautious}
+
+  - name: ask_seoul_weather_w2_canonical_models
+    description: Weather canonical W2 observation, native grid, public Gold model만 선택한다.
+    definition:
+      union:
+        - {method: path, value: models/weather/special/silver/silver_kma_vilage_fcst_observation.sql, indirect_selection: empty}
+        - {method: path, value: models/weather/special/silver/silver_kma_vilage_fcst_grid.sql, indirect_selection: empty}
+        - {method: path, value: models/weather/special/gold/gold_weather_forecast_by_admin_dong.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_canonical_contracts
+    description: Weather canonical W2 public Gold의 필수 계약 test만 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_join_reconciles.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_revision_exact.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_stamp_exact.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_bridge_exclusions_reconcile.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_canonical_source_contract.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_grain_unique.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_latest_grid_record.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_product_row_id_reproducible.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/recovery/reconciliation/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql, indirect_selection: empty}
