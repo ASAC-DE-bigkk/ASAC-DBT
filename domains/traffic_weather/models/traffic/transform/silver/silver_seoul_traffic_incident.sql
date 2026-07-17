@@ -1,7 +1,7 @@
 -- silver: latest TOPIS AccInfo incident row by source_record_id(acc_id).
 --
--- incremental(merge): scan recent bronze rows only with a 30 minute
--- collected_at lookback, then merge by the output grain source_record_id.
+-- incremental(traffic_publishability_reconcile): scan recent bronze rows with a
+-- 30 minute collected_at lookback, then retract only non-publishable lineage.
 -- Re-reading the lookback is idempotent because the ranked CTE keeps the
 -- latest publishable row per acc_id.
 --
@@ -18,7 +18,7 @@
 
 {{ config(
     materialized='incremental',
-    incremental_strategy='merge',
+    incremental_strategy='traffic_publishability_reconcile',
     unique_key=['source_record_id'],
     views_enabled=false,
     on_table_exists='drop',
