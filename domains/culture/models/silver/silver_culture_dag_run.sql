@@ -13,8 +13,12 @@ select
     state,
     run_type,
     (run_type = 'scheduled')                as is_scheduled,
-    try(cast(start_at as timestamp(6)))     as started_at,
-    try(cast(end_at as timestamp(6)))       as ended_at,
+    -- 로더 stamp 는 오프셋 포함 ISO(…+09:00) — cast(varchar as timestamp) 는 못 파싱(#240).
+    -- from_iso8601 로 tstz 를 얻고 KST 벽시계로 고정한다(설계: _at = KST).
+    try(cast(from_iso8601_timestamp(start_at) at time zone 'Asia/Seoul' as timestamp(6)))
+                                            as started_at,
+    try(cast(from_iso8601_timestamp(end_at) at time zone 'Asia/Seoul' as timestamp(6)))
+                                            as ended_at,
     try(cast(duration_sec as double))       as duration_sec,
     try(cast(load_date as date))            as load_date
 from bronze
