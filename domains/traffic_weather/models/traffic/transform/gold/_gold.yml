@@ -417,6 +417,9 @@ models:
         anchor_model: gold_traffic_incident_current_by_admin_dong_hourly
         context_domain: citydata_crowding
         null_semantics: Missing crowding context leaves metrics null and sets crowding_observed false; avg_ppltn is monitored-place context, not resident or admin-dong total population.
+        reconciliation_tests:
+          - assert_gold_traffic_incident_x_citydata_crowding_current_hourly_latest_per_area_reconciles
+          - assert_gold_traffic_incident_x_citydata_crowding_current_hourly_snapshot_lineage
     columns:
       - name: product_row_id
         description: Traffic product_row_id preserved from the canonical current-hourly anchor.
@@ -459,6 +462,9 @@ models:
         tests: [not_null]
       - name: source_id
         description: Traffic source identifier preserved from the anchor.
+        tests: [not_null]
+      - name: citydata_crowding_snapshot_id
+        description: Positive bigint Iceberg snapshot ID pinned for the Citydata crowding relation used by this Traffic Gold run.
         tests: [not_null]
       - name: monitored_place_count
         description: Count of latest Citydata monitored-place rows represented in the admin-dong/hour context; null when no place was observed.

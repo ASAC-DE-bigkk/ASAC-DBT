@@ -5,6 +5,7 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GOLD_DIR = PROJECT_ROOT / "models" / "traffic" / "transform" / "gold"
+GOLD_TEST_DIR = PROJECT_ROOT / "tests" / "traffic" / "transform" / "gold"
 TRAFFIC_DOCS_DIR = PROJECT_ROOT / "docs" / "traffic"
 TRAFFIC_SOURCES_PATH = PROJECT_ROOT / "models" / "traffic" / "sources.yml"
 TRAFFIC_EXTERNAL_SNAPSHOT_MACRO_PATH = (
@@ -13,6 +14,14 @@ TRAFFIC_EXTERNAL_SNAPSHOT_MACRO_PATH = (
 WEATHER_MODEL_PATH = GOLD_DIR / "gold_traffic_incident_x_weather_current_hourly.sql"
 CITYDATA_MODEL_PATH = (
     GOLD_DIR / "gold_traffic_incident_x_citydata_crowding_current_hourly.sql"
+)
+CITYDATA_RECONCILIATION_TEST_PATH = (
+    GOLD_TEST_DIR
+    / "assert_gold_traffic_incident_x_citydata_crowding_current_hourly_latest_per_area_reconciles.sql"
+)
+CITYDATA_SNAPSHOT_LINEAGE_TEST_PATH = (
+    GOLD_TEST_DIR
+    / "assert_gold_traffic_incident_x_citydata_crowding_current_hourly_snapshot_lineage.sql"
 )
 GOLD_METADATA_PATH = GOLD_DIR / "_gold.yml"
 
@@ -67,6 +76,16 @@ def test_cross_domain_gold_metadata_locks_exact_two_models_and_grains() -> None:
         assert meta.get("traffic_quality_product") is False
         assert "admin_dong_code" in meta["grain"]
         assert "hour_at" in meta["grain"]
+
+    citydata_model = models[
+        "gold_traffic_incident_x_citydata_crowding_current_hourly"
+    ]
+    assert citydata_model["config"]["meta"]["reconciliation_tests"] == [
+        "assert_gold_traffic_incident_x_citydata_crowding_current_hourly_latest_per_area_reconciles",
+        "assert_gold_traffic_incident_x_citydata_crowding_current_hourly_snapshot_lineage",
+    ]
+    columns = {column["name"]: column for column in citydata_model["columns"]}
+    assert columns["citydata_crowding_snapshot_id"]["tests"] == ["not_null"]
 
 
 def test_weather_cross_domain_gold_contract() -> None:
@@ -141,9 +160,20 @@ def test_citydata_external_snapshot_macro_is_fail_closed_and_pinned() -> None:
 def test_citydata_cross_domain_gold_contract() -> None:
     sql = CITYDATA_MODEL_PATH.read_text(encoding="utf-8")
     compact_sql = _compact(sql)
+    reconcile_sql = CITYDATA_RECONCILIATION_TEST_PATH.read_text(encoding="utf-8")
 
     assert "ref('gold_traffic_incident_current_by_admin_dong_hourly')" in sql
-    assert "source('traffic_citydata_gold', 'gold_citydata_ppltn_by_time')" in sql
+    assert "traffic_citydata_crowding_source_at_snapshot()" in sql
+    assert "traffic_citydata_crowding_source_at_snapshot()" in reconcile_sql
+    assert (
+        "cast({{ traffic_citydata_crowding_snapshot_id() }} as bigint) "
+        "as citydata_crowding_snapshot_id"
+    ) in compact_sql
+    assert "source('traffic_citydata_gold', 'gold_citydata_ppltn_by_time')" not in sql
+    assert (
+        "source('traffic_citydata_gold', 'gold_citydata_ppltn_by_time')"
+        not in reconcile_sql
+    )
     assert "traffic.admin_dong_code = crowding.admin_dong_code" in compact_sql
     assert (
         "cast(date_trunc('hour', crowding.event_at) as timestamp(6)) = traffic.hour_at"
@@ -160,3 +190,20 @@ def test_citydata_cross_domain_gold_contract() -> None:
     assert "traffic.incident_count" in compact_sql
     assert "traffic.has_incident" in compact_sql
     assert "traffic.quality_state" in compact_sql
+
+
+def test_citydata_cross_domain_gold_snapshot_lineage_contract() -> None:
+    assert CITYDATA_SNAPSHOT_LINEAGE_TEST_PATH.is_file()
+    lineage_sql = _compact(
+        CITYDATA_SNAPSHOT_LINEAGE_TEST_PATH.read_text(encoding="utf-8")
+    )
+
+    assert "select product_row_id" in lineage_sql
+    assert (
+        "from {{ ref('gold_traffic_incident_x_citydata_crowding_current_hourly') }}"
+        in lineage_sql
+    )
+    assert (
+        "where citydata_crowding_snapshot_id is distinct from "
+        "cast({{ traffic_citydata_crowding_snapshot_id() }} as bigint)"
+    ) in lineage_sql
