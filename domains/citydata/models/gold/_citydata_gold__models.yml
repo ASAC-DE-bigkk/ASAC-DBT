@@ -7,14 +7,18 @@ models:
   - name: gold_citydata_ppltn_by_time
     config:
       tags: ['fast']
+      meta: {serving_tier: hold}  # 5분 원본 대용량 — API 서빙 보류 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [event_at, area_cd]
     description: >
-      silver를 소비하는 시간별 장소 인구혼잡도. 평균 인구(avg_ppltn) 파생. 좌표·
-      행정구역(행안부 코드)·시간축(event_at)은 silver에서 #48 공통축으로 보강됨.
-      incremental(merge) — 최근 수집분만(30분 lookback) (ppltn_time, area_cd) 키로 merge.
+      gold_citydata_ppltn_by_time — 5분 스냅샷 단위 장소 인구혼잡도 시계열 원장.
+      silver 소비, avg_ppltn(최소·최대 평균) 파생, 좌표·행정구역(행안부 코드)·시간축은
+      #48 공통축 보강. 해결 질문: "어제 15시 전후 홍대 인구가 어떻게 변했나",
+      "특정 기간 5분 단위 원자료 추출". grain (event_at, area_cd) · 갱신 fast ·
+      적재 table+replace(통째 재빌드). ⚠ 연 1,270만 행급 대용량 — API 직접 서빙 보류,
+      기간 조회는 일별(ppltn_daily)·시간별 롤업(예정) 골드 사용.
     columns:
       - name: event_at
         description: 대표 측정 시각 (KST timestamp, grain 축)
@@ -76,14 +80,17 @@ models:
   - name: gold_citydata_ppltn_daily
     config:
       tags: ['slow']
+      meta: {serving_tier: d1_direct}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [event_date, area_code]
     description: >
-      silver를 소비하는 장소별 하루 혼잡 인사이트 (평균/최대/최소 인구, 피크 시각,
-      붐빔 비율, 측정 완결성). grain = (event_date, area_code). incremental(merge) —
-      최근 2일치 재집계 후 (event_date, area_code) 키로 merge.
+      gold_citydata_ppltn_daily — 장소별 하루 혼잡 인사이트. 일 평균/최대/최소 인구,
+      피크 시각·피크 혼잡도, 붐빔 비율, 측정 완결성(슬라이스 수). 해결 질문:
+      "지난주 성수동은 언제 제일 붐볐나", "최근 한 달 일평균 인구 추이",
+      "기간을 지정해 과거 혼잡 이력 비교". grain (event_date, area_code) ·
+      갱신 slow(일) · 적재 table+replace(통째 재빌드).
     columns:
       - name: event_date
         description: 집계 날짜 (event_at의 KST 날짜) — grain 축
@@ -127,10 +134,13 @@ models:
   - name: gold_citydata_place_latest
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
     description: >
-      장소별 최신 크로스 신호 스냅샷 (장소당 1행) — 혼잡도(silver_citydata_ppltn) ×
-      소비 × 승하차 × 따릉이 × 대기질. 실시간 지도/현황판 마트. 신호별 최신값을 장소당
-      1행으로 통합. 매 run 전체 재빌드(table).
+      gold_citydata_place_latest — 장소별 최신 크로스 신호 스냅샷(장소당 1행).
+      혼잡도 × 소비(신한카드) × 지하철·버스 승하차 × 따릉이 × 대기질·기온의 최신값 통합.
+      해결 질문: "지금 강남 붐비고 공기는 괜찮나", "전 장소 현재 상태를 지도/현황판에".
+      grain area_cd(장소 ~121곳) · 갱신 fast · 적재 table+replace(통째 재빌드).
+      ⚠ 최신 스냅샷만 — 과거 이력은 ppltn_daily 등 이력 골드 사용.
     columns:
       - name: area_cd
         description: 장소 코드 (POI###, grain 축)
@@ -204,13 +214,16 @@ models:
   - name: gold_citydata_cmrcl_daily
     config:
       tags: ['slow']
+      meta: {serving_tier: d1_direct}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [event_date, area_cd]
     description: >
-      장소별 일 소비 인사이트 — grain (event_date, area_cd). 결제 규모·피크 시간대·
-      활성 비율·측정 완결성. 매 run 전체 재빌드(table).
+      gold_citydata_cmrcl_daily — 장소별 일 소비(상권) 인사이트. 결제 건수 합/평균,
+      최대 결제금액, 결제 피크 시각·피크 활성 수준, 바쁨 비율, 측정 완결성. 해결 질문:
+      "이번 주 소비가 제일 활발했던 장소는", "특정 장소의 일별 결제 추이".
+      grain (event_date, area_cd) · 갱신 slow(일) · 적재 table+replace(통째 재빌드).
     columns:
       - name: event_date
         description: 집계 날짜 (KST) — grain 축
@@ -254,14 +267,18 @@ models:
   - name: gold_citydata_purchasing_power_daily
     config:
       tags: ['slow']
+      meta: {serving_tier: d1_direct}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [event_date, area_cd]
     description: >
-      장소별 일 구매력·붐빔대비구매 — grain (event_date, area_cd). 유동인구(ppltn)와
-      결제(cmrcl)를 일집계·조인해 buy/spend_per_crowd_idx 와 rank(전체·자치구내)를 낸다.
-      ⚠ 유동인구는 동시 체류 추정이라 지수는 장소 간 상대 비교용. 매 run 전체 재빌드(table).
+      gold_citydata_purchasing_power_daily — 장소별 일 구매력·붐빔대비구매 지수.
+      유동인구(ppltn)와 결제(cmrcl)를 일집계 조인해 buy/spend_per_crowd_idx 와
+      rank(전체·자치구내) 산출. 해결 질문: "사람은 많은데 소비는 약한 곳은",
+      "구매력 상위 상권 랭킹", "기간별 구매력 변화". grain (event_date, area_cd) ·
+      갱신 slow(일) · 적재 table+replace(통째 재빌드).
+      ⚠ 유동인구는 동시 체류 추정 — 지수는 장소 간 상대 비교용.
     columns:
       - name: event_date
         description: 집계 날짜 (KST) — grain 축
@@ -313,14 +330,17 @@ models:
   - name: gold_citydata_ppltn_x_culture_daily
     config:
       tags: ['slow']
+      meta: {serving_tier: d1_direct}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [event_date, admin_dong_code]
     description: >
-      인구혼잡 × 문화활동(통합) — grain (event_date, admin_dong_code). 우리 인구를 동×일
-      롤업하고 그날 그 동 활성 문화활동 6종(행사·축제·공연·전시·세종·KCISA)을 UNION 해
-      붙인다. 크로스도메인(source). 커버리지=우리 핫플 동 한정. 매 run 전체 재빌드(table).
+      gold_citydata_ppltn_x_culture_daily — 행정동×일 인구혼잡 × 문화활동 6종
+      (행사·축제·공연·전시·세종·KCISA, 크로스도메인 culture source). 동별 일 붐빔과
+      그날 활성 문화활동 수·유형 결합. 해결 질문: "행사 있는 날 그 동네가 얼마나 더 붐비나",
+      "이번 주말 축제 열리는 동네는". grain (event_date, admin_dong_code) ·
+      갱신 slow(일) · 적재 table+replace(통째 재빌드). ⚠ 커버리지 = 핫플 장소가 속한 동 한정.
     columns:
       - name: event_date
         description: 집계 날짜 (KST) — grain 축
@@ -356,14 +376,17 @@ models:
   - name: gold_citydata_transit_x_incident_hourly
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [time_bucket, admin_dong_code]
     description: >
-      승하차 × 교통돌발 — grain (time_bucket=시, admin_dong_code). 우리 승하차를 동×시 롤업하고
-      그 시간 그 동 활성 교통돌발(traffic.silver_seoul_traffic_incident)을 붙인다. 승하차는
-      5분창 중앙값의 시간내 평균(대표 강도). 크로스도메인(source). 매 run 전체 재빌드(table).
+      gold_citydata_transit_x_incident_hourly — 행정동×시간 승하차 강도 × 교통돌발
+      (크로스도메인 traffic source). 5분창 승하차 중앙값의 시간내 평균(대표 강도)과
+      그 시간 활성 돌발 수·유형(사고·공사 등) 결합. 해결 질문: "사고 났을 때 승하차가
+      얼마나 줄었나", "돌발이 몰리는 시간대·동네는". grain (time_bucket=시, admin_dong_code) ·
+      갱신 fast · 적재 table+replace(통째 재빌드).
     columns:
       - name: time_bucket
         description: 시간 버킷 (KST, date_trunc hour) — grain 축
@@ -397,14 +420,17 @@ models:
   - name: gold_citydata_ppltn_x_weather_hourly
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [time_bucket, admin_dong_code]
     description: >
-      인구혼잡 × 날씨(예보) — grain (time_bucket=시, admin_dong_code). 우리 인구를 동×시 롤업하고
-      기상청 단기예보(weather, 최신 발표분)를 피벗해 붙인다. 크로스도메인(source=weather).
-      예보값(관측 아님). 매 run 전체 재빌드(table).
+      gold_citydata_ppltn_x_weather_hourly — 행정동×시간 인구혼잡 × 기상청 단기예보
+      (기온·강수확률·습도·풍속·하늘상태, 크로스도메인 weather source, 최신 발표분 피벗).
+      해결 질문: "비 오면 홍대가 덜 붐비나", "날씨 조건별 혼잡 패턴 분석".
+      grain (time_bucket=시, admin_dong_code) · 갱신 fast · 적재 table+replace(통째 재빌드).
+      ⚠ 날씨는 예보값(관측 아님).
     columns:
       - name: time_bucket
         description: 시간 버킷 (KST, date_trunc hour) — grain 축
@@ -442,14 +468,17 @@ models:
   - name: gold_citydata_ppltn_x_commerce_dong
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 스냅샷·동 단위 ~수백 행 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [admin_dong_code]
     description: >
-      인구혼잡 × 상권밀도 — grain admin_dong_code(동 단위). 우리 인구를 동 평균내고 그 동의
-      상가 밀도(commerce 인허가 명부, 영업중 개수)를 붙인다. 크로스도메인(source=commerce).
-      명부는 시계열 아닌 현재 상태라 밀도로 집계. materialized=table.
+      gold_citydata_ppltn_x_commerce_dong — 행정동 단위 인구혼잡 × 상가 밀도
+      (크로스도메인 commerce 인허가 명부 — 영업중 개수, 음식점·미용실 등). 동 평균 붐빔과
+      상가 밀도 결합. 해결 질문: "붐비는데 가게는 적은 동네는(기회 상권)",
+      "상가 밀도 대비 유동인구 비교". grain admin_dong_code(동 단위) · 갱신 fast ·
+      적재 table+replace(통째 재빌드). ⚠ 명부는 시계열 아닌 현재 상태 — 밀도로만 해석.
     columns:
       - name: admin_dong_code
         description: 행안부 행정동 코드 10자리 (grain 축·동 조인 키)
@@ -478,10 +507,13 @@ models:
   - name: gold_citydata_ppltn_anomaly
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
     description: >
-      인구혼잡 이상탐지 — grain area_cd(장소 현재 1행). (장소×주말여부×시간) 과거 baseline
-      평균±표준편차 대비 현재 편차. z_score·pct_vs_normal 로 "지금 평소보다 붐벼?" 판단.
-      by_time 파생, 매 run 전체 재빌드(table).
+      gold_citydata_ppltn_anomaly — 장소별 인구혼잡 이상탐지 스냅샷(장소당 현재 1행).
+      (장소×주말여부×시간) 과거 baseline 평균±표준편차 대비 현재 편차 —
+      z_score·pct_vs_normal·deviation. 해결 질문: "지금 여의도 평소보다 붐비나",
+      "오늘 이례적으로 붐비는 장소 톱10". grain area_cd · 갱신 fast ·
+      적재 table+replace(통째 재빌드, by_time 파생). ⚠ base_n 작으면 신뢰도 낮음.
     columns:
       - name: area_cd
         description: 장소 코드 (POI###, grain 축)
@@ -520,9 +552,12 @@ models:
   - name: gold_citydata_ppltn_trend
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
     description: >
-      인구혼잡 실시간 추세 — grain area_cd. 최근 30분 vs 이전 30분 평균 붐빔 변화율. "지금 뜨는 곳".
-      by_time(5분) 최근 12버킷 파생, 매 run 전체 재빌드(table).
+      gold_citydata_ppltn_trend — 장소별 실시간 붐빔 추세 스냅샷(장소당 1행).
+      최근 30분 vs 이전 30분 평균 붐빔 변화율(change_pct)과 증가/감소/유지 판정.
+      해결 질문: "지금 뜨는(사람 몰리는) 곳 어디", "한강공원 사람 빠지는 중인가".
+      grain area_cd · 갱신 fast · 적재 table+replace(통째 재빌드, by_time 최근 12버킷 파생).
     columns:
       - name: area_cd
         description: 장소 코드 (POI###, grain 축)
@@ -555,10 +590,13 @@ models:
   - name: gold_citydata_place_scorecard
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
     description: >
-      장소 스코어카드 — grain area_cd(장소 1행). 현재 혼잡·상권·교통·날씨·따릉이(place_latest)
-      + 이상(anomaly) + 추세(trend) + 구매력(purchasing_power)을 한 행에 통합. 챗봇 "강남 어때?"
-      의 대표 조회 대상. 매 run 전체 재빌드(table).
+      gold_citydata_place_scorecard — 장소 종합 스코어카드 스냅샷(장소당 1행).
+      현재 혼잡·상권·교통·날씨·따릉이(place_latest) + 이상탐지(anomaly) + 추세(trend) +
+      구매력(purchasing_power)을 한 행에 통합. 해결 질문: "강남 어때?" 류 종합 질의 —
+      단일 조회로 장소의 지금을 요약하는 대표 테이블. grain area_cd · 갱신 fast ·
+      적재 table+replace(통째 재빌드).
     columns:
       - name: area_cd
         description: 장소 코드 (POI###, grain 축)
@@ -615,9 +653,12 @@ models:
   - name: gold_citydata_hot_commerce
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
     description: >
-      뜨는 상권 지수 — grain area_cd. 붐빔추세+구매력+결제를 백분위 정규화 평균한 hot_index(0~1).
-      "요즘 뜨는 상권?" trend+purchasing_power 파생, 매 run 전체 재빌드(table).
+      gold_citydata_hot_commerce — 뜨는 상권 지수 스냅샷(장소당 1행). 붐빔 변화율·구매력·
+      결제량 3축을 백분위 정규화 평균한 hot_index(0~1, 높을수록 핫). 해결 질문:
+      "요즘 뜨는 상권 어디", "지금 몰리면서 소비도 도는 곳 랭킹". grain area_cd ·
+      갱신 fast · 적재 table+replace(통째 재빌드, trend+purchasing_power 파생).
     columns:
       - name: area_cd
         description: 장소 코드 (POI###, grain 축)
@@ -646,13 +687,17 @@ models:
   - name: gold_citydata_ppltn_forecast
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 스냅샷 ~5.8k행 (121×2×24) (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [area_cd, is_weekend, hr]
     description: >
-      인구혼잡 예보(패턴) — grain (area_cd, is_weekend, hr). 장소×주말여부×시간대 과거 평균 붐빔±표준편차.
-      "이번 주말 홍대 붐벼?" 미래 예상 조회. by_time 파생, 매 run 전체 재빌드(table).
+      gold_citydata_ppltn_forecast — 장소×주말여부×시간대 인구혼잡 예보(패턴 기반).
+      과거 평균 붐빔(expected_ppltn)±표준편차·과거 최대. 해결 질문: "이번 주말 홍대
+      몇 시가 제일 붐비나", "평일 밤에 한적한 공원은". grain (area_cd, is_weekend, hr) ·
+      갱신 fast · 적재 table+replace(통째 재빌드, by_time 파생).
+      ⚠ 과거 패턴 기대값(기상 등 반영한 실측 예보 아님) · base_n 작으면 신뢰도 낮음.
     columns:
       - name: area_cd
         description: 장소 코드 (POI###, grain 축)
@@ -683,14 +728,17 @@ models:
   - name: gold_citydata_ppltn_x_transit_hourly
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [time_bucket, admin_dong_code]
     description: >
-      인구혼잡 × 대중교통·주차 — grain (time_bucket=시, admin_dong_code). 우리 인구를 동×시 롤업하고
-      버스혼잡·지하철대기·주차점유율(transit_dong, ⚠dev sandbox source)을 붙인다. "붐비는데 주차 돼?"용.
-      incremental(delete+insert).
+      gold_citydata_ppltn_x_transit_hourly — 행정동×시간 인구혼잡 × 대중교통·주차
+      (버스 혼잡도·만차 비율, 지하철 도착·대기, 주차장 점유율). 해결 질문:
+      "붐비는데 차 가져가도 되나(주차 가능?)", "지하철 대기 긴 시간대·동네는".
+      grain (time_bucket=시, admin_dong_code) · 갱신 fast · 적재 table+replace(통째 재빌드).
+      ⚠ transit_dong 은 dev sandbox source.
     columns:
       - name: time_bucket
         description: 시간 버킷 (KST, date_trunc hour) — grain 축
@@ -728,15 +776,19 @@ models:
   - name: gold_citydata_ppltn_demographics
     config:
       tags: ['slow']
+      meta: {serving_tier: d1_direct}  # 대형 — 실측 200,860행(2026-07-17), D1 여유 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [area_cd, dow, hour, segment_type, segment]
     description: >
-      장소×요일×시간대 인구 **성별·나이대 세그먼트** 패턴 (챗봇 서빙용, R2→D1 export 소스).
-      silver_ppltn 의 wide 비율을 long 으로 언피벗해 요일×시간대 평균 집계. "토요일 14시
-      20대가 많은 지역" 류를 segment 필터 + avg_est_headcount 정렬로 답한다. 성별×나이대
-      교차는 원본에 없어 미포함 — 챗봇/D1 이 age headcount × gender rate 로 근사(독립가정).
+      gold_citydata_ppltn_demographics — 장소×요일×시간대 인구 성별·나이대 세그먼트 패턴.
+      silver_ppltn 의 wide 비율을 long 으로 언피벗해 요일×시간대 평균 집계
+      (avg_rate_pct·avg_est_headcount). 해결 질문: "토요일 14시 20대가 많은 지역은",
+      "이 장소 주중 저녁의 주 연령대는" — segment 필터 + avg_est_headcount 정렬.
+      grain (area_cd, dow, hour, segment_type, segment) · 갱신 slow · 적재 table+replace(통째 재빌드).
+      ⚠ 성별×나이대 교차는 원본에 없어 미포함 — age headcount × gender rate 근사(독립가정) ·
+      avg_est_headcount 는 인구범위 중간값 기반 추정치.
     columns:
       - name: area_cd
         description: 장소 코드 (POI###, grain 축)
@@ -774,14 +826,17 @@ models:
   - name: gold_citydata_charger_availability
     config:
       tags: ['fast']
+      meta: {serving_tier: d1_direct}  # 스냅샷·수백 행 (specs/2026-07-17 §2)
     data_tests:
       - unique_grain:
           arguments:
             columns: [area_cd, stat_id]
     description: >
-      장소×충전소 현재 EV 충전 가용 현황 (챗봇 서빙, D1 export d1_direct 후보). silver_charger
-      에서 충전기별 최신 상태만 골라 충전소로 집계. "지금 근처 충전 가능한 곳"을 available_count>0
-      필터로 답한다. 소형(수백 충전소)이라 전량 교체 스냅샷으로 D1 서빙 적합.
+      gold_citydata_charger_availability — 장소×충전소 현재 EV 충전 가용 현황 스냅샷.
+      silver_charger 에서 충전기별 최신 상태만 골라 충전소 단위 집계(가용/전체 대수).
+      해결 질문: "지금 강남 근처 충전 가능한 곳은" — available_count>0 필터.
+      grain (area_cd, stat_id) · 갱신 fast · 적재 table+replace(통째 재빌드).
+      ⚠ 최신 스냅샷만(이력 없음).
     columns:
       - name: area_cd
         description: 장소 코드 (POI###, grain 축)
