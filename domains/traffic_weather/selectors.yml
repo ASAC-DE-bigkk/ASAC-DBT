@@ -20,6 +20,83 @@ selectors:
   - name: ask_seoul_traffic_transform_gold
     description: Traffic scheduled Gold model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_traffic_transform_gold, indirect_selection: cautious}
+  - name: ask_seoul_traffic_transform_gold_models
+    description: Traffic scheduled Gold model nodes only; tests are excluded for cadence-specific gates.
+    definition:
+      intersection:
+        - method: tag
+          value: ask_seoul_traffic_transform_gold
+          indirect_selection: empty
+        - method: resource_type
+          value: model
+
+  - name: ask_seoul_traffic_transform_gold_gate_tests
+    description: Traffic Gold fast gate tests selected every transform run.
+    definition:
+      intersection:
+        - method: tag
+          value: ask_seoul_traffic_transform_gold
+          indirect_selection: empty
+        - method: tag
+          value: traffic_gold_gate
+          indirect_selection: empty
+        - method: resource_type
+          value: test
+
+  - name: ask_seoul_traffic_transform_gold_hourly_tests
+    description: Traffic Gold hourly assurance tests; includes gate tests plus hourly extensions.
+    definition:
+      union:
+        - intersection:
+            - method: tag
+              value: ask_seoul_traffic_transform_gold
+              indirect_selection: empty
+            - method: tag
+              value: traffic_gold_gate
+              indirect_selection: empty
+            - method: resource_type
+              value: test
+        - intersection:
+            - method: tag
+              value: ask_seoul_traffic_transform_gold
+              indirect_selection: empty
+            - method: tag
+              value: traffic_gold_hourly_extension
+              indirect_selection: empty
+            - method: resource_type
+              value: test
+
+  - name: ask_seoul_traffic_transform_gold_full_tests
+    description: Traffic Gold full assurance tests; includes gate, hourly extension, and daily extension tests.
+    definition:
+      union:
+        - intersection:
+            - method: tag
+              value: ask_seoul_traffic_transform_gold
+              indirect_selection: empty
+            - method: tag
+              value: traffic_gold_gate
+              indirect_selection: empty
+            - method: resource_type
+              value: test
+        - intersection:
+            - method: tag
+              value: ask_seoul_traffic_transform_gold
+              indirect_selection: empty
+            - method: tag
+              value: traffic_gold_hourly_extension
+              indirect_selection: empty
+            - method: resource_type
+              value: test
+        - intersection:
+            - method: tag
+              value: ask_seoul_traffic_transform_gold
+              indirect_selection: empty
+            - method: tag
+              value: traffic_gold_daily_extension
+              indirect_selection: empty
+            - method: resource_type
+              value: test
   - name: ask_seoul_traffic_recovery_silver
     description: 고정 snapshot용 Traffic recovery Silver phase를 선택한다.
     definition: {method: tag, value: ask_seoul_traffic_recovery_silver, indirect_selection: cautious}

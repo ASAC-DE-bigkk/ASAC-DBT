@@ -1,3 +1,5 @@
+{{ config(tags=['traffic_gold_gate']) }}
+
 select *
 from {{ ref('gold_traffic_incident_x_citydata_crowding_current_hourly') }}
 where monitored_place_count is null

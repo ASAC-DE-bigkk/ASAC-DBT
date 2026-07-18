@@ -85,7 +85,13 @@ def test_cross_domain_gold_metadata_locks_exact_two_models_and_grains() -> None:
         "assert_gold_traffic_incident_x_citydata_crowding_current_hourly_snapshot_lineage",
     ]
     columns = {column["name"]: column for column in citydata_model["columns"]}
-    assert columns["citydata_crowding_snapshot_id"]["tests"] == ["not_null"]
+    assert columns["citydata_crowding_snapshot_id"]["tests"] == [
+        {
+            "not_null": {
+                "config": {"tags": ["traffic_gold_gate"]},
+            }
+        }
+    ]
 
 
 def test_weather_cross_domain_gold_contract() -> None:

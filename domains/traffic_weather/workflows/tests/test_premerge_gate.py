@@ -12,6 +12,11 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY_ROOT = PROJECT_ROOT.parents[1]
 MODULE_PATH = PROJECT_ROOT / "workflows" / "premerge_gate.py"
+EXPECTED_GOLD_SELECTOR_COUNTS = {
+    "ask_seoul_traffic_transform_gold_gate_tests": 123,
+    "ask_seoul_traffic_transform_gold_hourly_tests": 143,
+    "ask_seoul_traffic_transform_gold_full_tests": 173,
+}
 
 
 def _load_module():
@@ -30,9 +35,14 @@ class RecordingRunner:
         changed_files: str,
         *,
         empty_selector: str | None = None,
+        selector_counts: dict[str, int] | None = None,
     ) -> None:
         self.changed_files = changed_files
         self.empty_selector = empty_selector
+        self.selector_counts = {
+            **EXPECTED_GOLD_SELECTOR_COUNTS,
+            **(selector_counts or {}),
+        }
         self.calls: list[tuple[list[str], dict]] = []
 
     def __call__(self, command, **kwargs):
@@ -43,11 +53,21 @@ class RecordingRunner:
             stdout = self.changed_files
         elif command[:2] == ["dbt", "ls"]:
             selector = command[command.index("--selector") + 1]
-            stdout = "" if selector == self.empty_selector else f"selected__{selector}\n"
+            count = self.selector_counts.get(selector, 1)
+            stdout = (
+                ""
+                if selector == self.empty_selector
+                else "".join(
+                    f"selected__{selector}__{index}\n" for index in range(count)
+                )
+            )
         return subprocess.CompletedProcess(command, 0, stdout=stdout)
 
 
-def _project(tmp_path: Path, selectors: tuple[str, ...] = ("alpha", "beta")) -> Path:
+def _project(
+    tmp_path: Path,
+    selectors: tuple[str, ...] = tuple(EXPECTED_GOLD_SELECTOR_COUNTS),
+) -> Path:
     project_dir = tmp_path / "domains" / "traffic_weather"
     project_dir.mkdir(parents=True)
     (project_dir / "selectors.yml").write_text(
@@ -163,10 +183,39 @@ def test_gate_owns_the_complete_read_only_premerge_sequence(tmp_path: Path) -> N
         "--target",
         "dev",
     ]
-    assert commands[3][:4] == ["dbt", "ls", "--selector", "alpha"]
-    assert commands[4][:4] == ["dbt", "ls", "--selector", "beta"]
-    assert commands[5] == [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]
+    selector_commands = commands[3:6]
+    assert [command[3] for command in selector_commands] == list(
+        EXPECTED_GOLD_SELECTOR_COUNTS
+    )
     assert commands[6] == [
+        sys.executable,
+        str(
+            project_dir
+            / "contracts"
+            / "traffic"
+            / "scripts"
+            / "validate_traffic_gold_test_inventory.py"
+        ),
+        "--manifest",
+        str(target_path / "manifest.json"),
+        "--inventory",
+        str(project_dir / "contracts" / "traffic_gold_test_cadence.yml"),
+        "--selector-count",
+        "ask_seoul_traffic_transform_gold_gate_tests=123",
+        "--selector-count",
+        "ask_seoul_traffic_transform_gold_hourly_tests=143",
+        "--selector-count",
+        "ask_seoul_traffic_transform_gold_full_tests=173",
+    ]
+    assert commands[7] == [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+    ]
+    assert commands[8] == [
         sys.executable,
         str(
             project_dir
@@ -181,16 +230,20 @@ def test_gate_owns_the_complete_read_only_premerge_sequence(tmp_path: Path) -> N
 
     parse_command = commands[2]
     assert parse_command[parse_command.index("--target-path") + 1] == str(target_path)
-    assert "ci__snapshot" in parse_command[parse_command.index("--vars") + 1]
+    vars_payload = parse_command[parse_command.index("--vars") + 1]
+    assert "ci__snapshot" in vars_payload
+    assert "traffic_snapshot_dag_run_id" in vars_payload
+    assert "traffic_flow_snapshot_dag_run_id" in vars_payload
+    assert "traffic_citydata_crowding_snapshot_id" in vars_payload
 
-    for _, kwargs in runner.calls[1:5]:
+    for _, kwargs in runner.calls[1:6]:
         assert kwargs["cwd"] == project_dir
         assert kwargs["check"] is True
         assert kwargs["env"]["DBT_PROJECT_DIR"] == str(project_dir)
         assert kwargs["env"]["DBT_PROFILES_DIR"] == str(project_dir)
         assert kwargs["env"]["DBT_TARGET"] == "dev"
 
-    pytest_environment = runner.calls[5][1]["env"]
+    pytest_environment = runner.calls[7][1]["env"]
     assert pytest_environment["ASK_SEOUL_FRESH_MANIFEST"] == str(
         target_path / "manifest.json"
     )
@@ -217,4 +270,76 @@ def test_empty_named_selector_fails_before_contract_tests(tmp_path: Path) -> Non
     assert all(
         "validate_singular_test_dependency_manifest.py" not in " ".join(command)
         for command, _ in runner.calls
+    )
+
+
+@pytest.mark.parametrize(
+    "selector,actual_count",
+    (
+        ("ask_seoul_traffic_transform_gold_gate_tests", 122),
+        ("ask_seoul_traffic_transform_gold_hourly_tests", 142),
+        ("ask_seoul_traffic_transform_gold_full_tests", 172),
+    ),
+)
+def test_exact_gold_selector_drift_fails_before_contract_tests(
+    tmp_path: Path,
+    selector: str,
+    actual_count: int,
+) -> None:
+    module = _load_module()
+    project_dir = _project(tmp_path)
+    runner = RecordingRunner(
+        "domains/traffic_weather/selectors.yml\n",
+        selector_counts={selector: actual_count},
+    )
+
+    with pytest.raises(RuntimeError, match="selector counts mismatch"):
+        module.run_premerge_gate(
+            repository_root=tmp_path,
+            project_dir=project_dir,
+            target_path=tmp_path / "target",
+            base_sha="base",
+            head_sha="head",
+            command_runner=runner,
+        )
+
+    commands = [command for command, _ in runner.calls]
+    assert all("validate_traffic_gold_test_inventory.py" not in " ".join(command) for command in commands)
+    assert all("pytest" not in command for command in commands)
+
+
+def test_traffic_gold_cadence_selectors_are_declared() -> None:
+    selectors_path = PROJECT_ROOT / "selectors.yml"
+    document = yaml.safe_load(selectors_path.read_text(encoding="utf-8")) or {}
+    selector_names = {selector["name"] for selector in document["selectors"]}
+
+    assert "ask_seoul_traffic_transform_gold" in selector_names
+    assert "ask_seoul_traffic_transform_gold_models" in selector_names
+    assert "ask_seoul_traffic_transform_gold_gate_tests" in selector_names
+    assert "ask_seoul_traffic_transform_gold_hourly_tests" in selector_names
+    assert "ask_seoul_traffic_transform_gold_full_tests" in selector_names
+
+    def walk(value):
+        if isinstance(value, dict):
+            yield value
+            for child in value.values():
+                yield from walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from walk(child)
+
+    cadence_definitions = (
+        selector["definition"]
+        for selector in document["selectors"]
+        if selector["name"]
+        in {
+            "ask_seoul_traffic_transform_gold_gate_tests",
+            "ask_seoul_traffic_transform_gold_hourly_tests",
+            "ask_seoul_traffic_transform_gold_full_tests",
+        }
+    )
+    assert all(
+        node.get("method") != "selector"
+        for definition in cadence_definitions
+        for node in walk(definition)
     )

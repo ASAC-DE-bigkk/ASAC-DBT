@@ -1,9 +1,29 @@
 -- Serving Gold: latest per-link speed and travel-time change versus its prior observation.
--- Grain: link_id; no change is inferred when either comparison value is missing.
+-- Incremental path recalculates full history only for links touched by the pinned Flow run.
 
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key='link_id',
+    on_table_exists='drop',
+    views_enabled=false,
+    pre_hook="{{ traffic_flow_assert_pinned_incremental_rows() }}"
+) }}
 
-with ordered_history as (
+with changed_links as (
+    {{ traffic_flow_changed_links() }}
+),
+
+scoped_history as (
+    select flow.*
+    from {{ ref('silver_seoul_traffic_flow') }} as flow
+    {% if is_incremental() %}
+    inner join changed_links
+        on cast(flow.link_id as varchar) = changed_links.link_id
+    {% endif %}
+),
+
+ordered_history as (
     select
         cast(link_id as varchar) as link_id,
         cast(flow_speed as double) as flow_speed,
@@ -30,7 +50,7 @@ with ordered_history as (
             partition by link_id
             order by observed_at desc, raw_object_key desc, request_id desc
         ) as latest_row_num
-    from {{ ref('silver_seoul_traffic_flow') }}
+    from scoped_history
 )
 
 select

@@ -1,3 +1,5 @@
+{{ config(tags=['traffic_gold_gate']) }}
+
 with incident_counts as (
     select
         count(*) as incident_row_count,

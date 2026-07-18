@@ -1,3 +1,4 @@
+{{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('silver_seoul_traffic_incident_current') }}
 -- depends_on: {{ ref('gold_traffic_incident_summary') }}
 with silver_counts as (

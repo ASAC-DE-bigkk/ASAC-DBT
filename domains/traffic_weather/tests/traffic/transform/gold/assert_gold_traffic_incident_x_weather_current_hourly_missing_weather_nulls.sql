@@ -1,3 +1,5 @@
+{{ config(tags=['traffic_gold_gate']) }}
+
 select *
 from {{ ref('gold_traffic_incident_x_weather_current_hourly') }}
 where weather_category_coverage_count is null

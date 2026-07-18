@@ -4,6 +4,8 @@
 -- complete snapshot into one row per source_id, so rebuilding the tiny summary
 -- avoids stale counts without re-scanning Bronze history.
 
+{{ config(materialized='table') }}
+
 {% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}
 
 with latest_manifest_state as (
