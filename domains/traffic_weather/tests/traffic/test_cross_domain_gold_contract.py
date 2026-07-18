@@ -7,6 +7,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GOLD_DIR = PROJECT_ROOT / "models" / "traffic" / "transform" / "gold"
 TRAFFIC_DOCS_DIR = PROJECT_ROOT / "docs" / "traffic"
 TRAFFIC_SOURCES_PATH = PROJECT_ROOT / "models" / "traffic" / "sources.yml"
+TRAFFIC_EXTERNAL_SNAPSHOT_MACRO_PATH = (
+    PROJECT_ROOT / "macros" / "traffic" / "traffic_external_snapshot.sql"
+)
 WEATHER_MODEL_PATH = GOLD_DIR / "gold_traffic_incident_x_weather_current_hourly.sql"
 CITYDATA_MODEL_PATH = (
     GOLD_DIR / "gold_traffic_incident_x_citydata_crowding_current_hourly.sql"
@@ -117,6 +120,22 @@ def test_citydata_source_contract_lives_in_traffic_sources() -> None:
         "collected_at",
     }.issubset(columns)
     assert "tests" not in column_defs["admin_dong_code"]
+
+
+def test_citydata_external_snapshot_macro_is_fail_closed_and_pinned() -> None:
+    macro_sql = TRAFFIC_EXTERNAL_SNAPSHOT_MACRO_PATH.read_text(encoding="utf-8")
+
+    assert "var('traffic_citydata_crowding_snapshot_id', none)" in macro_sql
+    assert (
+        "{%- if snapshot_id is none and not execute -%}\n"
+        "    {{ return(0) }}\n"
+        "  {%- endif -%}"
+    ) in macro_sql
+    assert "snapshot_id is not integer or snapshot_id <= 0" in macro_sql
+    assert "snapshot_id is not number" not in macro_sql
+    assert "exceptions.raise_compiler_error" in macro_sql
+    assert "FOR VERSION AS OF" in macro_sql
+    assert "source('traffic_citydata_gold', 'gold_citydata_ppltn_by_time')" in macro_sql
 
 
 def test_citydata_cross_domain_gold_contract() -> None:
