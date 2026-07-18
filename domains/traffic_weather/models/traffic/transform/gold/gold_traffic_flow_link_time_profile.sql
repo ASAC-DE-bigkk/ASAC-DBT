@@ -1,27 +1,45 @@
 -- Serving Gold: observed TrafficInfo rhythm by road link, KST weekday, and hour.
--- Grain: (link_id, kst_day_of_week, kst_hour).  It is a descriptive profile,
--- and sparse observation cells stay sparse instead of being zero-filled.
+-- Incremental path recalculates profile cells touched by the pinned Flow run.
 
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['link_id', 'kst_day_of_week', 'kst_hour'],
+    on_table_exists='drop',
+    views_enabled=false,
+    pre_hook="{{ traffic_flow_assert_pinned_incremental_rows() }}"
+) }}
 
-with flow_history as (
+with changed_profile_keys as (
+    {{ traffic_flow_changed_profile_keys() }}
+),
+
+flow_history as (
     select
-        cast(link_id as varchar) as link_id,
-        cast(flow_speed as double) as flow_speed,
-        cast(flow_travel_time as double) as flow_travel_time,
-        cast({{ asac_axes.utc_to_kst('observed_at') }} as timestamp(6)) as observed_at_kst
-    from {{ ref('silver_seoul_traffic_flow') }}
+        cast(flow.link_id as varchar) as link_id,
+        cast(flow.flow_speed as double) as flow_speed,
+        cast(flow.flow_travel_time as double) as flow_travel_time,
+        cast({{ asac_axes.utc_to_kst('flow.observed_at') }} as timestamp(6)) as observed_at_kst,
+        day_of_week(cast({{ asac_axes.utc_to_kst('flow.observed_at') }} as timestamp(6))) as kst_day_of_week,
+        hour(cast({{ asac_axes.utc_to_kst('flow.observed_at') }} as timestamp(6))) as kst_hour
+    from {{ ref('silver_seoul_traffic_flow') }} as flow
+    {% if is_incremental() %}
+    inner join changed_profile_keys
+        on cast(flow.link_id as varchar) = changed_profile_keys.link_id
+       and day_of_week(cast({{ asac_axes.utc_to_kst('flow.observed_at') }} as timestamp(6))) = changed_profile_keys.kst_day_of_week
+       and hour(cast({{ asac_axes.utc_to_kst('flow.observed_at') }} as timestamp(6))) = changed_profile_keys.kst_hour
+    {% endif %}
 )
 
 select
     concat(
         link_id, '|',
-        cast(day_of_week(observed_at_kst) as varchar), '|',
-        cast(hour(observed_at_kst) as varchar)
+        cast(kst_day_of_week as varchar), '|',
+        cast(kst_hour as varchar)
     ) as product_row_id,
     link_id,
-    day_of_week(observed_at_kst) as kst_day_of_week,
-    hour(observed_at_kst) as kst_hour,
+    kst_day_of_week,
+    kst_hour,
     count(*) as observation_count,
     count_if(flow_speed is not null) as speed_observation_count,
     round(avg(flow_speed), 2) as avg_flow_speed,

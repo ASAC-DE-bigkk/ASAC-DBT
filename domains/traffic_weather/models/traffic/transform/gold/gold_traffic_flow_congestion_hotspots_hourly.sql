@@ -1,10 +1,20 @@
 -- Serving Gold: observed low-speed road-link hotspots by KST hour.
--- Grain: (hour_at, link_id).  Rank compares only the observed link snapshot,
--- not an absolute congestion level or road-class-adjusted benchmark.
+-- Incremental path recalculates all link ranks for hours touched by the pinned Flow run.
 
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['hour_at', 'link_id'],
+    on_table_exists='drop',
+    views_enabled=false,
+    pre_hook="{{ traffic_flow_assert_pinned_incremental_rows() }}"
+) }}
 
-with flow_history as (
+with changed_hours as (
+    {{ traffic_flow_changed_hours() }}
+),
+
+flow_history as (
     select
         cast(link_id as varchar) as link_id,
         cast(flow_speed as double) as flow_speed,
@@ -12,19 +22,24 @@ with flow_history as (
         cast(flow_value_quality as varchar) as flow_value_quality,
         cast(observed_at as timestamp(6)) as observed_at_utc,
         cast({{ asac_axes.utc_to_kst('observed_at') }} as timestamp(6)) as observed_at_kst,
+        cast(date_trunc('hour', {{ asac_axes.utc_to_kst('observed_at') }}) as timestamp(6)) as hour_at,
+        cast(request_id as varchar) as request_id,
         cast(raw_object_key as varchar) as raw_object_key,
         cast(payload_hash as varchar) as payload_hash,
         cast(dag_run_id as varchar) as dag_run_id
-    from {{ ref('silver_seoul_traffic_flow') }}
+    from {{ ref('silver_seoul_traffic_flow') }} as flow
+    {% if is_incremental() %}
+    inner join changed_hours
+        on cast(date_trunc('hour', {{ asac_axes.utc_to_kst('flow.observed_at') }}) as timestamp(6)) = changed_hours.hour_at
+    {% endif %}
 ),
 
 ranked_link_hour as (
     select
         *,
-        date_trunc('hour', observed_at_kst) as hour_at,
         row_number() over (
-            partition by link_id, date_trunc('hour', observed_at_kst)
-            order by observed_at_utc desc, raw_object_key desc
+            partition by link_id, hour_at
+            order by observed_at_utc desc, raw_object_key desc, request_id desc
         ) as link_hour_row_num
     from flow_history
 ),

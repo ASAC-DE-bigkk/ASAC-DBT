@@ -161,8 +161,8 @@ models:
         description: admin_dong_code와 hour_at natural grain을 결정적으로 직렬화한 제품 행 식별자입니다.
         data_type: varchar
         tests:
-          - not_null
-          - unique
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
+          - {unique: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: primary_key
@@ -173,7 +173,7 @@ models:
         description: asac_axes.dim_admin_dong에서 가져온 행안부 서울 행정동 10자리 정본 코드입니다.
         data_type: varchar
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: join_key
@@ -184,7 +184,7 @@ models:
         description: status_observed_at을 시간 단위로 절삭한 서울 기준 snapshot 평가 시간입니다.
         data_type: timestamp(6)
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: timestamp
@@ -197,7 +197,7 @@ models:
         description: asac_axes.dim_admin_dong에서 가져온 정본 행정동명입니다.
         data_type: varchar
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: spatial_stamp
@@ -208,7 +208,7 @@ models:
         description: asac_axes.dim_admin_dong에서 가져온 행안부 자치구 5자리 코드입니다.
         data_type: varchar
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: spatial_stamp
@@ -219,7 +219,7 @@ models:
         description: asac_axes.dim_admin_dong에서 가져온 정본 자치구명입니다.
         data_type: varchar
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: spatial_stamp
@@ -230,7 +230,7 @@ models:
         description: 행정동 정본 stamp에 사용한 asac_axes.dim_admin_dong의 개정일입니다.
         data_type: date
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: spatial_stamp
@@ -262,8 +262,9 @@ models:
         description: snapshot 완전성과 API 및 current 및 공간 reconciliation 결과를 요약한 품질 상태입니다.
         data_type: varchar
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values:
                   - complete
@@ -294,7 +295,7 @@ models:
         description: 선택 run의 최신 manifest event 또는 manifest 부재 시 dbt 평가 시각을 사용한 서울 기준 관측 시각입니다.
         data_type: timestamp(6)
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: timestamp
@@ -307,7 +308,7 @@ models:
         description: 이 relation을 계산한 dbt invocation의 서울 기준 게시 시각입니다.
         data_type: timestamp(6)
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: timestamp
@@ -320,7 +321,7 @@ models:
         description: 변환 시작 시 고정한 Traffic snapshot의 Airflow DAG 실행 식별자입니다.
         data_type: varchar
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: lineage_id
@@ -331,8 +332,9 @@ models:
         description: Seoul TOPIS Traffic 돌발정보 원천을 나타내는 고정 식별자입니다.
         data_type: varchar
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values:
                   - seoul_traffic_incident
@@ -355,7 +357,7 @@ models:
         description: 고정 run의 request audit row_count 합계이며 0은 사고 없음 주장이 아닌 수집 근거 진단값입니다.
         data_type: bigint
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: reconciliation_evidence
@@ -375,7 +377,7 @@ models:
         description: 고정 current snapshot에서 asac_axes.dim_admin_dong에 정확히 결합되지 않은 사고 수이며 0만으로 snapshot 완전성을 주장하지 않습니다.
         data_type: bigint
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
         config:
           meta:
             semantic_role: reconciliation_evidence

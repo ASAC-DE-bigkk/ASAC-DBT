@@ -1,3 +1,4 @@
+{{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('gold_traffic_incident_current_by_admin_dong_hourly') }}
 
 with keyed as (

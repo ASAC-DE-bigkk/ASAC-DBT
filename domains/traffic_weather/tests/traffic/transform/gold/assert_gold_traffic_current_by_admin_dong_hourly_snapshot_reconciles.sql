@@ -1,3 +1,4 @@
+{{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('silver_seoul_traffic_incident_current') }}
 -- depends_on: {{ ref('gold_traffic_incident_current_by_admin_dong_hourly') }}
 -- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}

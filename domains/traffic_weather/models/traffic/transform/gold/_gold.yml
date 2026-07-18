@@ -11,24 +11,24 @@ models:
       - name: source_id
         description: TOPIS source identifier; unique summary grain.
         tests:
-          - not_null
-          - unique
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
+          - {unique: {config: {tags: [traffic_gold_gate]}}}
       - name: row_count
         description: Current deduplicated Silver incident count.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
       - name: raw_object_count
         description: Distinct R2 raw objects represented by the current Silver rows.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
       - name: source_coordinate_row_count
         description: Silver rows whose original GRS80 TM coordinate pair was present.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
       - name: missing_source_coordinate_row_count
         description: Silver rows whose original coordinate pair was absent.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
       - name: first_occurred_at
         description: Earliest current incident occurrence timestamp in KST; null for a valid zero-incident snapshot.
       - name: last_occurred_at
@@ -45,22 +45,22 @@ models:
       - name: source_record_id
         description: Stable TOPIS incident identifier.
         tests:
-          - not_null
-          - unique
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
+          - {unique: {config: {tags: [traffic_gold_gate]}}}
       - name: incident_source_id
         description: Incident source identifier.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
       - name: link_id
         description: TOPIS road-link identifier shared by incident and flow data.
       - name: occurred_at
         description: Incident occurrence timestamp in KST.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
       - name: incident_dag_run_id
         description: Publishable incident Bronze snapshot used for the current incident row.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
       - name: flow_speed
         description: Speed from the matching TrafficInfo response; null when no flow row matched.
       - name: flow_travel_time
@@ -78,8 +78,9 @@ models:
       - name: flow_match_status
         description: Join result; matched when a flow link row exists, otherwise missing_flow.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_gate]}}}
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values: ['matched', 'missing_flow']
 
@@ -91,77 +92,79 @@ models:
     columns:
       - name: product_row_id
         description: source_id와 coverage_window_at_utc를 결정적으로 직렬화한 식별자입니다.
-        tests: [not_null, unique]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}, {unique: {config: {tags: [traffic_gold_gate]}}}]
       - name: source_id
         description: request-audit source identifier입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: coverage_window_at_utc
         description: collected_at을 UTC-naive 5분 경계로 내림한 관측 구간 시작입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: coverage_window_end_at_utc
         description: 관측 구간의 exclusive 종료 시각입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: evidence_scope
         description: 이 제품이 물질화된 snapshot 증거만 표현함을 나타냅니다.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_hourly_extension]}}}
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values: ['materialized_snapshot_only']
       - name: materialized_request_count
         description: 해당 구간에 실제 존재하는 audit row 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: materialized_distinct_request_count
         description: 해당 구간의 distinct request_id 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: duplicate_request_count
         description: materialized request row 수와 distinct request 수의 차이입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: materialized_raw_object_count
         description: audit가 가리키는 distinct raw_object_key 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: materialized_row_count
         description: audit row_count의 합이며 schedule 기대량이 아닙니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: successful_request_count
         description: HTTP 2xx이며 result_code가 INFO-000인 audit request 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: api_failed_request_count
         description: non-2xx 또는 non-INFO-000인 audit request 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: invalid_contract_request_count
         description: 필수 request-audit 열 또는 page/count 계약을 위반한 row 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: observed_run_count
         description: audit row에서 관측한 distinct dag_run_id 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: effective_manifest_run_count
         description: source/run별 latest effective manifest에 결합된 distinct run 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: success_publishable_run_count
         description: latest effective 상태가 SUCCESS와 publishable인 distinct run 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: terminal_failure_run_count
         description: latest effective 상태가 FAILED이거나 failure reason이 있는 distinct run 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: manifest_not_publishable_run_count
         description: latest effective 상태가 SUCCESS+publishable이 아닌 distinct manifest run 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: min_reported_incident_count
         description: 구간 audit의 최소 list_total_count입니다.
       - name: max_reported_incident_count
         description: 구간 audit의 최대 list_total_count입니다.
       - name: first_collected_at_utc
         description: 구간에서 가장 이른 audit collected_at입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: last_collected_at_utc
         description: 구간에서 가장 늦은 audit collected_at입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_hourly_extension]}}}]
       - name: coverage_state
         description: 물질화된 audit와 latest effective manifest 정합 상태입니다.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_hourly_extension]}}}
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values:
                   - manifest_missing
@@ -179,13 +182,13 @@ models:
     columns:
       - name: product_row_id
         description: profile_day와 mapping_bucket의 결정적 식별자입니다.
-        tests: [not_null, unique]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}, {unique: {config: {tags: [traffic_gold_gate]}}}]
       - name: profile_day
         description: occurred_at의 KST calendar date입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: mapping_bucket
         description: canonical admin_dong_code 또는 __UNMAPPED__입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: admin_dong_code
         description: canonical bucket의 정본 코드이며 unmapped bucket에서는 null입니다.
       - name: admin_dong
@@ -198,43 +201,44 @@ models:
         description: canonical stamp revision이며 unmapped bucket에서는 null입니다.
       - name: snapshot_dag_run_id
         description: current Silver가 상속한 pinned incident run입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: snapshot_run_count
         description: bucket 안 distinct pinned run 수이며 항상 1이어야 합니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: evidence_scope
         description: pinned current snapshot을 occurrence day로 재집계했음을 나타냅니다.
         tests:
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values: ['pinned_current_snapshot_by_occurrence_day']
       - name: incident_count
         description: expected_clear_at null 여부와 무관한 current incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: expected_clearance_present_count
         description: expected_clear_at이 있는 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: expected_clearance_missing_count
         description: expected_clear_at이 없는 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: expected_clearance_usable_count
         description: expected_clear_at이 occurred_at 이상인 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: expected_clearance_invalid_count
         description: expected_clear_at이 occurred_at보다 이른 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: expected_clearance_present_ratio
         description: present count를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: expected_clearance_missing_ratio
         description: missing count를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: expected_clearance_usable_ratio
         description: usable count를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: expected_clearance_invalid_ratio
         description: invalid count를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: min_expected_clearance_lead_minutes
         description: usable source expectation의 최소 lead minutes이며 실제 duration이 아닙니다.
       - name: avg_expected_clearance_lead_minutes
@@ -244,8 +248,9 @@ models:
       - name: profile_state
         description: expected-clear evidence의 없음, invalid-only, partial, complete 상태입니다.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_daily_extension]}}}
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values:
                   - no_expected_clearance_evidence
@@ -261,13 +266,13 @@ models:
     columns:
       - name: product_row_id
         description: quality_day와 mapping_bucket의 결정적 식별자입니다.
-        tests: [not_null, unique]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}, {unique: {config: {tags: [traffic_gold_gate]}}}]
       - name: quality_day
         description: occurred_at의 KST calendar date입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: mapping_bucket
         description: canonical admin_dong_code 또는 __UNMAPPED__입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: admin_dong_code
         description: canonical bucket의 정본 코드이며 unmapped bucket에서는 null입니다.
       - name: admin_dong
@@ -280,54 +285,56 @@ models:
         description: canonical stamp revision이며 unmapped bucket에서는 null입니다.
       - name: snapshot_dag_run_id
         description: current Silver가 상속한 pinned incident run입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: snapshot_run_count
         description: bucket 안 distinct pinned run 수이며 항상 1이어야 합니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: evidence_scope
         description: pinned current snapshot을 occurrence day로 재집계했음을 나타냅니다.
         tests:
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values: ['pinned_current_snapshot_by_occurrence_day']
       - name: incident_count
         description: bucket의 current incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: mapped_incident_count
         description: canonical dimension에 exact join된 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: source_coordinate_missing_count
         description: source GRS80 TM coordinate pair가 없는 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: wgs84_conversion_or_bbox_miss_count
         description: source coordinate는 있으나 WGS84 변환 또는 Seoul bbox guard 후 좌표가 없는 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: boundary_match_missing_count
         description: WGS84 좌표는 있으나 Silver boundary match code가 없는 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: canonical_admin_miss_count
         description: Silver candidate admin code는 있으나 canonical dimension에 없는 incident 수입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: mapping_success_ratio
         description: mapped incident를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: source_coordinate_missing_ratio
         description: source-coordinate-missing count를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: wgs84_conversion_or_bbox_miss_ratio
         description: conversion/bbox miss count를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: boundary_match_missing_ratio
         description: boundary miss count를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: canonical_admin_miss_ratio
         description: canonical miss count를 incident_count로 나눈 비율입니다.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_daily_extension]}}}]
       - name: mapping_state
         description: mapping_bucket이 canonical이면 mapped, __UNMAPPED__이면 unmapped입니다.
         tests:
-          - not_null
+          - {not_null: {config: {tags: [traffic_gold_daily_extension]}}}
           - accepted_values:
+              config: {tags: [traffic_gold_gate]}
               arguments:
                 values: ['mapped', 'unmapped']
 
@@ -344,46 +351,46 @@ models:
     columns:
       - name: product_row_id
         description: Traffic product_row_id preserved from the canonical current-hourly anchor.
-        tests: [not_null, unique]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}, {unique: {config: {tags: [traffic_gold_gate]}}}]
       - name: admin_dong_code
         description: Canonical admin-dong code preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: hour_at
         description: Traffic evaluation hour preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: admin_dong
         description: Canonical admin-dong name preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: gu_code
         description: Canonical gu code preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: gu
         description: Canonical gu name preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: admin_dong_revision_date
         description: Canonical admin-dong revision date preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: incident_count
         description: Traffic incident count preserved exactly; null still means Traffic quality did not support a count.
       - name: has_incident
         description: Traffic has-incident flag preserved exactly; null still means Traffic quality did not support the boolean.
       - name: quality_state
         description: Traffic quality state preserved exactly from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: snapshot_as_of_at
         description: Traffic snapshot as-of timestamp preserved from the anchor.
       - name: status_observed_at
         description: Traffic status observation timestamp used as the Weather no-hindsight cutoff.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: published_at
         description: Traffic publication timestamp preserved from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: snapshot_dag_run_id
         description: Traffic snapshot DAG run identifier preserved from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: source_id
         description: Traffic source identifier preserved from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: weather_category_coverage_count
         description: Count of available Weather categories among TMP, POP, REH, WSD, SKY, and PTY after no-hindsight filtering; null when no eligible weather row exists.
       - name: weather_latest_issued_at
@@ -423,49 +430,49 @@ models:
     columns:
       - name: product_row_id
         description: Traffic product_row_id preserved from the canonical current-hourly anchor.
-        tests: [not_null, unique]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}, {unique: {config: {tags: [traffic_gold_gate]}}}]
       - name: admin_dong_code
         description: Canonical admin-dong code preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: hour_at
         description: Traffic evaluation hour preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: admin_dong
         description: Canonical admin-dong name preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: gu_code
         description: Canonical gu code preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: gu
         description: Canonical gu name preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: admin_dong_revision_date
         description: Canonical admin-dong revision date preserved from the Traffic anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: incident_count
         description: Traffic incident count preserved exactly; null still means Traffic quality did not support a count.
       - name: has_incident
         description: Traffic has-incident flag preserved exactly; null still means Traffic quality did not support the boolean.
       - name: quality_state
         description: Traffic quality state preserved exactly from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: snapshot_as_of_at
         description: Traffic snapshot as-of timestamp preserved from the anchor.
       - name: status_observed_at
         description: Traffic status observation timestamp preserved from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: published_at
         description: Traffic publication timestamp preserved from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: snapshot_dag_run_id
         description: Traffic snapshot DAG run identifier preserved from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: source_id
         description: Traffic source identifier preserved from the anchor.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: citydata_crowding_snapshot_id
         description: Positive bigint Iceberg snapshot ID pinned for the Citydata crowding relation used by this Traffic Gold run.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]
       - name: monitored_place_count
         description: Count of latest Citydata monitored-place rows represented in the admin-dong/hour context; null when no place was observed.
       - name: avg_place_avg_ppltn
@@ -478,4 +485,4 @@ models:
         description: Latest Citydata collected_at among selected monitored-place rows.
       - name: crowding_observed
         description: False when no Citydata monitored-place row matched this Traffic admin-dong/hour; true when at least one selected place row exists.
-        tests: [not_null]
+        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}]

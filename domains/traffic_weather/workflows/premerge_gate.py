@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Callable, Sequence
+from typing import Callable, Mapping, Sequence
 
 
 DEFAULT_SNAPSHOT_RUN_ID = "ci__traffic-weather-monoproject-premerge-gate"
@@ -21,6 +21,11 @@ OWNED_PATHS = {
     ".gitignore",
 }
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
+EXACT_SELECTOR_COUNTS = {
+    "ask_seoul_traffic_transform_gold_gate_tests": 123,
+    "ask_seoul_traffic_transform_gold_hourly_tests": 143,
+    "ask_seoul_traffic_transform_gold_full_tests": 173,
+}
 
 
 def _repository_path(path: str) -> str:
@@ -86,7 +91,13 @@ def _dbt_environment(project_dir: Path) -> dict[str, str]:
 
 
 def _manifest_vars(snapshot_run_id: str) -> str:
-    return json.dumps({"traffic_snapshot_dag_run_id": snapshot_run_id})
+    return json.dumps(
+        {
+            "traffic_snapshot_dag_run_id": snapshot_run_id,
+            "traffic_flow_snapshot_dag_run_id": snapshot_run_id,
+            "traffic_citydata_crowding_snapshot_id": 1,
+        }
+    )
 
 
 def generate_fresh_manifest(
@@ -153,8 +164,9 @@ def validate_named_selectors(
     snapshot_run_id: str,
     environment: dict[str, str],
     command_runner: CommandRunner,
-) -> None:
-    """Fail when a declared Airflow-facing selector resolves to no dbt node."""
+) -> dict[str, int]:
+    """Return selector counts and fail empty or drifted Airflow contracts."""
+    counts: dict[str, int] = {}
     for selector in _selector_names(project_dir):
         result = command_runner(
             [
@@ -178,8 +190,52 @@ def validate_named_selectors(
             capture_output=True,
             text=True,
         )
-        if not result.stdout.strip():
+        selected = [line for line in result.stdout.splitlines() if line.strip()]
+        if not selected:
             raise RuntimeError(f"named selector {selector!r} is empty")
+        counts[selector] = len(selected)
+
+    actual_exact = {name: counts.get(name, 0) for name in EXACT_SELECTOR_COUNTS}
+    if actual_exact != EXACT_SELECTOR_COUNTS:
+        raise RuntimeError(
+            "Traffic Gold selector counts mismatch: "
+            f"expected {EXACT_SELECTOR_COUNTS}, actual {actual_exact}"
+        )
+    return counts
+
+
+def validate_traffic_gold_test_inventory(
+    *,
+    project_dir: Path,
+    manifest_path: Path,
+    selector_counts: Mapping[str, int],
+    command_runner: CommandRunner,
+) -> None:
+    """Fail when Traffic Gold cadence inventory differs from the manifest."""
+    selector_count_args = [
+        item
+        for name in EXACT_SELECTOR_COUNTS
+        for item in ("--selector-count", f"{name}={selector_counts[name]}")
+    ]
+    command_runner(
+        [
+            sys.executable,
+            str(
+                project_dir
+                / "contracts"
+                / "traffic"
+                / "scripts"
+                / "validate_traffic_gold_test_inventory.py"
+            ),
+            "--manifest",
+            str(manifest_path),
+            "--inventory",
+            str(project_dir / "contracts" / "traffic_gold_test_cadence.yml"),
+            *selector_count_args,
+        ],
+        check=True,
+        cwd=project_dir,
+    )
 
 
 def run_premerge_gate(
@@ -216,12 +272,18 @@ def run_premerge_gate(
         environment=environment,
         command_runner=command_runner,
     )
-    validate_named_selectors(
+    selector_counts = validate_named_selectors(
         project_dir=project_dir,
         target_path=target_path,
         dbt_bin=dbt_bin,
         snapshot_run_id=snapshot_run_id,
         environment=environment,
+        command_runner=command_runner,
+    )
+    validate_traffic_gold_test_inventory(
+        project_dir=project_dir,
+        manifest_path=manifest_path,
+        selector_counts=selector_counts,
         command_runner=command_runner,
     )
 

@@ -1,3 +1,4 @@
+{{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('gold_traffic_incident_collection_coverage_5m') }}
 
 with latest_manifest_state as (

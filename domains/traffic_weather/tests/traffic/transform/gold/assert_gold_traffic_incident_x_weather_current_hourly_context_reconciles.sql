@@ -1,3 +1,5 @@
+{{ config(tags=['traffic_gold_gate']) }}
+
 with weather_candidates as (
     select
         traffic.product_row_id,

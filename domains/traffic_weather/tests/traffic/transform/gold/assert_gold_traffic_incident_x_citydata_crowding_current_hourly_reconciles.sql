@@ -1,3 +1,5 @@
+{{ config(tags=['traffic_gold_gate']) }}
+
 with traffic as (
     select
         product_row_id,

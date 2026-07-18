@@ -1,3 +1,4 @@
+{{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('gold_traffic_incident_expected_clearance_profile_by_admin_dong_daily') }}
 
 {% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}

@@ -1,3 +1,5 @@
+{{ config(tags=['traffic_gold_gate']) }}
+
 with crowding_candidates as (
     select
         traffic.product_row_id,
