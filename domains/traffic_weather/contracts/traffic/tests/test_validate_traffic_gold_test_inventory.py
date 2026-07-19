@@ -78,7 +78,7 @@ def _portfolio_test_nodes() -> dict[str, dict[str, object]]:
     )
     add_group(
         "silver",
-        42,
+        43,
         "ask_seoul_traffic_transform_silver",
         "model.asac_seoul.silver_seoul_traffic_incident",
     )
@@ -201,9 +201,9 @@ def _inventory() -> dict[str, object]:
             "gold_gate": 123,
             "gold_hourly": 143,
             "gold_full": 173,
-            "traffic_gate": 236,
-            "traffic_hourly": 256,
-            "traffic_full": 296,
+            "traffic_gate": 237,
+            "traffic_hourly": 257,
+            "traffic_full": 297,
         },
         "tests": tests,
     }
@@ -357,7 +357,7 @@ def test_malformed_manifest_node_fails(
 
 def test_cadence_total_mismatch_fails(validator) -> None:
     inventory = _inventory()
-    inventory["total_expected"]["traffic_full"] = 295
+    inventory["total_expected"]["traffic_full"] = 296
 
     with pytest.raises(validator.InventoryError, match=r"total_expected\.traffic_full"):
         validator.validate_inventory(_manifest(), inventory)
@@ -437,7 +437,7 @@ def test_candidate_contains_manifest_identity_and_contract_fields(validator) -> 
     assert candidate["portfolio_expected"] == {
         "availability": 1,
         "bronze_source": 70,
-        "silver": 42,
+        "silver": 43,
         "gold_gate": 123,
         "gold_hourly_extension": 20,
         "gold_daily_extension": 30,

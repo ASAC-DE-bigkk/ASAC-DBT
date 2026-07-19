@@ -12,13 +12,13 @@ total_expected:
   gold_gate: 123
   gold_hourly: 143
   gold_full: 173
-  traffic_gate: 236
-  traffic_hourly: 256
-  traffic_full: 296
+  traffic_gate: 237
+  traffic_hourly: 257
+  traffic_full: 297
 portfolio_expected:
   availability: 1
   bronze_source: 70
-  silver: 42
+  silver: 43
   gold_gate: 123
   gold_hourly_extension: 20
   gold_daily_extension: 30
@@ -28,9 +28,9 @@ selector_expected:
   ask_seoul_traffic_transform_gold_hourly_tests: 143
   ask_seoul_traffic_transform_gold_full_tests: 173
 cadence_expected:
-  traffic_gate: 236
-  traffic_hourly: 256
-  traffic_full: 296
+  traffic_gate: 237
+  traffic_hourly: 257
+  traffic_full: 297
 tests:
 - unique_id: test.asac_axes.axis_coverage_seoul_admin_dong_boundary_admin_dong_code__0_98.5cc8b51e18
   path: seeds/_asac_axes__seeds.yml

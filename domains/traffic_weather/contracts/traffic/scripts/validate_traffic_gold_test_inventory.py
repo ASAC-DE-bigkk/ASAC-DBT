@@ -40,7 +40,7 @@ PORTFOLIO_GROUP_TAGS = {
 EXPECTED_PORTFOLIO_COUNTS = {
     "availability": 1,
     "bronze_source": 70,
-    "silver": 42,
+    "silver": 43,
     "gold_gate": 123,
     "gold_hourly_extension": 20,
     "gold_daily_extension": 30,
@@ -52,9 +52,9 @@ EXPECTED_SELECTOR_COUNTS = {
     "ask_seoul_traffic_transform_gold_full_tests": 173,
 }
 EXPECTED_CADENCE_COUNTS = {
-    "traffic_gate": 236,
-    "traffic_hourly": 256,
-    "traffic_full": 296,
+    "traffic_gate": 237,
+    "traffic_hourly": 257,
+    "traffic_full": 297,
 }
 EXPECTED_TIER_COUNTS = {
     "gate": 123,
@@ -621,7 +621,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ) as error:
         print(f"ERROR: {error}")
         return 1
-    print("PASS: traffic Gold test cadence inventory is valid (236/256/296)")
+    print("PASS: traffic Gold test cadence inventory is valid (237/257/297)")
     return 0
 
 
