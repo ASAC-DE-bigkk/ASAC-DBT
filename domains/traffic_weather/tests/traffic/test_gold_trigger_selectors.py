@@ -31,6 +31,18 @@ EXPECTED_FLOW_MODELS = {
     "gold_traffic_flow_congestion_hotspots_hourly",
     "gold_traffic_flow_link_time_profile",
 }
+EXPECTED_FLOW_SILVER_TESTS = {
+    "accepted_values_silver_seoul_traffic_flow_flow_value_quality__available__missing_value",
+    "accepted_values_silver_seoul_traffic_flow_source_id__seoul_traffic_flow",
+    "assert_silver_seoul_traffic_flow_pinned_rows",
+    "not_null_silver_seoul_traffic_flow_dag_run_id",
+    "not_null_silver_seoul_traffic_flow_flow_value_quality",
+    "not_null_silver_seoul_traffic_flow_link_id",
+    "not_null_silver_seoul_traffic_flow_observed_at",
+    "not_null_silver_seoul_traffic_flow_payload_hash",
+    "not_null_silver_seoul_traffic_flow_raw_object_key",
+    "not_null_silver_seoul_traffic_flow_source_id",
+}
 EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_active_latest",
     "gold_traffic_incident_clearance_horizon_latest",
@@ -280,8 +292,7 @@ def test_flow_silver_selectors_are_narrow_and_resolve_the_pinned_row_gate(
         "intersection": [
             {
                 "method": "fqn",
-                "value": "silver_seoul_traffic_flow",
-                "children": 1,
+                "value": "*silver_seoul_traffic_flow*",
                 "indirect_selection": "empty",
             },
             {"method": "resource_type", "value": "test"},
@@ -294,4 +305,4 @@ def test_flow_silver_selectors_are_narrow_and_resolve_the_pinned_row_gate(
     flow_silver_tests = _resolved_names(
         resolved_selector_project, FLOW_SILVER_TESTS, "test"
     )
-    assert "assert_silver_seoul_traffic_flow_pinned_rows" in flow_silver_tests
+    assert flow_silver_tests == EXPECTED_FLOW_SILVER_TESTS

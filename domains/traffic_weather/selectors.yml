@@ -27,7 +27,7 @@ selectors:
     description: Flow Silver model의 직접 계약 test만 선택한다.
     definition:
       intersection:
-        - {method: fqn, value: silver_seoul_traffic_flow, children: 1, indirect_selection: empty}
+        - {method: fqn, value: "*silver_seoul_traffic_flow*", indirect_selection: empty}
         - {method: resource_type, value: test}
   - name: ask_seoul_traffic_transform_gold
     description: Traffic scheduled Gold model과 test phase를 선택한다.

@@ -6,6 +6,7 @@
 
 {% set flow_snapshot_dag_run_id = var('traffic_flow_snapshot_dag_run_id', '') or '' %}
 
+{% if flow_snapshot_dag_run_id %}
 with flow_ranked as (
     select
         flow.*,
@@ -22,6 +23,20 @@ current_flow as (
     from flow_ranked
     where row_num = 1
 ),
+{% else %}
+with current_flow as (
+    select
+        cast(null as varchar) as link_id,
+        cast(null as double) as flow_speed,
+        cast(null as double) as flow_travel_time,
+        cast(null as varchar) as flow_value_quality,
+        cast(null as timestamp(6)) as observed_at,
+        cast(null as varchar) as raw_object_key,
+        cast(null as varchar) as payload_hash,
+        cast(null as varchar) as dag_run_id
+    where false
+),
+{% endif %}
 
 incidents as (
     select
