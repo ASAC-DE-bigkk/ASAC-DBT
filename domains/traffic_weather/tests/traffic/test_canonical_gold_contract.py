@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from jinja2 import Environment
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MODEL_PATH = (
@@ -26,6 +28,33 @@ FLOW_INCIDENT_CARDINALITY_TEST_PATH = (
     / "gold"
     / "assert_gold_traffic_incident_x_flow_preserves_incidents.sql"
 )
+FLOW_INCIDENT_MODEL_PATH = (
+    PROJECT_ROOT
+    / "models"
+    / "traffic"
+    / "transform"
+    / "gold"
+    / "gold_traffic_incident_x_flow.sql"
+)
+
+
+def _render_flow_incident_model(flow_run_id: str) -> tuple[str, list[str]]:
+    references: list[str] = []
+
+    def ref(model_name: str) -> str:
+        references.append(model_name)
+        return f"relation__{model_name}"
+
+    rendered = Environment(autoescape=False).from_string(
+        FLOW_INCIDENT_MODEL_PATH.read_text(encoding="utf-8")
+    ).render(
+        config=lambda **_: "",
+        ref=ref,
+        var=lambda name, default=None: (
+            flow_run_id if name == "traffic_flow_snapshot_dag_run_id" else default
+        ),
+    )
+    return rendered, references
 
 
 def _assert_fragments_are_ordered(text: str, fragments: tuple[str, ...]) -> None:
@@ -174,3 +203,21 @@ def test_flow_gold_incident_cardinality_preserves_incidents():
     assert "ref('silver_seoul_traffic_incident_current')" in sql
     assert "gold_row_count <> incident_row_count" in sql
     assert "gold_incident_count <> incident_incident_count" in sql
+
+
+def test_flow_incident_model_avoids_flow_relation_when_snapshot_is_unpinned():
+    rendered, references = _render_flow_incident_model("")
+
+    assert "silver_seoul_traffic_flow" not in references
+    assert "relation__silver_seoul_traffic_flow" not in rendered
+    assert "cast(null as varchar) as link_id" in rendered.lower()
+    assert "where false" in rendered.lower()
+    assert "'missing_flow'" in rendered
+
+
+def test_flow_incident_model_reads_the_exact_pinned_flow_relation():
+    rendered, references = _render_flow_incident_model("flow-run-42")
+
+    assert "silver_seoul_traffic_flow" in references
+    assert "relation__silver_seoul_traffic_flow" in rendered
+    assert "flow-run-42" in rendered

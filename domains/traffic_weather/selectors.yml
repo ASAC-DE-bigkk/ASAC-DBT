@@ -17,6 +17,18 @@ selectors:
   - name: ask_seoul_traffic_transform_silver
     description: Traffic scheduled Silver model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_traffic_transform_silver, indirect_selection: cautious}
+  - name: ask_seoul_traffic_transform_flow_silver_model
+    description: Pinned Flow Bronze run을 materialize하는 Flow Silver model 하나만 선택한다.
+    definition:
+      intersection:
+        - {method: fqn, value: silver_seoul_traffic_flow, indirect_selection: empty}
+        - {method: resource_type, value: model}
+  - name: ask_seoul_traffic_transform_flow_silver_tests
+    description: Flow Silver model의 직접 계약 test만 선택한다.
+    definition:
+      intersection:
+        - {method: fqn, value: "*silver_seoul_traffic_flow*", indirect_selection: empty}
+        - {method: resource_type, value: test}
   - name: ask_seoul_traffic_transform_gold
     description: Traffic scheduled Gold model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_traffic_transform_gold, indirect_selection: cautious}

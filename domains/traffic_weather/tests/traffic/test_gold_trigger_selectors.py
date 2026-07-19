@@ -13,6 +13,8 @@ REPOSITORY_ROOT = PROJECT_ROOT.parents[1]
 SELECTORS = PROJECT_ROOT / "selectors.yml"
 
 FLOW_SCOPE = "ask_seoul_traffic_transform_flow_gold_scope"
+FLOW_SILVER_MODEL = "ask_seoul_traffic_transform_flow_silver_model"
+FLOW_SILVER_TESTS = "ask_seoul_traffic_transform_flow_silver_tests"
 INCIDENT_MODELS = "ask_seoul_traffic_transform_gold_incident_models"
 INCIDENT_GATE_TESTS = "ask_seoul_traffic_transform_gold_incident_gate_tests"
 INCIDENT_HOURLY_TESTS = "ask_seoul_traffic_transform_gold_incident_hourly_tests"
@@ -28,6 +30,18 @@ EXPECTED_FLOW_MODELS = {
     "gold_traffic_flow_change_latest",
     "gold_traffic_flow_congestion_hotspots_hourly",
     "gold_traffic_flow_link_time_profile",
+}
+EXPECTED_FLOW_SILVER_TESTS = {
+    "accepted_values_silver_seoul_traffic_flow_flow_value_quality__available__missing_value",
+    "accepted_values_silver_seoul_traffic_flow_source_id__seoul_traffic_flow",
+    "assert_silver_seoul_traffic_flow_pinned_rows",
+    "not_null_silver_seoul_traffic_flow_dag_run_id",
+    "not_null_silver_seoul_traffic_flow_flow_value_quality",
+    "not_null_silver_seoul_traffic_flow_link_id",
+    "not_null_silver_seoul_traffic_flow_observed_at",
+    "not_null_silver_seoul_traffic_flow_payload_hash",
+    "not_null_silver_seoul_traffic_flow_raw_object_key",
+    "not_null_silver_seoul_traffic_flow_source_id",
 }
 EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_active_latest",
@@ -257,3 +271,38 @@ def test_incident_gold_selectors_resolve_exact_model_and_test_sets(
         assert incident_tests == full_tests - flow_tests
         assert incident_tests.isdisjoint(flow_tests)
         assert len(incident_tests) == EXPECTED_INCIDENT_TEST_COUNTS[incident_selector]
+
+
+def test_flow_silver_selectors_are_narrow_and_resolve_the_pinned_row_gate(
+    resolved_selector_project: tuple[Path, dict[str, str]],
+):
+    selectors = _selectors()
+
+    assert selectors[FLOW_SILVER_MODEL] == {
+        "intersection": [
+            {
+                "method": "fqn",
+                "value": "silver_seoul_traffic_flow",
+                "indirect_selection": "empty",
+            },
+            {"method": "resource_type", "value": "model"},
+        ]
+    }
+    assert selectors[FLOW_SILVER_TESTS] == {
+        "intersection": [
+            {
+                "method": "fqn",
+                "value": "*silver_seoul_traffic_flow*",
+                "indirect_selection": "empty",
+            },
+            {"method": "resource_type", "value": "test"},
+        ]
+    }
+
+    assert _resolved_names(
+        resolved_selector_project, FLOW_SILVER_MODEL, "model"
+    ) == {"silver_seoul_traffic_flow"}
+    flow_silver_tests = _resolved_names(
+        resolved_selector_project, FLOW_SILVER_TESTS, "test"
+    )
+    assert flow_silver_tests == EXPECTED_FLOW_SILVER_TESTS
