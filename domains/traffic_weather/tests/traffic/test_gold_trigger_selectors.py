@@ -13,6 +13,7 @@ REPOSITORY_ROOT = PROJECT_ROOT.parents[1]
 SELECTORS = PROJECT_ROOT / "selectors.yml"
 
 FLOW_SCOPE = "ask_seoul_traffic_transform_flow_gold_scope"
+COMMERCE_SCOPE = "ask_seoul_traffic_transform_commerce_gold_scope"
 SILVER_EXECUTION_TAG = "ask_seoul_traffic_transform_silver"
 INCIDENT_SILVER = "ask_seoul_traffic_transform_incident_silver"
 FLOW_SILVER_MODEL = "ask_seoul_traffic_transform_flow_silver_model"
@@ -26,6 +27,28 @@ FULL_GOLD_MODELS = "ask_seoul_traffic_transform_gold_models"
 FULL_GATE_TESTS = "ask_seoul_traffic_transform_gold_gate_tests"
 FULL_HOURLY_TESTS = "ask_seoul_traffic_transform_gold_hourly_tests"
 FULL_FULL_TESTS = "ask_seoul_traffic_transform_gold_full_tests"
+FULL_MODELS_NO_COMMERCE = "ask_seoul_traffic_transform_gold_models_without_commerce"
+FULL_GATE_TESTS_NO_COMMERCE = (
+    "ask_seoul_traffic_transform_gold_gate_tests_without_commerce"
+)
+FULL_HOURLY_TESTS_NO_COMMERCE = (
+    "ask_seoul_traffic_transform_gold_hourly_tests_without_commerce"
+)
+FULL_FULL_TESTS_NO_COMMERCE = (
+    "ask_seoul_traffic_transform_gold_full_tests_without_commerce"
+)
+INCIDENT_MODELS_NO_COMMERCE = (
+    "ask_seoul_traffic_transform_gold_incident_models_without_commerce"
+)
+INCIDENT_GATE_TESTS_NO_COMMERCE = (
+    "ask_seoul_traffic_transform_gold_incident_gate_tests_without_commerce"
+)
+INCIDENT_HOURLY_TESTS_NO_COMMERCE = (
+    "ask_seoul_traffic_transform_gold_incident_hourly_tests_without_commerce"
+)
+INCIDENT_FULL_TESTS_NO_COMMERCE = (
+    "ask_seoul_traffic_transform_gold_incident_full_tests_without_commerce"
+)
 
 EXPECTED_FLOW_MODELS = {
     "gold_traffic_flow_link_latest",
@@ -355,3 +378,65 @@ def test_incident_silver_resolves_only_incident_owned_models_and_tests(
     assert incident_tests.isdisjoint(flow_tests)
     assert "assert_silver_seoul_traffic_flow_pinned_rows" not in incident_tests
     assert "assert_traffic_current_pinned_publishable_run" in incident_tests
+
+
+def test_scheduled_gold_without_commerce_reuses_existing_contracts():
+    selectors = _selectors()
+
+    assert selectors[COMMERCE_SCOPE] == {
+        "union": [
+            {
+                "method": "fqn",
+                "value": "gold_traffic_incident_x_commerce_business_exposure_current",
+                "children": True,
+            }
+        ]
+    }
+    for selector, parent in {
+        FULL_MODELS_NO_COMMERCE: FULL_GOLD_MODELS,
+        FULL_GATE_TESTS_NO_COMMERCE: FULL_GATE_TESTS,
+        FULL_HOURLY_TESTS_NO_COMMERCE: FULL_HOURLY_TESTS,
+        FULL_FULL_TESTS_NO_COMMERCE: FULL_FULL_TESTS,
+        INCIDENT_MODELS_NO_COMMERCE: INCIDENT_MODELS,
+        INCIDENT_GATE_TESTS_NO_COMMERCE: INCIDENT_GATE_TESTS,
+        INCIDENT_HOURLY_TESTS_NO_COMMERCE: INCIDENT_HOURLY_TESTS,
+        INCIDENT_FULL_TESTS_NO_COMMERCE: INCIDENT_FULL_TESTS,
+    }.items():
+        assert selectors[selector] == {
+            "intersection": [
+                {"method": "selector", "value": parent},
+                {"exclude": [{"method": "selector", "value": COMMERCE_SCOPE}]},
+            ]
+        }
+
+
+def test_scheduled_gold_without_commerce_resolves_exact_differences(
+    resolved_selector_project: tuple[Path, dict[str, str]],
+):
+    commerce_models = _resolved_names(
+        resolved_selector_project, COMMERCE_SCOPE, "model"
+    )
+    commerce_tests = _resolved_names(resolved_selector_project, COMMERCE_SCOPE, "test")
+    full_models = _resolved_names(resolved_selector_project, FULL_GOLD_MODELS, "model")
+    incident_models = _resolved_names(
+        resolved_selector_project, INCIDENT_MODELS, "model"
+    )
+
+    assert commerce_models == {
+        "gold_traffic_incident_x_commerce_business_exposure_current"
+    }
+    assert len(commerce_tests) == 2
+    assert _resolved_names(
+        resolved_selector_project, FULL_MODELS_NO_COMMERCE, "model"
+    ) == full_models - commerce_models
+    assert _resolved_names(
+        resolved_selector_project, INCIDENT_MODELS_NO_COMMERCE, "model"
+    ) == incident_models - commerce_models
+
+    for selector, parent in {
+        FULL_FULL_TESTS_NO_COMMERCE: FULL_FULL_TESTS,
+        INCIDENT_FULL_TESTS_NO_COMMERCE: INCIDENT_FULL_TESTS,
+    }.items():
+        assert _resolved_names(
+            resolved_selector_project, selector, "test"
+        ) == _resolved_names(resolved_selector_project, parent, "test") - commerce_tests
