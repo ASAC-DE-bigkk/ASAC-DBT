@@ -260,6 +260,20 @@ selectors:
   - name: ask_seoul_weather_transform_gold
     description: Weather scheduled Gold summary model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_gold, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_commerce_gold_scope
+    description: Commerce source에 결합된 Weather Gold leaf model과 직결 test 범위다.
+    definition:
+      union:
+        - method: fqn
+          value: gold_weather_x_commerce_business_exposure_daily
+          children: true
+  - name: ask_seoul_weather_transform_gold_without_commerce
+    description: 정규 Weather Gold에서 현재 unavailable인 Commerce 결합 leaf만 제외한다.
+    definition:
+      intersection:
+        - {method: selector, value: ask_seoul_weather_transform_gold}
+        - exclude:
+            - {method: selector, value: ask_seoul_weather_transform_commerce_gold_scope}
   - name: ask_seoul_weather_transform_place_mart
     description: Weather place mart model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_place_mart, indirect_selection: cautious}
