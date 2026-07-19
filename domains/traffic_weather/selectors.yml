@@ -29,6 +29,13 @@ selectors:
       intersection:
         - {method: fqn, value: "*silver_seoul_traffic_flow*", indirect_selection: empty}
         - {method: resource_type, value: test}
+  - name: ask_seoul_traffic_transform_incident_silver
+    description: Traffic Silver 실행 계약에서 Flow 전용 model과 test를 제외한다.
+    definition:
+      intersection:
+        - {method: selector, value: ask_seoul_traffic_transform_silver}
+        - exclude:
+            - {method: fqn, value: "*silver_seoul_traffic_flow*", indirect_selection: empty}
   - name: ask_seoul_traffic_transform_gold
     description: Traffic scheduled Gold model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_traffic_transform_gold, indirect_selection: cautious}

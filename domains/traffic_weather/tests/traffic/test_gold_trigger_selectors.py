@@ -13,6 +13,8 @@ REPOSITORY_ROOT = PROJECT_ROOT.parents[1]
 SELECTORS = PROJECT_ROOT / "selectors.yml"
 
 FLOW_SCOPE = "ask_seoul_traffic_transform_flow_gold_scope"
+SILVER_EXECUTION_TAG = "ask_seoul_traffic_transform_silver"
+INCIDENT_SILVER = "ask_seoul_traffic_transform_incident_silver"
 FLOW_SILVER_MODEL = "ask_seoul_traffic_transform_flow_silver_model"
 FLOW_SILVER_TESTS = "ask_seoul_traffic_transform_flow_silver_tests"
 INCIDENT_MODELS = "ask_seoul_traffic_transform_gold_incident_models"
@@ -42,6 +44,10 @@ EXPECTED_FLOW_SILVER_TESTS = {
     "not_null_silver_seoul_traffic_flow_payload_hash",
     "not_null_silver_seoul_traffic_flow_raw_object_key",
     "not_null_silver_seoul_traffic_flow_source_id",
+}
+EXPECTED_INCIDENT_SILVER_MODELS = {
+    "silver_seoul_traffic_incident",
+    "silver_seoul_traffic_incident_current",
 }
 EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_active_latest",
@@ -306,3 +312,46 @@ def test_flow_silver_selectors_are_narrow_and_resolve_the_pinned_row_gate(
         resolved_selector_project, FLOW_SILVER_TESTS, "test"
     )
     assert flow_silver_tests == EXPECTED_FLOW_SILVER_TESTS
+
+
+def test_incident_silver_selector_excludes_flow_scope():
+    selectors = _selectors()
+
+    assert selectors[SILVER_EXECUTION_TAG] == {
+        "method": "tag",
+        "value": SILVER_EXECUTION_TAG,
+        "indirect_selection": "cautious",
+    }
+    assert selectors[INCIDENT_SILVER] == {
+        "intersection": [
+            {"method": "selector", "value": SILVER_EXECUTION_TAG},
+            {
+                "exclude": [
+                    {
+                        "method": "fqn",
+                        "value": "*silver_seoul_traffic_flow*",
+                        "indirect_selection": "empty",
+                    }
+                ]
+            },
+        ]
+    }
+
+
+def test_incident_silver_resolves_only_incident_owned_models_and_tests(
+    resolved_selector_project: tuple[Path, dict[str, str]],
+):
+    incident_models = _resolved_names(
+        resolved_selector_project, INCIDENT_SILVER, "model"
+    )
+    incident_tests = _resolved_names(
+        resolved_selector_project, INCIDENT_SILVER, "test"
+    )
+    flow_tests = _resolved_names(
+        resolved_selector_project, FLOW_SILVER_TESTS, "test"
+    )
+
+    assert incident_models == EXPECTED_INCIDENT_SILVER_MODELS
+    assert incident_tests.isdisjoint(flow_tests)
+    assert "assert_silver_seoul_traffic_flow_pinned_rows" not in incident_tests
+    assert "assert_traffic_current_pinned_publishable_run" in incident_tests
