@@ -5,10 +5,14 @@
 -- D1 서빙은 롤업 전량 교체 스냅샷(서빙 정본 §1.4). 지연 도착(과거 달 소급 신고)은 --full-refresh 로 흡수
 -- (완결월 append-only 의 트레이드오프 — 정기 full-refresh 스윕: commerce_load_gold_refresh).
 
+-- 정렬 스펙(#264): ym(원천 사건월, ISO 문자열 = 사전순 정렬) — /monthly/detail 폴백 범위질의의 파일 프루닝.
 {{ config(
     materialized='incremental',
     incremental_strategy='append',
-    on_schema_change='fail'
+    on_schema_change='fail',
+    properties={
+        "sorted_by": "ARRAY['ym']",
+    },
 ) }}
 
 with e as (

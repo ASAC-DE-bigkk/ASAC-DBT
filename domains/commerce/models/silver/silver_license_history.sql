@@ -1,6 +1,15 @@
 -- 인허가 변경 이력(정제된 변경로그). bronze 변경로그 → publishable run 필터 → 파싱/파생 →
 -- 연속 중복 제거(diff 재유입·reconcile 재방출 제거, 정당한 원복 A→B→A 보존).
-{{ config(pre_hook="{{ delete_unmarked_silver_history_runs() }}") }}
+-- 정렬 스펙(#264): 업소 키 클러스터 + 원천 갱신시각(updatedt_ts — 실측 null 0, 암묵 버저닝 1순위 축).
+-- 파일 통계(min/max)를 dataset/키 축으로 조여 prior_tail 키 조회·dataset 단위 운영의 스캔을 줄인다.
+-- 수집 아티팩트 축(collected_at/observed_date) 금지 — 첫 전량 수집이 한 단위에 뭉침(docs/partition-sort-spec.md).
+-- incremental 특성상 기존 파일은 다음 --full-refresh 때 재정렬(신규 append 는 즉시 정렬 쓰기).
+{{ config(
+    pre_hook="{{ delete_unmarked_silver_history_runs() }}",
+    properties={
+        "sorted_by": "ARRAY['dataset','opnsfteamcode','mgtno','updatedt_ts']",
+    },
+) }}
 {%- set h_cols = silver_history_column_list() %}
 
 -- materialized=incremental(append): 첫 실행/--full-refresh 는 전체 publishable run 을 백필하고,

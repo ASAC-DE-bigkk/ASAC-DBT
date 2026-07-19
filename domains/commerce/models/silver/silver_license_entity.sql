@@ -10,7 +10,14 @@
 -- 프로젝션: 서빙에 불필요한 대형/내부 컬럼 제외 — record_json(통짜 JSON)·주소 정규화 키·
 --   버전 정렬키(_sort)·수집 계보(raw_object_key 등)는 silver 가 정본.
 
-{{ config(materialized='table') }}
+-- 정렬 스펙(#264): dataset 필터(실측 ASAC-DBT#262 M3 — dataset='general_restaurant' 단독 필터가
+-- 대표 질의) + 행정동 집계(gold_license_dong_summary 등) 지역성. table 재생성 시 자동 적용.
+{{ config(
+    materialized='table',
+    properties={
+        "sorted_by": "ARRAY['dataset','admin_dong_code']",
+    },
+) }}
 
 select
     dataset,
