@@ -97,6 +97,46 @@ selectors:
               indirect_selection: empty
             - method: resource_type
               value: test
+  - name: ask_seoul_traffic_transform_flow_gold_scope
+    description: Traffic Flow Gold models and their child tests that require compatible Flow Silver inputs.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_flow_link_latest, children: true}
+        - {method: fqn, value: gold_traffic_flow_change_latest, children: true}
+        - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, children: true}
+        - {method: fqn, value: gold_traffic_flow_link_time_profile, children: true}
+
+  - name: ask_seoul_traffic_transform_gold_incident_models
+    description: Traffic Gold model nodes excluding Flow Gold scope for incident-only trigger runs.
+    definition:
+      intersection:
+        - {method: selector, value: ask_seoul_traffic_transform_gold_models}
+        - exclude:
+            - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
+
+  - name: ask_seoul_traffic_transform_gold_incident_gate_tests
+    description: Traffic Gold gate tests excluding Flow Gold scope for incident-only trigger runs.
+    definition:
+      intersection:
+        - {method: selector, value: ask_seoul_traffic_transform_gold_gate_tests}
+        - exclude:
+            - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
+
+  - name: ask_seoul_traffic_transform_gold_incident_hourly_tests
+    description: Traffic Gold hourly tests excluding Flow Gold scope for incident-only trigger runs.
+    definition:
+      intersection:
+        - {method: selector, value: ask_seoul_traffic_transform_gold_hourly_tests}
+        - exclude:
+            - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
+
+  - name: ask_seoul_traffic_transform_gold_incident_full_tests
+    description: Traffic Gold full tests excluding Flow Gold scope for incident-only trigger runs.
+    definition:
+      intersection:
+        - {method: selector, value: ask_seoul_traffic_transform_gold_full_tests}
+        - exclude:
+            - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
   - name: ask_seoul_traffic_recovery_silver
     description: 고정 snapshot용 Traffic recovery Silver phase를 선택한다.
     definition: {method: tag, value: ask_seoul_traffic_recovery_silver, indirect_selection: cautious}
