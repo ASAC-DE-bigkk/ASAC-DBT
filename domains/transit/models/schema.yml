@@ -395,3 +395,50 @@ models:
           - not_null
       - name: bus_base_n
         description: 버스(tier1) 기여 버킷 수 — 표본 배지 근거.
+
+  - name: gold_transit_parking_profile
+    description: >
+      주차장별 요일×시간 점유 프로파일(#288 G2 프로파일 축). grain (parking_id, dow, hh).
+      아카이브(parking_lot_15min) 전량 재집계. full_prob = 버킷 중 occ_max>=0.95 비율.
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+      - name: dow
+        tests:
+          - not_null
+      - name: hh
+        tests:
+          - not_null
+      - name: full_prob
+        description: 만차 확률(0~1). base_n 얇으면(운영 초기) 소비 측 배지 처리.
+
+  - name: gold_transit_parking_full_risk
+    description: >
+      주차장별 현재 만차 리스크 스냅샷(#288 G2). grain parking_id — 현재 점유·잔여 추정
+      + 최근 1시간(4버킷) occ_last 추세의 만차까지 예상 분 + 이 시간대 평시 만차 확률
+      (프로파일 조인). 매 변환 재생성 table, 기준은 아카이브 프런티어.
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+          - unique
+      - name: minutes_to_full_est
+        description: 만차(0.95)까지 예상 분. 채워지는 중(rate>0)일 때만, 이미 만차면 0, 그 외 null.
+      - name: occ_rate_per_min
+        description: 분당 점유율 변화(최근 4버킷 처음↔끝). 4버킷 미만 관측이면 null.
+
+  - name: gold_transit_bus_route_comfort
+    description: >
+      노선×구간별 요일×시간 쾌적도(#288 G3). grain (bus_route_id, sect_ord, dow, hh).
+      tier1(간선·광역) 한정 — tier2 는 하루 3회 관측이라 시간대 프로파일 불성립(#440).
+      아카이브(route_section_30min) 전량 재집계, 관측수 가중.
+    columns:
+      - name: bus_route_id
+        tests:
+          - not_null
+      - name: sect_ord
+        tests:
+          - not_null
+      - name: base_n
+        description: 기여 30분 버킷 수(같은 칸 주 1회×2버킷 → 4주 ~8).
