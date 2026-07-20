@@ -59,7 +59,7 @@ bus_agg as (
         count(*) as bus_obs_cnt,
         count(distinct veh_id) as bus_veh_cnt,
         -- congestion=0 은 '정보없음'이라 평균에서 제외(실측 값역 0/3/4/5, 0 이 625/36037건).
-        avg(case when congestion is not null and congestion <> 0 then cast(congestion as double) end) as bus_congestion_avg,
+        {{ transit_bus_congestion_avg() }} as bus_congestion_avg,
         avg(cast(is_full as double)) as bus_full_ratio,
         avg(cast(stop_flag as double)) as bus_stop_ratio
     from bus_src
@@ -95,12 +95,7 @@ parking_src as (
         -- 점유율은 현재대수/총면수. 둘 다 유효 & 총면수>0 인 관측만(그 외 null → 평균 무시).
         -- (과거 소수문자열 캐스트 결손으로 전건 null 이던 시기가 있었음 — #72 매크로
         --  transit_int_from_numeric_str 로 해소, 2026-07-20 실측 전건 non-null 확인 #286.)
-        case
-            when now_prk_vhcl_cnt is not null
-             and total_capacity is not null
-             and total_capacity > 0
-            then cast(now_prk_vhcl_cnt as double) / total_capacity
-        end as occ_ratio
+        {{ transit_parking_occ_ratio() }} as occ_ratio
     from {{ ref('silver_transit_parking') }}
     where admin_dong_code is not null
       {{ incr_filter }}

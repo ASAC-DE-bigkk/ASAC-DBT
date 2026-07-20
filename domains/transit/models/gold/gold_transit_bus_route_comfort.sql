@@ -24,18 +24,9 @@ select
     hour(bucket_at) as hh,
     count(*) as base_n,
     sum(obs_cnt) as obs_sum,
-    case when sum(case when congestion_avg is not null then obs_cnt end) > 0
-         then sum(congestion_avg * obs_cnt)
-              / sum(case when congestion_avg is not null then obs_cnt end)
-    end as congestion_avg,
-    case when sum(case when full_ratio is not null then obs_cnt end) > 0
-         then sum(full_ratio * obs_cnt)
-              / sum(case when full_ratio is not null then obs_cnt end)
-    end as full_ratio,
-    case when sum(case when stop_ratio is not null then obs_cnt end) > 0
-         then sum(stop_ratio * obs_cnt)
-              / sum(case when stop_ratio is not null then obs_cnt end)
-    end as stop_ratio
+    {{ transit_weighted_avg('congestion_avg', 'obs_cnt') }} as congestion_avg,
+    {{ transit_weighted_avg('full_ratio', 'obs_cnt') }} as full_ratio,
+    {{ transit_weighted_avg('stop_ratio', 'obs_cnt') }} as stop_ratio
 from {{ ref('gold_transit_route_section_30min') }}
 where tier = 1
 group by bus_route_id, sect_ord, day_of_week(bucket_at), hour(bucket_at)

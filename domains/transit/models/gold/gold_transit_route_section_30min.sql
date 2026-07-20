@@ -76,7 +76,7 @@ select
     count(*) as obs_cnt,
     count(distinct veh_id) as veh_cnt,
     -- congestion=0 은 '정보없음'이라 평균 제외(#67 과 동일).
-    avg(case when congestion is not null and congestion <> 0 then cast(congestion as double) end) as congestion_avg,
+    {{ transit_bus_congestion_avg() }} as congestion_avg,
     avg(cast(is_full as double)) as full_ratio,
     avg(cast(stop_flag as double)) as stop_ratio,
     max(event_at) as last_event_at

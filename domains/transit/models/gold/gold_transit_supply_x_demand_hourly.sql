@@ -4,11 +4,19 @@
 --   grain: (area_cd=핫스팟 121곳, hour_at). 사용자 화면: "성수카페거리: 인구 '붐빔'
 --   + 주차 여유 5% → 지금 차 가져가면 안 됨".
 --
--- ── citydata 기존 gold 와의 관계(#291 오픈 퀘스천) ──────────────────────
---   citydata 의 gold_citydata_ppltn_x_transit_hourly 는 동(dong) 축으로 인구×교통을
---   붙인다. 본 모델은 transit 기준 설계로 (1) 핫스팟(area_cd) 축 유지 — 사용자 카드가
---   '장소' 단위, (2) 승하차(수요)와 주차 여유(공급)의 대조 + 압박 플래그가 목적.
---   중복 정리 논의는 이슈 #291 에서 — 결과에 따라 통합·역할 분담 조정 가능.
+-- ── citydata 기존 gold 와의 역할 분담 (#291 결론) ──────────────────────
+--   citydata 의 gold_citydata_ppltn_x_transit_hourly 는 **동 축**으로 인구와 교통
+--   상태(버스 혼잡·지하철·주차)를 나란히 놓는다. 그 컬럼들을 여기서 area_cd 축으로
+--   다시 내면 실질 중복이다 — 핫스팟의 공급 지표는 결국 '그 핫스팟이 속한 동'의 값이라
+--   같은 동의 핫스팟마다 같은 숫자가 반복될 뿐, 핫스팟 단위로 더 정확해지지 않는다.
+--
+--   그래서 이 모델은 **핫스팟에서만 얻을 수 있는 것**으로 범위를 좁혔다:
+--     - 수요: 실시간 인구·혼잡 라벨 + mode 별 5분 승하차 (둘 다 area_cd 원천 grain)
+--     - 공급: 압박 판정에 필요한 최소치인 주차 점유율/여유 하나만
+--     - 판정: is_parking_pressured
+--   동 축 공급 지표(관측 lot 수·만차 lot 수·버스 관측 차량·지하철 도착 수)는 여기서
+--   빼고 citydata gold 또는 gold_transit_dong_15min 을 admin_dong_code 로 조회한다
+--   (본 모델이 admin_dong_code 를 함께 내보내는 이유).
 --
 -- ── 수요 축 ────────────────────────────────────────────────────────────
 --   silver_citydata_ppltn: 시간 내 평균 인구((min+max)/2)·최신 혼잡 라벨.
@@ -16,10 +24,9 @@
 --   버스 티어링(#440) 후 버스 위치 관측이 30분 주기라, 버스 '수요'는 이 5분 승하차가
 --   핫스팟 한정으로 더 좋은 해상도를 준다(이슈 #291 계획).
 --
--- ── 공급 축 ────────────────────────────────────────────────────────────
---   핫스팟의 admin_dong_code 로 gold_transit_dong_15min 시간 롤업을 조인:
---   주차 여유(1-점유율)·관측 lot 수·버스 관측 차량 수(전 티어 — 공급 커버리지 성격)·
---   지하철 도착 관측. 핫스팟 동에 주차 실측이 없으면 null = "정보 없음".
+-- ── 공급 축(최소) ──────────────────────────────────────────────────────
+--   핫스팟의 admin_dong_code 로 gold_transit_dong_15min 을 조인해 주차 점유율만 가져온다.
+--   핫스팟 동에 주차 실측이 없으면 null = "정보 없음"(압박 판정도 false 로 접힌다).
 --
 -- ── 압박 플래그 ─────────────────────────────────────────────────────────
 --   is_parking_pressured = 혼잡 라벨('약간 붐빔'/'붐빔') AND 주차 점유 >= 0.8.
@@ -77,9 +84,7 @@
 (
     select coalesce(max(hour_at), {{ archive_start }}) - interval '3' hour
     from {{ this }}
-    where parking_lot_cnt is not null
-       or bus_veh_cnt is not null
-       or subway_arrival_cnt is not null
+    where parking_occupancy_avg is not null
 )
 {% else %}{{ archive_start }}{% endif %}
 {%- endset %}
@@ -117,11 +122,7 @@ supply as (
     select
         admin_dong_code,
         date_trunc('hour', bucket_at) as hour_at,
-        avg(parking_occupancy_avg) as parking_occupancy_avg,
-        max(parking_lot_cnt) as parking_lot_cnt,
-        max(parking_full_lot_cnt) as parking_full_lot_cnt,
-        max(bus_veh_cnt) as bus_veh_cnt,
-        sum(subway_arrival_cnt) as subway_arrival_cnt
+        avg(parking_occupancy_avg) as parking_occupancy_avg
     from {{ ref('gold_transit_dong_15min') }}
     where bucket_at >= {{ supply_threshold }}
     group by 1, 2
@@ -141,15 +142,12 @@ select
     b.subway_board_5min_avg,
     b.subway_alight_5min_avg,
     b.subway_station_cnt,
-    -- 공급(핫스팟 동 기준 — null = 해당 동 실측 없음)
+    -- 공급(핫스팟 동의 주차 점유 — null = 해당 동 실측 없음).
+    -- 그 외 동 축 공급 지표는 admin_dong_code 로 citydata gold / dong_15min 조회(#291).
     s.parking_occupancy_avg,
     case when s.parking_occupancy_avg is not null
          then round((1 - s.parking_occupancy_avg) * 100)
     end as parking_avail_pct,
-    s.parking_lot_cnt,
-    s.parking_full_lot_cnt,
-    s.bus_veh_cnt,
-    s.subway_arrival_cnt,
     -- 압박 플래그(구성 요소 기반 — 합성 지수 공식은 #291 논의)
     -- 주차 실측이 없는 동은 조건이 null → false 로 접는다(불리언 계약 유지).
     -- '압박 아님'과 '판단 불가'의 구분이 필요하면 parking_occupancy_avg 의 null 로 본다.
