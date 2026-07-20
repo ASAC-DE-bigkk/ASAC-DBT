@@ -98,6 +98,39 @@ models:
         description: 공연장 자치구 이름
         data_type: varchar
 
+  - name: gold_culture_calendar_density
+    description: 일×구 문화 밀도·경쟁 지수(#269). 시민 "볼 게 많은 날"=total_events, 주최자 "피해야 할 날"=concentration. int_culture_activity_days 재사용 — location_daily가 유형별 count면 여기는 다양성·집중도 요약. 그레인 gu_code×event_date.
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: gu_code
+        description: 자치구 코드(#48 공간축)
+        data_type: varchar
+        tests: [not_null]
+      - name: gu
+        description: 자치구 이름
+        data_type: varchar
+      - name: event_date
+        description: 활동 일자(KST) — 행사 기간을 일 단위로 전개한 그레인 축
+        data_type: date
+        tests: [not_null]
+      - name: total_events
+        description: 그날 그 구의 전체 문화활동 수(유형별 distinct 합) — 시민 "볼 게 많은 날" 지표
+        data_type: integer
+      - name: distinct_types
+        description: 그날 열린 활동 유형 수(공연·행사·축제·전시·세종·kcisa 중 몇 종) — 다양성
+        data_type: integer
+      - name: busiest_type
+        description: 그날 가장 많이 열린 활동 유형(동수 시 임의 1개)
+        data_type: varchar
+      - name: busiest_type_count
+        description: busiest_type 의 행사 수 — 주최자가 보는 "같은 유형 경쟁 규모"
+        data_type: integer
+      - name: concentration
+        description: 경쟁 집중도(busiest_type_count / total_events, 0~1) — 1=한 유형 독점, 낮을수록 다양
+        data_type: double
+
   - name: gold_culture_event_schedule
     description: 문화행사 목록 질의 표면 (행사 1행, #187). "이번 주말 ○○구 행사" = 기간 겹침 + gu_code 필터 단독 조회. 6개 silver union + norm_title×시작일×gu 크로스소스 dedup(전문 소스 우선).
     config:
