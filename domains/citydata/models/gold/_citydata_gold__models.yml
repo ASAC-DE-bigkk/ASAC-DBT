@@ -635,7 +635,9 @@ models:
 
   - name: gold_citydata_ppltn_x_commerce_dong
     config:
-      tags: ['fast']
+      # ⏸ 일시 스케줄 제외(#296): commerce silver_license_current 드랍(재구성 중)으로
+      # TABLE_NOT_FOUND — 복구 확인 후 tags: ['fast'] 원복. D1 서빙·카탈로그는 보존.
+      tags: []
       meta: {serving_tier: d1_direct}  # 스냅샷·동 단위 ~수백 행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
