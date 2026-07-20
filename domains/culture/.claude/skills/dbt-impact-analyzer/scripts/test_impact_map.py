@@ -102,3 +102,61 @@ def test_resolve_simple_name_and_unique_id():
     r = impact_map.resolve_targets(m, ["silver_a", "model.culture.gold_c"])
     assert r[0] == {"query": "silver_a", "found": True, "unique_id": "model.culture.silver_a"}
     assert r[1]["unique_id"] == "model.culture.gold_c"
+
+
+def _write_project(tmp_path, sql_name="silver/x.sql"):
+    d = tmp_path / "models" / Path(sql_name).parent
+    d.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "models" / sql_name).write_text("select 1", encoding="utf-8")
+    return tmp_path
+
+
+def test_stale_when_file_newer_than_manifest(tmp_path):
+    m = mini_manifest()
+    # 과거 고정값 — 실행 시각·시간대와 무관하게 파일 mtime(지금)이 항상 더 최신
+    m["metadata"]["generated_at"] = "2020-01-01T00:00:00.000000Z"
+    proj = _write_project(tmp_path)
+    r = impact_map.check_staleness(m, proj)
+    assert r["stale"] is True
+    assert r["stale_files"] == ["models/silver/x.sql"]
+    assert r["generated_at"] == "2020-01-01T00:00:00.000000Z"
+
+
+def test_fresh_when_manifest_newer(tmp_path):
+    m = mini_manifest()
+    m["metadata"]["generated_at"] = "2099-01-01T00:00:00.000000Z"
+    proj = _write_project(tmp_path)
+    r = impact_map.check_staleness(m, proj)
+    assert r["stale"] is False
+    assert r["stale_files"] == []
+
+
+def test_not_found_gives_candidates():
+    m = mini_manifest()
+    r = impact_map.resolve_targets(m, ["gold"])
+    assert r[0]["found"] is False
+    assert r[0]["candidates"] == ["gold_c", "gold_d"]
+
+
+def test_build_report_shape(tmp_path):
+    m = mini_manifest()
+    m["metadata"]["generated_at"] = "2099-01-01T00:00:00.000000Z"
+    proj = _write_project(tmp_path)
+    r = impact_map.build_report(m, ["silver_a", "nope"], proj, None)
+    assert r["manifest"]["stale"] is False
+    assert r["targets"][0]["summary"]["total_downstream"] == 3
+    assert r["targets"][1] == {"query": "nope", "found": False, "candidates": []}
+
+
+def test_cli_smoke(tmp_path, capsys):
+    import json as _json
+    m = mini_manifest()
+    m["metadata"]["generated_at"] = "2099-01-01T00:00:00.000000Z"
+    proj = _write_project(tmp_path)
+    (proj / "target").mkdir()
+    (proj / "target" / "manifest.json").write_text(
+        _json.dumps(m), encoding="utf-8")
+    rc = impact_map.main(["--model", "silver_a", "--project-dir", str(proj)])
+    assert rc == 0
+    out = _json.loads(capsys.readouterr().out)
+    assert out["targets"][0]["summary"]["total_downstream"] == 3

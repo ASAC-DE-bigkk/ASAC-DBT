@@ -84,3 +84,60 @@ def summarize(downstream):
         by_depth[str(d["depth"])] = by_depth.get(str(d["depth"]), 0) + 1
     return {"total_downstream": len(downstream),
             "by_layer": by_layer, "by_depth": by_depth}
+
+
+def check_staleness(manifest, project_dir):
+    """manifest generated_at vs 워킹트리 models/seeds 파일 mtime 비교."""
+    raw = manifest["metadata"]["generated_at"]
+    gen = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    stale_files = []
+    project_dir = Path(project_dir)
+    for pattern in ("models/**/*.sql", "models/**/*.yml", "seeds/**/*"):
+        for f in sorted(project_dir.glob(pattern)):
+            if not f.is_file():
+                continue
+            mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
+            if mtime > gen:
+                stale_files.append(str(f.relative_to(project_dir)).replace("\\", "/"))
+    return {"generated_at": raw, "stale": bool(stale_files),
+            "stale_files": stale_files[:10]}
+
+
+def build_report(manifest, model_names, project_dir, max_depth):
+    targets = []
+    for resolved in resolve_targets(manifest, model_names):
+        if not resolved["found"]:
+            targets.append(resolved)
+            continue
+        downstream = downstream_of(manifest, resolved["unique_id"], max_depth)
+        targets.append({"name": resolved["query"],
+                        "unique_id": resolved["unique_id"], "found": True,
+                        "downstream": downstream,
+                        "summary": summarize(downstream)})
+    return {"manifest": check_staleness(manifest, project_dir),
+            "targets": targets}
+
+
+def main(argv=None):
+    # scripts/ -> dbt-impact-analyzer -> skills -> .claude -> domains/culture
+    default_project = Path(__file__).resolve().parents[4]
+    p = argparse.ArgumentParser(
+        description="dbt manifest 기반 downstream 영향 추출기 (#129 culture 프로토타입)")
+    p.add_argument("--model", nargs="+", required=True,
+                   help="수정 대상 모델명(단순명 또는 unique_id)")
+    p.add_argument("--project-dir", type=Path, default=default_project,
+                   help="신선도 비교 기준 dbt 프로젝트 워킹트리")
+    p.add_argument("--manifest", type=Path, default=None,
+                   help="manifest.json 경로 (기본: <project-dir>/target/manifest.json)")
+    p.add_argument("--max-depth", type=int, default=None, help="BFS 깊이 제한")
+    args = p.parse_args(argv)
+    manifest_path = args.manifest or args.project_dir / "target" / "manifest.json"
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    report = build_report(manifest, args.model, args.project_dir, args.max_depth)
+    json.dump(report, sys.stdout, ensure_ascii=False, indent=2)
+    sys.stdout.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
