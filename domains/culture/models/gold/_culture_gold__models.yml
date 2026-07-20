@@ -197,7 +197,7 @@ models:
         data_type: double
 
   - name: gold_culture_event_crowd
-    description: 문화 행사 자치구의 시간대별 평시 혼잡 베이스라인(그레인 gu_code×hour_of_day, #276). citydata gold를 크로스도메인 source로 읽어 event_schedule 있는 gu로 스코프. "그 행사 지역 몇 시가 붐비나/한적한가". ⚠~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님.
+    description: 문화 행사 자치구의 요일×시간대별 평시 혼잡 베이스라인(그레인 gu_code×day_of_week×hour_of_day, #276·v2 #282). citydata gold를 크로스도메인 source로 읽어 event_schedule 있는 gu로 스코프. "그 행사 지역 무슨 요일 몇 시가 붐비나/한적한가". ⚠~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님.
     config:
       contract:
         enforced: true   # published gold 계약(#180)
@@ -209,8 +209,12 @@ models:
       - name: gu
         description: 자치구 이름
         data_type: varchar
+      - name: day_of_week
+        description: 요일(1=월 … 7=일, Trino day_of_week) — v2(#282) 추가 축. "무슨 요일 몇 시가 한적한가"
+        data_type: integer
+        tests: [not_null]
       - name: hour_of_day
-        description: 시각(0~23, KST) — event_at 의 시(hour). 요일 구분 없이 18일 이력 집계
+        description: 시각(0~23, KST) — event_at 의 시(hour). 18일 이력 집계(셀당 p50 66샘플)
         data_type: integer
         tests: [not_null]
       - name: avg_ppltn
