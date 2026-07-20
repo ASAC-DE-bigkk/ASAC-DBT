@@ -4,10 +4,14 @@
 -- 최대연 초과 완결연만 append. **재실행 시 신규 완결연 없으면 0건**(사용자 확정 — 멱등 확인 대상).
 -- D1 서빙은 롤업 전량 교체 스냅샷(서빙 정본 §1.4). 지연 도착(과거연 소급)은 --full-refresh 로 흡수(commerce_load_gold_refresh).
 
+-- 정렬 스펙(#264): y(원천 사건연도) — 연 범위질의의 파일 프루닝.
 {{ config(
     materialized='incremental',
     incremental_strategy='append',
-    on_schema_change='fail'
+    on_schema_change='fail',
+    properties={
+        "sorted_by": "ARRAY['y']",
+    },
 ) }}
 
 with e as (

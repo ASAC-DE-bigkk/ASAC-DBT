@@ -10,7 +10,8 @@ bronze(원본층) → silver(정제·변경이력) → gold(집계)를 만든다
 > 컬럼 구조(152종 공통/개별): [docs/dataset-columns.md](docs/dataset-columns.md) ·
 > 타임존/결측 규약: [docs/timestamps-and-nulls.md](docs/timestamps-and-nulls.md) ·
 > 주소·구/동 코드·좌표 변환 규약: [docs/address-and-geo.md](docs/address-and-geo.md) ·
-> **적재형태·재빌드 정책 + 단위 재적재/삭제 운영: [docs/rebuild-and-ops.md](docs/rebuild-and-ops.md)**
+> **적재형태·재빌드 정책 + 단위 재적재/삭제 운영: [docs/rebuild-and-ops.md](docs/rebuild-and-ops.md)** ·
+> 정렬/파티션 스펙 결정 기준(#264): [docs/partition-sort-spec.md](docs/partition-sort-spec.md)
 
 ## 레이어
 

@@ -9,10 +9,15 @@
 -- --full-refresh 로 흡수(append-only 트레이드오프 — 정기 스윕: commerce_load_gold_refresh).
 -- 날짜 규약: 문자열 ISO(사전순=날짜순, docs/DB/gold/status-aggregation-queries.md §1.2).
 
+-- 정렬 스펙(#264): event_date(원천 사건일 = 인허가/폐업일 파생) — iceberg_api 범위질의 정본이라
+-- 파일 min/max 를 기간축으로 조인다(실측 before: 2024년 범위질의가 전체 2,918,693행 스캔·프루닝 0%).
 {{ config(
     materialized='incremental',
     incremental_strategy='append',
-    on_schema_change='fail'
+    on_schema_change='fail',
+    properties={
+        "sorted_by": "ARRAY['event_date']",
+    },
 ) }}
 
 with e as (

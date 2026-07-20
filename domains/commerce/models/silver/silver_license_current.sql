@@ -6,11 +6,15 @@
 -- 최신)가 생긴 grain 만 그 grain 의 **전 이력 위에서** 최신 1행을 재계산해 교체한다. 비영향 grain 은 기존
 -- current 유지 → 전체 재빌드 회피. **history 는 append-only(전 버전 보존)** 이라 값이 바뀌어도 이전 값은
 -- history 에 그대로 남고, current 는 '최신 포인터'만 갱신한다. 정합성 전량 재계산은 --full-refresh.
+-- 정렬 스펙(#264): grain 키 클러스터 — delete+insert 의 키 매칭·dataset 필터 스캔 지역성.
 {{ config(
     materialized='incremental',
     unique_key=['dataset', 'opnsfteamcode', 'mgtno'],
     incremental_strategy='delete+insert',
     on_schema_change='sync_all_columns',
+    properties={
+        "sorted_by": "ARRAY['dataset','opnsfteamcode','mgtno']",
+    },
 ) }}
 
 with affected as (
