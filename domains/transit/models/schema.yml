@@ -460,3 +460,22 @@ models:
         description: >
           최근접 주차장의 행사 시간대(evt_hh) 평시 만차 확률(전 요일 평균).
           null = 실시간 미제공 lot(정보 없음).
+
+  - name: gold_transit_supply_x_demand_hourly
+    description: >
+      핫스팟 수요×공급 교통 압박(#291 G8, × citydata). grain (area_cd, hour_at) —
+      수요(실시간 인구·혼잡 라벨·bus/subway 5분 승하차)와 공급(핫스팟 동의 주차 여유·
+      운행 관측)을 대조. 합성 지수는 두지 않고 구성 요소 + is_parking_pressured 플래그만
+      (공식은 #291 논의). citydata 보존 별도 → 자체 아카이브, full_refresh=false.
+      citydata gold_citydata_ppltn_x_transit_hourly(동 축)와의 중복 정리는 #291 오픈 퀘스천.
+    columns:
+      - name: area_cd
+        tests:
+          - not_null
+      - name: hour_at
+        tests:
+          - not_null
+      - name: congest_lvl_last
+        description: 시간 내 최신 혼잡 라벨(여유/보통/약간 붐빔/붐빔).
+      - name: is_parking_pressured
+        description: 혼잡('약간 붐빔'/'붐빔') AND 주차 점유>=0.8. 주차 실측 없는 동은 false 아님 null 주의.

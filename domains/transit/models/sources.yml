@@ -127,6 +127,15 @@ sources:
         description: >
           따릉이 대여소 실시간 — spot_id·parking_count(잔여)·rack_count·observed_at·
           admin_dong_code(핫스팟 121곳 주변). 수집 5분 주기.
+      - name: silver_citydata_ppltn
+        description: >
+          핫스팟 실시간 인구 — area_cd·event_at·area_congest_lvl(여유/보통/약간 붐빔/붐빔)·
+          area_ppltn_min/max·admin_dong_code. 5분 주기.
+      - name: silver_citydata_transit_ppltn
+        description: >
+          핫스팟 대중교통 승하차 — area_cd·mode(bus/subway)·observed_at·
+          gton/gtoff_5min_min/max(승차/하차)·station_count. 수집 5분 주기.
+          버스 티어링(ASAC-DAG #440) 이후 버스 '수요' 축은 이 소스가 5분 해상도로 보강.
 
   - name: culture
     description: 문화 도메인 published 테이블 (ASAC-DBT domains/culture).
