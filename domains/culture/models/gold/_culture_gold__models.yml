@@ -196,6 +196,36 @@ models:
         description: 경쟁 집중도(busiest_type_count / total_events, 0~1) — 1=한 유형 독점, 낮을수록 다양
         data_type: double
 
+  - name: gold_culture_event_crowd
+    description: 문화 행사 자치구의 시간대별 평시 혼잡 베이스라인(그레인 gu_code×hour_of_day, #276). citydata gold를 크로스도메인 source로 읽어 event_schedule 있는 gu로 스코프. "그 행사 지역 몇 시가 붐비나/한적한가". ⚠~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님.
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: gu_code
+        description: 자치구 코드(#48 공간축) — citydata·event 공통 조인 키
+        data_type: varchar
+        tests: [not_null]
+      - name: gu
+        description: 자치구 이름
+        data_type: varchar
+      - name: hour_of_day
+        description: 시각(0~23, KST) — event_at 의 시(hour). 요일 구분 없이 18일 이력 집계
+        data_type: integer
+        tests: [not_null]
+      - name: avg_ppltn
+        description: 그 시간대 그 구 citydata 핫스팟들의 평균 실시간인구((min+max)/2 평균, 명)
+        data_type: integer
+      - name: avg_congest_score
+        description: 평균 혼잡 서수(여유1·보통2·약간붐빔3·붐빔4) — 높을수록 붐빔
+        data_type: double
+      - name: typical_congest
+        description: 그 시간대 최빈 혼잡 레벨(여유/보통/약간 붐빔/붐빔)
+        data_type: varchar
+      - name: crowd_samples
+        description: 집계에 쓰인 citydata 관측(장소×5분 슬라이스) 수 — 신뢰도 프록시
+        data_type: integer
+
   - name: gold_culture_event_schedule
     description: 문화행사 목록 질의 표면 (행사 1행, #187). "이번 주말 ○○구 행사" = 기간 겹침 + gu_code 필터 단독 조회. 6개 silver union + norm_title×시작일×gu 크로스소스 dedup(전문 소스 우선).
     config:
