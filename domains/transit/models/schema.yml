@@ -191,7 +191,6 @@ models:
       event_at) KST. silver 3종(버스·지하철·주차)을 동·시간으로 집계해 한 행에 나란히(3원 outer 결합
       — 한 소스만 있는 조합도 행 생성). 지하철은 역 3곳(4개 동)에만 존재해 대부분 행에서 subway_* null.
       정화된 silver(#66)만 소비하므로 추가 시간 필터 없음. incremental merge(-3h lookback).
-      주의: 상류 결손으로 parking_occupancy_avg/parking_full_lot_cnt 현재 전건 null/0(모델 헤더 주석).
     columns:
       - name: admin_dong_code
         description: 행안부 10자리 행정동 코드(공간축, 그레인 축). null 행은 소스에서 제외.
@@ -221,7 +220,99 @@ models:
         description: 관측 주차 개소 수(동×시간 distinct lot).
       - name: parking_occupancy_avg
         description: >
-          평균 점유율(개소별 평균 점유율의 평균, 개소 동등가중). 현재 상류 silver 의
-          now_prk_vhcl_cnt·total_capacity 결손으로 전건 null — silver 캐스트 수정 시 채워짐.
+          평균 점유율(개소별 평균 점유율의 평균, 개소 동등가중). 과거 소수문자열 캐스트
+          결손으로 전건 null 이던 시기 있음 — #72 매크로로 해소(2026-07-20 실증 #286).
       - name: parking_full_lot_cnt
-        description: 만차 개소 수(개소별 시간 내 최대 점유율 >= 0.95). 상류 결손으로 현재 0.
+        description: 만차 개소 수(개소별 시간 내 최대 점유율 >= 0.95).
+
+  # ---------------- 기반 아카이브 골드 (#286) ----------------
+  - name: dim_transit_bus_route_tier
+    description: >
+      버스 노선 수집 티어 분류(#286, 수집 정책 ASAC-DAG #440). grain bus_route_id.
+      routeType 원천(R2 reference)이 웨어하우스에 없어 최근 7일 관측 시간대 종류 수로
+      역산(tier1=매 30분 전 시간대 ~19종, tier2=07·13·19시만 ≤3종 → 임계 12, 과도기
+      오분류 마진 — 모델 헤더 주석). 매 빌드 전체 재계산.
+    columns:
+      - name: bus_route_id
+        tests:
+          - not_null
+          - unique
+      - name: tier
+        description: 1=간선·광역(전 시간대 수집), 2=그 외(하루 3회 수집).
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [1, 2], quote: false}
+
+  - name: gold_transit_dong_15min
+    description: >
+      동×15분 교통 상태 기반 아카이브(#286). grain (admin_dong_code, bucket_at).
+      gold_transit_dong_hourly(#67)의 15분판 + 버스 tier1 한정 컬럼(*_t1, 시간대 비교
+      파생 전용) + 소스별 최신 관측 시각(*_last_event_at, '지금' 카드 freshness 근거).
+      원본 주 경계 삭제(ASAC-DAG #369) 대비 영구 아카이브 — full_refresh=false 고정.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+      - name: bucket_at
+        description: 15분 버킷(KST 벽시계, transit_time_bucket). 그레인 축.
+        tests:
+          - not_null
+      - name: bus_obs_cnt
+        description: 버스 관측 행수(전 티어 — 현재 상태·커버리지 용도).
+      - name: bus_obs_cnt_t1
+        description: >
+          버스 관측 행수(tier1 한정). 시간대끼리 비교하는 파생(리듬 G4·예측 G10)은
+          반드시 *_t1 만 소비 — tier2 는 07·13·19시에만 관측돼 표본 구성이 달라짐(#440).
+      - name: bus_last_event_at
+        description: 버킷 내 버스 최신 관측 시각(KST) — "N분 전 관측" 표기 근거.
+      - name: subway_last_event_at
+        description: 버킷 내 지하철 최신 관측 시각(KST).
+      - name: parking_last_event_at
+        description: 버킷 내 주차 최신 관측 시각(KST).
+
+  - name: gold_transit_route_section_30min
+    description: >
+      노선×구간×30분 버스 아카이브(#286). grain (bus_route_id, sect_ord, bucket_at).
+      티어링(#440) 후 30분 주기에 맞춘 버킷 = 런 1회 스냅샷. 전 티어 저장 + tier 스탬프
+      (필터는 파생 몫 — G3 프로파일은 tier=1 만). full_refresh=false 고정.
+    columns:
+      - name: bus_route_id
+        tests:
+          - not_null
+      - name: sect_ord
+        description: 노선 내 구간 순번(원천 sectOrd). 그레인 축 — null 행은 제외.
+        tests:
+          - not_null
+      - name: bucket_at
+        description: 30분 버킷(KST 벽시계). 그레인 축.
+        tests:
+          - not_null
+      - name: tier
+        description: >
+          빌드 시점의 dim_transit_bus_route_tier 분류 스탬프. 과거 버킷 소급 재분류 없음
+          (당시 수집 정책의 기록). 최근 7일 무관측 노선(dim 미등재)은 null.
+        tests:
+          - accepted_values:
+              arguments: {values: [1, 2], quote: false}
+
+  - name: gold_transit_parking_lot_15min
+    description: >
+      주차장 개소×15분 점유 아카이브(#286). grain (parking_id, bucket_at). 수집 5분 주기라
+      버킷당 ~3관측. occ_last(max_by 최신 점유율)는 G2 변화율(연속 버킷 lag)용.
+      full_refresh=false 고정.
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+      - name: bucket_at
+        description: 15분 버킷(KST 벽시계). 그레인 축.
+        tests:
+          - not_null
+      - name: occ_last
+        description: 버킷 내 최신 관측 점유율(max_by). 최신 관측이 결손이면 null.
+      - name: admin_dong_code
+        description: 개소 상수(최신 관측값 스탬프).
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.90}
