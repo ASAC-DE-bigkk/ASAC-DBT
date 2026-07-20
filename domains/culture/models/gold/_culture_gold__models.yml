@@ -575,3 +575,53 @@ models:
       - name: quality_status
         description: facility dim quality_status 전파(#111)
         data_type: varchar
+
+  - name: gold_culture_qa_eval
+    description: 페르소나 질문 카탈로그 × 라우팅 커버리지(티어링 #20, #284, 그레인 question_id). 페르소나 원천 nvidia/Nemotron-Personas-Korea(CC-BY-4.0) 15명 샘플. answerable(큐레이션)과 mart_exists(information_schema 실측) 분리 — eval_ready=W7 평가셋 투입 가능. 답불가 행의 unanswerable_reason=수집 로드맵 재료. 내부 전용(meta.external=false).
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+      meta:
+        external: false  # Q&A 거버넌스 내부 마트 — 외부 카탈로그 노출 제외(#269)
+    columns:
+      - name: question_id
+        description: 질문 ID(QA001…) — PK
+        data_type: varchar
+        tests: [not_null, unique]
+      - name: persona_uuid
+        description: Nemotron 페르소나 uuid(출처 추적 — 스냅샷 JSON 조인 키)
+        data_type: varchar
+      - name: persona_summary
+        description: 페르소나 한 줄 요약
+        data_type: varchar
+      - name: home_region
+        description: 페르소나 원거주지(Nemotron district)
+        data_type: varchar
+      - name: visit_context
+        description: 부여된 서울 방문 상황(계획안 거주지 해법 — 전국 페르소나를 서울 방문자로)
+        data_type: varchar
+      - name: persona_lens
+        description: 질문 생성 렌즈(travel/culinary/family/sports/arts)
+        data_type: varchar
+      - name: question_text
+        description: 자연어 질문
+        data_type: varchar
+      - name: target_mart
+        description: 라우팅 대상 gold 마트명(답가능 시 필수, 답불가면 null)
+        data_type: varchar
+      - name: target_columns
+        description: 근거 컬럼(콤마 구분)
+        data_type: varchar
+      - name: answerable
+        description: 현행 데이터로 답 가능 여부(큐레이션 의도)
+        data_type: boolean
+        tests: [not_null]
+      - name: unanswerable_reason
+        description: 답불가 사유 + 로드맵 힌트(답불가 시 필수)
+        data_type: varchar
+      - name: mart_exists
+        description: target_mart가 카탈로그에 실존하는가 — information_schema 실측
+        data_type: boolean
+      - name: eval_ready
+        description: answerable AND mart_exists — W7 평가셋 투입 가능(라우팅 건전성 신호)
+        data_type: boolean
