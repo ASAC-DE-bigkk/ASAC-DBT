@@ -177,6 +177,78 @@ models:
         data_type: bigint
         description: 그날 수집 슬라이스 수 (완결성 지표)
 
+  - name: gold_citydata_ppltn_hourly
+    config:
+      tags: ['slow']
+      meta: {serving_tier: d1_direct}  # 이력·시간별 — D1 append 서빙 (specs/2026-07-20)
+      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [time_bucket, area_cd]
+    description: >
+      gold_citydata_ppltn_hourly — 장소별 시간 혼잡 인사이트. 시간 평균/최대/최소 인구,
+      피크 5분 시각·혼잡도, 붐빔 비율, 측정 완결성(최대 12슬라이스). daily(일)와 by_time(5분)
+      사이의 시간 해상도 — "지난 일주일 시간별" 서빙 조회를 채운다. 해결 질문:
+      "어제 오후 몇 시에 제일 붐볐나", "지난주 홍대 시간대별 붐빔 추이".
+      grain (time_bucket, area_cd) · 갱신 slow(시간 롤업) · 적재 table+replace(통째 재빌드) ·
+      D1 서빙은 시간버킷 append.
+    columns:
+      - name: time_bucket
+        data_type: timestamp(6)
+        description: 시간 버킷 (KST, date_trunc hour) — grain 축
+      - name: area_cd
+        data_type: varchar
+        description: 장소 코드 (POI###) — grain 축
+      - name: area_nm
+        data_type: varchar
+        description: 장소명
+      - name: area_category
+        data_type: varchar
+        description: 장소 분류
+      - name: sido
+        data_type: varchar
+        description: 시도명 (서울)
+      - name: gu
+        data_type: varchar
+        description: 자치구명
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명
+      - name: gu_code
+        data_type: varchar
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong_code
+        data_type: varchar
+        description: 행안부 행정동 코드 10자리
+      - name: longitude
+        data_type: double
+        description: 장소 중심점 경도 (WGS84)
+      - name: latitude
+        data_type: double
+        description: 장소 중심점 위도 (WGS84)
+      - name: average_population
+        data_type: double
+        description: 시간 평균 추정 인구
+      - name: max_population
+        data_type: integer
+        description: 시간 최대 추정 인구
+      - name: min_population
+        data_type: integer
+        description: 시간 최소 추정 인구
+      - name: peak_at
+        data_type: timestamp(6)
+        description: 그 시간 가장 혼잡했던 5분 시각 (KST timestamp)
+      - name: peak_congestion_level
+        data_type: varchar
+        description: 피크 시각의 혼잡도 수준
+      - name: busy_ratio_percent
+        data_type: decimal(38,16)
+        description: 붐빔/약간 붐빔 이었던 슬라이스 비율 (%)
+      - name: measurement_count
+        data_type: bigint
+        description: 그 시간 수집 슬라이스 수 (완결성 지표, 최대 12)
+
   # ── citydata 계열 (#69, ASAC-DAG#192) ───────────────────────────────────────
 
   - name: gold_citydata_place_latest
