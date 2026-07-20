@@ -127,3 +127,13 @@ sources:
         description: >
           따릉이 대여소 실시간 — spot_id·parking_count(잔여)·rack_count·observed_at·
           admin_dong_code(핫스팟 121곳 주변). 수집 5분 주기.
+
+  - name: culture
+    description: 문화 도메인 published 테이블 (ASAC-DBT domains/culture).
+    database: "{{ target.database }}"
+    schema: culture
+    tables:
+      - name: gold_culture_event_schedule
+        description: >
+          공연·전시·행사 일정 — event_ref·event_type·title·venue_name·
+          event_start/end_date·event_at(시각, 일부만)·latitude/longitude·admin_dong_code.

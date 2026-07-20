@@ -442,3 +442,21 @@ models:
           - not_null
       - name: base_n
         description: 기여 30분 버킷 수(같은 칸 주 1회×2버킷 → 4주 ~8).
+
+  - name: gold_transit_event_access
+    description: >
+      행사장 가는 길 안내판(#290 G7, × culture). grain event_ref — 진행·예정 행사의
+      최근접 지하철역·주차장(dim 마스터 기반 great_circle_distance, 전 행사 즉시 제공)
+      + 행사 시간대 최근접 주차장 평시 만차 확률(#288 프로파일, evt_hh 미상은 19시 근사·
+      전 요일 평균). 매 변환 재생성 table.
+    columns:
+      - name: event_ref
+        tests:
+          - not_null
+          - unique
+      - name: nearest_station_dist_m
+        description: 최근접 역 직선거리 m(도보 환산은 소비 측 — 80m/분 관례).
+      - name: nearest_parking_full_prob
+        description: >
+          최근접 주차장의 행사 시간대(evt_hh) 평시 만차 확률(전 요일 평균).
+          null = 실시간 미제공 lot(정보 없음).
