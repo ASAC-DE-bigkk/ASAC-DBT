@@ -372,3 +372,26 @@ models:
           - not_null
       - name: sbike_bike_last_sum
         description: 동 내 대여소별 최신 잔여 대수 합(시간 내 마지막 관측 기준).
+
+  - name: gold_transit_dong_rhythm
+    description: >
+      동별 요일×시간 교통 리듬(#287 G4). grain (admin_dong_code, dow, hh) — dow ISO(1=월),
+      hh 0~23, KST. 아카이브(dong_15min) 전량 재집계(table). 버스는 tier1 한정·관측수 가중
+      (#440 원칙 ②). *_base_n = 기여 15분 버킷 수 — 표본 부족 판단은 소비 측 몫
+      (4주 누적 시 칸당 ~16). G1 '평시 대비'·G10 예측의 기준선.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+      - name: dow
+        description: ISO 요일(1=월 … 7=일, bucket_at KST 기준).
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [1, 2, 3, 4, 5, 6, 7], quote: false}
+      - name: hh
+        description: 시간(0~23, KST).
+        tests:
+          - not_null
+      - name: bus_base_n
+        description: 버스(tier1) 기여 버킷 수 — 표본 배지 근거.
