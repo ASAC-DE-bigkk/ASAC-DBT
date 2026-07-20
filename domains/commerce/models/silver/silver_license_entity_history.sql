@@ -7,7 +7,13 @@
 --
 -- 증분(재개 표준 PROJECT.md §3): collected_at 워터마크 append — silver history 가 append-only 라
 -- 워터마크 이후 신규 버전 행만 승계한다. 전량 재구축은 --full-refresh(commerce_load_gold_refresh).
-
+--
+-- 청크 백필 스코프(#버그②, 2026-07-20 from-zero 드릴 실측): 워터마크는 **전역 max** 라서
+-- 청크 배치가 dataset 별로 순차 실행되면 배치1이 워터마크를 올린 뒤 배치2+ 의 dataset 들이
+-- (collected_at 이 그보다 과거라) 통째로 걸러진다 — 실측 152종 중 5종만 적재됨.
+-- → include_datasets 가 주어지면(청크 경로) 전역 워터마크 대신 **해당 dataset 스코프의
+--   자기 워터마크**로 판정한다. 같은 배치 재실행 시 중복 append 를 막기 위해 dataset 별
+--   max(collected_at) 를 기준으로 한다(append 전략 유지 — 기존 계약 불변).
 {{ config(
     materialized='incremental',
     incremental_strategy='append',
@@ -44,6 +50,16 @@ select
     collected_at,
     bronze_run_id
 from {{ ref('silver_license_history') }}
-{% if is_incremental() %}
+{% if var('include_datasets', []) %}
+-- 청크 백필: dataset 스코프 + 그 dataset 의 자기 워터마크(전역 max 사용 금지 — 위 주석).
+where cast(dataset as varchar) in ({% for v in var('include_datasets') %}'{{ v }}'{% if not loop.last %}, {% endif %}{% endfor %})
+  {% if is_incremental() %}
+  and collected_at > (
+      select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00')
+      from {{ this }}
+      where cast(dataset as varchar) in ({% for v in var('include_datasets') %}'{{ v }}'{% if not loop.last %}, {% endif %}{% endfor %})
+  )
+  {% endif %}
+{% elif is_incremental() %}
 where collected_at > (select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00') from {{ this }})
 {% endif %}
