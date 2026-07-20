@@ -26,11 +26,18 @@
 --   가드도 그래서 건다). 프런티어 산출을 {{ this }} 의 교통 컬럼으로 잡는 이유:
 --   max(hour_at) 자체는 미래(예보) 행이라 임계로 쓰면 과거 재계산 창이 사라진다.
 
+-- ── Iceberg 일 파티셔닝 ────────────────────────────────────────────────
+--   MERGE 가 대상 전체 데이터파일을 훑지 않고 최근 파티션만 건드리게 하고, 하위
+--   소비(24h 창·프런티어 산출·시간 롤업)의 시간 술어가 프루닝된다. 테이블이 비어
+--   있는 지금 넣지 않으면 full_refresh=false 라 나중엔 CTAS 백업→재적재 수동
+--   절차를 거쳐야 바꿀 수 있다.
+
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['admin_dong_code', 'hour_at'],
     full_refresh=false,
+    properties={'partitioning': "ARRAY['day(hour_at)']"},
 ) }}
 
 {%- set threshold %}
@@ -114,7 +121,10 @@ select
     w.precip_mm,
     w.sky_code,
     w.precip_type,
-    (w.precip_type is not null and w.precip_type > 0) as is_precip,
+    -- null 보존: 예보 행이 없는 동·시각(transit 만 있는 행)은 '비 안 옴'이 아니라
+    -- '예보 없음'이다. false 로 접으면 rain-vs-dry 비교에서 무데이터 구간이
+    -- 전부 '맑음' 표본으로 섞인다(실측 5,098행 오염 이력).
+    case when w.precip_type is null then null else w.precip_type > 0 end as is_precip,
     w.weather_issued_at
 from grain g
 left join transit_hour t

@@ -34,7 +34,11 @@ with events as (
         event_start_date,
         event_end_date,
         event_at,
+        -- 시각 미상 행사가 다수라 19시(공연·행사 대표 시간대)로 근사한다.
+        -- 근사 여부를 플래그로 남기지 않으면 진짜 19시 행사와 구분할 수 없어,
+        -- 소비 측이 '만차 확률 90%'를 걸러내거나 배지를 달 방법이 없다.
         coalesce(hour(event_at), 19) as evt_hh,
+        event_at is null as is_evt_hh_imputed,
         admin_dong_code,
         gu,
         latitude,
@@ -42,7 +46,9 @@ with events as (
     from {{ source('culture', 'gold_culture_event_schedule') }}
     where latitude is not null
       and longitude is not null
-      and event_end_date >= current_date
+      -- event_end_date 는 KST 달력 날짜인데 current_date 는 세션 타임존(UTC) 기준이라,
+      -- UTC 세션에서 KST 00~09시에 빌드하면 어제 끝난 행사가 최대 9시간 더 노출된다.
+      and event_end_date >= cast(at_timezone(current_timestamp, 'Asia/Seoul') as date)
 ),
 
 stations as (
@@ -134,6 +140,7 @@ select
     e.event_end_date,
     e.event_at,
     e.evt_hh,
+    e.is_evt_hh_imputed,
     e.admin_dong_code,
     e.gu,
     e.latitude,

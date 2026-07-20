@@ -27,11 +27,7 @@ vars:
   # ⚠️ 이 값을 과거로 낮추면 오염 구간이 아카이브로 유입된다 — 낮추기 전 silver 정합 확인.
   transit_archive_start_at: "2026-07-21 09:00:00"
 
-  # dim_transit_bus_route_tier — tier1 판정 임계(최근 7일 관측 '시간대 종류' 수).
-  # 수집 시간창(ASAC-DAG #440 후속: 평일 출퇴근 집중·주말 낮·01~05시 제외)에 종속하는
-  # 값이라 한 곳에서만 정의한다. 창을 바꾸면 tier1 의 관측 시간대 종류 수도 바뀌므로
-  # 이 값을 함께 재검토할 것(근거는 모델 헤더 주석).
-  transit_bus_tier1_min_hour_kinds: 6
+
 
 model-paths: ["models"]
 seed-paths: ["seeds"]

@@ -4,7 +4,9 @@
 --   사용자 화면: "현재 88%, 채워지는 속도로 30분 내 만차 예상 — 이 시간대 만차 확률 85%".
 --
 -- ── 변화율(5분 관측 덕에 가능한 지표, #440 이전 20분 주기에선 불가) ──────
---   최근 관측 4버킷(=1시간)의 occ_last 시계열에서 선형 추세를 잡는다:
+--   최근 1시간의 **연속** 버킷(lot 자신의 last_bucket_at -45분 이내 = 15분 버킷 4개)
+--   occ_last 시계열에서 선형 추세를 잡는다. '관측된 최근 4건'으로 잡으면 결측이 있는
+--   lot 은 그 4건이 수 시간에 걸쳐 기울기가 희석되는데도 가드를 통과해버린다:
 --   rate/min = (최신 occ_last - 최초 occ_last) / 경과분. 양(+)이면 채워지는 중.
 --   minutes_to_full = (0.95 - 현재 점유율) / rate (rate>0 일 때만, 0.95=만차 판정선
 --   — 아카이브·프로파일과 동일 임계). 4버킷 미만 관측이면 rate null(신규·결측 lot).
@@ -48,18 +50,12 @@ latest as (
     group by parking_id
 ),
 
--- lot 별 변화율: 최신 4버킷 창의 처음↔끝 occ_last 차이.
+-- lot 별 변화율: 자신의 최신 버킷에서 45분 이내(연속일 때만 4개가 찬다)의 처음↔끝 차이.
 rate_window as (
-    select *
-    from (
-        select
-            parking_id,
-            bucket_at,
-            occ_last,
-            row_number() over (partition by parking_id order by bucket_at desc) as rn
-        from recent
-    )
-    where rn <= 4
+    select r.parking_id, r.bucket_at, r.occ_last
+    from recent r
+    join latest l on r.parking_id = l.parking_id
+    where r.bucket_at >= l.last_bucket_at - interval '45' minute
 ),
 
 rate as (
@@ -102,10 +98,12 @@ select
     l.last_event_at
 from latest l
 left join rate r on l.parking_id = r.parking_id
-cross join frontier f
+-- 프로파일은 **그 lot 자신의 최신 관측 시각** 칸으로 조인한다. 전역 프런티어로 조인하면
+-- 피드가 끊긴 lot 이 '09시 점유율 + 20시 만차확률' 처럼 서로 다른 시각의 값을 한 행에
+-- 담아, 소비 측이 last_bucket_at 을 직접 대조하지 않는 한 앞뒤가 안 맞는 카드가 된다.
 left join {{ ref('gold_transit_parking_profile') }} pf
     on l.parking_id = pf.parking_id
-   and pf.dow = day_of_week(f.max_bucket_at)
-   and pf.hh = hour(f.max_bucket_at)
+   and pf.dow = day_of_week(l.last_bucket_at)
+   and pf.hh = hour(l.last_bucket_at)
 left join {{ ref('dim_transit_parking') }} d
     on l.parking_id = d.parking_id

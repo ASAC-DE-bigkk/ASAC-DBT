@@ -90,10 +90,16 @@ select
     r.bus_congestion_avg_t1 as rhythm_bus_congestion_t1,
     r.bus_base_n as rhythm_bus_base_n,
     -- 추천 플래그(v1 단순 규칙 — 헤더 주석)
-    (r.parking_occupancy_avg >= 0.8 and r.parking_base_n >= 4) as parking_busy_expected,
-    (
+    -- 리듬 조인 미스(신규 동·표본 부족)나 예보 결측이면 조건이 null 이 된다.
+    -- 헤더가 약속한 '해석 가능한 불리언 3개' 계약을 지키려면 false 로 접어야 한다 —
+    -- 안 그러면 `where not transit_recommended` 로 거르는 소비 측이 null 행을
+    -- 조용히 잃는다(실측 8,160행 중 null 504행).
+    coalesce(r.parking_occupancy_avg >= 0.8 and r.parking_base_n >= 4, false)
+        as parking_busy_expected,
+    coalesce(
         (r.parking_occupancy_avg >= 0.8 and r.parking_base_n >= 4)
-        or g.is_precip
+        or g.is_precip,
+        false
     ) as transit_recommended
 from grain g
 left join {{ source('seoul_citydata', 'gold_citydata_ppltn_forecast') }} f

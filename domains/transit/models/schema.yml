@@ -136,9 +136,15 @@ models:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
       - name: admin_dong_code
+        description: >
+          dim_transit_station 조인. 수집이 경로형 ALL(#369)로 바뀌며 수도권 전 역이
+          들어와, 경기·인천 역(부천·소사·개봉 등)은 서울 행정동이 없어 NULL 이 정상이다
+          — 실측 커버리지 0.48(dim_transit_station 의 0.51 과 같은 사유). 임계는
+          '서울 역이 정상 부착되는가'를 지키는 선으로 잡는다(6역 한정 수집 시절의
+          0.90 은 ALL 전환 후 구조적으로 달성 불가).
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.90}
+              arguments: {min_ratio: 0.45}
 
   - name: silver_transit_bus_position
     description: >
@@ -229,11 +235,11 @@ models:
   - name: dim_transit_bus_route_tier
     description: >
       버스 노선 수집 티어 분류(#286, 수집 정책 ASAC-DAG #440). grain bus_route_id.
-      routeType 원천(R2 reference)이 웨어하우스에 없어 최근 7일 관측 시간대 종류 수로
-      역산 — tier1=수집 창 매시간(19종), tier2=BUS_TIER2_HOURS 시각만(2종).
-      임계는 var transit_bus_tier1_min_hour_kinds(기본 6) — 수집 장애 시 tier1 이
-      통째로 오분류되면 영구 복구 불가라 낮은 쪽에 붙였다(모델 헤더 주석).
-      매 빌드 전체 재계산.
+      routeType 원천(R2 reference)이 웨어하우스에 없어 **수집 런 시각**으로 역산한다:
+      tier2 는 BUS_TIER2_HOURS 정시 런에만 실리므로, dag_run_id 의 분이 00 이 아닌
+      스케줄 런에 등장한 노선 = tier1(ASAC-DAG #449 시간창). 관측 창은 아카이브
+      개시일(var transit_archive_start_at) 이후 — 정책 전환 전 무차별 수집 구간을
+      섞으면 분류가 오염된다. 매 빌드 전체 재계산.
     columns:
       - name: bus_route_id
         tests:

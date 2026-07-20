@@ -25,11 +25,18 @@
 --   (silver -2h lookback + 버킷 경계 여유 — #67 근거 공유). full_refresh=false 고정:
 --   원본이 주 단위로 사라지므로 재빌드 = 아카이브 영구 소실(#286 원칙 1).
 
+-- ── Iceberg 일 파티셔닝 ────────────────────────────────────────────────
+--   MERGE 가 대상 전체 데이터파일을 훑지 않고 최근 파티션만 건드리게 하고, 하위
+--   소비(24h 창·프런티어 산출·시간 롤업)의 시간 술어가 프루닝된다. 테이블이 비어
+--   있는 지금 넣지 않으면 full_refresh=false 라 나중엔 CTAS 백업→재적재 수동
+--   절차를 거쳐야 바꿀 수 있다.
+
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['bus_route_id', 'sect_ord', 'bucket_at'],
     full_refresh=false,
+    properties={'partitioning': "ARRAY['day(bucket_at)']"},
 ) }}
 
 {%- set incr_filter %}

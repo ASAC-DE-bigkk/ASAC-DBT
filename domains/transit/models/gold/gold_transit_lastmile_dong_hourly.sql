@@ -13,29 +13,55 @@
 -- ── 주차·지하철 축 ─────────────────────────────────────────────────────
 --   gold_transit_dong_15min 시간 롤업. 지하철 대기는 실시간 6역(4개 동) 한정 — 대부분 null.
 --
--- ── 증분(incremental merge) ─────────────────────────────────────────────
---   unique_key=(admin_dong_code, hour_at), 임계 = 프런티어 - 3h(#286 관례).
---   citydata 의 보존 정책이 별도라(실측: 수집 중단 구간 존재) 여기 merge 로 남긴
---   행이 곧 따릉이 이력의 자체 아카이브다 → full_refresh 가드.
---   프런티어는 양 소스 프런티어의 max — 한쪽 수집이 멈춰도 다른 쪽 갱신을 막지 않는다.
+-- ── 증분(incremental merge) — 소스별 독립 임계 ─────────────────────────
+--   unique_key=(admin_dong_code, hour_at). 임계를 **소스마다 따로** 계산한다:
+--   각 소스가 실제로 채운 행(sbike_spot_cnt / parking_lot_cnt·subway_arrival_cnt)의
+--   max(hour_at) - 3h.
+--
+--   공유 임계(테이블 전체 max(hour_at))를 쓰면 안 되는 이유: 두 소스의 지연이 다르다.
+--   빠른 쪽이 프런티어를 밀어 올리면, 느린 쪽이 나중에 그 이전 시각을 backfill 해도
+--   `>= 임계` 필터에서 탈락해 union 전에 버려진다 → 이미 쓰인 행의 그 소스 컬럼이
+--   영영 null 로 남는다(full_refresh=false 라 복구 불가). dev 에서 citydata 수집이
+--   2026-07-17~20 멈춘 동안 transit 만 프런티어를 전진시킨 사례로 실증됨.
+--
+--   citydata 의 보존 정책이 별도라 여기 merge 로 남긴 행이 따릉이 이력의 자체 아카이브다.
+
+-- ── Iceberg 일 파티셔닝 ────────────────────────────────────────────────
+--   MERGE 가 대상 전체 데이터파일을 훑지 않고 최근 파티션만 건드리게 하고, 하위
+--   소비(24h 창·프런티어 산출·시간 롤업)의 시간 술어가 프루닝된다. 테이블이 비어
+--   있는 지금 넣지 않으면 full_refresh=false 라 나중엔 CTAS 백업→재적재 수동
+--   절차를 거쳐야 바꿀 수 있다.
 
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['admin_dong_code', 'hour_at'],
     full_refresh=false,
+    properties={'partitioning': "ARRAY['day(hour_at)']"},
 ) }}
 
-{%- set threshold %}
+{#- 아카이브 개시일 — 최초 빌드 하한이자, 소스가 한 번도 랜딩되지 않았을 때의 fallback. -#}
+{%- set archive_start = "timestamp '" ~ var("transit_archive_start_at") ~ "'" -%}
+
+{%- set sbike_threshold %}
 {% if is_incremental() %}
 (
-    select coalesce(max(hour_at), timestamp '1970-01-01') - interval '3' hour
+    select coalesce(max(hour_at), {{ archive_start }}) - interval '3' hour
     from {{ this }}
+    where sbike_spot_cnt is not null
 )
-{% else %}
--- 최초 빌드 하한 = 아카이브 개시일(정책 전환 전 오염 구간 유입 차단).
-timestamp '{{ var("transit_archive_start_at") }}'
-{% endif %}
+{% else %}{{ archive_start }}{% endif %}
+{%- endset %}
+
+{%- set transit_threshold %}
+{% if is_incremental() %}
+(
+    select coalesce(max(hour_at), {{ archive_start }}) - interval '3' hour
+    from {{ this }}
+    where parking_lot_cnt is not null
+       or subway_arrival_cnt is not null
+)
+{% else %}{{ archive_start }}{% endif %}
 {%- endset %}
 
 with station_dong as (
@@ -55,7 +81,7 @@ sbike_spot as (
         max(observed_at) as spot_last_observed_at
     from {{ source('seoul_citydata', 'silver_citydata_sbike') }}
     where admin_dong_code is not null
-      and observed_at >= {{ threshold }}
+      and observed_at >= {{ sbike_threshold }}
     group by 1, 2, 3
 ),
 
@@ -80,7 +106,7 @@ transit_hour as (
         avg(subway_wait_avg_s) as subway_wait_avg_s,
         sum(subway_arrival_cnt) as subway_arrival_cnt
     from {{ ref('gold_transit_dong_15min') }}
-    where bucket_at >= {{ threshold }}
+    where bucket_at >= {{ transit_threshold }}
     group by 1, 2
 ),
 

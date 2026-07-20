@@ -26,28 +26,62 @@
 --   합성 지수(가중 공식)는 자의성이 커서 두지 않는다 — 구성 요소를 그대로 노출하고
 --   판단 공식은 소비 측(대시보드)과 이슈 #291 에서 확정한다.
 --
--- ── 증분(incremental merge) + full-refresh 가드 ─────────────────────────
---   unique_key=(area_cd, hour_at), 임계 max(hour_at)-3h (#286 관례).
---   citydata silver 의 보존 정책이 별도(중단 구간 실측)라 여기 merge 행이
---   핫스팟 수요-공급 쌍의 자체 아카이브 → full_refresh=false.
+-- ── 증분(incremental merge) — 소스별 독립 임계 ─────────────────────────
+--   unique_key=(area_cd, hour_at). 임계를 수요(citydata)·공급(transit) 축마다 따로
+--   계산한다: 각 축이 실제로 채운 행의 max(hour_at) - 3h.
+--   공유 임계를 쓰면 빠른 축이 프런티어를 밀어 올려, 느린 축의 backfill 이 필터에서
+--   탈락하고 이미 쓰인 행의 그 축 컬럼이 영영 null 로 남는다(full_refresh=false 라
+--   복구 불가). dev 에서 citydata 수집 중단(2026-07-17~20) 구간으로 실증됨.
+--   citydata 보존 정책이 별도라 여기 merge 행이 핫스팟 수요-공급 쌍의 자체 아카이브.
+
+-- ── Iceberg 일 파티셔닝 ────────────────────────────────────────────────
+--   MERGE 가 대상 전체 데이터파일을 훑지 않고 최근 파티션만 건드리게 하고, 하위
+--   소비(24h 창·프런티어 산출·시간 롤업)의 시간 술어가 프루닝된다. 테이블이 비어
+--   있는 지금 넣지 않으면 full_refresh=false 라 나중엔 CTAS 백업→재적재 수동
+--   절차를 거쳐야 바꿀 수 있다.
 
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['area_cd', 'hour_at'],
     full_refresh=false,
+    properties={'partitioning': "ARRAY['day(hour_at)']"},
 ) }}
 
-{%- set threshold %}
+{#- 아카이브 개시일 — 최초 빌드 하한이자, 축이 한 번도 랜딩되지 않았을 때의 fallback. -#}
+{%- set archive_start = "timestamp '" ~ var("transit_archive_start_at") ~ "'" -%}
+
+{%- set ppltn_threshold %}
 {% if is_incremental() %}
 (
-    select coalesce(max(hour_at), timestamp '1970-01-01') - interval '3' hour
+    select coalesce(max(hour_at), {{ archive_start }}) - interval '3' hour
     from {{ this }}
+    where ppltn_avg is not null
 )
-{% else %}
--- 최초 빌드 하한 = 아카이브 개시일(정책 전환 전 오염 구간 유입 차단).
-timestamp '{{ var("transit_archive_start_at") }}'
-{% endif %}
+{% else %}{{ archive_start }}{% endif %}
+{%- endset %}
+
+{%- set boardings_threshold %}
+{% if is_incremental() %}
+(
+    select coalesce(max(hour_at), {{ archive_start }}) - interval '3' hour
+    from {{ this }}
+    where bus_board_5min_avg is not null
+       or subway_board_5min_avg is not null
+)
+{% else %}{{ archive_start }}{% endif %}
+{%- endset %}
+
+{%- set supply_threshold %}
+{% if is_incremental() %}
+(
+    select coalesce(max(hour_at), {{ archive_start }}) - interval '3' hour
+    from {{ this }}
+    where parking_lot_cnt is not null
+       or bus_veh_cnt is not null
+       or subway_arrival_cnt is not null
+)
+{% else %}{{ archive_start }}{% endif %}
 {%- endset %}
 
 with ppltn as (
@@ -61,7 +95,7 @@ with ppltn as (
         max_by(area_congest_lvl, event_at) as congest_lvl_last,
         count(*) as ppltn_obs_cnt
     from {{ source('seoul_citydata', 'silver_citydata_ppltn') }}
-    where event_at >= {{ threshold }}
+    where event_at >= {{ ppltn_threshold }}
     group by 1, 2
 ),
 
@@ -75,7 +109,7 @@ boardings as (
         avg(case when mode = 'subway' then (gtoff_5min_min + gtoff_5min_max) / 2.0 end) as subway_alight_5min_avg,
         max(case when mode = 'subway' then station_count end) as subway_station_cnt
     from {{ source('seoul_citydata', 'silver_citydata_transit_ppltn') }}
-    where observed_at >= {{ threshold }}
+    where observed_at >= {{ boardings_threshold }}
     group by 1, 2
 ),
 
@@ -89,7 +123,7 @@ supply as (
         max(bus_veh_cnt) as bus_veh_cnt,
         sum(subway_arrival_cnt) as subway_arrival_cnt
     from {{ ref('gold_transit_dong_15min') }}
-    where bucket_at >= {{ threshold }}
+    where bucket_at >= {{ supply_threshold }}
     group by 1, 2
 )
 
@@ -117,9 +151,12 @@ select
     s.bus_veh_cnt,
     s.subway_arrival_cnt,
     -- 압박 플래그(구성 요소 기반 — 합성 지수 공식은 #291 논의)
-    (
+    -- 주차 실측이 없는 동은 조건이 null → false 로 접는다(불리언 계약 유지).
+    -- '압박 아님'과 '판단 불가'의 구분이 필요하면 parking_occupancy_avg 의 null 로 본다.
+    coalesce(
         p.congest_lvl_last in ('약간 붐빔', '붐빔')
-        and s.parking_occupancy_avg >= 0.8
+        and s.parking_occupancy_avg >= 0.8,
+        false
     ) as is_parking_pressured
 from ppltn p
 left join boardings b
