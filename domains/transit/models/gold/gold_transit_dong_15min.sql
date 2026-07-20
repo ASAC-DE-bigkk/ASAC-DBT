@@ -81,13 +81,13 @@ bus_agg as (
         count(*) as bus_obs_cnt,
         count(distinct veh_id) as bus_veh_cnt,
         -- congestion=0 은 '정보없음'이라 평균 제외(hourly #67 과 동일).
-        avg(case when congestion is not null and congestion <> 0 then cast(congestion as double) end) as bus_congestion_avg,
+        {{ transit_bus_congestion_avg() }} as bus_congestion_avg,
         avg(cast(is_full as double)) as bus_full_ratio,
         avg(cast(stop_flag as double)) as bus_stop_ratio,
         -- tier1 한정(시간대 비교 파생 전용).
         count(case when tier = 1 then 1 end) as bus_obs_cnt_t1,
         count(distinct case when tier = 1 then veh_id end) as bus_veh_cnt_t1,
-        avg(case when tier = 1 and congestion is not null and congestion <> 0 then cast(congestion as double) end) as bus_congestion_avg_t1,
+        {{ transit_bus_congestion_avg(extra_predicate='tier = 1') }} as bus_congestion_avg_t1,
         avg(case when tier = 1 then cast(is_full as double) end) as bus_full_ratio_t1,
         avg(case when tier = 1 then cast(stop_flag as double) end) as bus_stop_ratio_t1,
         max(event_at) as bus_last_event_at
@@ -121,12 +121,7 @@ parking_src as (
         event_at,
         parking_id,
         -- 점유율 = 현재대수/총면수(둘 다 유효 & 총면수>0 만, 그 외 null → 평균 무시).
-        case
-            when now_prk_vhcl_cnt is not null
-             and total_capacity is not null
-             and total_capacity > 0
-            then cast(now_prk_vhcl_cnt as double) / total_capacity
-        end as occ_ratio
+        {{ transit_parking_occ_ratio() }} as occ_ratio
     from {{ ref('silver_transit_parking') }}
     where admin_dong_code is not null
       {{ incr_filter }}

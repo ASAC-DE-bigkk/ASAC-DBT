@@ -53,12 +53,7 @@ with src as (
         gu_code,
         now_prk_vhcl_cnt,
         total_capacity,
-        case
-            when now_prk_vhcl_cnt is not null
-             and total_capacity is not null
-             and total_capacity > 0
-            then cast(now_prk_vhcl_cnt as double) / total_capacity
-        end as occ_ratio
+        {{ transit_parking_occ_ratio() }} as occ_ratio
     from {{ ref('silver_transit_parking') }}
     where parking_id is not null
       {{ incr_filter }}

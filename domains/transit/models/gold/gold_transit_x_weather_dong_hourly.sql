@@ -61,14 +61,8 @@ with transit_hour as (
         date_trunc('hour', bucket_at) as hour_at,
         -- 버스 tier1 한정, 관측수 가중.
         sum(bus_obs_cnt_t1) as bus_obs_cnt_t1,
-        case when sum(case when bus_congestion_avg_t1 is not null then bus_obs_cnt_t1 end) > 0
-             then sum(bus_congestion_avg_t1 * bus_obs_cnt_t1)
-                  / sum(case when bus_congestion_avg_t1 is not null then bus_obs_cnt_t1 end)
-        end as bus_congestion_avg_t1,
-        case when sum(case when bus_full_ratio_t1 is not null then bus_obs_cnt_t1 end) > 0
-             then sum(bus_full_ratio_t1 * bus_obs_cnt_t1)
-                  / sum(case when bus_full_ratio_t1 is not null then bus_obs_cnt_t1 end)
-        end as bus_full_ratio_t1,
+        {{ transit_weighted_avg('bus_congestion_avg_t1', 'bus_obs_cnt_t1') }} as bus_congestion_avg_t1,
+        {{ transit_weighted_avg('bus_full_ratio_t1', 'bus_obs_cnt_t1') }} as bus_full_ratio_t1,
         -- 지하철·주차(수집 주기 균일 — 버킷 단순 평균).
         sum(subway_arrival_cnt) as subway_arrival_cnt,
         avg(subway_wait_avg_s) as subway_wait_avg_s,

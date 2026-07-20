@@ -50,14 +50,8 @@ select
     -- 버스(tier1 한정, 관측수 가중)
     count(case when bus_obs_cnt_t1 > 0 then 1 end) as bus_base_n,
     sum(bus_obs_cnt_t1) as bus_obs_sum_t1,
-    case when sum(case when bus_congestion_avg_t1 is not null then bus_obs_cnt_t1 end) > 0
-         then sum(bus_congestion_avg_t1 * bus_obs_cnt_t1)
-              / sum(case when bus_congestion_avg_t1 is not null then bus_obs_cnt_t1 end)
-    end as bus_congestion_avg_t1,
-    case when sum(case when bus_full_ratio_t1 is not null then bus_obs_cnt_t1 end) > 0
-         then sum(bus_full_ratio_t1 * bus_obs_cnt_t1)
-              / sum(case when bus_full_ratio_t1 is not null then bus_obs_cnt_t1 end)
-    end as bus_full_ratio_t1,
+    {{ transit_weighted_avg('bus_congestion_avg_t1', 'bus_obs_cnt_t1') }} as bus_congestion_avg_t1,
+    {{ transit_weighted_avg('bus_full_ratio_t1', 'bus_obs_cnt_t1') }} as bus_full_ratio_t1,
     -- 지하철
     count(case when subway_arrival_cnt > 0 then 1 end) as subway_base_n,
     avg(subway_wait_avg_s) as subway_wait_avg_s,
