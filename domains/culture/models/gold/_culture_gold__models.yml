@@ -54,6 +54,56 @@ models:
         description: KCISA 국립문화기관 행사 수
         data_type: bigint
 
+  - name: gold_culture_booking_curve
+    description: 공연별 예매상황판 순위 궤적 요약(그레인 performance_id, 1공연 1행, #269). KOPIS는 순위(rank)만 제공 — 예매율·판매좌석·매진 데이터 없어 '순위 궤적'으로 실현. boxoffice_daily(스냅샷별)와 그레인 다름.
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+    columns:
+      - name: performance_id
+        description: KOPIS 공연 식별자(mt20id) — 그레인, 유일
+        data_type: varchar
+        tests: [not_null, unique]
+      - name: performance_name
+        description: 공연명
+        data_type: varchar
+      - name: genre
+        description: KOPIS 장르 원문
+        data_type: varchar
+      - name: venue_name
+        description: 공연장 이름
+        data_type: varchar
+      - name: event_start_date
+        description: 공연 시작일(KST)
+        data_type: date
+      - name: event_end_date
+        description: 공연 종료일(KST)
+        data_type: date
+      - name: first_seen_date
+        description: 이 공연이 예매 top50에 처음 등장한 스냅샷 일(KST)
+        data_type: date
+      - name: last_seen_date
+        description: 마지막으로 top50에 있던 스냅샷 일(KST)
+        data_type: date
+      - name: days_on_chart
+        description: top50에 등장한 누적 스냅샷 수(체류 기간 프록시)
+        data_type: integer
+      - name: best_rank
+        description: 이력 중 최고(최저 숫자) 순위 — 예매세 정점(1=최다). 예매율 아님, 순위 기반
+        data_type: integer
+      - name: best_rank_date
+        description: best_rank 를 처음 달성한 스냅샷 일(KST)
+        data_type: date
+      - name: days_to_peak
+        description: 첫 등장부터 정점 순위까지 걸린 일수(best_rank_date - first_seen_date, ≥0)
+        data_type: integer
+      - name: first_rank
+        description: 첫 등장일의 순위(진입 순위)
+        data_type: integer
+      - name: last_rank
+        description: 마지막 스냅샷의 순위(현재 순위)
+        data_type: integer
+
   - name: gold_culture_boxoffice_daily
     description: KOPIS 예매 랭킹 일 스냅샷(snapshot_date × rank_no). "요즘 핫한 공연" — 스냅샷이 매일 쌓여 예매 추이 시계열의 원천이 된다.
     config:
