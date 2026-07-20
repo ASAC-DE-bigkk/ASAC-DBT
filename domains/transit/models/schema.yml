@@ -316,3 +316,59 @@ models:
         tests:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.90}
+
+  # ---------------- 사용자향 골드 1차 (#289) ----------------
+  - name: gold_transit_dong_now
+    description: >
+      "지금 우리 동네 교통" 스코어카드(#289 G1). grain admin_dong_code — 소스(버스·지하철·
+      주차)별 최근 24h 내 최신 관측 버킷 지표 + 관측 시각(*_last_event_at, "N분 전 관측"
+      표기 근거) + 사용자 등급(혼잡 여유/보통/혼잡, 주차 여유 %, 대기 분). 매 변환 재생성
+      스냅샷(table) — 경과 시간은 조회 시점 기준으로 소비 측이 계산.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+          - unique
+      - name: bus_congestion_grade
+        description: 혼잡 등급(여유<3.5≤보통<4.5≤혼잡). 원천 congestion 값역 3/4/5.
+        tests:
+          - accepted_values:
+              arguments: {values: ['여유', '보통', '혼잡']}
+      - name: parking_avail_pct
+        description: 주차 여유 %((1-점유율)×100 반올림).
+
+  - name: gold_transit_x_weather_dong_hourly
+    description: >
+      날씨 조건부 교통 상태(#289 G6, × weather). grain (admin_dong_code, hour_at).
+      과거 행 = 교통 실측(버스 tier1 한정) + 당시 예보(패턴 학습), 미래 행 = 예보만
+      (교통 null, 전망 카드). 날씨는 최신 발표분 피벗(max_by issued_at, citydata 선례).
+      과거 예보-교통 쌍의 자체 아카이브 겸용 — full_refresh=false 고정.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+      - name: hour_at
+        tests:
+          - not_null
+      - name: precip_mm
+        description: 예보 강수량 mm. 원천 '강수없음'은 null — PTY(precip_type)=0 과 함께 해석.
+      - name: precip_type
+        description: 강수형태(0없음/1비/2비눈/3눈/4소나기).
+      - name: is_precip
+        description: 강수 예보 여부(precip_type>0).
+
+  - name: gold_transit_lastmile_dong_hourly
+    description: >
+      지하철 주변 따릉이 라스트마일(#289 G9, × citydata). grain (admin_dong_code, hour_at),
+      지하철역 보유 동 한정. 따릉이는 핫스팟 121곳 주변 대여소만 — sbike_* null 은
+      "정보 없음"(대여소 없음 아님). citydata 보존 별도라 자체 아카이브 겸용 —
+      full_refresh=false 고정.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+      - name: hour_at
+        tests:
+          - not_null
+      - name: sbike_bike_last_sum
+        description: 동 내 대여소별 최신 잔여 대수 합(시간 내 마지막 관측 기준).

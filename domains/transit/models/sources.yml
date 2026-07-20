@@ -103,3 +103,27 @@ sources:
           - name: ingested_at
             tests:
               - not_null
+
+  # ---- 크로스 도메인 published 테이블 (#289) ----
+  # citydata 프로젝트의 관례(sources.yml)와 동일: database 는 target 이 해석(iceberg[_dev]),
+  # schema 는 상대 도메인 고정. 신선도 게이트는 상대 도메인 소관이라 걸지 않는다.
+  - name: weather
+    description: 날씨 도메인 published 테이블 (ASAC-DBT domains/weather).
+    database: "{{ target.database }}"
+    schema: weather
+    tables:
+      - name: silver_weather_forecast_by_admin_dong
+        description: >
+          기상청 단기예보(행정동 매핑) long 포맷 — admin_dong_code·forecast_at·category·
+          fcst_value_num·issued_at. (동,예보시각,카테고리)별 발표가 갱신되므로 소비 측이
+          max_by(…, issued_at) 로 최신 발표분을 골라 피벗한다(citydata 선례).
+
+  - name: seoul_citydata
+    description: citydata 도메인 published 테이블 (ASAC-DBT domains/citydata).
+    database: "{{ target.database }}"
+    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    tables:
+      - name: silver_citydata_sbike
+        description: >
+          따릉이 대여소 실시간 — spot_id·parking_count(잔여)·rack_count·observed_at·
+          admin_dong_code(핫스팟 121곳 주변). 수집 5분 주기.
