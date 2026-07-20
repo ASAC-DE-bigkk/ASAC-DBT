@@ -207,7 +207,7 @@ models:
         data_type: varchar
         tests: [not_null]
       - name: gu
-        description: 자치구 이름
+        description: 자치구 이름 — citydata 쪽에서 취함(v2 fix. event_schedule 라벨은 좌표-라벨 불일치로 오표기 가능)
         data_type: varchar
       - name: day_of_week
         description: 요일(1=월 … 7=일, Trino day_of_week) — v2(#282) 추가 축. "무슨 요일 몇 시가 한적한가"

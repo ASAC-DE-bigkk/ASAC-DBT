@@ -2,11 +2,15 @@
 --   그레인: gu_code × day_of_week × hour_of_day. citydata gold(장소×시간 인구혼잡)를 source로 읽어
 --   event_schedule 이 있는 gu 로 스코프. "그 행사 지역 무슨 요일 몇 시가 붐비나/한적한가".
 --   v2(#282): 요일 축 추가 — 셀당 p50 66샘플 실측(희소<3 셀 0%)으로 통계적 성립 확인.
+--   v2 fix: 구 이름은 citydata 쪽에서 취함 — event_schedule 은 gu(소스 라벨)·gu_code(좌표
+--   canonical)가 행 단위로 어긋날 수 있어(라벨-좌표 불일치, assert_gu_label_vs_coord_mismatch
+--   참조) v1의 max(gu)가 오표기를 뽑았음(11110에 '중랑구' 등). citydata 쌍은 불일치 0 실측.
 --   ⚠ ~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님. 18일 이력 기반.
 
 with crowd as (
     select
         gu_code,
+        gu,
         day_of_week(event_at)                       as day_of_week,
         hour(event_at)                              as hour_of_day,
         (area_ppltn_min + area_ppltn_max) / 2.0     as ppltn_mid,
@@ -22,12 +26,11 @@ with crowd as (
     where gu_code is not null and area_congest_lvl is not null
 ),
 
--- 문화 행사가 실제 열리는 자치구 + 이름
+-- 문화 행사가 실제 열리는 자치구(스코프 필터만 — 이름은 citydata 쪽이 정확)
 event_gu as (
-    select gu_code, max(gu) as gu
+    select distinct gu_code
     from {{ ref('gold_culture_event_schedule') }}
     where gu_code is not null
-    group by gu_code
 ),
 
 -- (gu, dow, hour) × 레벨 빈도 → 모달 혼잡 레벨
@@ -46,6 +49,7 @@ typical as (
 agg as (
     select
         c.gu_code,
+        max(c.gu)             as gu,   -- citydata 쌍은 gu_code당 이름 1개(불일치 0 실측)
         c.day_of_week,
         c.hour_of_day,
         avg(c.ppltn_mid)      as avg_ppltn,
@@ -58,7 +62,7 @@ agg as (
 
 select
     a.gu_code,
-    e.gu,
+    a.gu,
     cast(a.day_of_week as integer)          as day_of_week,
     cast(a.hour_of_day as integer)          as hour_of_day,
     cast(round(a.avg_ppltn) as integer)     as avg_ppltn,
@@ -66,5 +70,4 @@ select
     t.typical_congest,
     cast(a.crowd_samples as integer)        as crowd_samples
 from agg a
-join event_gu e on e.gu_code = a.gu_code
 join typical t on t.gu_code = a.gu_code and t.day_of_week = a.day_of_week and t.hour_of_day = a.hour_of_day
