@@ -103,3 +103,50 @@ sources:
           - name: ingested_at
             tests:
               - not_null
+
+  # ---- 크로스 도메인 published 테이블 (#289) ----
+  # citydata 프로젝트의 관례(sources.yml)와 동일: database 는 target 이 해석(iceberg[_dev]),
+  # schema 는 상대 도메인 고정. 신선도 게이트는 상대 도메인 소관이라 걸지 않는다.
+  - name: weather
+    description: 날씨 도메인 published 테이블 (ASAC-DBT domains/weather).
+    database: "{{ target.database }}"
+    schema: weather
+    tables:
+      - name: silver_weather_forecast_by_admin_dong
+        description: >
+          기상청 단기예보(행정동 매핑) long 포맷 — admin_dong_code·forecast_at·category·
+          fcst_value_num·issued_at. (동,예보시각,카테고리)별 발표가 갱신되므로 소비 측이
+          max_by(…, issued_at) 로 최신 발표분을 골라 피벗한다(citydata 선례).
+
+  - name: seoul_citydata
+    description: citydata 도메인 published 테이블 (ASAC-DBT domains/citydata).
+    database: "{{ target.database }}"
+    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    tables:
+      - name: silver_citydata_sbike
+        description: >
+          따릉이 대여소 실시간 — spot_id·parking_count(잔여)·rack_count·observed_at·
+          admin_dong_code(핫스팟 121곳 주변). 수집 5분 주기.
+      - name: silver_citydata_ppltn
+        description: >
+          핫스팟 실시간 인구 — area_cd·event_at·area_congest_lvl(여유/보통/약간 붐빔/붐빔)·
+          area_ppltn_min/max·admin_dong_code. 5분 주기.
+      - name: silver_citydata_transit_ppltn
+        description: >
+          핫스팟 대중교통 승하차 — area_cd·mode(bus/subway)·observed_at·
+          gton/gtoff_5min_min/max(승차/하차)·station_count. 수집 5분 주기.
+          버스 티어링(ASAC-DAG #440) 이후 버스 '수요' 축은 이 소스가 5분 해상도로 보강.
+      - name: gold_citydata_ppltn_forecast
+        description: >
+          핫스팟 기대 인구 프로파일 — area_cd × is_weekend × hr(0~23) 의
+          expected_ppltn·ppltn_std·peak_ppltn·base_n. 인구 '예보' 역할(G10 원천).
+
+  - name: culture
+    description: 문화 도메인 published 테이블 (ASAC-DBT domains/culture).
+    database: "{{ target.database }}"
+    schema: culture
+    tables:
+      - name: gold_culture_event_schedule
+        description: >
+          공연·전시·행사 일정 — event_ref·event_type·title·venue_name·
+          event_start/end_date·event_at(시각, 일부만)·latitude/longitude·admin_dong_code.

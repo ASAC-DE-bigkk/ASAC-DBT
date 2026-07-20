@@ -136,9 +136,15 @@ models:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
       - name: admin_dong_code
+        description: >
+          dim_transit_station 조인. 수집이 경로형 ALL(#369)로 바뀌며 수도권 전 역이
+          들어와, 경기·인천 역(부천·소사·개봉 등)은 서울 행정동이 없어 NULL 이 정상이다
+          — 실측 커버리지 0.48(dim_transit_station 의 0.51 과 같은 사유). 임계는
+          '서울 역이 정상 부착되는가'를 지키는 선으로 잡는다(6역 한정 수집 시절의
+          0.90 은 ALL 전환 후 구조적으로 달성 불가).
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.90}
+              arguments: {min_ratio: 0.45}
 
   - name: silver_transit_bus_position
     description: >
@@ -191,7 +197,6 @@ models:
       event_at) KST. silver 3종(버스·지하철·주차)을 동·시간으로 집계해 한 행에 나란히(3원 outer 결합
       — 한 소스만 있는 조합도 행 생성). 지하철은 역 3곳(4개 동)에만 존재해 대부분 행에서 subway_* null.
       정화된 silver(#66)만 소비하므로 추가 시간 필터 없음. incremental merge(-3h lookback).
-      주의: 상류 결손으로 parking_occupancy_avg/parking_full_lot_cnt 현재 전건 null/0(모델 헤더 주석).
     columns:
       - name: admin_dong_code
         description: 행안부 10자리 행정동 코드(공간축, 그레인 축). null 행은 소스에서 제외.
@@ -221,7 +226,283 @@ models:
         description: 관측 주차 개소 수(동×시간 distinct lot).
       - name: parking_occupancy_avg
         description: >
-          평균 점유율(개소별 평균 점유율의 평균, 개소 동등가중). 현재 상류 silver 의
-          now_prk_vhcl_cnt·total_capacity 결손으로 전건 null — silver 캐스트 수정 시 채워짐.
+          평균 점유율(개소별 평균 점유율의 평균, 개소 동등가중). 과거 소수문자열 캐스트
+          결손으로 전건 null 이던 시기 있음 — #72 매크로로 해소(2026-07-20 실증 #286).
       - name: parking_full_lot_cnt
-        description: 만차 개소 수(개소별 시간 내 최대 점유율 >= 0.95). 상류 결손으로 현재 0.
+        description: 만차 개소 수(개소별 시간 내 최대 점유율 >= 0.95).
+
+  # ---------------- 기반 아카이브 골드 (#286) ----------------
+  - name: dim_transit_bus_route_tier
+    description: >
+      버스 노선 수집 티어 분류(#286, 수집 정책 ASAC-DAG #440). grain bus_route_id.
+      routeType 원천(R2 reference)이 웨어하우스에 없어 **수집 런 시각**으로 역산한다:
+      tier2 는 BUS_TIER2_HOURS 정시 런에만 실리므로, dag_run_id 의 분이 00 이 아닌
+      스케줄 런에 등장한 노선 = tier1(ASAC-DAG #449 시간창). 관측 창은 아카이브
+      개시일(var transit_archive_start_at) 이후 — 정책 전환 전 무차별 수집 구간을
+      섞으면 분류가 오염된다. 매 빌드 전체 재계산.
+    columns:
+      - name: bus_route_id
+        tests:
+          - not_null
+          - unique
+      - name: tier
+        description: 1=간선·광역(전 시간대 수집), 2=그 외(하루 3회 수집).
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [1, 2], quote: false}
+
+  - name: gold_transit_dong_15min
+    description: >
+      동×15분 교통 상태 기반 아카이브(#286). grain (admin_dong_code, bucket_at).
+      gold_transit_dong_hourly(#67)의 15분판 + 버스 tier1 한정 컬럼(*_t1, 시간대 비교
+      파생 전용) + 소스별 최신 관측 시각(*_last_event_at, '지금' 카드 freshness 근거).
+      원본 주 경계 삭제(ASAC-DAG #369) 대비 영구 아카이브 — full_refresh=false 고정.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+      - name: bucket_at
+        description: 15분 버킷(KST 벽시계, transit_time_bucket). 그레인 축.
+        tests:
+          - not_null
+      - name: bus_obs_cnt
+        description: 버스 관측 행수(전 티어 — 현재 상태·커버리지 용도).
+      - name: bus_obs_cnt_t1
+        description: >
+          버스 관측 행수(tier1 한정). 시간대끼리 비교하는 파생(리듬 G4·예측 G10)은
+          반드시 *_t1 만 소비 — tier2 는 07·13·19시에만 관측돼 표본 구성이 달라짐(#440).
+      - name: bus_last_event_at
+        description: 버킷 내 버스 최신 관측 시각(KST) — "N분 전 관측" 표기 근거.
+      - name: subway_last_event_at
+        description: 버킷 내 지하철 최신 관측 시각(KST).
+      - name: parking_last_event_at
+        description: 버킷 내 주차 최신 관측 시각(KST).
+
+  - name: gold_transit_route_section_30min
+    description: >
+      노선×구간×30분 버스 아카이브(#286). grain (bus_route_id, sect_ord, bucket_at).
+      티어링(#440) 후 30분 주기에 맞춘 버킷 = 런 1회 스냅샷. 전 티어 저장 + tier 스탬프
+      (필터는 파생 몫 — G3 프로파일은 tier=1 만). full_refresh=false 고정.
+    columns:
+      - name: bus_route_id
+        tests:
+          - not_null
+      - name: sect_ord
+        description: 노선 내 구간 순번(원천 sectOrd). 그레인 축 — null 행은 제외.
+        tests:
+          - not_null
+      - name: bucket_at
+        description: 30분 버킷(KST 벽시계). 그레인 축.
+        tests:
+          - not_null
+      - name: tier
+        description: >
+          빌드 시점의 dim_transit_bus_route_tier 분류 스탬프. 과거 버킷 소급 재분류 없음
+          (당시 수집 정책의 기록). 최근 7일 무관측 노선(dim 미등재)은 null.
+        tests:
+          - accepted_values:
+              arguments: {values: [1, 2], quote: false}
+
+  - name: gold_transit_parking_lot_15min
+    description: >
+      주차장 개소×15분 점유 아카이브(#286). grain (parking_id, bucket_at). 수집 5분 주기라
+      버킷당 ~3관측. occ_last(max_by 최신 점유율)는 G2 변화율(연속 버킷 lag)용.
+      full_refresh=false 고정.
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+      - name: bucket_at
+        description: 15분 버킷(KST 벽시계). 그레인 축.
+        tests:
+          - not_null
+      - name: occ_last
+        description: 버킷 내 최신 관측 점유율(max_by). 최신 관측이 결손이면 null.
+      - name: admin_dong_code
+        description: 개소 상수(최신 관측값 스탬프).
+        tests:
+          - asac_axes.axis_coverage:
+              arguments: {min_ratio: 0.90}
+
+  # ---------------- 사용자향 골드 1차 (#289) ----------------
+  - name: gold_transit_dong_now
+    description: >
+      "지금 우리 동네 교통" 스코어카드(#289 G1). grain admin_dong_code — 소스(버스·지하철·
+      주차)별 최근 24h 내 최신 관측 버킷 지표 + 관측 시각(*_last_event_at, "N분 전 관측"
+      표기 근거) + 사용자 등급(혼잡 여유/보통/혼잡, 주차 여유 %, 대기 분). 매 변환 재생성
+      스냅샷(table) — 경과 시간은 조회 시점 기준으로 소비 측이 계산.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+          - unique
+      - name: bus_congestion_grade
+        description: 혼잡 등급(여유<3.5≤보통<4.5≤혼잡). 원천 congestion 값역 3/4/5.
+        tests:
+          - accepted_values:
+              arguments: {values: ['여유', '보통', '혼잡']}
+      - name: parking_avail_pct
+        description: 주차 여유 %((1-점유율)×100 반올림).
+
+  - name: gold_transit_x_weather_dong_hourly
+    description: >
+      날씨 조건부 교통 상태(#289 G6, × weather). grain (admin_dong_code, hour_at).
+      과거 행 = 교통 실측(버스 tier1 한정) + 당시 예보(패턴 학습), 미래 행 = 예보만
+      (교통 null, 전망 카드). 날씨는 최신 발표분 피벗(max_by issued_at, citydata 선례).
+      과거 예보-교통 쌍의 자체 아카이브 겸용 — full_refresh=false 고정.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+      - name: hour_at
+        tests:
+          - not_null
+      - name: precip_mm
+        description: 예보 강수량 mm. 원천 '강수없음'은 null — PTY(precip_type)=0 과 함께 해석.
+      - name: precip_type
+        description: 강수형태(0없음/1비/2비눈/3눈/4소나기).
+      - name: is_precip
+        description: 강수 예보 여부(precip_type>0).
+
+  - name: gold_transit_lastmile_dong_hourly
+    description: >
+      지하철 주변 따릉이 라스트마일(#289 G9, × citydata). grain (admin_dong_code, hour_at),
+      지하철역 보유 동 한정. 따릉이는 핫스팟 121곳 주변 대여소만 — sbike_* null 은
+      "정보 없음"(대여소 없음 아님). citydata 보존 별도라 자체 아카이브 겸용 —
+      full_refresh=false 고정.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+      - name: hour_at
+        tests:
+          - not_null
+      - name: sbike_bike_last_sum
+        description: 동 내 대여소별 최신 잔여 대수 합(시간 내 마지막 관측 기준).
+
+  - name: gold_transit_dong_rhythm
+    description: >
+      동별 요일×시간 교통 리듬(#287 G4). grain (admin_dong_code, dow, hh) — dow ISO(1=월),
+      hh 0~23, KST. 아카이브(dong_15min) 전량 재집계(table). 버스는 tier1 한정·관측수 가중
+      (#440 원칙 ②). *_base_n = 기여 15분 버킷 수 — 표본 부족 판단은 소비 측 몫
+      (4주 누적 시 칸당 ~16). G1 '평시 대비'·G10 예측의 기준선.
+    columns:
+      - name: admin_dong_code
+        tests:
+          - not_null
+      - name: dow
+        description: ISO 요일(1=월 … 7=일, bucket_at KST 기준).
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [1, 2, 3, 4, 5, 6, 7], quote: false}
+      - name: hh
+        description: 시간(0~23, KST).
+        tests:
+          - not_null
+      - name: bus_base_n
+        description: 버스(tier1) 기여 버킷 수 — 표본 배지 근거.
+
+  - name: gold_transit_parking_profile
+    description: >
+      주차장별 요일×시간 점유 프로파일(#288 G2 프로파일 축). grain (parking_id, dow, hh).
+      아카이브(parking_lot_15min) 전량 재집계. full_prob = 버킷 중 occ_max>=0.95 비율.
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+      - name: dow
+        tests:
+          - not_null
+      - name: hh
+        tests:
+          - not_null
+      - name: full_prob
+        description: 만차 확률(0~1). base_n 얇으면(운영 초기) 소비 측 배지 처리.
+
+  - name: gold_transit_parking_full_risk
+    description: >
+      주차장별 현재 만차 리스크 스냅샷(#288 G2). grain parking_id — 현재 점유·잔여 추정
+      + 최근 1시간(4버킷) occ_last 추세의 만차까지 예상 분 + 이 시간대 평시 만차 확률
+      (프로파일 조인). 매 변환 재생성 table, 기준은 아카이브 프런티어.
+    columns:
+      - name: parking_id
+        tests:
+          - not_null
+          - unique
+      - name: minutes_to_full_est
+        description: 만차(0.95)까지 예상 분. 채워지는 중(rate>0)일 때만, 이미 만차면 0, 그 외 null.
+      - name: occ_rate_per_min
+        description: 분당 점유율 변화(최근 4버킷 처음↔끝). 4버킷 미만 관측이면 null.
+
+  - name: gold_transit_bus_route_comfort
+    description: >
+      노선×구간별 요일×시간 쾌적도(#288 G3). grain (bus_route_id, sect_ord, dow, hh).
+      tier1(간선·광역) 한정 — tier2 는 하루 3회 관측이라 시간대 프로파일 불성립(#440).
+      아카이브(route_section_30min) 전량 재집계, 관측수 가중.
+    columns:
+      - name: bus_route_id
+        tests:
+          - not_null
+      - name: sect_ord
+        tests:
+          - not_null
+      - name: base_n
+        description: 기여 30분 버킷 수(같은 칸 주 1회×2버킷 → 4주 ~8).
+
+  - name: gold_transit_event_access
+    description: >
+      행사장 가는 길 안내판(#290 G7, × culture). grain event_ref — 진행·예정 행사의
+      최근접 지하철역·주차장(dim 마스터 기반 great_circle_distance, 전 행사 즉시 제공)
+      + 행사 시간대 최근접 주차장 평시 만차 확률(#288 프로파일, evt_hh 미상은 19시 근사·
+      전 요일 평균). 매 변환 재생성 table.
+    columns:
+      - name: event_ref
+        tests:
+          - not_null
+          - unique
+      - name: nearest_station_dist_m
+        description: 최근접 역 직선거리 m(도보 환산은 소비 측 — 80m/분 관례).
+      - name: nearest_parking_full_prob
+        description: >
+          최근접 주차장의 행사 시간대(evt_hh) 평시 만차 확률(전 요일 평균).
+          null = 실시간 미제공 lot(정보 없음).
+
+  - name: gold_transit_supply_x_demand_hourly
+    description: >
+      핫스팟 수요×공급 교통 압박(#291 G8, × citydata). grain (area_cd, hour_at) —
+      수요(실시간 인구·혼잡 라벨·bus/subway 5분 승하차)와 공급(핫스팟 동의 주차 여유·
+      운행 관측)을 대조. 합성 지수는 두지 않고 구성 요소 + is_parking_pressured 플래그만
+      (공식은 #291 논의). citydata 보존 별도 → 자체 아카이브, full_refresh=false.
+      citydata gold_citydata_ppltn_x_transit_hourly(동 축)와의 중복 정리는 #291 오픈 퀘스천.
+    columns:
+      - name: area_cd
+        tests:
+          - not_null
+      - name: hour_at
+        tests:
+          - not_null
+      - name: congest_lvl_last
+        description: 시간 내 최신 혼잡 라벨(여유/보통/약간 붐빔/붐빔).
+      - name: is_parking_pressured
+        description: 혼잡('약간 붐빔'/'붐빔') AND 주차 점유>=0.8. 주차 실측 없는 동은 false 아님 null 주의.
+
+  - name: gold_transit_forecast_card
+    description: >
+      "내일 이 시간 교통" 예측 카드(#292 G10, × citydata × weather). grain (area_cd,
+      target_hour_at 미래 시각 — 프런티어 이후, 상한은 단기예보 +3일). 기대 인구
+      (citydata 프로파일) + 날씨 예보(G6 미래 행 재사용) + 평시 교통(G4 리듬, 버스 tier1)
+      3원 결합. 추천은 해석 가능한 불리언 3개(v1 단순 규칙 — 합성 점수 없음).
+      매 변환 재생성 table(과거 검증은 G6 아카이브 몫).
+    columns:
+      - name: area_cd
+        tests:
+          - not_null
+      - name: target_hour_at
+        tests:
+          - not_null
+      - name: transit_recommended
+        description: 주차 혼잡 예상(평시 점유>=0.8, 표본>=4) 또는 강수 예보 시 true.
+      - name: rhythm_parking_base_n
+        description: 리듬 기준선 표본 수(G4 승계) — 운영 초기 얇음, 소비 측 배지 판단.
