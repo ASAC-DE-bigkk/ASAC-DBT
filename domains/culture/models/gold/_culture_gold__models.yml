@@ -147,6 +147,21 @@ models:
       - name: gu
         description: 공연장 자치구 이름
         data_type: varchar
+      - name: rank_prev_3d
+        description: 3일 전 같은 공연의 예매 순위 — top50 밖이었으면 NULL(달력 조인, freshness 갭 안전)
+        data_type: integer
+      - name: rank_delta_3d
+        description: 순위 상승폭(rank_prev_3d - rank_no) — 양수=상승. NULL이면 신규/재진입(3일 전 부재)
+        data_type: integer
+      - name: days_on_chart
+        description: 이 공연이 top50에 등장한 누적 스냅샷 수(현재 포함) — 체류 기간 프록시
+        data_type: integer
+      - name: is_new_entry
+        description: 어제까지 없다가 오늘 처음(또는 재)진입했는지 — 첫 등장·재진입 공통 true
+        data_type: boolean
+      - name: momentum_status
+        description: "순위 모멘텀: new(어제 부재)·rising(순위 상승)·falling(하락)·steady(변동 없음/추세 미정)"
+        data_type: varchar
 
   - name: gold_culture_event_schedule
     description: 문화행사 목록 질의 표면 (행사 1행, #187). "이번 주말 ○○구 행사" = 기간 겹침 + gu_code 필터 단독 조회. 6개 silver union + norm_title×시작일×gu 크로스소스 dedup(전문 소스 우선).
