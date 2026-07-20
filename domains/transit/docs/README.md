@@ -13,6 +13,7 @@ transit dbt 프로젝트가 만드는 silver·dim 모델과, 소비하는 공통
 | [gold_transit_dong_hourly.md](gold_transit_dong_hourly.md) | gold (시간) | 행정동 1개 × 1시간대 교통 상태(버스·지하철·주차) |
 | [gold_transit_archive_15min.md](gold_transit_archive_15min.md) | gold 아카이브 3종 + tier dim (#286) | 동×15분 / 노선×구간×30분 / 주차장×15분 — 주 단위 원본 삭제 대비 영구 집계층 |
 | [gold_transit_user_facing_p1.md](gold_transit_user_facing_p1.md) | 사용자향 gold 1차 (#289) | 지금 카드(동) / ×날씨(동×시간, 예보 포함) / 따릉이 라스트마일(역 동×시간) |
+| [gold_transit_user_facing_p2.md](gold_transit_user_facing_p2.md) | 사용자향 gold 2차 (#287·288·290·291·292) | 리듬·주차 프로파일/리스크·노선 쾌적도·행사 접근·수요×공급·예측 카드 |
 | [dim_transit_station.md](dim_transit_station.md) | dim (주간) | 지하철역 1개 |
 | [dim_transit_parking.md](dim_transit_parking.md) | dim (주간) | 공영주차장 1개소 |
 | [dim_admin_dong.md](dim_admin_dong.md) | dim (공통, asac_axes) | 서울 행정동 1개 |

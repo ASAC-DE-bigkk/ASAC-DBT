@@ -479,3 +479,22 @@ models:
         description: 시간 내 최신 혼잡 라벨(여유/보통/약간 붐빔/붐빔).
       - name: is_parking_pressured
         description: 혼잡('약간 붐빔'/'붐빔') AND 주차 점유>=0.8. 주차 실측 없는 동은 false 아님 null 주의.
+
+  - name: gold_transit_forecast_card
+    description: >
+      "내일 이 시간 교통" 예측 카드(#292 G10, × citydata × weather). grain (area_cd,
+      target_hour_at 미래 시각 — 프런티어 이후, 상한은 단기예보 +3일). 기대 인구
+      (citydata 프로파일) + 날씨 예보(G6 미래 행 재사용) + 평시 교통(G4 리듬, 버스 tier1)
+      3원 결합. 추천은 해석 가능한 불리언 3개(v1 단순 규칙 — 합성 점수 없음).
+      매 변환 재생성 table(과거 검증은 G6 아카이브 몫).
+    columns:
+      - name: area_cd
+        tests:
+          - not_null
+      - name: target_hour_at
+        tests:
+          - not_null
+      - name: transit_recommended
+        description: 주차 혼잡 예상(평시 점유>=0.8, 표본>=4) 또는 강수 예보 시 true.
+      - name: rhythm_parking_base_n
+        description: 리듬 기준선 표본 수(G4 승계) — 운영 초기 얇음, 소비 측 배지 판단.
