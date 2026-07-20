@@ -64,3 +64,25 @@ seeds:
         tests: [not_null]
       - name: longitude
         tests: [not_null]
+
+  - name: seed_culture_qa_questions
+    description: 페르소나 질문 카탈로그(티어링 #20, 설계 2026-07-20-culture-qa-eval.md). 페르소나 원천 = nvidia/Nemotron-Personas-Korea (HuggingFace, CC-BY-4.0) — 15명 샘플(스냅샷 docs/design/2026-07-20-qa-personas-snapshot.json), 질문은 페르소나 텍스트 근거 큐레이션(검수 게이트 7/20 통과분 30문항). 답가능=W7 평가셋 입력, 답불가=수집 로드맵 재료.
+    columns:
+      - name: question_id
+        description: 질문 ID (QA001…)
+        tests: [not_null, unique]
+      - name: persona_uuid
+        description: Nemotron 페르소나 uuid — 스냅샷 JSON과 조인 가능
+        tests: [not_null]
+      - name: question_text
+        description: 자연어 질문
+        tests: [not_null]
+      - name: persona_lens
+        description: 질문을 만든 페르소나 렌즈
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["travel", "culinary", "family", "sports", "arts"]
+      - name: answerable
+        description: 현행 culture gold로 답 가능 여부(큐레이션 의도 — 실측은 gold의 mart_exists)
+        tests: [not_null]

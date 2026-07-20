@@ -35,3 +35,5 @@ seeds:
       +column_types: {game_date: date}
     kbo_stadium_location:
       +column_types: {latitude: double, longitude: double}
+    seed_culture_qa_questions:
+      +column_types: {answerable: boolean}
