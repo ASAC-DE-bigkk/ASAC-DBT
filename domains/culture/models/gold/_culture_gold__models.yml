@@ -53,6 +53,12 @@ models:
       - name: kcisa_count
         description: KCISA 국립문화기관 행사 수
         data_type: bigint
+      - name: free_events_count
+        description: 그날 그 동의 무료(is_free='무료') 서울시 문화행사 수 — event 소스만(타 소스 유무료 정보 없음). free_access(티어링 #19) 흡수(#280)
+        data_type: bigint
+      - name: edu_experience_events_count
+        description: 그날 그 동의 교육/체험 카테고리 행사 수 — 기술적 카운트("가족적합" 해석은 Q&A 레이어 몫)
+        data_type: bigint
 
   - name: gold_culture_booking_curve
     description: 공연별 예매상황판 순위 궤적 요약(그레인 performance_id, 1공연 1행, #269). KOPIS는 순위(rank)만 제공 — 예매율·판매좌석·매진 데이터 없어 '순위 궤적'으로 실현. boxoffice_daily(스냅샷별)와 그레인 다름.

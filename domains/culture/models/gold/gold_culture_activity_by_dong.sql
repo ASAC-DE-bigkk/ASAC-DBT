@@ -5,6 +5,8 @@
 -- 주의(#111): admin_dong_code 그레인이라 정의상 quality_status='dong_precise' 활동만 포함된다.
 --   좌표 없는 활동(gu_only)은 이 gold 에서 누락 — 구 레벨 집계는 gold_culture_location_daily 참조.
 -- 활동 원천·기간 전개는 int_culture_activity_days 공유. kcisa 는 activity_type 별도 유지(kcisa_count).
+-- free/edu 카운트(#280): free_access(티어링 #19) 흡수 — event 소스만 유무료·카테고리 보유.
+--   해석적 이름(family_friendly) 대신 기술적 카운트만 — "가족적합" 해석은 Q&A 레이어 몫(governed).
 
 with dim as (
     select admin_dong_code, admin_dong, gu_code, gu, stat_region_cd
@@ -12,7 +14,7 @@ with dim as (
 ),
 
 expanded as (
-    select admin_dong_code, activity_id, activity_type, activity_date
+    select admin_dong_code, activity_id, activity_type, activity_date, is_free, category
     from {{ ref('int_culture_activity_days') }}
     where admin_dong_code is not null
 ),
@@ -42,7 +44,9 @@ agg as (
         count(distinct case when activity_type = 'festival'    then activity_id end) as festivals_count,
         count(distinct case when activity_type = 'exhibition'  then activity_id end) as exhibitions_count,
         count(distinct case when activity_type = 'sejong'      then activity_id end) as sejong_count,
-        count(distinct case when activity_type = 'kcisa'       then activity_id end) as kcisa_count
+        count(distinct case when activity_type = 'kcisa'       then activity_id end) as kcisa_count,
+        count(distinct case when activity_type = 'event' and is_free = '무료'      then activity_id end) as free_events_count,
+        count(distinct case when activity_type = 'event' and category = '교육/체험' then activity_id end) as edu_experience_events_count
     from expanded
     group by admin_dong_code, activity_date
 )
@@ -56,6 +60,8 @@ select
     coalesce(a.festivals_count, 0)    as festivals_count,
     coalesce(a.exhibitions_count, 0)  as exhibitions_count,
     coalesce(a.sejong_count, 0)       as sejong_count,
-    coalesce(a.kcisa_count, 0)        as kcisa_count
+    coalesce(a.kcisa_count, 0)        as kcisa_count,
+    coalesce(a.free_events_count, 0)            as free_events_count,
+    coalesce(a.edu_experience_events_count, 0)  as edu_experience_events_count
 from scaffold s
 left join agg a on a.admin_dong_code = s.admin_dong_code and a.event_date = s.event_date
