@@ -33,6 +33,8 @@
 ) }}
 
 {%- set incr_filter %}
+-- 아카이브 개시일 하한(dong_15min 과 같은 근거 — dbt_project.yml var 주석).
+and event_at >= timestamp '{{ var("transit_archive_start_at") }}'
 {% if is_incremental() %}
 and event_at >= (
     select coalesce(max(bucket_at), timestamp '1970-01-01') - interval '3' hour

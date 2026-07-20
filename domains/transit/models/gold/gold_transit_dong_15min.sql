@@ -38,6 +38,9 @@
 ) }}
 
 {%- set incr_filter %}
+-- 아카이브 개시일 하한(var transit_archive_start_at) — 정책 전환 전의 오염 구간
+-- (silver grain 중복·무의미한 tier 스탬프)이 영구 아카이브로 유입되는 것을 막는다.
+and event_at >= timestamp '{{ var("transit_archive_start_at") }}'
 {% if is_incremental() %}
 and event_at >= (
     select coalesce(max(bucket_at), timestamp '1970-01-01') - interval '3' hour

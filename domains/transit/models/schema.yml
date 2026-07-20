@@ -230,8 +230,10 @@ models:
     description: >
       버스 노선 수집 티어 분류(#286, 수집 정책 ASAC-DAG #440). grain bus_route_id.
       routeType 원천(R2 reference)이 웨어하우스에 없어 최근 7일 관측 시간대 종류 수로
-      역산(tier1=매 30분 전 시간대 ~19종, tier2=07·13·19시만 ≤3종 → 임계 12, 과도기
-      오분류 마진 — 모델 헤더 주석). 매 빌드 전체 재계산.
+      역산 — tier1=수집 창 매시간(19종), tier2=BUS_TIER2_HOURS 시각만(2종).
+      임계는 var transit_bus_tier1_min_hour_kinds(기본 6) — 수집 장애 시 tier1 이
+      통째로 오분류되면 영구 복구 불가라 낮은 쪽에 붙였다(모델 헤더 주석).
+      매 빌드 전체 재계산.
     columns:
       - name: bus_route_id
         tests:

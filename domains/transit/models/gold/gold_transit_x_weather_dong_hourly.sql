@@ -43,7 +43,8 @@
        or parking_lot_cnt is not null
 )
 {% else %}
-timestamp '1970-01-01'
+-- 최초 빌드 하한 = 아카이브 개시일(정책 전환 전 오염 구간 유입 차단).
+timestamp '{{ var("transit_archive_start_at") }}'
 {% endif %}
 {%- endset %}
 
