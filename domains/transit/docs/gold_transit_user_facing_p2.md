@@ -16,15 +16,25 @@
 | `gold_transit_parking_full_risk` (#288 G2) | lot | 현재 점유 + 최근 1시간 추세 → "만차까지 N분" + 이 시간대 만차 확률 |
 | `gold_transit_bus_route_comfort` (#288 G3) | 노선×구간×dow×hh | "8시대 이 구간 혼잡 4.2/5" (tier1 165노선 한정) |
 | `gold_transit_event_access` (#290 G7) | event_ref | 최근접 역·주차장(전 행사, dim 기반) + 행사 시간대 만차 확률 |
-| `gold_transit_supply_x_demand_hourly` (#291 G8) | 핫스팟×시간 | 인구·승하차(수요) vs 주차 여유(공급) + 압박 플래그. 자체 아카이브(merge) |
+| `gold_transit_supply_x_demand_hourly` (#291 G8) | 핫스팟×시간 | 수요(인구·혼잡·승하차) vs 주차 여유 + 압박 플래그. 동 축 공급 지표는 제외(중복) |
 | `gold_transit_forecast_card` (#292 G10) | 핫스팟×미래시각 | 기대 인구 + 날씨 예보(G6 재사용) + 리듬 기준선 → "내일 이 시간" 카드(+3일) |
 
 ## 소비 시 주의
 
-- **만차 예상 분**(`minutes_to_full_est`): 최근 4버킷 선형 추세 — 이벤트성 급증(공연 종료
-  등)은 과소추정 가능. rate_base_n<4 이면 null.
-- **행사 시간대 만차 확률**: 행사 시각 미상은 19시 근사 + 전 요일 평균 — "대략의 경향".
-- **G8 압박**: 합성 지수 없음 — `is_parking_pressured` 는 혼잡 라벨×점유 0.8 단순 규칙.
-  공식 고도화는 #291 논의. citydata 동 축 gold 와의 중복 정리도 #291 오픈 퀘스천.
-- **G10 추천 플래그**: v1 단순 규칙(주차 평시 0.8↑ or 강수 예보). 문구화는 대시보드 몫.
+- **만차 예상 분**(`minutes_to_full_est`): lot 자신의 최신 버킷 -45분 이내 **연속 4버킷** 선형
+  추세 — 결측 있는 lot 은 rate null(관측 4건이 수 시간에 걸쳐 기울기가 희석되는 것 방지).
+- **행사 시간대 만차 확률**: 행사 시각 미상은 19시 근사(`is_evt_hh_imputed=true` 로 구분) +
+  전 요일 평균. 프로파일은 lot 자신의 최신 관측 시각 칸으로 조인.
+- **G8 범위(#291 결론)**: 핫스팟에서만 얻을 수 있는 것만 — 수요(인구·혼잡·승하차)와 압박
+  판정용 최소 공급(주차 점유율). 동 축 공급 지표(관측 lot·버스 차량·지하철 도착)는
+  citydata `gold_citydata_ppltn_x_transit_hourly` 또는 `gold_transit_dong_15min` 을
+  `admin_dong_code` 로 조회 — 같은 동 핫스팟마다 같은 값이 반복될 뿐이라 여기 두면 중복.
+  `is_parking_pressured` 는 혼잡 라벨×점유 0.8 단순 규칙(합성 지수 없음, 공식은 #291).
+- **불리언 3-상태 없음**: G8 `is_parking_pressured`·G10 `transit_recommended`·`parking_busy_expected`
+  는 조인 미스 시 `coalesce(..., false)` — `where not ...` 가 행을 조용히 잃지 않는다.
+- **is_precip(G6)**: 예보 없는 동·시각은 `false`(비 안 옴) 아닌 **null**(정보 없음) — rain-vs-dry
+  비교에서 무데이터를 맑음 표본으로 세지 않는다.
+- **크로스 gold 소스별 임계(G6·G8·G9)**: 소스마다 독립 임계(그 소스가 채운 행의 max-3h) — 한
+  소스가 멈춰도 다른 소스 backfill 이 영구 배제되지 않는다.
+- **G10 추천**: v1 단순 규칙(주차 평시 0.8↑ or 강수 예보). 문구화는 대시보드 몫.
 - 운영 초기 몇 주는 모든 프로파일 표본이 얇다 — base_n 배지 필수.

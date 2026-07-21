@@ -1,6 +1,6 @@
 # slv_transit_parking — 공영주차장 실시간 점유
 
-- **한 행** = 주차장 1개의 20분 간격 스냅샷 / **grain**: (`parking_id`, `event_at`)
+- **한 행** = 주차장 1개의 5분 간격 스냅샷 / **grain**: (`parking_id`, `event_at`)
 - **원천**: 서울 열린데이터 `GetParkingInfo`(실시간 123개소) → `bronze_parking`
 - **증분**: incremental merge (시간당 변환 가정)
 

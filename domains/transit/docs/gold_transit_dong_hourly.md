@@ -33,8 +33,10 @@
 
 ## 주의
 
-- **커버리지가 좁다**: 원천이 버스 간선 5노선·지하철 환승역 3곳(**4개 동**만 `subway_*` 값 존재, 나머지 행은 null이 정상)·실시간 주차 123개소다. 서울 전체 일반화 금물. 값이 있는 동·시간만 유효 표본.
-- **20분 스냅샷 평균의 해석 한계**: silver 는 20분 간격 관측(위치·도착·점유의 순간값)이다. `hour_at` 집계는 그 시간 안에 잡힌 스냅샷들의 평균/카운트일 뿐 연속 관측이 아니다. `bus_veh_cnt`는 "그 시간에 그 동을 지난 고유 차량 수"이지 통행량이 아니고, `subway_wait_avg_s`는 도착예측 스냅샷의 평균이라 실제 승객 대기와 다르다. 관측 수(`*_obs_cnt`/`*_arrival_cnt`/`parking_lot_cnt`)를 함께 봐 표본이 얇은 셀을 걸러라.
+- **커버리지**: 원천은 버스 전 노선(티어링 #440·420개 동)·지하철 전 노선(경로형 ALL·339역·210개 동)·실시간 주차 개소다. 값이 있는 동·시간만 유효 표본이며, 관측 수(`*_obs_cnt`)로 얇은 셀을 거른다.
+- **스냅샷 평균의 해석 한계**: silver 는 순간값 관측(버스 티어링·지하철 3분·주차 5분)이다. `hour_at` 집계는 그 시간 안에 잡힌 스냅샷들의 평균/카운트일 뿐 연속 관측이 아니다. `bus_veh_cnt`는 "그 시간에 그 동을 지난 고유 차량 수"이지 통행량이 아니고, `subway_wait_avg_s`는 도착예측 스냅샷의 평균이라 실제 승객 대기와 다르다. 관측 수(`*_obs_cnt`/`*_arrival_cnt`/`parking_lot_cnt`)를 함께 봐 표본이 얇은 셀을 걸러라.
+
+> 이 gold(#67)는 동×시간 상태판이고, 15분판 `gold_transit_dong_15min`(#286)이 아카이브 축이다. 신규 사용자향 gold 는 [gold_transit_user_facing_p1.md](gold_transit_user_facing_p1.md)·[p2](gold_transit_user_facing_p2.md).
 - **`subway_wait_avg_s`의 0 제외**: 원천 `barvl_dt_sec=0`은 "이미 도착/진입한 열차"라 대기가 아니다(실측 약 44%가 0). 포함하면 평균이 절반 이하로 왜곡돼 **제외**했다. 이 지표는 "접근 중 열차의 평균 잔여 도착시간(초)"으로 읽어야 한다.
 - **주차 점유율 지표 현재 null/0 (상류 결손)**: `slv_transit_parking`·`dim_transit_parking`이 원천의 소수문자열(`'806.0'`,`'1260.0'`)을 `cast(... as integer)`로 파싱해 소수점 때문에 try-cast가 실패, `now_prk_vhcl_cnt`·`total_capacity`가 전건 null이다. 그 결과 `parking_occupancy_avg`(null)·`parking_full_lot_cnt`(0)를 지금은 계산할 수 없다. gold 로직은 정상이며 **silver 캐스트 수정(별도 이슈) 후 자동으로 채워진다**. `parking_lot_cnt`(개소 카운트)는 영향 없이 정상.
 - **시간축은 정화된 silver 소비**: 미래 `event_at`은 #66 게이트로 이미 silver에서 제거됨 — gold는 추가 시간 필터 없이 소비한다.

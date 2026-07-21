@@ -1,8 +1,8 @@
 # 사용자향 gold 1차 — dong_now · ×weather · lastmile (#289)
 
 기반 아카이브(#286)에서 직접 파생되는 즉시 가치 3종(G1·G6·G9).
-선정 경위·설계 원칙은 [2026-07-15-gold-candidates-user-facing.md](2026-07-15-gold-candidates-user-facing.md),
-아카이브 계약은 [gold_transit_archive_15min.md](gold_transit_archive_15min.md).
+계약(source·time·space·grain·tier·보존·gold)은 [dbt_contracts.md](dbt_contracts.md),
+아카이브 구조는 [gold_transit_archive_15min.md](gold_transit_archive_15min.md).
 
 ## gold_transit_dong_now — "지금 우리 동네 교통" (G1)
 
@@ -25,7 +25,7 @@
 ## gold_transit_lastmile_dong_hourly — 지하철 주변 따릉이 (G9, × citydata)
 
 - **한 행** = 지하철역 보유 동×1시간 / **grain**: (`admin_dong_code`, `hour_at`), 역 동(~400) 한정
-- 따릉이 잔여(`sbike_bike_last_sum`)·주차 여유·지하철 대기(실시간 6역 동만)를 나란히
+- 따릉이 잔여(`sbike_bike_last_sum`)·주차 여유·지하철 대기(경로형 ALL 수집)를 나란히
 - **커버리지 주의**: 따릉이는 citydata 핫스팟 121곳 주변 대여소만 — `sbike_*` null 은
   "정보 없음"이지 "대여소 없음"이 아니다. citydata 수집 중단 구간(실측 2026-07-17~)은 행이 비는 게 정상
 - citydata 보존 별도 → 여기 merge 된 행이 따릉이 이력의 자체 아카이브(`full_refresh=false`)

@@ -1,8 +1,10 @@
 # slv_transit_bus_position — 버스 실시간 위치
 
 - **한 행** = 버스 1대의 시점 위치 / **grain**: (`veh_id`, `data_tm`)
-- **원천**: TOPIS `getBusPosByRtid`(간선 5노선: 146·361·472·143·100, XML) → `bronze_bus_position` → SQL 파싱(regexp+unnest)
-- 유일하게 **실좌표(GPS)가 있는 실시간** 데이터 — 공간축 커버리지 1.00
+- **원천**: TOPIS `getBusPosByRtid`(전 노선 ALL, 티어링 #440·#449 — tier1 간선·광역 촘촘,
+  tier2 09·19시 스냅샷, XML) → `bronze_bus_position` → SQL 파싱(regexp+unnest)
+- 유일하게 **실좌표(GPS)가 있는 실시간** 데이터. 전 노선 수집으로 420개 동 커버(외곽 노선
+  일부는 서울 경계 밖이라 admin_dong_code NULL — 커버리지 임계 0.85, dbt_contracts §4)
 
 ## 컬럼
 
@@ -32,5 +34,8 @@
 
 ## 주의
 
-- 20분 간격 스냅샷이라 두 시점 사이 경로는 모름 — 속도는 구간 평균으로만 해석.
-- 5개 간선노선 표본. `congestion=0`(정보없음)은 혼잡 집계에서 제외할 것.
+- 버스 수집 주기는 티어링(#440·#449): tier1 은 출퇴근 10분·그 외 시간당, tier2 는 09·19시만.
+  버킷 사이 경로는 모름 — 속도는 구간 평균으로만 해석.
+- **tier1(간선·광역)만 시간대 비교에 쓸 것**: tier2 는 09·19시에만 관측돼 시간대별 표본 구성이
+  달라진다. 노선 tier 는 `dim_transit_bus_route_tier`(routeType 원천, #471). `congestion=0`
+  (정보없음)은 혼잡 집계에서 제외.
