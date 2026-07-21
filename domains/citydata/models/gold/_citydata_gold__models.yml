@@ -254,7 +254,7 @@ models:
   - name: gold_citydata_place_latest
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '5분'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_place_latest — 장소별 최신 크로스 신호 스냅샷(장소당 1행).
@@ -710,7 +710,7 @@ models:
       # ⏸ 일시 스케줄 제외(#296): commerce silver_license_current 드랍(재구성 중)으로
       # TABLE_NOT_FOUND — 복구 확인 후 tags: ['fast'] 원복. D1 서빙·카탈로그는 보존.
       tags: []
-      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷·동 단위 ~수백 행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '5분'}  # 스냅샷·동 단위 ~수백 행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -761,7 +761,7 @@ models:
   - name: gold_citydata_ppltn_anomaly
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '5분'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_ppltn_anomaly — 장소별 인구혼잡 이상탐지 스냅샷(장소당 현재 1행).
@@ -823,7 +823,7 @@ models:
   - name: gold_citydata_ppltn_trend
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '5분'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_ppltn_trend — 장소별 실시간 붐빔 추세 스냅샷(장소당 1행).
@@ -875,7 +875,7 @@ models:
   - name: gold_citydata_place_scorecard
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '5분'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_place_scorecard — 장소 종합 스코어카드 스냅샷(장소당 1행).
@@ -964,7 +964,7 @@ models:
   - name: gold_citydata_hot_commerce
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '5분'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_hot_commerce — 뜨는 상권 지수 스냅샷(장소당 1행). 붐빔 변화율·구매력·
@@ -1195,7 +1195,7 @@ models:
   - name: gold_citydata_charger_availability
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷·수백 행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '5분'}  # 스냅샷·수백 행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
