@@ -143,7 +143,9 @@ models:
         description: observed_at_kst를 시간 단위로 절삭한 서울 기준 평가 시간입니다.
         data_type: timestamp(6)
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: timestamp
@@ -171,10 +173,14 @@ models:
         description: flow_speed·flow_travel_time 값이 원천에 실제로 존재했는지 구분한 상태입니다.
         data_type: varchar
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
           - accepted_values:
               arguments:
                 values: ['available', 'missing_value']
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: quality_state
@@ -184,7 +190,9 @@ models:
         description: 이 링크·시간대 최신 관측 시각을 변환 전 그대로 보존한 timestamp(6)입니다.
         data_type: timestamp(6)
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: timestamp
@@ -196,7 +204,9 @@ models:
         description: 관측 시각을 서울 기준으로 변환한 timestamp(6)이며 hour_at의 근거입니다.
         data_type: timestamp(6)
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: timestamp
@@ -208,7 +218,9 @@ models:
         description: 같은 hour_at 안에서 flow_speed 오름차순(느릴수록 낮은 순위)으로 매긴 순위입니다.
         data_type: bigint
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: derived_value
@@ -218,7 +230,9 @@ models:
         description: 같은 hour_at에 관측된 link_id 총 수이며 congestion_rank의 분모 맥락입니다.
         data_type: bigint
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: derived_value
@@ -228,10 +242,14 @@ models:
         description: flow_speed 존재 여부와 congestion_rank를 기준으로 구분한 저속 후보 상태입니다.
         data_type: varchar
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
           - accepted_values:
               arguments:
                 values: ['missing_speed', 'lowest_speed_top_10', 'observed']
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: quality_state
@@ -241,7 +259,9 @@ models:
         description: 선택된 관측 행의 원본 객체를 추적하는 안정 식별자입니다.
         data_type: varchar
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: lineage_id
@@ -251,7 +271,9 @@ models:
         description: 선택된 관측 행의 payload hash입니다.
         data_type: varchar
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: lineage_id
@@ -261,7 +283,9 @@ models:
         description: 선택된 관측 행을 만든 수집 DAG 실행 식별자입니다.
         data_type: varchar
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: lineage_id
