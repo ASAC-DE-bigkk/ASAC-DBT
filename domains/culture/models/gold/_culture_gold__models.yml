@@ -620,7 +620,7 @@ models:
         description: 답불가 사유 + 로드맵 힌트(답불가 시 필수)
         data_type: varchar
       - name: mart_exists
-        description: target_mart가 카탈로그에 실존하는가 — information_schema 실측
+        description: target_mart가 카탈로그에 실존하는가 — information_schema 실측. 검사 스코프=culture+채택 도메인(seoul_citydata·weather·transit, 티어링 v2 #310)
         data_type: boolean
       - name: eval_ready
         description: answerable AND mart_exists — W7 평가셋 투입 가능(라우팅 건전성 신호)
