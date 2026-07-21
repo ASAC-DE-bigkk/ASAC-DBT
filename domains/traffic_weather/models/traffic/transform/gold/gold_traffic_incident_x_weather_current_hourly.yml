@@ -10,6 +10,8 @@ models:
       meta:
         traffic_quality_product: false
         cross_domain_gold: true
+        serving_tier: d1_direct
+        serving_tier_basis: 2026-07-21 dev 실측 426행(admin_dong scaffold 고정, materialized=table 매 실행 전체 재계산이라 장기 누적 성장 없음). commerce/citydata의 d1_direct·d1_rollup·hold tier taxonomy와 D1 실용 상한(≪1GB) 기준 참고.
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR

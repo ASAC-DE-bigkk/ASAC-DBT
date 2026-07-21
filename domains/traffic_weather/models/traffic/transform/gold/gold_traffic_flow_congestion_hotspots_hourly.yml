@@ -8,6 +8,8 @@ models:
       contract:
         enforced: true
       meta:
+        serving_tier: d1_direct
+        serving_tier_basis: 2026-07-21 dev 실측 277행이나 unique_key=[hour_at, link_id] incremental merge로 무기한 누적되는 형태입니다(link_latest처럼 상한이 없음). 관측 링크 상한(~103, flow_link_latest 기준)으로 추정하면 연 최대 약 90만 행, citydata gold_citydata_ppltn_hourly(연 106만행·5년 530만행≈800MB)와 유사한 성장 곡선입니다. 보존·purge 정책이 아직 없어 d1_direct로 두되 citydata 사례처럼 연 단위 재검토가 필요합니다(#323 후속 이슈로 별도 제안 예정).
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR

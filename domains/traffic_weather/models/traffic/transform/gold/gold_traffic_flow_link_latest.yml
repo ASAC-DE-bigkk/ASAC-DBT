@@ -8,6 +8,8 @@ models:
       contract:
         enforced: true
       meta:
+        serving_tier: d1_direct
+        serving_tier_basis: 2026-07-21 dev 실측 103행. unique_key=link_id upsert(incremental merge)라 지금까지 관측된 link_id 수 이상으로 늘지 않는 상한 고정 테이블. commerce/citydata의 d1_direct·d1_rollup·hold tier taxonomy와 D1 실용 상한(≪1GB) 기준 참고.
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
