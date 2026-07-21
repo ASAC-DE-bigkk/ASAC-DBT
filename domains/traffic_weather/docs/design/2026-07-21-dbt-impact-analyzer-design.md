@@ -32,11 +32,13 @@ traffic_weather 실측 근거(2026-07-21 manifest, dbt 1.10.22, 컨테이너 `db
    downstream 17개), `silver_kma_vilage_fcst_observation`(19개) 모두 threshold(10)를
    depth 확장 없이 1단계 fanout만으로 초과한다. 인위적으로 만든 시나리오가 아니라
    실제 운영 중인 모델로 게이트 동작을 검증할 수 있다.
-3. **재현 가능한 breaking 시나리오를 사전에 특정**: `silver_seoul_traffic_incident.acc_type`
-   컬럼을 삭제하는 가정 시, 실제로 그 컬럼을 명시 참조하는 gold 4종
-   (`gold_traffic_incident_active_latest`, `gold_traffic_incident_clearance_watchlist`,
-   `gold_traffic_incident_type_mix_latest`, `gold_traffic_incident_x_flow`)을 grep으로
-   먼저 확정해뒀다 — sub-agent 판정 결과를 실측치와 바로 대조 검증할 수 있다.
+3. **재현 가능한 breaking 시나리오를 실측으로 검증**: `silver_seoul_traffic_incident.acc_type`
+   컬럼을 삭제하는 가정으로 downstream 17개 전체를 실제 판정한 결과 breaking 5건 —
+   depth 1의 `silver_seoul_traffic_incident_current`(`select history.*` 전체 컬럼 전파)와
+   depth 2~3에서 `acc_type`을 명시 참조하는 gold 4종(`gold_traffic_incident_active_latest`,
+   `gold_traffic_incident_clearance_watchlist`, `gold_traffic_incident_type_mix_latest`,
+   `gold_traffic_incident_x_flow`). 중간 모델의 select * 전파를 함께 추적해야 breaking을
+   과소 집계하지 않는다는 것까지 실측으로 확인했다.
 4. **크로스 도메인 조인 마트가 이미 풍부**: `gold_traffic_incident_x_citydata_*`,
    `gold_traffic_incident_x_culture_*`, `gold_weather_x_citydata_*`,
    `gold_weather_x_commerce_*`, `gold_weather_x_culture_*`, `gold_weather_x_transit_*` 등
@@ -80,11 +82,11 @@ direct downstream이 각각 17/19개로 threshold(10)를 초과. `gate.exceeded=
 ### Breaking 시나리오
 
 `silver_seoul_traffic_incident.acc_type`(사고 유형 컬럼) 삭제 가정.
-실측 확인된 명시 참조 downstream 4종:
+downstream 17개 전체를 판정해 breaking 5건 확인:
+`silver_seoul_traffic_incident_current`(depth 1, `select history.*` 전파),
 `gold_traffic_incident_active_latest`, `gold_traffic_incident_clearance_watchlist`,
-`gold_traffic_incident_type_mix_latest`, `gold_traffic_incident_x_flow`.
-sub-agent가 이 4개를 breaking으로, 나머지 downstream을 non-breaking/미참조로 판정하는지
-검증한다.
+`gold_traffic_incident_type_mix_latest`, `gold_traffic_incident_x_flow`(depth 2~3,
+`acc_type` 명시 참조). 나머지 12개는 non-breaking/미참조로 판정됨을 검증했다.
 
 ### Non-breaking 시나리오
 

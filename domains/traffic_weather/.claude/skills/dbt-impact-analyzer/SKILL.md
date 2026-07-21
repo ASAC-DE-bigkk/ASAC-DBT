@@ -68,11 +68,14 @@ breaking 판정은 sub-agent 실참조 분석에만 의존한다 — `contract_e
 
 ## 실측 예시 (검증 완료)
 
-`silver_seoul_traffic_incident.acc_type`(사고 유형) 삭제 가정 시, 명시 참조로
-확인된 downstream 4종: `gold_traffic_incident_active_latest`,
-`gold_traffic_incident_clearance_watchlist`, `gold_traffic_incident_type_mix_latest`,
-`gold_traffic_incident_x_flow` — 전부 ⚠️ BREAKING. 나머지 downstream 13개는
-`acc_type`을 참조하지 않아 non-breaking.
+`silver_seoul_traffic_incident.acc_type`(사고 유형) 삭제 가정 시 downstream 17개
+전체를 실제로 판정한 결과, **⚠️ BREAKING 5건**:
+`silver_seoul_traffic_incident_current`(depth 1 — `select history.*`로 전체 컬럼
+전파), `gold_traffic_incident_active_latest`, `gold_traffic_incident_x_flow`,
+`gold_traffic_incident_clearance_watchlist`, `gold_traffic_incident_type_mix_latest`
+(이 4개는 depth 2~3에서 `acc_type`을 명시 참조). depth 1의 select * 전파를 놓치면
+breaking을 4건으로 과소 집계하게 되므로, sub-agent 분석은 중간 모델의 select *
+여부도 함께 확인해야 한다. 나머지 12개는 `acc_type` 미참조로 non-breaking.
 
 ## 리포트 템플릿
 
@@ -81,8 +84,9 @@ breaking 판정은 sub-agent 실참조 분석에만 의존한다 — `contract_e
 
     | downstream | depth | 영향 유형 | 참조 방식 | 위험도 | 비고 |
     |---|---|---|---|---|---|
-    | gold_traffic_incident_active_latest | 1 | 직접 참조 | 명시(acc_type) | breaking | - |
-    | gold_traffic_incident_x_flow | 2 | 간접 전파 | select * | warn | 테스트 4개 |
+    | silver_seoul_traffic_incident_current | 1 | 직접 참조 | select * 전파 | breaking | 테스트 10개 |
+    | gold_traffic_incident_active_latest | 2 | 간접 전파 | 명시(acc_type) | breaking | 테스트 2개 |
+    | gold_traffic_incident_current_by_admin_dong_hourly | 2 | 간접 전파 | 미참조 | non-breaking | 테스트 30개 |
 
     manifest: <generated_at> (stale 여부) · downstream 합계 <n> (테스트 제외)
 
