@@ -22,7 +22,7 @@ models:
             - 동 단위 문화 히트맵
     columns:
       - name: admin_dong_code
-        description: 행정동 코드(행안부 canonical 10자리, 공간축 조인 키)
+        description: 행정동 코드 — 행정안전부 표준 10자리. 다른 행정동 데이터와 붙이는 조인 키
         data_type: varchar
         tests: [not_null]
       - name: admin_dong
@@ -36,14 +36,14 @@ models:
         description: 자치구 이름(예 중구)
         data_type: varchar
       - name: stat_region_cd
-        description: 통계청 집계구 코드(dim_admin_dong 유래 — 외부 통계 조인용)
+        description: 통계청 집계구 코드 — 통계청 인구·가구 통계와 붙일 때 사용
         data_type: varchar
       - name: event_date
-        description: 활동 일자(KST) — 행사 기간을 일 단위로 전개한 그레인 축
+        description: 활동 일자(KST). 여러 날에 걸친 행사는 날짜마다 한 행으로 펼쳐진다
         data_type: date
         tests: [not_null]
       - name: activities_count
-        description: 그날 그 동의 전체 문화활동 수(아래 소스별 count 의 합)
+        description: 그날 그 동에서 열린 전체 문화활동 수 — 아래 유형별 건수의 합
         data_type: bigint
       - name: performances_count
         description: KOPIS 공연 수
@@ -64,10 +64,10 @@ models:
         description: KCISA 국립문화기관 행사 수
         data_type: bigint
       - name: free_events_count
-        description: "그날 그 동의 무료(is_free='무료') 서울시 문화행사 수 — event 소스만(타 소스 유무료 정보 없음)"
+        description: 그날 그 동의 무료 문화행사 수. 유·무료 표기는 서울시 문화행사 출처에만 있어 그 범위의 건수
         data_type: bigint
       - name: edu_experience_events_count
-        description: 그날 그 동의 교육/체험 카테고리 행사 수 — 기술적 카운트("가족적합" 해석은 Q&A 레이어 몫)
+        description: 그날 그 동의 교육·체험 분류 행사 수
         data_type: bigint
 
   - name: gold_culture_booking_curve
@@ -87,7 +87,7 @@ models:
             - 장르별 인기 수명주기 비교
     columns:
       - name: performance_id
-        description: KOPIS 공연 식별자(mt20id) — 그레인, 유일
+        description: KOPIS 공연 식별자(mt20id) — 공연 한 편당 하나, 이 표의 기본 키
         data_type: varchar
         tests: [not_null, unique]
       - name: performance_name
@@ -112,16 +112,16 @@ models:
         description: 마지막으로 top50에 있던 스냅샷 일(KST)
         data_type: date
       - name: days_on_chart
-        description: top50에 등장한 누적 스냅샷 수(체류 기간 프록시)
+        description: 예매 순위표에 등장한 누적 일수 — 체류 기간
         data_type: integer
       - name: best_rank
-        description: 이력 중 최고(최저 숫자) 순위 — 예매세 정점(1=최다). 예매율 아님, 순위 기반
+        description: 이력 중 가장 높았던 순위(숫자가 작을수록 상위, 1이 최상위)
         data_type: integer
       - name: best_rank_date
         description: best_rank 를 처음 달성한 스냅샷 일(KST)
         data_type: date
       - name: days_to_peak
-        description: 첫 등장부터 정점 순위까지 걸린 일수(best_rank_date - first_seen_date, ≥0)
+        description: 첫 등장부터 최고 순위에 도달하기까지 걸린 일수
         data_type: integer
       - name: first_rank
         description: 첫 등장일의 순위(진입 순위)
@@ -147,14 +147,14 @@ models:
             - 공연 추천 모델의 인기도 피처
     columns:
       - name: snapshot_date
-        description: 예매 랭킹 스냅샷 일(YYYY-MM-DD 문자열 — 물리 varchar 주의)
+        description: 순위를 집계한 날(YYYY-MM-DD). 문자열로 저장된다
         data_type: varchar
       - name: rank_no
         description: 예매 순위(1=최다) — snapshot_date 안에서 유일
         data_type: integer
         tests: [not_null]
       - name: performance_id
-        description: KOPIS 공연 식별자(mt20id) — silver_culture_performance 조인 키
+        description: KOPIS 공연 식별자(mt20id) — 공연 상세 정보와 붙이는 조인 키
         data_type: varchar
       - name: performance_name
         description: 공연명
@@ -175,25 +175,25 @@ models:
         description: 상연 횟수(KOPIS 원문)
         data_type: integer
       - name: seat_count
-        description: 공연장 좌석 수(규모 프록시)
+        description: 공연장 좌석 수 — 공연 규모를 가늠하는 값
         data_type: integer
       - name: gu_code
-        description: 공연장 자치구 코드(#48 공간축)
+        description: 공연장이 속한 자치구 코드
         data_type: varchar
       - name: gu
         description: 공연장 자치구 이름
         data_type: varchar
       - name: rank_prev_3d
-        description: 3일 전 같은 공연의 예매 순위 — top50 밖이었으면 NULL(달력 조인, freshness 갭 안전)
+        description: 3일 전 같은 공연의 순위. 그때 순위표에 없었으면 비어 있다
         data_type: integer
       - name: rank_delta_3d
-        description: 순위 상승폭(rank_prev_3d - rank_no) — 양수=상승. NULL이면 신규/재진입(3일 전 부재)
+        description: 순위 상승폭(3일 전 순위 − 오늘 순위). 양수면 상승, 비어 있으면 신규 또는 재진입
         data_type: integer
       - name: days_on_chart
-        description: 이 공연이 top50에 등장한 누적 스냅샷 수(현재 포함) — 체류 기간 프록시
+        description: 이 공연이 순위표에 등장한 누적 일수(오늘 포함)
         data_type: integer
       - name: is_new_entry
-        description: 어제까지 없다가 오늘 처음(또는 재)진입했는지 — 첫 등장·재진입 공통 true
+        description: 어제는 없다가 오늘 진입했는지 여부(첫 진입·재진입 공통)
         data_type: boolean
       - name: momentum_status
         description: "순위 모멘텀: new(어제 부재)·rising(순위 상승)·falling(하락)·steady(변동 없음/추세 미정)"
@@ -215,18 +215,18 @@ models:
             - 지역별 문화 공급 편차 분석
     columns:
       - name: gu_code
-        description: 자치구 코드(#48 공간축)
+        description: 자치구 코드
         data_type: varchar
         tests: [not_null]
       - name: gu
         description: 자치구 이름
         data_type: varchar
       - name: event_date
-        description: 활동 일자(KST) — 행사 기간을 일 단위로 전개한 그레인 축
+        description: 활동 일자(KST). 여러 날에 걸친 행사는 날짜마다 한 행으로 펼쳐진다
         data_type: date
         tests: [not_null]
       - name: total_events
-        description: 그날 그 구의 전체 문화활동 수(유형별 distinct 합) — 시민 "볼 게 많은 날" 지표
+        description: 그날 그 구에서 열린 전체 문화활동 수 — "볼 게 많은 날" 지표
         data_type: integer
       - name: distinct_types
         description: 그날 열린 활동 유형 수(공연·행사·축제·전시·세종·kcisa 중 몇 종) — 다양성
@@ -235,7 +235,7 @@ models:
         description: 그날 가장 많이 열린 활동 유형(동수 시 임의 1개)
         data_type: varchar
       - name: busiest_type_count
-        description: busiest_type 의 행사 수 — 주최자가 보는 "같은 유형 경쟁 규모"
+        description: 가장 많이 열린 유형의 행사 수 — 같은 유형끼리의 경쟁 규모
         data_type: integer
       - name: concentration
         description: 경쟁 집중도(busiest_type_count / total_events, 0~1) — 1=한 유형 독점, 낮을수록 다양
@@ -258,31 +258,31 @@ models:
             - 한적한 관람 시간 안내
     columns:
       - name: gu_code
-        description: 자치구 코드(#48 공간축) — citydata·event 공통 조인 키
+        description: 자치구 코드 — 혼잡 관측과 행사 데이터를 잇는 공통 키
         data_type: varchar
         tests: [not_null]
       - name: gu
-        description: 자치구 이름 — citydata 쪽에서 취함(v2 fix. event_schedule 라벨은 좌표-라벨 불일치로 오표기 가능)
+        description: 자치구 이름
         data_type: varchar
       - name: day_of_week
-        description: 요일(1=월 … 7=일, Trino day_of_week) — v2(#282) 추가 축. "무슨 요일 몇 시가 한적한가"
+        description: 요일(1=월요일 … 7=일요일)
         data_type: integer
         tests: [not_null]
       - name: hour_of_day
-        description: 시각(0~23, KST) — event_at 의 시(hour). 18일 이력 집계(셀당 p50 66샘플)
+        description: 시각(0~23, KST). 최근 18일 관측을 요일×시각 칸으로 모아 계산했다
         data_type: integer
         tests: [not_null]
       - name: avg_ppltn
-        description: 그 시간대 그 구 citydata 핫스팟들의 평균 실시간인구((min+max)/2 평균, 명)
+        description: 그 시간대 그 자치구 주요 지점의 평균 실시간 인구(명)
         data_type: integer
       - name: avg_congest_score
-        description: 평균 혼잡 서수(여유1·보통2·약간붐빔3·붐빔4) — 높을수록 붐빔
+        description: 평균 혼잡 점수(여유 1 · 보통 2 · 약간 붐빔 3 · 붐빔 4). 높을수록 붐빈다
         data_type: double
       - name: typical_congest
         description: 그 시간대 최빈 혼잡 레벨(여유/보통/약간 붐빔/붐빔)
         data_type: varchar
       - name: crowd_samples
-        description: 집계에 쓰인 citydata 관측(장소×5분 슬라이스) 수 — 신뢰도 프록시
+        description: 계산에 사용한 관측 건수 — 값이 클수록 신뢰도가 높다
         data_type: integer
 
   - name: gold_culture_event_schedule
@@ -302,11 +302,11 @@ models:
             - 행사 밀집 지역 분석
     columns:
       - name: event_ref
-        description: "소스 프리픽스 키 ('performance:12345') — 크로스소스 충돌 방지"
+        description: 행사 고유 키. 출처 접두어가 붙는다(예 performance:12345)
         data_type: varchar
         tests: [not_null, unique]
       - name: event_type
-        description: 원천 소스 유형 — 서빙에서 아이콘/필터 축
+        description: 행사 출처 유형 — 목록에서 아이콘·필터로 쓰기 좋은 축
         data_type: varchar
         tests:
           - not_null
@@ -334,20 +334,20 @@ models:
         data_type: date
         tests: [not_null]
       - name: event_at
-        description: 행사 시작 시각(KST, 시간축 — where 필터 표준 컬럼)
+        description: 행사 시작 시각(KST) — 기간 조회의 표준 필터 컬럼
         data_type: timestamp(6)
         tests: [not_null]
       - name: gu
         description: 자치구 이름
         data_type: varchar
       - name: gu_code
-        description: 자치구 코드(#48 공간축)
+        description: 자치구 코드
         data_type: varchar
       - name: admin_dong
-        description: 행정동 이름(quality_status=dong_precise 일 때만 신뢰)
+        description: 행정동 이름. quality_status 가 dong_precise 일 때만 신뢰할 수 있다
         data_type: varchar
       - name: admin_dong_code
-        description: 행정동 코드(행안부 canonical, 공간축 조인 키)
+        description: 행정동 코드 — 행정안전부 표준 10자리
         data_type: varchar
       - name: latitude
         description: 위도(WGS84) — 좌표 없는 소스는 null
@@ -356,7 +356,7 @@ models:
         description: 경도(WGS84)
         data_type: double
       - name: quality_status
-        description: 공간 정밀도(#111) — dong_precise(좌표→행정동 확정)/gu_only(구까지만)/unmatched
+        description: 위치 정밀도 — dong_precise(행정동까지 확정) / gu_only(자치구까지) / unmatched(미확정)
         data_type: varchar
         tests:
           - not_null
@@ -702,7 +702,7 @@ models:
             - 지역 관광 코스 설계
     columns:
       - name: admin_dong_code
-        description: 행정동 코드(#48 행안부10 canonical) — 그레인 키
+        description: 행정동 코드 — 행정안전부 표준 10자리. 이 표의 기본 키
         data_type: varchar
         tests: [not_null, unique]
       - name: admin_dong
@@ -710,36 +710,36 @@ models:
         data_type: varchar
         tests: [not_null]
       - name: gu_code
-        description: 자치구 코드(#48 공간축)
+        description: 자치구 코드
         data_type: varchar
       - name: gu
         description: 자치구 이름
         data_type: varchar
       - name: events_upcoming_90d
-        description: 다가오는 90일(current_date~+90d) 문화 행사·활동 총량(activities_count 합)
+        description: 앞으로 90일간 예정된 문화행사·활동 총량
         data_type: integer
         tests: [not_null]
       - name: performances_upcoming_90d
-        description: 다가오는 90일 공연 수(performances_count 합) — "공연 보고" 축의 직접 지표
+        description: 앞으로 90일간 예정된 공연 수
         data_type: integer
         tests: [not_null]
       - name: dining_active_cnt
-        description: 식품 인허가 영업중(active) 스톡 — commerce gold_license_dong_category_matrix(category='food'). 미커버 동은 null
+        description: 영업 중인 음식점 수(식품 인허가 기준). 음식점 데이터가 연결되지 않은 동은 비어 있다
         data_type: integer
       - name: dining_opened_365d
-        description: 최근 365일 식품 신규 개업 수 — 상권 활력 프록시. 미커버 동은 null
+        description: 최근 365일간 새로 문을 연 음식점 수 — 상권 활력 지표
         data_type: integer
       - name: has_dining_data
-        description: commerce 동 매핑 커버 여부(219/426, 7/21 실측) — false면 dining_*·dining_stock_pctl·dine_around_score 전부 null
+        description: 음식점 데이터가 연결된 동인지 여부. false 면 음식점 관련 값과 점수가 모두 비어 있다
         data_type: boolean
         tests: [not_null]
       - name: culture_events_pctl
-        description: events_upcoming_90d 의 426동 내 percent_rank(0~1, 높을수록 문화 밀도 상위)
+        description: 426개 동 중 문화행사량 백분위(0~1, 클수록 상위)
         data_type: double
         tests: [not_null]
       - name: dining_stock_pctl
-        description: dining_active_cnt 의 커버 동(219) 내 percent_rank(0~1). 미커버 동은 null
+        description: 음식점 데이터가 있는 219개 동 중 음식점 수 백분위(0~1)
         data_type: double
       - name: dine_around_score
-        description: sqrt(culture_events_pctl × dining_stock_pctl) — 둘 다 높아야 높은 결합 점수(0~1). 미커버 동은 null
+        description: 문화 백분위와 음식점 백분위의 기하평균(0~1). 둘 다 높아야 점수가 높다
         data_type: double
