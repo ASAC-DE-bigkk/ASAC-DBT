@@ -186,9 +186,17 @@ models:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
       - name: admin_dong_code
+        description: >
+          런타임 point-in-polygon 할당. 수집이 전 노선(ALL, #369)으로 바뀌며 서울
+          외곽·수도권 경계 노선의 정류장이 서울 행정경계 밖에 찍혀 NULL 이 되는 게
+          정상이다(실측 0.90 — 시간대·운행 노선 구성에 따라 변동, 출퇴근엔 외곽
+          노선이 더 운행). 지하철 admin_dong_code(0.45)와 같은 ALL 전환 사유이며,
+          6노선 한정 수집 시절의 0.90 은 마진이 없어 조금만 외곽이 섞여도 깨진다.
+          임계는 '서울 노선이 정상 부착되는가'를 지키는 선(0.85)으로 낮춘다 —
+          좌표 파싱 대량 실패 등 진짜 회귀는 이 밑에서 잡힌다.
         tests:
           - asac_axes.axis_coverage:
-              arguments: {min_ratio: 0.90}
+              arguments: {min_ratio: 0.85}
 
   # ---------------- 골드 ----------------
   - name: gold_transit_dong_hourly
