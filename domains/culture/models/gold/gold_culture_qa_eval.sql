@@ -9,11 +9,17 @@ with q as (
     select * from {{ ref('seed_culture_qa_questions') }}
 ),
 
--- 현행 카탈로그의 실존 테이블(스키마 = 이 타깃의 culture 스키마)
+-- 현행 카탈로그의 실존 테이블 — 티어링 v2(#310)부터 채택 마트(타 도메인 소유, Q&A 소비)도
+--   라우팅 대상이라 검사 스코프 = culture + 채택 도메인 스키마. read 전용(information_schema).
 marts as (
-    select table_name
+    select distinct table_name
     from {{ target.database }}.information_schema.tables
-    where table_schema = '{{ target.schema }}'
+    where table_schema in (
+        '{{ target.schema }}',
+        '{{ env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata") }}',
+        '{{ env_var("WEATHER_SCHEMA", "weather") }}',
+        '{{ env_var("TRANSIT_SCHEMA", "transit") }}'
+    )
 ),
 
 joined as (
