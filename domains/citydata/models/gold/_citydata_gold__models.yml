@@ -7,7 +7,7 @@ models:
   - name: gold_citydata_ppltn_by_time
     config:
       tags: ['fast']
-      meta: {serving_tier: hold}  # 5분 원본 대용량 — API 서빙 보류 (specs/2026-07-17 §2)
+      meta: {serving_tier: hold, refresh: '5분'}  # 5분 원본 대용량 — API 서빙 보류 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -109,7 +109,7 @@ models:
   - name: gold_citydata_ppltn_daily
     config:
       tags: ['slow']
-      meta: {serving_tier: d1_direct}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '1일'}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -180,7 +180,7 @@ models:
   - name: gold_citydata_ppltn_hourly
     config:
       tags: ['slow']
-      meta: {serving_tier: d1_direct}  # 이력·시간별 — D1 append 서빙 (specs/2026-07-20)
+      meta: {serving_tier: d1_direct, refresh: '1시간'}  # 이력·시간별 — D1 append 서빙 (specs/2026-07-20)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -254,7 +254,7 @@ models:
   - name: gold_citydata_place_latest
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_place_latest — 장소별 최신 크로스 신호 스냅샷(장소당 1행).
@@ -368,7 +368,7 @@ models:
   - name: gold_citydata_cmrcl_daily
     config:
       tags: ['slow']
-      meta: {serving_tier: d1_direct}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '1일'}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -439,7 +439,7 @@ models:
   - name: gold_citydata_purchasing_power_daily
     config:
       tags: ['slow']
-      meta: {serving_tier: d1_direct}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '1일'}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -525,7 +525,7 @@ models:
   - name: gold_citydata_ppltn_x_culture_daily
     config:
       tags: ['slow']
-      meta: {serving_tier: d1_direct}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '1일'}  # 이력·일별 — 전 기간 D1 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -586,7 +586,7 @@ models:
   - name: gold_citydata_transit_x_incident_hourly
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '1시간'}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -644,7 +644,7 @@ models:
   - name: gold_citydata_ppltn_x_weather_hourly
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '1시간'}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -710,7 +710,7 @@ models:
       # ⏸ 일시 스케줄 제외(#296): commerce silver_license_current 드랍(재구성 중)으로
       # TABLE_NOT_FOUND — 복구 확인 후 tags: ['fast'] 원복. D1 서빙·카탈로그는 보존.
       tags: []
-      meta: {serving_tier: d1_direct}  # 스냅샷·동 단위 ~수백 행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷·동 단위 ~수백 행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -761,7 +761,7 @@ models:
   - name: gold_citydata_ppltn_anomaly
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_ppltn_anomaly — 장소별 인구혼잡 이상탐지 스냅샷(장소당 현재 1행).
@@ -823,7 +823,7 @@ models:
   - name: gold_citydata_ppltn_trend
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_ppltn_trend — 장소별 실시간 붐빔 추세 스냅샷(장소당 1행).
@@ -875,7 +875,7 @@ models:
   - name: gold_citydata_place_scorecard
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_place_scorecard — 장소 종합 스코어카드 스냅샷(장소당 1행).
@@ -964,7 +964,7 @@ models:
   - name: gold_citydata_hot_commerce
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷 ~121행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       gold_citydata_hot_commerce — 뜨는 상권 지수 스냅샷(장소당 1행). 붐빔 변화율·구매력·
@@ -1010,7 +1010,7 @@ models:
   - name: gold_citydata_ppltn_forecast
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 스냅샷 ~5.8k행 (121×2×24) (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '패턴'}  # 스냅샷 ~5.8k행 (121×2×24) (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -1064,7 +1064,7 @@ models:
   - name: gold_citydata_ppltn_x_transit_hourly
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '1시간'}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -1128,7 +1128,7 @@ models:
   - name: gold_citydata_ppltn_demographics
     config:
       tags: ['slow']
-      meta: {serving_tier: d1_direct}  # 대형 — 실측 200,860행(2026-07-17), D1 여유 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '패턴'}  # 대형 — 실측 200,860행(2026-07-17), D1 여유 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
@@ -1195,7 +1195,7 @@ models:
   - name: gold_citydata_charger_availability
     config:
       tags: ['fast']
-      meta: {serving_tier: d1_direct}  # 스냅샷·수백 행 (specs/2026-07-17 §2)
+      meta: {serving_tier: d1_direct, refresh: '실시간'}  # 스냅샷·수백 행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
       - unique_grain:
