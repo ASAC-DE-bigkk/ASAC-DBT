@@ -1,0 +1,413 @@
+version: 2
+
+models:
+  - name: gold_weather_current_wide_by_admin_dong
+    description: 동당 1행 = 현재 예보시각의 최신 KMA 예보 WIDE 서빙(★full). 정본 gold_weather_forecast_by_admin_dong(425동)만 소비하며 LONG→WIDE로 8지표를 나란히 제공한다.
+    access: public
+    config:
+      contract:
+        enforced: true
+      meta:
+        public_gold:
+          contract_version: "1.0"
+          documentation_language: ko-KR
+          owner: Weather 데이터 제품 운영팀
+          maturity: low
+          visibility: published_producer
+          contract_status: dev_pending
+          exposure_status: none_no_live_consumer
+          intended_consumer_types: [analyst, ai_catalog, cross_domain_dbt, rapidapi_serving]
+          cross_domain_usage_examples:
+            - 교통이나 생활인구 지표를 같은 행정동 코드로 결합해 현재 시각 날씨 맥락을 보조 설명 변수로 사용합니다.
+            - 문화나 상권 분석에서 같은 행정동의 현재 체감 날씨(기온·강수·적설 표현)를 함께 제시합니다.
+          product_question: 각 서울 행정동의 현재 시각 최신 KMA 예보는 무엇입니까?
+          row_meaning: 한 행정동의 현재 예보시각 WIDE 예보 한 행입니다.
+          grain: admin_dong_code마다 정확히 한 행입니다.
+          anchor_universe: asac_axes.dim_admin_dong의 정본 서울 행정동과 정본 gold_weather_forecast_by_admin_dong(425동)이 게시 가능한 현재 예보시각 슬라이스를 가진 조합입니다.
+          usage_guidance: 행정동 코드를 조인 축으로 사용하고 강수·적설 값은 pcp_representation·sno_representation과 함께 해석합니다.
+          do_not_use_for: 과거 예보 이력이나 실측 관측 또는 개인 위치 추정에 사용하지 않습니다.
+          semantic_caveats: forecast_at은 발표시각이 아니라 예보 대상 시각이며 현재 KST 시 이상 중 가장 이른 예보입니다. PCP·SNO는 raw+representation을 함께 해석합니다. 이 모델은 매 실행마다 전체 재계산(full refresh)되므로 별도 late repair가 없습니다.
+          primary_key:
+            - product_row_id
+          column_order:
+            - product_row_id
+            - admin_dong_code
+            - forecast_at
+            - admin_dong
+            - gu_code
+            - gu
+            - admin_dong_revision_date
+            - issued_at
+            - temp_c
+            - humidity_pct
+            - wind_ms
+            - wind_dir_deg
+            - precip_prob_pct
+            - sky_code
+            - sky_label
+            - pty_code
+            - pty_label
+            - is_precipitating
+            - pcp_raw
+            - pcp_representation
+            - pcp_mm
+            - pcp_lower_mm
+            - pcp_upper_mm
+            - sno_raw
+            - sno_representation
+            - sno_cm
+            - forecast_lead_hours
+            - published_at
+          time:
+            canonical_timezone: Asia/Seoul
+            freshness_slo: 정본 gold_weather_forecast_by_admin_dong의 최신 게시 가능 실행을 반영해 매 스케줄된 빌드마다 현재 예보시각 슬라이스를 다시 계산하는 것을 목표로 합니다.
+            as_of_meaning: forecast_at은 빌드 시점 KST 현재 시 이상 중 가장 이른 예보 대상 시각이며 매 빌드마다 달라질 수 있습니다.
+            late_repair_policy: 이 모델은 매 실행마다 전체 재계산(full refresh)되므로 별도 late repair가 없고 다음 스케줄된 빌드가 곧 최신 반영입니다.
+            roles:
+              forecast_at:
+                time_role: event
+                timezone: Asia/Seoul
+              issued_at:
+                time_role: issue
+                timezone: Asia/Seoul
+              published_at:
+                time_role: publication
+                timezone: Asia/Seoul
+          space:
+            enabled: true
+            source_chain:
+              - iceberg_dev.common.bronze_admin_dong_master
+              - asac_axes.dim_admin_dong
+            canonical_key: admin_dong_code
+            revision_field: admin_dong_revision_date
+            approved_revision_date: "2025-04-01"
+            stamp_fields:
+              - admin_dong_code
+              - admin_dong
+              - gu_code
+              - gu
+              - admin_dong_revision_date
+            candidate_key_explanation: admin_dong_code는 정본 gold_weather_forecast_by_admin_dong이 이미 dim_admin_dong과 exact join으로 확정한 stamp를 그대로 승계하는 후보 키이며, 이 모델은 canonical_admin_dong과의 방어적 join으로 그 확정을 재검증합니다.
+            mapping_version_explanation: 별도 bridge 버전을 선언하지 않고 정본 gold_weather_forecast_by_admin_dong이 이미 확정한 stamp를 승계합니다.
+            null_location_explanation: 정본에 결합되지 않는 admin_dong_code는 canonical_admin_dong과의 inner join에서 자연히 제외됩니다.
+            fan_out_explanation: canonical_admin_dong은 admin_dong_code distinct 집합이므로 이 join으로 인한 행 증가는 없습니다. 위반 시 게시 전 재조정 테스트가 실패시킵니다.
+            reconciliation_tests:
+              - assert_gold_weather_current_wide_by_admin_dong_admin_stamp_exact
+              - assert_gold_weather_current_wide_by_admin_dong_admin_revision_exact
+          metrics: {}
+          joins:
+            admin_dong_dimension:
+              target: model.asac_axes.dim_admin_dong
+              source_keys:
+                - admin_dong_code
+              purpose: pivot 후 stamp된 admin_dong_code가 정본 행정동 차원에 실제로 존재하는지 재검증합니다.
+              cardinality: many_to_one
+              fan_out_policy: canonical_admin_dong이 admin_dong_code distinct 집합이므로 이 join으로 행이 늘어나면 게시 전 재조정 테스트가 실패시킵니다.
+              reconciliation_test: assert_gold_weather_current_wide_by_admin_dong_admin_join_reconciles
+          quality:
+            completeness_explanation: 정본 gold_weather_forecast_by_admin_dong의 게시 가능성과 completeness gold(core8)를 함께 확인합니다. 이 모델 자체는 별도 quality_state 컬럼을 노출하지 않고 pcp_representation·sno_representation으로 값 표현 상태만 구분합니다.
+            freshness_explanation: issued_at(발표시각)과 published_at(이 모델의 게시시각)을 분리해 KMA 발표와 이 모델 빌드 지연을 해석합니다.
+            coverage_explanation: canonical_admin_dong과의 inner join으로 정본 행정동 밖 코드를 제외하므로 최대 425개 행정동이 공간 모집단입니다.
+            state_fields:
+              pcp_representation:
+                allowed_values:
+                  - explicit_none
+                  - quantitative_exact
+                  - quantitative_range
+                  - bare_numeric
+                  - missing
+                  - unparseable
+                state_explanations:
+                  explicit_none: 원천이 강수가 없다고 명시한 표현입니다.
+                  quantitative_exact: 단위가 있는 확정 강수량 표현입니다.
+                  quantitative_range: 미만이나 이상 또는 구간으로 제공된 강수 범위 표현입니다.
+                  bare_numeric: 단위 없이 숫자만 제공되어 공식 의미가 확정되지 않은 표현입니다.
+                  missing: PCP 카테고리 자체가 이 예보시각에 없는 상태입니다.
+                  unparseable: 현재 분류 규칙으로 의미를 안전하게 해석할 수 없는 표현입니다.
+              sno_representation:
+                allowed_values:
+                  - explicit_none
+                  - quantitative_exact
+                  - quantitative_range
+                  - bare_numeric
+                  - missing
+                  - unparseable
+                state_explanations:
+                  explicit_none: 원천이 적설이 없다고 명시한 표현입니다.
+                  quantitative_exact: 단위가 있는 확정 적설량 표현입니다.
+                  quantitative_range: 미만이나 이상 또는 구간으로 제공된 적설 범위 표현입니다.
+                  bare_numeric: 단위 없이 숫자만 제공되어 공식 의미가 확정되지 않은 표현입니다.
+                  missing: SNO 카테고리 자체가 이 예보시각에 없는 상태입니다.
+                  unparseable: 현재 분류 규칙으로 의미를 안전하게 해석할 수 없는 표현입니다.
+          lineage:
+            source_relations:
+              - model.asac_seoul.gold_weather_forecast_by_admin_dong
+              - model.asac_axes.dim_admin_dong
+            identifiers:
+              as_of:
+                columns:
+                  - forecast_at
+              publication:
+                columns:
+                  - published_at
+              raw:
+                relation_level_only: true
+                columns: []
+              request:
+                relation_level_only: true
+                columns: []
+              run:
+                relation_level_only: true
+                columns: []
+          lifecycle:
+            status: active
+    columns:
+      - name: product_row_id
+        description: admin_dong_code를 그대로 쓴 결정적 제품 행 식별자입니다.
+        data_type: varchar
+        tests: [not_null, unique]
+        config:
+          meta:
+            semantic_role: primary_key
+            nullable: false
+            null_meaning: 공개 제품 기본 키이므로 null을 허용하지 않습니다.
+      - name: admin_dong_code
+        description: 행안부 10자리 정본 행정동 코드입니다.
+        data_type: varchar
+        tests: [not_null, unique]
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: false
+            null_meaning: natural grain과 다른 도메인 조인에 필수이므로 null을 허용하지 않습니다.
+      - name: forecast_at
+        description: 예보 대상 서울 기준 시각(현재 시 이상 중 가장 이른 것)입니다.
+        data_type: timestamp(6)
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 예보 대상 시각이 없는 행은 제품 grain을 만들 수 없습니다.
+            time_role: event
+            timezone: Asia/Seoul
+      - name: admin_dong
+        description: 정본 행정동명입니다(상위 gold_weather_forecast_by_admin_dong에서 승계).
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: 정본 행정동명이 없는 후보는 공개하지 않습니다.
+      - name: gu_code
+        description: 행안부 자치구 5자리 코드입니다(상위 모델에서 승계).
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: 정본 자치구 코드가 없는 후보는 공개하지 않습니다.
+      - name: gu
+        description: 자치구명입니다(상위 모델에서 승계).
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: 정본 자치구명이 없는 후보는 공개하지 않습니다.
+      - name: admin_dong_revision_date
+        description: 현재 행에 stamp된 승인 공통 행정동 revision입니다(상위 모델에서 승계).
+        data_type: date
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_stamp
+            nullable: false
+            null_meaning: 정본 개정일이 없는 후보는 공개하지 않습니다.
+      - name: issued_at
+        description: KMA가 이 예보를 발표한 서울 기준 timestamp(6)입니다.
+        data_type: timestamp(6)
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 발표 시각이 없는 행은 최신 예보를 결정할 수 없습니다.
+            time_role: issue
+            timezone: Asia/Seoul
+      - name: temp_c
+        description: 현재 예보시각의 기온입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 해당 행정동·예보시각에 TMP 카테고리가 없어 pivot에서 결측된 경우입니다.
+      - name: humidity_pct
+        description: 현재 예보시각의 상대습도입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 해당 행정동·예보시각에 REH 카테고리가 없어 pivot에서 결측된 경우입니다.
+      - name: wind_ms
+        description: 현재 예보시각의 풍속입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 해당 행정동·예보시각에 WSD 카테고리가 없어 pivot에서 결측된 경우입니다.
+      - name: wind_dir_deg
+        description: 현재 예보시각의 풍향입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 해당 행정동·예보시각에 VEC 카테고리가 없어 pivot에서 결측된 경우입니다.
+      - name: precip_prob_pct
+        description: 현재 예보시각의 강수확률입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 해당 행정동·예보시각에 POP 카테고리가 없어 pivot에서 결측된 경우입니다.
+      - name: sky_code
+        description: KMA 하늘상태 코드입니다.
+        data_type: varchar
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['1', '3', '4']
+        config:
+          meta:
+            semantic_role: categorical_value
+            nullable: true
+            null_meaning: 해당 행정동·예보시각에 SKY 카테고리가 없어 결측된 경우입니다.
+      - name: sky_label
+        description: sky_code를 사람이 읽는 한국어로 표현한 서빙 라벨입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: derived_label
+            nullable: true
+            null_meaning: sky_code가 없거나 알려진 값(1/3/4)에 해당하지 않는 경우입니다.
+      - name: pty_code
+        description: KMA 강수형태 코드입니다.
+        data_type: varchar
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['0', '1', '2', '3', '4', '5', '6', '7']
+        config:
+          meta:
+            semantic_role: categorical_value
+            nullable: true
+            null_meaning: 해당 행정동·예보시각에 PTY 카테고리가 없어 결측된 경우입니다.
+      - name: pty_label
+        description: pty_code를 사람이 읽는 한국어로 표현한 서빙 라벨입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: derived_label
+            nullable: true
+            null_meaning: pty_code가 없거나 알려진 값(0~7)에 해당하지 않는 경우입니다.
+      - name: is_precipitating
+        description: pty_code가 결측이 아니면서 '0'(없음)이 아닌지를 나타내는 파생 불리언입니다.
+        data_type: boolean
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: derived_flag
+            nullable: false
+            null_meaning: pty_code null 여부를 이미 판정에 포함하므로 이 컬럼 자체는 null이 없습니다.
+      - name: pcp_raw
+        description: PCP(강수량) 예보 값의 원문입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: source_value
+            nullable: true
+            null_meaning: PCP 카테고리가 없어 결측된 경우입니다.
+      - name: pcp_representation
+        description: PCP 값 원문의 없음·점값·범위·bare numeric·결측을 구분한 표현 상태입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: true
+            null_meaning: PCP 카테고리가 없어 표현 상태를 분류할 수 없는 경우입니다.
+      - name: pcp_mm
+        description: 확정 수치 또는 bare numeric에서 보존한 PCP 강수량(mm)입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: pcp_representation이 quantitative_exact·bare_numeric이 아니거나 PCP 카테고리 자체가 결측된 경우입니다.
+      - name: pcp_lower_mm
+        description: 범위 PCP 예보 표현의 포함 하한(mm)입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: pcp_representation이 quantitative_range가 아니거나 안전한 하한이 없는 경우입니다.
+      - name: pcp_upper_mm
+        description: 범위 PCP 예보 표현의 상한(mm)입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: pcp_representation이 quantitative_range가 아니거나 상한이 없는(이상 표현 포함) 경우입니다.
+      - name: sno_raw
+        description: SNO(적설) 예보 값의 원문입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: source_value
+            nullable: true
+            null_meaning: SNO 카테고리가 없어 결측된 경우입니다.
+      - name: sno_representation
+        description: SNO 값 원문의 없음·점값·범위·bare numeric·결측을 구분한 표현 상태입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: true
+            null_meaning: SNO 카테고리가 없어 표현 상태를 분류할 수 없는 경우입니다.
+      - name: sno_cm
+        description: 확정 수치 또는 bare numeric에서 보존한 SNO 적설량(cm)입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: sno_representation이 quantitative_exact·bare_numeric이 아니거나 SNO 카테고리 자체가 결측된 경우입니다.
+      - name: forecast_lead_hours
+        description: 발표 시각부터 예보 대상 시각까지의 시간 차이입니다.
+        data_type: bigint
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: derived_value
+            nullable: false
+            null_meaning: 발표와 예보 시각이 모두 있어야 하므로 null을 허용하지 않습니다.
+      - name: published_at
+        description: 이 모델이 이 행을 게시한 서울 기준 timestamp(6)입니다.
+        data_type: timestamp(6)
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 게시 시각이 없는 행은 bounded reconciliation 경계를 확인할 수 없습니다.
+            time_role: publication
+            timezone: Asia/Seoul

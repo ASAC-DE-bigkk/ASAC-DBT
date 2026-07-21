@@ -2,6 +2,9 @@
 -- 정본 gold_weather_forecast_by_admin_dong(425동, 최신 issued/(동,forecast_at,category))만 소비.
 -- current = forecast_at >= 현재 KST 시 중 가장 이른 것. LONG→WIDE는 weather_wide_pivot.
 -- materialized=table·schema=weather·tag=ask_seoul_weather_transform_gold 은 dbt_project.yml 상속.
+-- canonical_admin_dong: upstream이 이미 확정한 stamp를 재검증하는 방어적 join(신규 컬럼 없음, public_gold
+-- space.enabled 계약의 "모델 직접 dim_admin_dong dependency" 요구사항 충족용).
+-- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
 
 {% set published_at_utc = run_started_at.strftime('%Y-%m-%d %H:%M:%S.%f') %}
 
@@ -16,6 +19,12 @@ src as (
         fcst_value_raw, value_representation, value_num,
         value_lower_bound, value_upper_bound, qualitative_code
     from {{ ref('gold_weather_forecast_by_admin_dong') }}
+),
+
+canonical_admin_dong as (
+    select distinct cast(admin_dong_code as varchar) as admin_dong_code
+    from {{ ref('asac_axes', 'dim_admin_dong') }}
+    where admin_dong_code is not null
 ),
 
 target_slice as (
@@ -49,8 +58,8 @@ pivoted as (
 )
 
 select
-    admin_dong_code as product_row_id,
-    admin_dong_code,
+    pivoted.admin_dong_code as product_row_id,
+    pivoted.admin_dong_code,
     forecast_at,
     admin_dong,
     gu_code,
@@ -78,3 +87,5 @@ select
     date_diff('hour', issued_at, forecast_at) as forecast_lead_hours,
     cast(timestamp '{{ published_at_utc }}' + interval '9' hour as timestamp(6)) as published_at
 from pivoted
+inner join canonical_admin_dong
+    on pivoted.admin_dong_code = canonical_admin_dong.admin_dong_code
