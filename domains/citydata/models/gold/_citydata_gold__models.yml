@@ -707,9 +707,8 @@ models:
 
   - name: gold_citydata_ppltn_x_commerce_dong
     config:
-      # ⏸ 일시 스케줄 제외(#296): commerce silver_license_current 드랍(재구성 중)으로
-      # TABLE_NOT_FOUND — 복구 확인 후 tags: ['fast'] 원복. D1 서빙·카탈로그는 보존.
-      tags: []
+      # commerce silver_license_current 복구 확인(2026-07-21, 2.79M행) → fast 태그 원복(#296 해소)
+      tags: ['fast']
       meta: {serving_tier: d1_direct, refresh: '5분'}  # 스냅샷·동 단위 ~수백 행 (specs/2026-07-17 §2)
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     data_tests:
@@ -1060,71 +1059,6 @@ models:
       - name: base_n
         data_type: bigint
         description: 표본 수 (작으면 신뢰도 낮음)
-
-  - name: gold_citydata_ppltn_x_transit_hourly
-    config:
-      tags: ['fast']
-      meta: {serving_tier: d1_direct, refresh: '1시간'}  # 이력·시간별 — 전 기간 D1, 연 단위 재검토 (specs/2026-07-17 §2)
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [time_bucket, admin_dong_code]
-    description: >
-      gold_citydata_ppltn_x_transit_hourly — 행정동×시간 인구혼잡 × 대중교통·주차
-      (버스 혼잡도·만차 비율, 지하철 도착·대기, 주차장 점유율). 해결 질문:
-      "붐비는데 차 가져가도 되나(주차 가능?)", "지하철 대기 긴 시간대·동네는".
-      grain (time_bucket=시, admin_dong_code) · 갱신 fast · 적재 table+replace(통째 재빌드).
-      ⚠ transit_dong 은 dev sandbox source.
-    columns:
-      - name: time_bucket
-        data_type: timestamp(6)
-        description: 시간 버킷 (KST, date_trunc hour) — grain 축
-        data_tests: [not_null]
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리 — grain 축·조인 키
-        data_tests: [not_null]
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: hotspot_count
-        data_type: bigint
-        description: 그 동에 속한 우리 핫플 장소 수
-      - name: ppltn_avg
-        data_type: decimal(18,6)
-        description: 그 동×시간 평균 붐빔
-      - name: ppltn_peak
-        data_type: decimal(18,6)
-        description: 그 동×시간 최대 붐빔
-      - name: bus_congestion_avg
-        data_type: double
-        description: 버스 혼잡도 평균 (transit_dong)
-      - name: bus_full_ratio
-        data_type: double
-        description: 만차 버스 비율 (transit_dong)
-      - name: subway_arrival_cnt
-        data_type: bigint
-        description: 지하철 도착 횟수 (transit_dong)
-      - name: subway_wait_avg_s
-        data_type: double
-        description: 지하철 평균 대기 시간(초, transit_dong)
-      - name: parking_lot_cnt
-        data_type: bigint
-        description: 주차장 수 (transit_dong)
-      - name: parking_occupancy_avg
-        data_type: double
-        description: 주차 점유율 평균 (0~1, 높을수록 만차)
-      - name: parking_full_lot_cnt
-        data_type: bigint
-        description: 만차 주차장 수 (transit_dong)
-
   - name: gold_citydata_ppltn_demographics
     config:
       tags: ['slow']
