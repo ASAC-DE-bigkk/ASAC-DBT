@@ -104,8 +104,12 @@ models:
         description: link_id를 그대로 쓴 결정적 제품 행 식별자입니다.
         data_type: varchar
         tests:
-          - not_null
-          - unique
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+          - unique:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: primary_key
