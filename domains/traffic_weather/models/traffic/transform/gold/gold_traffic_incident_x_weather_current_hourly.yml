@@ -10,6 +10,10 @@ models:
       meta:
         traffic_quality_product: false
         cross_domain_gold: true
+        grain: admin_dong_code and hour_at, exactly preserving gold_traffic_incident_current_by_admin_dong_hourly.
+        anchor_model: gold_traffic_incident_current_by_admin_dong_hourly
+        context_domain: weather
+        null_semantics: Missing weather context remains null and never rewrites Traffic incident_count or has_incident semantics.
         serving_tier: d1_direct
         serving_tier_basis: 2026-07-21 dev 실측 426행(admin_dong scaffold 고정, materialized=table 매 실행 전체 재계산이라 장기 누적 성장 없음). commerce/citydata의 d1_direct·d1_rollup·hold tier taxonomy와 D1 실용 상한(≪1GB) 기준 참고.
         public_gold:
