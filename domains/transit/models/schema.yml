@@ -243,11 +243,11 @@ models:
   - name: dim_transit_bus_route_tier
     description: >
       버스 노선 수집 티어 분류(#286, 수집 정책 ASAC-DAG #440). grain bus_route_id.
-      routeType 원천(R2 reference)이 웨어하우스에 없어 **수집 런 시각**으로 역산한다:
-      tier2 는 BUS_TIER2_HOURS 정시 런에만 실리므로, dag_run_id 의 분이 00 이 아닌
-      스케줄 런에 등장한 노선 = tier1(ASAC-DAG #449 시간창). 관측 창은 아카이브
-      개시일(var transit_archive_start_at) 이후 — 정책 전환 전 무차별 수집 구간을
-      섞으면 분류가 오염된다. 매 빌드 전체 재계산.
+      tier 를 routeType 원천(bronze_bus_route_master, ASAC-DAG #471)에서 직접 조인한다.
+      DAG 가 수집 정책(BUS_TIER1_TYPES: 간선3·광역6)으로 tier 를 계산해 넣으므로
+      dbt 는 재계산하지 않는다(단일 출처). 이전 관측 역산(#286)은 dense 창 미운행
+      tier1 을 놓쳤으나(실측 140 vs 165) 원천 조인으로 해소. 관측 tier 는 검증용으로
+      병기(tier_mismatch 로 원천↔수집 불일치 감지). 매 빌드 전체 재계산.
     columns:
       - name: bus_route_id
         tests:

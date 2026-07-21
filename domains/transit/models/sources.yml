@@ -41,6 +41,33 @@ sources:
             tests:
               - not_null
 
+      - name: bus_route_master
+        identifier: bronze_bus_route_master
+        description: >
+          버스 노선 마스터(getBusRouteList 주간 스냅샷, ASAC-DAG #471) — bus_route_id·
+          bus_route_nm·route_type·tier + 계보. tier 는 수집 정책(BUS_TIER1_TYPES)으로
+          DAG 에서 계산됨(간선3·광역6=1, 그 외=2). dim_transit_bus_route_tier 가 소비.
+        loaded_at_field: collected_at
+        freshness: null  # 주1회 참조 마스터 — 분 단위 신선도 게이트 비대상
+        columns:
+          - name: bus_route_id
+            description: 노선 ID(busRouteId) — PK.
+            tests:
+              - not_null
+              - unique
+          - name: route_type
+            description: >
+              원천 routeType(varchar — 3간선·6광역·4지선·8경기 등 서울 API 코드).
+              not_null 을 걸지 않는다: 원천이 빈 routeType 을 주면 tier 는 2로 분류되고
+              route_type 은 NULL 로 적재되는데, source not_null 실패는 dbt build 를
+              정지시켜(변환 중단) 얻는 것보다 잃는 게 크다. 빈 값은 tier=2 로 안전 흡수.
+          - name: tier
+            description: 1=간선·광역(dense 수집), 2=그 외. DAG 가 BUS_TIER1_TYPES 로 판정.
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments: {values: [1, 2], quote: false}
+
       - name: park_info_master
         identifier: bronze_park_info_master
         description: 서울 주차장 정보 마스터(pklt_cd·pklt_nm·addr·lat·lot 등 39필드 + 계보). #162 적재.
