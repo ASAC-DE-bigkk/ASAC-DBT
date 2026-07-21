@@ -625,3 +625,54 @@ models:
       - name: eval_ready
         description: answerable AND mart_exists — W7 평가셋 투입 가능(라우팅 건전성 신호)
         data_type: boolean
+
+  - name: gold_culture_dine_around
+    description: 동별 문화 밀도 × 요식업 스톡 프로필(그레인 admin_dong_code, 426동 스카폴드, #308·티어링 v2). culture 첫 commerce 크로스도메인 read. 문화 축=다가오는 90일 행사량(빌드 시점 롤링), 요식업 축=식품 인허가 active 스톡. dine_around_score=두 축 percent_rank 기하평균 — "공연 보고 밥 먹기 좋은 동네" 정렬 키. ⚠ commerce 동 매핑 커버리지 219/426(51.4%) — 미커버 동은 has_dining_data=false·dining_*/score null.
+    config:
+      contract:
+        enforced: true   # published gold 계약(#180)
+      meta:
+        external: true   # 외부 카탈로그 공개(#269 티어링 v2 — 명시적 true 첫 사용, #308 AC)
+    columns:
+      - name: admin_dong_code
+        description: 행정동 코드(#48 행안부10 canonical) — 그레인 키
+        data_type: varchar
+        tests: [not_null, unique]
+      - name: admin_dong
+        description: 행정동 이름
+        data_type: varchar
+        tests: [not_null]
+      - name: gu_code
+        description: 자치구 코드(#48 공간축)
+        data_type: varchar
+      - name: gu
+        description: 자치구 이름
+        data_type: varchar
+      - name: events_upcoming_90d
+        description: 다가오는 90일(current_date~+90d) 문화 행사·활동 총량(activities_count 합)
+        data_type: integer
+        tests: [not_null]
+      - name: performances_upcoming_90d
+        description: 다가오는 90일 공연 수(performances_count 합) — "공연 보고" 축의 직접 지표
+        data_type: integer
+        tests: [not_null]
+      - name: dining_active_cnt
+        description: 식품 인허가 영업중(active) 스톡 — commerce gold_license_dong_category_matrix(category='food'). 미커버 동은 null
+        data_type: integer
+      - name: dining_opened_365d
+        description: 최근 365일 식품 신규 개업 수 — 상권 활력 프록시. 미커버 동은 null
+        data_type: integer
+      - name: has_dining_data
+        description: commerce 동 매핑 커버 여부(219/426, 7/21 실측) — false면 dining_*·dining_stock_pctl·dine_around_score 전부 null
+        data_type: boolean
+        tests: [not_null]
+      - name: culture_events_pctl
+        description: events_upcoming_90d 의 426동 내 percent_rank(0~1, 높을수록 문화 밀도 상위)
+        data_type: double
+        tests: [not_null]
+      - name: dining_stock_pctl
+        description: dining_active_cnt 의 커버 동(219) 내 percent_rank(0~1). 미커버 동은 null
+        data_type: double
+      - name: dine_around_score
+        description: sqrt(culture_events_pctl × dining_stock_pctl) — 둘 다 높아야 높은 결합 점수(0~1). 미커버 동은 null
+        data_type: double

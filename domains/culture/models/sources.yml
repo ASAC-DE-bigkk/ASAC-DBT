@@ -170,3 +170,13 @@ sources:
     tables:
       - name: gold_citydata_ppltn_by_time
         description: 장소×시간(event_at) 인구혼잡도 시계열 — area_congest_lvl·area_ppltn_min/max·gu_code
+
+  # 크로스도메인 read(#308) — commerce published gold. ref 불가라 source 로 배선(citydata_gold 선례).
+  #   read-only. culture 는 자기 스키마에만 write. dev=iceberg_dev.commerce / prod=iceberg.commerce.
+  - name: commerce_gold
+    description: commerce 도메인 published gold (ASAC-DBT domains/commerce) — 크로스도메인 read 전용
+    database: "{{ target.database }}"
+    schema: "{{ env_var('COMMERCE_SCHEMA', 'commerce') }}"
+    tables:
+      - name: gold_license_dong_category_matrix
+        description: 동×업종 인허가 매트릭스 — admin_dong_code(#48 canonical 호환, 220동)·active_cnt·total_cnt·opened_last_365d. 식품 = major 'health' / category 'food' (raw 영문값)
