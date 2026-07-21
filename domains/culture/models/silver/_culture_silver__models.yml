@@ -85,7 +85,7 @@ models:
               arguments: {values: [dong_precise, gu_only, unmatched]}
 
   - name: silver_culture_facility
-    description: KOPIS 공연시설 dim — 목록+상세(좌표·좌석수) 병합. 좌표·좌석수는 detail 수집분만(부분 커버리지 — 설계 §5, 캡 상향 #206).
+    description: 'KOPIS 공연시설 dim — 목록+상세(좌표·좌석수) 병합. 좌표·좌석수는 detail 수집분만(부분 커버리지 — 설계 §5, 캡 상향 #206).'
     columns:
       - name: facility_id
         tests: [not_null, unique]

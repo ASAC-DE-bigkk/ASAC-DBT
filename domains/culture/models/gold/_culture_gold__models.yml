@@ -10,9 +10,19 @@ models:
     config:
       contract:
         enforced: true   # published gold 계약(#180)
+      meta:
+        external: true   # 외부 카탈로그 공개(티어링 v2)
+        display:
+          title: 행정동별 일자 문화활동량
+          summary: 서울 426개 행정동에 대해 하루 단위로 문화활동이 몇 건 열리는지 집계했습니다. 공연·행사·축제·전시 등 유형별 건수와 함께 무료 행사, 교육·체험 행사 건수를 따로 제공합니다.
+          caveat: 행사가 없는 동도 0으로 채워져 있어 지도나 시계열에 그대로 얹을 수 있습니다. 무료 여부는 서울시 문화행사 출처에만 있어 그 범위의 건수입니다.
+          use_cases:
+            - 생활권 문화 인프라 격차 분석
+            - 부동산·상권 리포트의 생활편의 지표
+            - 동 단위 문화 히트맵
     columns:
       - name: admin_dong_code
-        description: 행정동 코드(행안부 canonical 10자리, #48 공간축 조인 키)
+        description: 행정동 코드(행안부 canonical 10자리, 공간축 조인 키)
         data_type: varchar
         tests: [not_null]
       - name: admin_dong
@@ -54,17 +64,27 @@ models:
         description: KCISA 국립문화기관 행사 수
         data_type: bigint
       - name: free_events_count
-        description: 그날 그 동의 무료(is_free='무료') 서울시 문화행사 수 — event 소스만(타 소스 유무료 정보 없음). free_access(티어링 #19) 흡수(#280)
+        description: "그날 그 동의 무료(is_free='무료') 서울시 문화행사 수 — event 소스만(타 소스 유무료 정보 없음)"
         data_type: bigint
       - name: edu_experience_events_count
         description: 그날 그 동의 교육/체험 카테고리 행사 수 — 기술적 카운트("가족적합" 해석은 Q&A 레이어 몫)
         data_type: bigint
 
   - name: gold_culture_booking_curve
-    description: 공연별 예매상황판 순위 궤적 요약(그레인 performance_id, 1공연 1행, #269). KOPIS는 순위(rank)만 제공 — 예매율·판매좌석·매진 데이터 없어 '순위 궤적'으로 실현. boxoffice_daily(스냅샷별)와 그레인 다름.
+    description: "공연별 예매상황판 순위 궤적 요약(그레인 performance_id, 1공연 1행, #269). KOPIS는 순위(rank)만 제공 — 예매율·판매좌석·매진 데이터 없어 '순위 궤적'으로 실현. boxoffice_daily(스냅샷별)와 그레인 다름."
     config:
       contract:
         enforced: true   # published gold 계약(#180)
+      meta:
+        external: true   # 외부 카탈로그 공개(티어링 v2)
+        display:
+          title: 공연별 인기 궤적 요약
+          summary: 공연 한 편이 예매 순위에 언제 진입해 며칠 머물렀고 최고 몇 위까지 올랐는지를 한 행으로 요약했습니다. 진입 순위와 마지막 순위가 함께 있어 상승세인지 하락세인지 바로 판단할 수 있습니다.
+          caveat: 순위 기반 지표만 제공합니다. 원천에 예매율·판매 좌석 수·매진 여부가 없고, 순위 50위 밖에 있던 기간은 집계되지 않습니다.
+          use_cases:
+            - 공연 마케팅 성과 벤치마킹
+            - 흥행 예측 모델 입력
+            - 장르별 인기 수명주기 비교
     columns:
       - name: performance_id
         description: KOPIS 공연 식별자(mt20id) — 그레인, 유일
@@ -115,6 +135,16 @@ models:
     config:
       contract:
         enforced: true   # published gold 계약(#180)
+      meta:
+        external: true   # 외부 카탈로그 공개(티어링 v2)
+        display:
+          title: 공연 예매 랭킹 (일별)
+          summary: 공연 예매 순위를 매일 한 번 찍어 쌓은 데이터입니다. 3일 전 순위와의 변동폭, 차트 체류 일수, 신규 진입 여부까지 계산돼 있어 "요즘 뜨는 공연"을 바로 뽑을 수 있습니다.
+          caveat: 원천이 순위만 제공합니다. 예매율·판매 좌석 수·매출액은 포함되지 않습니다.
+          use_cases:
+            - 인기 공연 큐레이션
+            - 장르별 흥행 추이 리포트
+            - 공연 추천 모델의 인기도 피처
     columns:
       - name: snapshot_date
         description: 예매 랭킹 스냅샷 일(YYYY-MM-DD 문자열 — 물리 varchar 주의)
@@ -174,6 +204,15 @@ models:
     config:
       contract:
         enforced: true   # published gold 계약(#180)
+      meta:
+        external: true   # 외부 카탈로그 공개(티어링 v2)
+        display:
+          title: 자치구 일자별 문화행사 밀도
+          summary: 자치구마다 하루에 행사가 몇 건 열리고 그중 한 유형에 얼마나 몰리는지를 요약했습니다. 볼거리가 많은 날을 찾는 쪽과, 행사를 새로 열 때 경쟁을 피할 날을 고르는 쪽 모두가 같은 표를 씁니다.
+          use_cases:
+            - 행사 개최일 선정
+            - 이번 주 볼거리 많은 자치구 콘텐츠
+            - 지역별 문화 공급 편차 분석
     columns:
       - name: gu_code
         description: 자치구 코드(#48 공간축)
@@ -203,10 +242,20 @@ models:
         data_type: double
 
   - name: gold_culture_event_crowd
-    description: 문화 행사 자치구의 요일×시간대별 평시 혼잡 베이스라인(그레인 gu_code×day_of_week×hour_of_day, #276·v2 #282). citydata gold를 크로스도메인 source로 읽어 event_schedule 있는 gu로 스코프. "그 행사 지역 무슨 요일 몇 시가 붐비나/한적한가". ⚠~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님.
+    description: '문화 행사 자치구의 요일×시간대별 평시 혼잡 베이스라인(그레인 gu_code×day_of_week×hour_of_day, #276·v2 #282). citydata gold를 크로스도메인 source로 읽어 event_schedule 있는 gu로 스코프. "그 행사 지역 무슨 요일 몇 시가 붐비나/한적한가". ⚠~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님.'
     config:
       contract:
         enforced: true   # published gold 계약(#180)
+      meta:
+        external: true   # 외부 카탈로그 공개(티어링 v2)
+        display:
+          title: 행사 지역 요일·시간대 혼잡도
+          summary: 문화행사가 열리는 자치구가 요일과 시간대별로 평소 얼마나 붐비는지에 대한 기준선입니다. 서울시 실시간 도시데이터의 인구·혼잡 관측을 요일×시간 칸으로 모아 평균 인구와 대표 혼잡 등급을 계산했습니다.
+          caveat: 특정 행사 당일의 증가분이 아니라 평상시 패턴입니다. 서울시가 관측하는 주요 지점 기준이라 자치구 전역을 대표하지는 않습니다.
+          use_cases:
+            - 방문 시간대 추천
+            - 행사 운영 인력·안전 배치 계획
+            - 한적한 관람 시간 안내
     columns:
       - name: gu_code
         description: 자치구 코드(#48 공간축) — citydata·event 공통 조인 키
@@ -237,10 +286,20 @@ models:
         data_type: integer
 
   - name: gold_culture_event_schedule
-    description: 문화행사 목록 질의 표면 (행사 1행, #187). "이번 주말 ○○구 행사" = 기간 겹침 + gu_code 필터 단독 조회. 6개 silver union + norm_title×시작일×gu 크로스소스 dedup(전문 소스 우선).
+    description: '문화행사 목록 질의 표면 (행사 1행, #187). "이번 주말 ○○구 행사" = 기간 겹침 + gu_code 필터 단독 조회. 6개 silver union + norm_title×시작일×gu 크로스소스 dedup(전문 소스 우선).'
     config:
       contract:
         enforced: true   # published gold 계약(#180)
+      meta:
+        external: true   # 외부 카탈로그 공개(티어링 v2)
+        display:
+          title: 서울 문화행사 통합 일정
+          summary: 서울에서 열리는 공연·전시·축제·체험 행사를 한 행에 하나씩 모은 통합 일정표입니다. 시작일과 종료일, 장소 이름과 좌표, 자치구·행정동, 유·무료 표기가 함께 들어 있어 "이번 주말 성동구 행사" 같은 조회를 이 데이터셋 하나로 끝낼 수 있습니다.
+          caveat: 6개 출처를 합치면서 같은 행사가 중복되지 않도록 정리했습니다. 분류(category) 값은 출처마다 체계가 달라 통합 분류가 아닙니다.
+          use_cases:
+            - 주말 나들이 추천 서비스의 행사 목록
+            - 지역 문화 소식 뉴스레터
+            - 행사 밀집 지역 분석
     columns:
       - name: event_ref
         description: "소스 프리픽스 키 ('performance:12345') — 크로스소스 충돌 방지"
@@ -275,7 +334,7 @@ models:
         data_type: date
         tests: [not_null]
       - name: event_at
-        description: 행사 시작 시각(KST, #48 시간축 — where 필터 표준 컬럼)
+        description: 행사 시작 시각(KST, 시간축 — where 필터 표준 컬럼)
         data_type: timestamp(6)
         tests: [not_null]
       - name: gu
@@ -288,7 +347,7 @@ models:
         description: 행정동 이름(quality_status=dong_precise 일 때만 신뢰)
         data_type: varchar
       - name: admin_dong_code
-        description: 행정동 코드(행안부 canonical, #48 공간축 조인 키)
+        description: 행정동 코드(행안부 canonical, 공간축 조인 키)
         data_type: varchar
       - name: latitude
         description: 위도(WGS84) — 좌표 없는 소스는 null
@@ -421,7 +480,7 @@ models:
         data_type: date
         tests: [not_null]
       - name: event_at
-        description: 경기 시작 시각(KST, #48 시간축)
+        description: '경기 시작 시각(KST, #48 시간축)'
         data_type: timestamp(6)
         tests: [not_null]
       - name: game_time
@@ -453,7 +512,7 @@ models:
         description: 경기장 행정동 이름
         data_type: varchar
       - name: admin_dong_code
-        description: 경기장 행정동 코드(행안부 canonical, #48 공간축 조인 키)
+        description: '경기장 행정동 코드(행안부 canonical, #48 공간축 조인 키)'
         data_type: varchar
       - name: quality_status
         description: 공간 정밀도(#111) — dong_precise/gu_only/unmatched
@@ -499,7 +558,7 @@ models:
         description: culture_bronze 적재 소요 합(분) — dag_run enrichment(#411) 유래, 미적재 시 0
         data_type: decimal(38,18)
       - name: transform_runs
-        description: 그날 culture_transform run 수(dag_run enrichment #411)
+        description: '그날 culture_transform run 수(dag_run enrichment #411)'
         data_type: bigint
       - name: transform_all_success
         description: 그날 transform 이 전부 success 였나 — 7/17 freshness 사고를 false 로 실측한 컬럼
@@ -512,7 +571,7 @@ models:
         data_type: bigint
 
   - name: gold_culture_venue_profile
-    description: 시설(facility_id) 1행 프로필 — "그 공연장 어떤 곳이야"(Q&A metric, #278). 주소·좌표 100%, seat_scale 63.7% 충전. 공연 통계는 KOPIS 공연 기준(보유 시설 421) — 전시·축제 미포함. 외부 카탈로그 비공개(meta.external=false, #269).
+    description: '시설(facility_id) 1행 프로필 — "그 공연장 어떤 곳이야"(Q&A metric, #278). 주소·좌표 100%, seat_scale 63.7% 충전. 공연 통계는 KOPIS 공연 기준(보유 시설 421) — 전시·축제 미포함. 외부 카탈로그 비공개(meta.external=false, #269).'
     config:
       contract:
         enforced: true   # published gold 계약(#180)
@@ -577,7 +636,7 @@ models:
         data_type: varchar
 
   - name: gold_culture_qa_eval
-    description: 페르소나 질문 카탈로그 × 라우팅 커버리지(티어링 #20, #284, 그레인 question_id). 페르소나 원천 nvidia/Nemotron-Personas-Korea(CC-BY-4.0) 15명 샘플. answerable(큐레이션)과 mart_exists(information_schema 실측) 분리 — eval_ready=W7 평가셋 투입 가능. 답불가 행의 unanswerable_reason=수집 로드맵 재료. 내부 전용(meta.external=false).
+    description: '페르소나 질문 카탈로그 × 라우팅 커버리지(티어링 #20, #284, 그레인 question_id). 페르소나 원천 nvidia/Nemotron-Personas-Korea(CC-BY-4.0) 15명 샘플. answerable(큐레이션)과 mart_exists(information_schema 실측) 분리 — eval_ready=W7 평가셋 투입 가능. 답불가 행의 unanswerable_reason=수집 로드맵 재료. 내부 전용(meta.external=false).'
     config:
       contract:
         enforced: true   # published gold 계약(#180)
@@ -620,19 +679,27 @@ models:
         description: 답불가 사유 + 로드맵 힌트(답불가 시 필수)
         data_type: varchar
       - name: mart_exists
-        description: target_mart가 카탈로그에 실존하는가 — information_schema 실측. 검사 스코프=culture+채택 도메인(seoul_citydata·weather·transit, 티어링 v2 #310)
+        description: 'target_mart가 카탈로그에 실존하는가 — information_schema 실측. 검사 스코프=culture+채택 도메인(seoul_citydata·weather·transit, 티어링 v2 #310)'
         data_type: boolean
       - name: eval_ready
         description: answerable AND mart_exists — W7 평가셋 투입 가능(라우팅 건전성 신호)
         data_type: boolean
 
   - name: gold_culture_dine_around
-    description: 동별 문화 밀도 × 요식업 스톡 프로필(그레인 admin_dong_code, 426동 스카폴드, #308·티어링 v2). culture 첫 commerce 크로스도메인 read. 문화 축=다가오는 90일 행사량(빌드 시점 롤링), 요식업 축=식품 인허가 active 스톡. dine_around_score=두 축 percent_rank 기하평균 — "공연 보고 밥 먹기 좋은 동네" 정렬 키. ⚠ commerce 동 매핑 커버리지 219/426(51.4%) — 미커버 동은 has_dining_data=false·dining_*/score null.
+    description: '동별 문화 밀도 × 요식업 스톡 프로필(그레인 admin_dong_code, 426동 스카폴드, #308·티어링 v2). culture 첫 commerce 크로스도메인 read. 문화 축=다가오는 90일 행사량(빌드 시점 롤링), 요식업 축=식품 인허가 active 스톡. dine_around_score=두 축 percent_rank 기하평균 — "공연 보고 밥 먹기 좋은 동네" 정렬 키. ⚠ commerce 동 매핑 커버리지 219/426(51.4%) — 미커버 동은 has_dining_data=false·dining_*/score null.'
     config:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
         external: true   # 외부 카탈로그 공개(#269 티어링 v2 — 명시적 true 첫 사용, #308 AC)
+        display:
+          title: 문화·미식 동반 추천 지수
+          summary: 동네마다 앞으로 90일간 예정된 문화행사량과 영업 중인 음식점 규모를 나란히 점수화했습니다. 두 값이 모두 높은 동네일수록 점수가 높아 "공연 보고 밥 먹기 좋은 동네" 정렬에 그대로 쓸 수 있습니다.
+          caveat: 음식점 데이터가 연결된 동은 426곳 중 219곳입니다. 나머지 동은 문화 지표만 채워지고 점수는 비어 있습니다(has_dining_data 로 구분).
+          use_cases:
+            - 데이트·나들이 코스 추천
+            - 상권 입지 검토
+            - 지역 관광 코스 설계
     columns:
       - name: admin_dong_code
         description: 행정동 코드(#48 행안부10 canonical) — 그레인 키
