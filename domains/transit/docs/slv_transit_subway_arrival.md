@@ -1,8 +1,8 @@
 # slv_transit_subway_arrival — 지하철 실시간 도착
 
 - **한 행** = 역에 대한 열차 도착예측 1건 / **grain**: (`statn_id`, `ordkey`, `recptn_dt`)
-- **원천**: `realtimeStationArrival`(환승역 3곳: 강남·잠실·사당) → `bronze_subway_arrival` + 역 마스터 dim 조인
-- 노선 커버: 현재 2·4·8호선·신분당선 (역 3곳을 지나는 노선)
+- **원천**: `realtimeStationArrival/ALL`(경로형 전 노선 수집 #369) → `bronze_subway_arrival` + 역 마스터 dim 조인
+- 노선 커버: 수도권 전 노선(1~9호선·신분당·경의중앙·분당 등). 서울 행정경계 내 339역·210개 동에 admin_dong_code 부착(경기·인천 역은 NULL — 커버리지 임계 0.45)
 
 ## 컬럼
 
@@ -31,4 +31,4 @@
 ## 주의
 
 - **`event_at` 미래 이상치**: 원천이 전일 막차 안내를 잔존시키는 quirk로 `event_at`이 수집시각보다 미래인 행이 있었으나 **silver에서 필터됨(#66)** — `event_at <= utc_to_kst(ingested_at) + 스큐(기본 10분)` 상한으로 제거하므로 별도 필터 불필요.
-- 역 3곳 표본이므로 "서울 지하철" 일반화 불가. 예측값(`barvl_dt_sec`)은 예측이지 실측 도착이 아님.
+- 예측값(`barvl_dt_sec`)은 예측이지 실측 도착이 아니다. 수도권 전 노선 수집이라 경기·인천 역은 admin_dong_code NULL(서울 동 그레인 gold 에서 자연 제외).
