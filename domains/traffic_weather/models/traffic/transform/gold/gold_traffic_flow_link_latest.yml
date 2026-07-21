@@ -121,8 +121,12 @@ models:
         description: TOPIS 도로 링크 식별자입니다.
         data_type: varchar
         tests:
-          - not_null
-          - unique
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+          - unique:
+              config:
+                tags: [traffic_gold_gate]
         config:
           meta:
             semantic_role: join_key
