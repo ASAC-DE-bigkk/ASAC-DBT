@@ -200,6 +200,8 @@ models:
 
   # ---------------- 골드 ----------------
   - name: gold_transit_dong_hourly
+    config:
+      meta: {serving_tier: d1_direct, refresh: '1시간'}  # 이력·시간별 — D1 append 서빙 (ASAC-DAG#475 1차)
     description: >
       동×시간대 교통 상태판(#67). grain (admin_dong_code, hour_at). hour_at=date_trunc('hour',
       event_at) KST. silver 3종(버스·지하철·주차)을 동·시간으로 집계해 한 행에 나란히(3원 outer 결합
@@ -261,6 +263,8 @@ models:
               arguments: {values: [1, 2], quote: false}
 
   - name: gold_transit_dong_15min
+    config:
+      meta: {serving_tier: hold, refresh: '15분'}  # 원자재 아카이브 — 서빙은 파생(dong_now·hourly)이 대체
     description: >
       동×15분 교통 상태 기반 아카이브(#286). grain (admin_dong_code, bucket_at).
       gold_transit_dong_hourly(#67)의 15분판 + 버스 tier1 한정 컬럼(*_t1, 시간대 비교
@@ -288,6 +292,8 @@ models:
         description: 버킷 내 주차 최신 관측 시각(KST).
 
   - name: gold_transit_route_section_30min
+    config:
+      meta: {serving_tier: hold, refresh: '30분'}  # 원자재 — 사용자향은 bus_route_comfort(2차) 예정
     description: >
       노선×구간×30분 버스 아카이브(#286). grain (bus_route_id, sect_ord, bucket_at).
       티어링(#440) 후 30분 주기에 맞춘 버킷 = 런 1회 스냅샷. 전 티어 저장 + tier 스탬프
@@ -313,6 +319,8 @@ models:
               arguments: {values: [1, 2], quote: false}
 
   - name: gold_transit_parking_lot_15min
+    config:
+      meta: {serving_tier: hold, refresh: '15분'}  # 원자재 — 서빙은 full_risk·profile 이 대체
     description: >
       주차장 개소×15분 점유 아카이브(#286). grain (parking_id, bucket_at). 수집 5분 주기라
       버킷당 ~3관측. occ_last(max_by 최신 점유율)는 G2 변화율(연속 버킷 lag)용.
@@ -335,6 +343,8 @@ models:
 
   # ---------------- 사용자향 골드 1차 (#289) ----------------
   - name: gold_transit_dong_now
+    config:
+      meta: {serving_tier: d1_direct, refresh: '15분'}  # 스냅샷 ~410행 — 15분 전량 교체 (ASAC-DAG#475 1차)
     description: >
       "지금 우리 동네 교통" 스코어카드(#289 G1). grain admin_dong_code — 소스(버스·지하철·
       주차)별 최근 24h 내 최신 관측 버킷 지표 + 관측 시각(*_last_event_at, "N분 전 관측"
@@ -354,6 +364,8 @@ models:
         description: 주차 여유 %((1-점유율)×100 반올림).
 
   - name: gold_transit_x_weather_dong_hourly
+    config:
+      meta: {serving_tier: hold, refresh: '1시간'}  # 2차 후보 (G6) — 카드 화면 붙일 때 d1_direct 전환
     description: >
       날씨 조건부 교통 상태(#289 G6, × weather). grain (admin_dong_code, hour_at).
       과거 행 = 교통 실측(버스 tier1 한정) + 당시 예보(패턴 학습), 미래 행 = 예보만
@@ -374,6 +386,8 @@ models:
         description: 강수 예보 여부(precip_type>0).
 
   - name: gold_transit_lastmile_dong_hourly
+    config:
+      meta: {serving_tier: hold, refresh: '1시간'}  # 2차 후보 (G9)
     description: >
       지하철 주변 따릉이 라스트마일(#289 G9, × citydata). grain (admin_dong_code, hour_at),
       지하철역 보유 동 한정. 따릉이는 핫스팟 121곳 주변 대여소만 — sbike_* null 은
@@ -390,6 +404,8 @@ models:
         description: 동 내 대여소별 최신 잔여 대수 합(시간 내 마지막 관측 기준).
 
   - name: gold_transit_dong_rhythm
+    config:
+      meta: {serving_tier: hold, refresh: '패턴'}  # 2차 후보 (G4 히트맵)
     description: >
       동별 요일×시간 교통 리듬(#287 G4). grain (admin_dong_code, dow, hh) — dow ISO(1=월),
       hh 0~23, KST. 아카이브(dong_15min) 전량 재집계(table). 버스는 tier1 한정·관측수 가중
@@ -413,6 +429,8 @@ models:
         description: 버스(tier1) 기여 버킷 수 — 표본 배지 근거.
 
   - name: gold_transit_parking_profile
+    config:
+      meta: {serving_tier: d1_direct, refresh: '패턴'}  # dow×hh 프로파일 ~864행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
     description: >
       주차장별 요일×시간 점유 프로파일(#288 G2 프로파일 축). grain (parking_id, dow, hh).
       아카이브(parking_lot_15min) 전량 재집계. full_prob = 버킷 중 occ_max>=0.95 비율.
@@ -430,6 +448,8 @@ models:
         description: 만차 확률(0~1). base_n 얇으면(운영 초기) 소비 측 배지 처리.
 
   - name: gold_transit_parking_full_risk
+    config:
+      meta: {serving_tier: d1_direct, refresh: '15분'}  # 스냅샷 ~108행 — 15분 전량 교체 (ASAC-DAG#475 1차)
     description: >
       주차장별 현재 만차 리스크 스냅샷(#288 G2). grain parking_id — 현재 점유·잔여 추정
       + 최근 1시간(4버킷) occ_last 추세의 만차까지 예상 분 + 이 시간대 평시 만차 확률
@@ -445,6 +465,8 @@ models:
         description: 분당 점유율 변화(최근 4버킷 처음↔끝). 4버킷 미만 관측이면 null.
 
   - name: gold_transit_bus_route_comfort
+    config:
+      meta: {serving_tier: hold, refresh: '패턴'}  # 2차 후보 (G3) — 행수 확인 전 서빙 투입 금지
     description: >
       노선×구간별 요일×시간 쾌적도(#288 G3). grain (bus_route_id, sect_ord, dow, hh).
       tier1(간선·광역) 한정 — tier2 는 하루 3회 관측이라 시간대 프로파일 불성립(#440).
@@ -460,6 +482,8 @@ models:
         description: 기여 30분 버킷 수(같은 칸 주 1회×2버킷 → 4주 ~8).
 
   - name: gold_transit_event_access
+    config:
+      meta: {serving_tier: d1_direct, refresh: '1일'}  # 행사 명부 ~1천 행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
     description: >
       행사장 가는 길 안내판(#290 G7, × culture). grain event_ref — 진행·예정 행사의
       최근접 지하철역·주차장(dim 마스터 기반 great_circle_distance, 전 행사 즉시 제공)
@@ -478,6 +502,8 @@ models:
           null = 실시간 미제공 lot(정보 없음).
 
   - name: gold_transit_supply_x_demand_hourly
+    config:
+      meta: {serving_tier: hold, refresh: '1시간'}  # 2차 후보 (G8)
     description: >
       핫스팟 수요×공급 교통 압박(#291 G8, × citydata). grain (area_cd, hour_at).
       **범위(#291 결론)**: 핫스팟에서만 얻을 수 있는 것만 담는다 — 수요(실시간 인구·
@@ -500,6 +526,8 @@ models:
         description: 혼잡('약간 붐빔'/'붐빔') AND 주차 점유>=0.8. 주차 실측 없는 동은 false 아님 null 주의.
 
   - name: gold_transit_forecast_card
+    config:
+      meta: {serving_tier: d1_direct, refresh: '1일'}  # 예보 카드 ~7.7천 행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
     description: >
       "내일 이 시간 교통" 예측 카드(#292 G10, × citydata × weather). grain (area_cd,
       target_hour_at 미래 시각 — 프런티어 이후, 상한은 단기예보 +3일). 기대 인구
