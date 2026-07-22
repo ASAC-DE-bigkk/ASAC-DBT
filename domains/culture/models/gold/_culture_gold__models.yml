@@ -11,6 +11,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
         display:
           title: 행정동별 일자 문화활동량
@@ -76,6 +77,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
         display:
           title: 공연별 인기 궤적 요약
@@ -136,6 +138,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
         display:
           title: 공연 예매 랭킹 (일별)
@@ -205,6 +208,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
         display:
           title: 자치구 일자별 문화행사 밀도
@@ -247,6 +251,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
         display:
           title: 행사 지역 요일·시간대 혼잡도
@@ -291,6 +296,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
         display:
           title: 서울 문화행사 통합 일정
@@ -368,6 +374,8 @@ models:
     config:
       contract:
         enforced: true   # published gold 계약(#180) — 타입은 describe 실측(2026-07-14)
+      meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
     columns:
       - name: gu_code
         description: 자치구 코드(#48 공간축)
@@ -408,6 +416,8 @@ models:
     config:
       contract:
         enforced: true   # published gold 계약(#180) — 스파이크 검증 모델
+      meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
     columns:
       - name: boxoffice_date
         description: 관객일(날짜 1행)
@@ -438,6 +448,8 @@ models:
     config:
       contract:
         enforced: true   # published gold 계약(#180)
+      meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
     columns:
       - name: gu_code
         description: 자치구 코드(#48 공간축)
@@ -474,6 +486,8 @@ models:
     config:
       contract:
         enforced: true   # published gold 계약(#180)
+      meta:
+        refresh: '월 1회(수동)'   # seed CSV 수동 갱신 — 자동 갱신 없음
     columns:
       - name: game_date
         description: 경기일(KST)
@@ -527,6 +541,8 @@ models:
     description: 날짜 1행 SLO — scheduled/eod 가용(분모 둘 다)·green_disguise·적재추세. 7/7 회귀 케이스의 기준표.
     config:
       contract: {enforced: true}
+      meta:
+        refresh: '1일'   # culture_slo 05:00 KST
     columns:
       - name: domain
         description: 도메인(culture) — 도메인 중립 설계(§6, _shared 승격 대비)
@@ -576,6 +592,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: false  # Q&A 전용 내부 마트 — 외부 카탈로그 노출 제외(#269, 대시보드 PR#6 메커니즘)
     columns:
       - name: facility_id
@@ -641,6 +658,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: false  # Q&A 거버넌스 내부 마트 — 외부 카탈로그 노출 제외(#269)
     columns:
       - name: question_id
@@ -691,6 +709,7 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
+        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(#269 티어링 v2 — 명시적 true 첫 사용, #308 AC)
         display:
           title: 문화·미식 동반 추천 지수
