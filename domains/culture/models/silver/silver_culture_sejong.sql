@@ -1,6 +1,16 @@
 -- silver: 세종문화회관 공연/전시 기간 fact. 단일 시설 → 위치는 sejong_location seed 상수(cross join 1행).
+--
+-- 최신 load_date 파티션만 읽는다(#329). bronze 는 매일 전체 스냅샷을 append 하므로 전량 스캔하면
+-- 메모리가 누적일수에 비례해 늘고 상한이 없다 — 22일치 1,962MB 를 읽어 최신 1일치 산출을 만들다
+-- Trino per-node 2GB 한도를 쳤다. 원천이 매일 전량을 다시 주므로 최신 파티션만으로 산출은 동일하다.
+-- 하루 안에서는 여전히 중복이 생기므로(수동 재적재 시 같은 load_date 에 여러 스냅샷) 아래 dedup 은 유지한다.
 
-with bronze as (
+with latest_load as (
+    select max(load_date) as load_date
+    from {{ source('culture_bronze', 'bronze_seoul_sejong') }}
+),
+
+bronze as (
     select
         json_extract_scalar(record_json, '$.PERFORM_IDX') as sejong_id,
         json_extract_scalar(record_json, '$.TITLE')       as title_raw,
@@ -11,6 +21,7 @@ with bronze as (
         ingest_ts,
         {{ culture_lineage('seoul') }}
     from {{ source('culture_bronze', 'bronze_seoul_sejong') }}
+    where load_date = (select load_date from latest_load)
 ),
 
 latest as (
