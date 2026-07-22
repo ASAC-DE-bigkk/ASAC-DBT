@@ -14,6 +14,18 @@ models:
     description: 개업/폐업 흐름 일 grain × 업종3단 × 지역3축 — '언제·어디서·무슨 업종이 생기고 닫혔나' 추이 정본. 완결일만(append, 재실행 0건).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+          product_id: gold_license_flow_daily
+          contract_version: "1.0.0"
+          grain: 일×이벤트×업종×지역3축
+          primary_key: [event_date, event_type, dataset, gu_code, admin_dong_code, legal_code]
+          publication_mode: hold
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 개·폐업 흐름 추이(일)
     columns:
       - name: event_date
         data_type: date
@@ -83,6 +95,18 @@ models:
     description: 개업/폐업 흐름 월 grain × 업종3단 × 지역3축 — 월별 상권 증감 추이(화면 기본 해상도). 완결월만(append, 재실행 0건).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+          product_id: gold_license_flow_monthly
+          contract_version: "1.0.0"
+          grain: 월×이벤트×업종×지역3축
+          primary_key: [ym, event_type, dataset, gu_code, admin_dong_code, legal_code]
+          publication_mode: hold
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 개·폐업 흐름 추이(월)
     columns:
       - name: ym
         data_type: varchar
@@ -151,6 +175,18 @@ models:
     description: 개업/폐업 흐름 연 grain × 업종3단 × 지역3축 — 장기(수십 년) 상권 추세. 완결연만(append, 재실행 0건).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+          product_id: gold_license_flow_yearly
+          contract_version: "1.0.0"
+          grain: 연×이벤트×업종×지역3축
+          primary_key: [y, event_type, dataset, gu_code, admin_dong_code, legal_code]
+          publication_mode: hold
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 개·폐업 흐름 추이(연)
     columns:
       - name: y
         data_type: integer
@@ -216,6 +252,18 @@ models:
     description: 개업/폐업 월중 계절성(1~12월) × 업종 — '어느 달에 개·폐업 몰리나'(연도 무관, 최근 10개 완결연).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_seasonality
+          contract_version: "1.0.0"
+          grain: 이벤트×월×업종3단
+          primary_key: [event_type, month_of_year, major, category, dataset]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * 5"
+          product_question: 개·폐업이 몰리는 달은 언제인가?
     columns:
       - name: event_type
         data_type: varchar
@@ -259,6 +307,18 @@ models:
     description: 상권 역동성 — 연도별 개업/폐업/순증·교체율·신생비 × 업종 × 자치구. 순증형 vs 교체형 진단(최근 20개 완결연).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+          product_id: gold_license_churn_yearly
+          contract_version: "1.0.0"
+          grain: 연×업종3단×자치구
+          primary_key: [y, major, category, dataset, gu_code]
+          publication_mode: hold
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 연별 교체율·신생비는?
     columns:
       - name: y
         data_type: integer
@@ -313,6 +373,18 @@ models:
     description: 이 업종 얼마나 버티나 — 폐업 완결분 수명(개업→폐업 일수) 분포 × 업종 × 자치구. 조기폐업률 포함(폐업분 기준 편향 주의).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_lifespan
+          contract_version: "1.0.0"
+          grain: 업종3단×자치구
+          primary_key: [major, category, dataset, gu_code]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * 6"
+          product_question: 업종별 폐업까지 걸리는 수명은?
     columns:
       - name: major
         data_type: varchar
@@ -365,6 +437,18 @@ models:
     description: 창업 생존율 곡선 — 개업연도 코호트의 경과연차별 생존율 × 대/중분류. 우측검열 차단(관측 가능 연차만), 연 단위 근사.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_cohort_survival
+          contract_version: "1.0.0"
+          grain: 업종×창업연도×경과연차
+          primary_key: [major, category, cohort_y, years_elapsed]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * 3"
+          product_question: 창업 후 몇 년을 버티나(코호트 생존율)?
     columns:
       - name: major
         data_type: varchar
@@ -400,6 +484,18 @@ models:
     description: 휴업하면 얼마나 쉬나 — 상태(영업/휴업/폐업/취소) 세그먼트 지속기간 요약 × 업종·상태군. 이력 기반(씨앗 — 표본 축적 중).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_status_duration
+          contract_version: "1.0.0"
+          grain: dataset×상태×진행중
+          primary_key: [dataset, status_code, is_ongoing]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 인허가 상태에 얼마나 머무나?
     columns:
       - name: dataset
         data_type: varchar
@@ -448,6 +544,18 @@ models:
     description: 휴업 다음은 재개? 폐업? — 상태 전이 매트릭스(from→to) × 업종. 씨앗 지표(이력 축적에 따라 성장).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_status_transition
+          contract_version: "1.0.0"
+          grain: 업종3단×상태전이
+          primary_key: [major, category, dataset, from_status, to_status]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 영업→폐업 등 상태 전이는 어떤 경로인가?
     columns:
       - name: major
         data_type: varchar
@@ -491,6 +599,18 @@ models:
     description: 우리 동네 상권 요약 — 행정동별 업소 현황 스냅샷(전체·영업·폐업·업종수·지도표시 가능). 동 지도/요약 서빙 표면.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_dong_summary
+          contract_version: "1.0.0"
+          grain: 행정동
+          primary_key: [admin_dong_code]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 우리 동네(행정동)에 업소가 몇 개 있고 얼마나 열고 닫혔나?
     columns:
       - name: admin_dong_code
         data_type: varchar
@@ -529,6 +649,18 @@ models:
     description: 우리 동네엔 뭐가 많나 — 행정동 × 중분류 스톡(영업/전체) + 최근 1년 신규 개업. 동네 프로파일/지도 서빙.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_dong_category_matrix
+          contract_version: "1.0.0"
+          grain: 행정동×업종
+          primary_key: [admin_dong_code, gu_code, major, category]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * 4"
+          product_question: 이 동네엔 무슨 업종이 많나?
     columns:
       - name: admin_dong_code
         data_type: varchar
@@ -569,6 +701,18 @@ models:
     description: 상권 밀집 히트맵 — 좌표 0.005도(약 500m) 격자 × 업종 영업 밀도·최근 신규. 지도 핫스팟 질의(좌표 84%만).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_geo_grid
+          contract_version: "1.0.0"
+          grain: 500m 격자×업종
+          primary_key: [grid_lat, grid_lng, major, category]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * 1"
+          product_question: 상권이 어디에 밀집해 있나(500m 격자)?
     columns:
       - name: grid_lat
         data_type: double
@@ -601,6 +745,18 @@ models:
     description: 우리 구 특화 업종 — 자치구별 업종 특화지수(LQ)·구성비. LQ>1 이면 서울 평균 대비 밀집.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_gu_specialization
+          contract_version: "1.0.0"
+          grain: 자치구×업종
+          primary_key: [gu_code, major, category]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 이 자치구는 어떤 업종이 특화됐나(LQ)?
     columns:
       - name: gu_code
         data_type: varchar
@@ -635,6 +791,18 @@ models:
     description: 신상 상권 vs 노포 상권 — 영업 업소의 업력 밴드(1년 미만~20년+) 분포 × 업종 × 자치구.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_stock_age_band
+          contract_version: "1.0.0"
+          grain: 업종3단×자치구×업력밴드
+          primary_key: [major, category, dataset, gu_code, age_band]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * 2"
+          product_question: 신상 가게와 노포의 비중은?
     columns:
       - name: major
         data_type: varchar
@@ -678,6 +846,18 @@ models:
     description: 이 업종 가게 크기 — 영업장 면적(sitearea) 분포 × 업종 × 자치구. avg/p50/p90 + 소형/대형 비중(면적 보유분 기준).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_detail_area_profile
+          contract_version: "1.0.0"
+          grain: 업종3단×자치구
+          primary_key: [major, category, dataset, gu_code]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 업종별 매장 면적 분포는?
     columns:
       - name: major
         data_type: varchar
@@ -727,6 +907,18 @@ models:
     description: 업종 속 세부 업태 — 업태(uptaenm) 구성·플로우 × 업종. 소분류보다 깊은 축(일반음식점 안 한식/커피숍). lodging 제외.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+          product_id: gold_detail_uptae_mix
+          contract_version: "1.0.0"
+          grain: 업종3단×업태×자치구
+          primary_key: [major, category, dataset, uptaenm, gu_code]
+          publication_mode: hold
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 업태 구성은 어떤가?
     columns:
       - name: major
         data_type: varchar
@@ -770,6 +962,18 @@ models:
     description: 체인·다점포 비율 — 동일 전화 다지점(체인/다점포 추정) 비율 × 업종. 근사(전화 44%·번호공유 노이즈).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_multi_site
+          contract_version: "1.0.0"
+          grain: 업종3단
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 다점포 운영이 흔한 업종은?
     columns:
       - name: major
         data_type: varchar
@@ -809,6 +1013,18 @@ models:
     description: 간판·자리 자주 바꾸는 업종 — 업소당 버전수·개명/이전 발생률 × 업종. 씨앗 지표(이력 축적 초기, 상대순위로 해석).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_change_activity
+          contract_version: "1.0.0"
+          grain: 업종3단
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 업소 정보 변경이 활발한 업종은?
     columns:
       - name: major
         data_type: varchar
@@ -856,6 +1072,18 @@ models:
     description: 이 자리엔 다음에 뭐가? — 폐업 후 같은 도로명주소 후속 개업(365일 이내 최근접 1건) 업종 승계. 건물 단위 주소 근사.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_address_succession
+          contract_version: "1.0.0"
+          grain: 폐업→개업 업종쌍
+          primary_key: [closed_major, closed_category, opened_major, opened_category]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 폐업 자리에 무슨 업종이 들어서나(자리 대물림)?
     columns:
       - name: closed_major
         data_type: varchar
@@ -900,6 +1128,18 @@ models:
     description: 폐업 사장님의 재도전 — 동일 전화의 폐업→개업(3년 이내·주소 상이) 업종 전환. 연쇄창업 근사(전화 44%).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_phone_succession
+          contract_version: "1.0.0"
+          grain: 폐업→개업 업종쌍
+          primary_key: [closed_major, closed_category, opened_major, opened_category]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 전화번호가 승계되는 업종 조합은?
     columns:
       - name: closed_major
         data_type: varchar
@@ -946,6 +1186,18 @@ models:
     description: 데이터 신뢰도 진단 — dataset(API)별 필드 커버리지(전화/좌표/행정동/주소/폐업일/상호). 거버넌스·수집 우선순위.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_license_data_quality
+          contract_version: "1.0.0"
+          grain: 업종3단
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 이 데이터셋의 품질(연락처·좌표·주소 커버리지)은?
     columns:
       - name: major
         data_type: varchar
@@ -994,6 +1246,18 @@ models:
     description: 우리 구 배출시설 가동 — 환경 배출시설(대기/수질) 자치구별 연간 가동일수·가동시간. 영업시간 필드는 LOCALDATA 원천 부재(수질 가동필드 결측 큼).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
+          enabled: true
+          product_id: gold_env_facility_operation
+          contract_version: "1.0.0"
+          grain: 환경 dataset×자치구
+          primary_key: [dataset, gu_code]
+          publication_mode: snapshot
+          zero_policy: hold
+          partial_policy: hold
+          refresh: "0 6 * * *"
+          product_question: 환경시설의 가동 일수·시간은?
     columns:
       - name: dataset
         data_type: varchar
