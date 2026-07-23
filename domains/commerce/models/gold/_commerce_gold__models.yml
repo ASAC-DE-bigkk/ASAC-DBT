@@ -15,16 +15,14 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: iceberg_api   # D1 금지(원장 약 290만행) — Iceberg(Trino) 직조회 서빙(§1.1)
           product_id: gold_license_flow_daily
           contract_version: "1.0.0"
           grain: 일×이벤트×업종×지역3축
           primary_key: [event_date, event_type, dataset, gu_code, admin_dong_code, legal_code]
-          publication_mode: hold
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          publication_mode: iceberg   # D1 export 대상 아님(직조회)
+          refresh: n/a
           product_question: 개·폐업 흐름 추이(일)
     columns:
       - name: event_date
@@ -96,16 +94,18 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_rollup
+          d1_table: d1_flow_monthly
+          d1_rollup: (ym,event_type,major,category,gu_code) SUM(cnt) — dataset/dong/legal 드롭(HOW 정본=export SERVING_SPEC)
           product_id: gold_license_flow_monthly
           contract_version: "1.0.0"
           grain: 월×이벤트×업종×지역3축
           primary_key: [ym, event_type, dataset, gu_code, admin_dong_code, legal_code]
-          publication_mode: hold
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          publication_mode: rollup    # 롤업 소형 파생만 D1(원 grain 세부는 iceberg 폴백)
+          zero_policy: keep_prior     # 0행/밴드 밖 → 스왑 스킵, 직전 스냅샷 유지(§1.4)
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset  # 개별 cron 폐기 — gold 완료 Asset 트리거(분리 DAG)
           product_question: 개·폐업 흐름 추이(월)
     columns:
       - name: ym
@@ -176,16 +176,18 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_rollup
+          d1_table: d1_flow_yearly
+          d1_rollup: (y,event_type,major,category,gu_code) SUM(cnt) — dataset/dong 드롭, y→varchar
           product_id: gold_license_flow_yearly
           contract_version: "1.0.0"
           grain: 연×이벤트×업종×지역3축
           primary_key: [y, event_type, dataset, gu_code, admin_dong_code, legal_code]
-          publication_mode: hold
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          publication_mode: rollup
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 개·폐업 흐름 추이(연)
     columns:
       - name: y
@@ -253,16 +255,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_seasonality
           product_id: gold_license_seasonality
           contract_version: "1.0.0"
           grain: 이벤트×월×업종3단
           primary_key: [event_type, month_of_year, major, category, dataset]
-          publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * 5"
+          publication_mode: snapshot  # 원본 그대로 전량 교체 스냅샷
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 개·폐업이 몰리는 달은 언제인가?
     columns:
       - name: event_type
@@ -308,16 +311,18 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_rollup
+          d1_table: d1_churn_yearly
+          d1_rollup: (y,major,category,gu_code) 집계 후 비율 재산출(churn/birth_rate — 합산 불가) — dataset 드롭
           product_id: gold_license_churn_yearly
           contract_version: "1.0.0"
           grain: 연×업종3단×자치구
           primary_key: [y, major, category, dataset, gu_code]
-          publication_mode: hold
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          publication_mode: rollup
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 연별 교체율·신생비는?
     columns:
       - name: y
@@ -374,16 +379,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_lifespan
           product_id: gold_license_lifespan
           contract_version: "1.0.0"
           grain: 업종3단×자치구
           primary_key: [major, category, dataset, gu_code]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * 6"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 업종별 폐업까지 걸리는 수명은?
     columns:
       - name: major
@@ -438,16 +444,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_cohort_survival
           product_id: gold_license_cohort_survival
           contract_version: "1.0.0"
           grain: 업종×창업연도×경과연차
           primary_key: [major, category, cohort_y, years_elapsed]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * 3"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 창업 후 몇 년을 버티나(코호트 생존율)?
     columns:
       - name: major
@@ -485,16 +492,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_status_duration
           product_id: gold_license_status_duration
           contract_version: "1.0.0"
           grain: dataset×상태×진행중
           primary_key: [dataset, status_code, is_ongoing]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 인허가 상태에 얼마나 머무나?
     columns:
       - name: dataset
@@ -545,16 +553,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_status_transition
           product_id: gold_license_status_transition
           contract_version: "1.0.0"
           grain: 업종3단×상태전이
           primary_key: [major, category, dataset, from_status, to_status]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 영업→폐업 등 상태 전이는 어떤 경로인가?
     columns:
       - name: major
@@ -600,16 +609,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_dong_summary
           product_id: gold_license_dong_summary
           contract_version: "1.0.0"
           grain: 행정동
           primary_key: [admin_dong_code]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 우리 동네(행정동)에 업소가 몇 개 있고 얼마나 열고 닫혔나?
     columns:
       - name: admin_dong_code
@@ -650,16 +660,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_dong_category_matrix
           product_id: gold_license_dong_category_matrix
           contract_version: "1.0.0"
           grain: 행정동×업종
           primary_key: [admin_dong_code, gu_code, major, category]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * 4"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 이 동네엔 무슨 업종이 많나?
     columns:
       - name: admin_dong_code
@@ -702,16 +713,18 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_rollup
+          d1_table: [d1_geo_grid_overview, d1_geo_grid_detail]
+          d1_rollup: overview=(grid_lat,grid_lng,major) 집계 · detail=(grid_lat,grid_lng,major,category) 원 grain
           product_id: gold_license_geo_grid
           contract_version: "1.0.0"
           grain: 500m 격자×업종
           primary_key: [grid_lat, grid_lng, major, category]
-          publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * 1"
+          publication_mode: rollup
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 상권이 어디에 밀집해 있나(500m 격자)?
     columns:
       - name: grid_lat
@@ -746,16 +759,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_gu_specialization
           product_id: gold_license_gu_specialization
           contract_version: "1.0.0"
           grain: 자치구×업종
           primary_key: [gu_code, major, category]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 이 자치구는 어떤 업종이 특화됐나(LQ)?
     columns:
       - name: gu_code
@@ -792,16 +806,18 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_rollup
+          d1_table: d1_age_band
+          d1_rollup: (major,category,gu_code,age_band) SUM(active_cnt) — dataset 드롭
           product_id: gold_license_stock_age_band
           contract_version: "1.0.0"
           grain: 업종3단×자치구×업력밴드
           primary_key: [major, category, dataset, gu_code, age_band]
-          publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * 2"
+          publication_mode: rollup
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 신상 가게와 노포의 비중은?
     columns:
       - name: major
@@ -847,16 +863,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_area_profile
           product_id: gold_detail_area_profile
           contract_version: "1.0.0"
           grain: 업종3단×자치구
           primary_key: [major, category, dataset, gu_code]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 업종별 매장 면적 분포는?
     columns:
       - name: major
@@ -908,16 +925,18 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: false   # 행수 상한(20,000행 초과) — D1 게시 제외(#478 D1 적합성)
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_rollup
+          d1_table: d1_uptae_rollup
+          d1_rollup: (major,category,dataset,uptaenm) 집계 + share 사전계산 — gu 드롭
           product_id: gold_detail_uptae_mix
           contract_version: "1.0.0"
           grain: 업종3단×업태×자치구
           primary_key: [major, category, dataset, uptaenm, gu_code]
-          publication_mode: hold
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          publication_mode: rollup
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 업태 구성은 어떤가?
     columns:
       - name: major
@@ -963,16 +982,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_multi_site
           product_id: gold_license_multi_site
           contract_version: "1.0.0"
           grain: 업종3단
           primary_key: [major, category, dataset]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 다점포 운영이 흔한 업종은?
     columns:
       - name: major
@@ -1014,16 +1034,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_change_activity
           product_id: gold_license_change_activity
           contract_version: "1.0.0"
           grain: 업종3단
           primary_key: [major, category, dataset]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 업소 정보 변경이 활발한 업종은?
     columns:
       - name: major
@@ -1073,16 +1094,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_address_succession
           product_id: gold_license_address_succession
           contract_version: "1.0.0"
           grain: 폐업→개업 업종쌍
           primary_key: [closed_major, closed_category, opened_major, opened_category]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 폐업 자리에 무슨 업종이 들어서나(자리 대물림)?
     columns:
       - name: closed_major
@@ -1129,16 +1151,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_phone_succession
           product_id: gold_license_phone_succession
           contract_version: "1.0.0"
           grain: 폐업→개업 업종쌍
           primary_key: [closed_major, closed_category, opened_major, opened_category]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 전화번호가 승계되는 업종 조합은?
     columns:
       - name: closed_major
@@ -1187,16 +1210,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_data_quality
           product_id: gold_license_data_quality
           contract_version: "1.0.0"
           grain: 업종3단
           primary_key: [major, category, dataset]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 이 데이터셋의 품질(연락처·좌표·주소 커버리지)은?
     columns:
       - name: major
@@ -1247,16 +1271,17 @@ models:
     config:
       contract: {enforced: true}
       meta:
-        serving:   # Serving Contract v1 초안 준거(ASAC-DAG#478 수렴 필드) — 게시 게이트·실측은 export가 담당
-          enabled: true
+        serving:   # Serving Contract v1 — 서빙 tier 정본(export SERVING_SPEC 과 대조). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          serving_tier: d1_direct
+          d1_table: d1_env_facility_operation
           product_id: gold_env_facility_operation
           contract_version: "1.0.0"
           grain: 환경 dataset×자치구
           primary_key: [dataset, gu_code]
           publication_mode: snapshot
-          zero_policy: hold
-          partial_policy: hold
-          refresh: "0 6 * * *"
+          zero_policy: keep_prior
+          partial_policy: keep_prior
+          refresh: on_gold_ready_asset
           product_question: 환경시설의 가동 일수·시간은?
     columns:
       - name: dataset
