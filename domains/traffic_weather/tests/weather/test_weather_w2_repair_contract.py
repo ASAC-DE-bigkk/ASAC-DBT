@@ -382,9 +382,12 @@ def test_w1_keeps_normal_lookback_and_adds_bounded_repair_no_downgrade() -> None
 
 
 def test_gold_execute_time_contract_dependencies_are_explicit() -> None:
-    gold_hints = "\n".join(read(W2_GOLD_MODEL).splitlines()[:8])
+    gold_hints = "\n".join(read(W2_GOLD_MODEL).splitlines()[:12])
 
     assert "-- depends_on: {{ ref('bridge_weather_admin_dong_grid') }}" in gold_hints
+    # weather_w2_assert_gold_source_contract() 가 조건부 블록 안에서 live dim_admin_dong 을
+    # run_query 로 검증하므로 이 hint 는 유지되어야 한다(#480 에서 제거했다가 복원).
+    assert "-- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}" in gold_hints
     assert (
         "-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}"
         in gold_hints

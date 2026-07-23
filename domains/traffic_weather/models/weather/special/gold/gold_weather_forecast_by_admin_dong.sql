@@ -1,5 +1,9 @@
 -- W2 public Gold: latest forecast at product grain stamped by an approved canonical revision.
 -- depends_on: {{ ref('bridge_weather_admin_dong_grid') }}
+-- weather_w2_assert_gold_source_contract() 가 조건부 블록 안에서 live dim_admin_dong 을
+-- run_query 로 검증하므로 이 hint 는 계속 필요하다(제거 시 dbt dependency 추론 실패).
+-- 데이터 경로(canonical stamp)는 아래 pinned_dim_admin_dong() 으로 snapshot 고정된다.
+-- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
 -- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}
 -- depends_on: {{ source('axes_bronze', 'admin_dong_master') }}
 -- depends_on: {{ ref('silver_kma_vilage_fcst_grid') }}
