@@ -64,7 +64,7 @@ recomputed as (
                 / (issue_date_counts.forecast_slot_count * bridge_summary.mapped_admin_dong_count * core_summary.core_category_count)
         end as issue_cycle_coverage_ratio,
         case
-            when bridge_summary.mapped_admin_dong_count <> 425 then 'bridge_contract_mismatch'
+            when bridge_summary.mapped_admin_dong_count <> 426 then 'bridge_contract_mismatch'
             when issue_date_counts.observed_cell_count
                 = issue_date_counts.forecast_slot_count * bridge_summary.mapped_admin_dong_count * core_summary.core_category_count
                 then 'complete'
@@ -114,7 +114,7 @@ mismatched_counts as (
        or model.missing_cell_count <> recomputed.missing_cell_count
        or model.forecast_slot_count <> recomputed.forecast_slot_count
        or model.mapped_admin_dong_count <> recomputed.mapped_admin_dong_count
-       or model.mapped_admin_dong_count <> 425
+       or model.mapped_admin_dong_count <> 426
        or model.issue_cycle_coverage_ratio is distinct from recomputed.issue_cycle_coverage_ratio
        or model.issue_cycle_coverage_state is distinct from recomputed.issue_cycle_coverage_state
 )

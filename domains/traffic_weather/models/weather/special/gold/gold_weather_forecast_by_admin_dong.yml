@@ -25,10 +25,10 @@ models:
           product_question: 각 공통 행정동과 예보 대상 시각 및 KMA 항목에서 최신 발표가 제공한 예보 표현과 값은 무엇입니까?
           row_meaning: 명시적 bridge v1과 승인된 공통 행정동 revision 2025-04-01에 결합된 한 행정동·예보시각·항목의 최신 KMA 예보 한 행입니다.
           grain: admin_dong_code와 forecast_at 및 category 조합마다 한 행입니다.
-          anchor_universe: bridge v1 427개 코드와 revision 2025-04-01의 canonical 426개 코드가 만나는 425개 코드 중 게시 가능한 Grid 예보가 있는 grain만 포함합니다.
+          anchor_universe: bridge v1 428개 코드와 revision 2025-04-01의 canonical 426개 코드가 만나는 426개 코드 중 게시 가능한 Grid 예보가 있는 grain만 포함합니다.
           usage_guidance: 행정동 코드와 예보 대상 시각 및 항목을 함께 사용하고 값은 value_representation과 범위 컬럼을 같이 해석합니다.
           do_not_use_for: revision 2025-04-01의 서울 426개 행정동 전체 모집단이나 실시간 관측값 또는 개인 위치를 추정하는 데 사용하지 않습니다.
-          semantic_caveats: bridge v1에 없는 용신동과 승인 revision에 결합되지 않는 legacy 후보는 제외됩니다. weather_w2_canonical_revision_date는 2025-04-01이어야 하고 Gold normal·repair는 dev/iceberg_dev/weather 전용이며 fixed temp writer는 직렬화해야 합니다.
+          semantic_caveats: 승인 revision에 결합되지 않는 legacy 후보(신설동·용두동)는 제외됩니다. 용신동은 2026-07-23 수동 centroid backfill로 v1에 편입되었습니다. weather_w2_canonical_revision_date는 2025-04-01이어야 하고 Gold normal·repair는 dev/iceberg_dev/weather 전용이며 fixed temp writer는 직렬화해야 합니다.
           primary_key:
             - product_row_id
           column_order:
@@ -111,7 +111,7 @@ models:
           quality:
             completeness_explanation: publishable manifest와 Bronze 완전성 및 Grid·bridge·정본 교집합을 함께 확인합니다.
             freshness_explanation: issued_at과 collected_at 및 published_at을 분리해 최신 발표와 적재 지연을 해석합니다.
-            coverage_explanation: bridge v1 427개와 revision 2025-04-01 canonical 426개의 교집합인 425개 코드가 공간 모집단입니다.
+            coverage_explanation: bridge v1 428개와 revision 2025-04-01 canonical 426개의 교집합인 426개 코드가 공간 모집단입니다.
             state_fields:
               value_representation:
                 allowed_values:

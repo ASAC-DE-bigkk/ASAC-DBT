@@ -16,7 +16,17 @@ bridge as (
     where bridge_version = 'weather_admin_dong_grid_bridge_v1'
 ),
 missing as (select * from legacy except select * from bridge),
-extra as (select * from bridge except select * from legacy)
+extra as (select * from bridge except select * from legacy),
+-- 용신동 수동 backfill(2026-07-23)은 legacy에 없는 유일한 허용 초과분이다.
+unexpected_extra as (
+    select * from extra
+    where not (
+        place_id = 'seoul_admd_1123053600'
+        and source_admin_code = '1123053600'
+        and nx = 61
+        and ny = 127
+    )
+)
 select * from missing
 union all
-select * from extra
+select * from unexpected_extra

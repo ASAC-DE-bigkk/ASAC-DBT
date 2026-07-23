@@ -238,7 +238,7 @@ Grid는 기존 `kma_value_semantics`의 raw·compatibility numeric·representati
 bounds·qualitative code를 그대로 전파한다. `bare_numeric`은 verified unit 값으로 승격하지
 않는다.
 
-`weather_admin_dong_grid_bridge_history`는 기존 427행을 exact copy하고
+`weather_admin_dong_grid_bridge_history`는 기존 427행을 exact copy하고 용신동 수동 backfill 1행(2026-07-23)을 더해
 `bridge_version=weather_admin_dong_grid_bridge_v1`로 기록한다. revision label의 날짜를
 `valid_from_at`으로 사용하지 않으며 v1 validity bound는 null이다. canonical 다섯 필드
 `admin_dong_code, admin_dong, gu_code, gu, admin_dong_revision_date`는 오직
@@ -269,9 +269,9 @@ admin_dong_code × forecast_at × category
 `2025-04-01`의 교집합이다. 실행 시점 latest revision을 자동 선택하지 않는다. 정본의
 `admin_dong_code`, `admin_dong`, `gu_code`, `gu`, `revision_date`를 직접 가져오고
 `revision_date`는 `admin_dong_revision_date`로 명시적 stamp한다. source contract는 bridge
-v1 427행, 승인 revision 정본 426행, 결합되는 canonical code 425개로 고정한다. legacy
-신설동·용두동 후보는 결합되지 않고 승인된 용신동에는 v1 후보가 없으므로 426개 전체
-coverage로 해석하지 않는다. revision 또는 세 count가 달라지면 DML 전에 실패하며, 새
+v1 428행, 승인 revision 정본 426행, 결합되는 canonical code 426개로 고정한다. legacy
+신설동·용두동 후보는 결합되지 않으며, 용신동은 2026-07-23 수동 centroid backfill
+후보로 편입되어 정본 426개 전체가 결합된다. revision 또는 세 count가 달라지면 DML 전에 실패하며, 새
 revision 채택은 별도 검토와 계약 변경으로 처리한다.
 
 W1 bridge relation의 물리 grain은 `source_admin_code × bridge_version × nx × ny`지만,
@@ -327,7 +327,7 @@ anchor와 `source_id + selected_dag_run_id`로 직접 결합하며, 과거 Grid�
 W1 observation·Grid, bridge table, bridge seed, Gold를 개별 selector로 실행해도 같은
 evidence gate를 우회할 수 없다. 최초 Gold target이 없으면 dbt-trino는 custom MERGE가 아니라
 atomic CTAS를 사용하므로 typed failure branch를 최종 SQL에 `UNION ALL`해 product 0건에서도
-revision `2025-04-01`, 427/426/425 count, non-null·uniqueness·anchor 조건을 검증한다. 기존
+revision `2025-04-01`, 428/426/426 count, non-null·uniqueness·anchor 조건을 검증한다. 기존
 target의 증분은 desired temp와 target 계약·grain을 검사한 뒤 한 개의 Iceberg `MERGE`에서
 desired temp에 없는 target grain을 단일 delete sentinel로 만들고 나머지를 upsert한다. MERGE
 전략은 live canonical 차원을 다시 조회하지 않으며 별도 orphan/stale 삭제 조건을 중복하지 않는다.
