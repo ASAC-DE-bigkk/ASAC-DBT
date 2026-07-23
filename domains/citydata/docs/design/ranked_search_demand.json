@@ -1,0 +1,662 @@
+{
+ "generated_for": "citydata QA eval — 검색 수요 앵커(출제≠채점)",
+ "method": "네이버 자동완성 발견 → 데이터랩 앵커정규화 랭킹, window=최근 90일 month",
+ "anchor": [
+  "서울"
+ ],
+ "seed_prefixes": [
+  "강남역",
+  "홍대",
+  "명동",
+  "여의도",
+  "잠실",
+  "성수동",
+  "이태원",
+  "종로",
+  "서울 축제",
+  "서울 불꽃축제",
+  "한강 ",
+  "서울 지금",
+  "서울 혼잡",
+  "서울 붐빔",
+  "강남 맛집",
+  "서울 주차",
+  "서울 전기차 충전",
+  "서울 인구",
+  "서울 상권"
+ ],
+ "ranked": [
+  {
+   "keyword": "잠실 날씨",
+   "demand": 3.8877
+  },
+  {
+   "keyword": "잠실야구장",
+   "demand": 1.8112
+  },
+  {
+   "keyword": "강남 맛집",
+   "demand": 1.3156
+  },
+  {
+   "keyword": "홍대 맛집",
+   "demand": 1.2601
+  },
+  {
+   "keyword": "잠실",
+   "demand": 1.1652
+  },
+  {
+   "keyword": "강남역 맛집",
+   "demand": 0.9589
+  },
+  {
+   "keyword": "잠실 맛집",
+   "demand": 0.9451
+  },
+  {
+   "keyword": "잠실 롯데월드몰",
+   "demand": 0.8831
+  },
+  {
+   "keyword": "여의도 맛집",
+   "demand": 0.8376
+  },
+  {
+   "keyword": "강남역",
+   "demand": 0.7208
+  },
+  {
+   "keyword": "여의도 한강공원",
+   "demand": 0.6678
+  },
+  {
+   "keyword": "여의도 날씨",
+   "demand": 0.6627
+  },
+  {
+   "keyword": "이태원 클라쓰",
+   "demand": 0.6437
+  },
+  {
+   "keyword": "명동 맛집",
+   "demand": 0.6003
+  },
+  {
+   "keyword": "홍대입구역",
+   "demand": 0.5928
+  },
+  {
+   "keyword": "성수동",
+   "demand": 0.5583
+  },
+  {
+   "keyword": "종로 맛집",
+   "demand": 0.5527
+  },
+  {
+   "keyword": "여의도 ifc몰",
+   "demand": 0.549
+  },
+  {
+   "keyword": "성수동 맛집",
+   "demand": 0.5041
+  },
+  {
+   "keyword": "홍대",
+   "demand": 0.4964
+  },
+  {
+   "keyword": "명동교자",
+   "demand": 0.493
+  },
+  {
+   "keyword": "홍대 놀거리",
+   "demand": 0.487
+  },
+  {
+   "keyword": "한강 수영장",
+   "demand": 0.4546
+  },
+  {
+   "keyword": "더현대 여의도",
+   "demand": 0.4425
+  },
+  {
+   "keyword": "종로3가",
+   "demand": 0.3942
+  },
+  {
+   "keyword": "잠실 롯데백화점",
+   "demand": 0.381
+  },
+  {
+   "keyword": "이태원 맛집",
+   "demand": 0.3721
+  },
+  {
+   "keyword": "홍대 방탈출",
+   "demand": 0.3668
+  },
+  {
+   "keyword": "종로 야장",
+   "demand": 0.3643
+  },
+  {
+   "keyword": "홍대 카페",
+   "demand": 0.3367
+  },
+  {
+   "keyword": "여의도 한강수영장",
+   "demand": 0.3209
+  },
+  {
+   "keyword": "잠실 시위",
+   "demand": 0.3177
+  },
+  {
+   "keyword": "여의도",
+   "demand": 0.3134
+  },
+  {
+   "keyword": "명동성당",
+   "demand": 0.2979
+  },
+  {
+   "keyword": "한강 유람선",
+   "demand": 0.2898
+  },
+  {
+   "keyword": "명동",
+   "demand": 0.2836
+  },
+  {
+   "keyword": "홍대 술집",
+   "demand": 0.2798
+  },
+  {
+   "keyword": "이태원 참사",
+   "demand": 0.2649
+  },
+  {
+   "keyword": "종로 날씨",
+   "demand": 0.2637
+  },
+  {
+   "keyword": "이태원",
+   "demand": 0.2585
+  },
+  {
+   "keyword": "여의도 더현대",
+   "demand": 0.2511
+  },
+  {
+   "keyword": "잠실 롯데시네마",
+   "demand": 0.2477
+  },
+  {
+   "keyword": "한강 작가",
+   "demand": 0.2468
+  },
+  {
+   "keyword": "강남역 파스타",
+   "demand": 0.2451
+  },
+  {
+   "keyword": "홍대 cgv",
+   "demand": 0.2317
+  },
+  {
+   "keyword": "서울 인구수",
+   "demand": 0.2272
+  },
+  {
+   "keyword": "서울 축제",
+   "demand": 0.221
+  },
+  {
+   "keyword": "잠실 놀거리",
+   "demand": 0.2071
+  },
+  {
+   "keyword": "성수동 팝업",
+   "demand": 0.2003
+  },
+  {
+   "keyword": "종로",
+   "demand": 0.1998
+  },
+  {
+   "keyword": "서울 인구",
+   "demand": 0.1863
+  },
+  {
+   "keyword": "성수동 놀거리",
+   "demand": 0.1814
+  },
+  {
+   "keyword": "성수동 핫플",
+   "demand": 0.1795
+  },
+  {
+   "keyword": "여의도 cgv",
+   "demand": 0.1784
+  },
+  {
+   "keyword": "명동 가볼만한곳",
+   "demand": 0.1709
+  },
+  {
+   "keyword": "성수동 날씨",
+   "demand": 0.1657
+  },
+  {
+   "keyword": "강남역 술집",
+   "demand": 0.1618
+  },
+  {
+   "keyword": "강남역피부과",
+   "demand": 0.1611
+  },
+  {
+   "keyword": "홍대 팝업",
+   "demand": 0.1568
+  },
+  {
+   "keyword": "이태원 술집",
+   "demand": 0.1468
+  },
+  {
+   "keyword": "잠실 팝업",
+   "demand": 0.1404
+  },
+  {
+   "keyword": "성수동 카페",
+   "demand": 0.1401
+  },
+  {
+   "keyword": "종로 금은방",
+   "demand": 0.1362
+  },
+  {
+   "keyword": "종로 귀금속상가",
+   "demand": 0.1228
+  },
+  {
+   "keyword": "강남역 놀거리",
+   "demand": 0.1096
+  },
+  {
+   "keyword": "명동 놀거리",
+   "demand": 0.1069
+  },
+  {
+   "keyword": "이태원 클럽",
+   "demand": 0.1049
+  },
+  {
+   "keyword": "이태원 날씨",
+   "demand": 0.099
+  },
+  {
+   "keyword": "한강 피크닉",
+   "demand": 0.0973
+  },
+  {
+   "keyword": "이태원 놀거리",
+   "demand": 0.0972
+  },
+  {
+   "keyword": "종로 가볼만한곳",
+   "demand": 0.0936
+  },
+  {
+   "keyword": "이태원 카페",
+   "demand": 0.0908
+  },
+  {
+   "keyword": "명동 미미라인",
+   "demand": 0.0869
+  },
+  {
+   "keyword": "여의도 놀거리",
+   "demand": 0.0799
+  },
+  {
+   "keyword": "종로 놀거리",
+   "demand": 0.0779
+  },
+  {
+   "keyword": "명동 뉴뉴",
+   "demand": 0.0752
+  },
+  {
+   "keyword": "신세계 강남 맛집",
+   "demand": 0.0741
+  },
+  {
+   "keyword": "잠실 한강 수영장",
+   "demand": 0.074
+  },
+  {
+   "keyword": "강남역 혼밥",
+   "demand": 0.0729
+  },
+  {
+   "keyword": "명동 cgv",
+   "demand": 0.0701
+  },
+  {
+   "keyword": "종로 술집",
+   "demand": 0.0687
+  },
+  {
+   "keyword": "강남역 소개팅",
+   "demand": 0.0657
+  },
+  {
+   "keyword": "한강 노벨문학상",
+   "demand": 0.0601
+  },
+  {
+   "keyword": "한강 축제",
+   "demand": 0.0567
+  },
+  {
+   "keyword": "한강 날씨",
+   "demand": 0.0561
+  },
+  {
+   "keyword": "성수동 아파트",
+   "demand": 0.056
+  },
+  {
+   "keyword": "더현대서울 주차",
+   "demand": 0.0517
+  },
+  {
+   "keyword": "한강 놀거리",
+   "demand": 0.0511
+  },
+  {
+   "keyword": "성수동 소품샵",
+   "demand": 0.0472
+  },
+  {
+   "keyword": "강남역 날씨",
+   "demand": 0.0414
+  },
+  {
+   "keyword": "강남역 cgv",
+   "demand": 0.0403
+  },
+  {
+   "keyword": "성수동 빵집",
+   "demand": 0.0402
+  },
+  {
+   "keyword": "서울 불꽃축제 2026",
+   "demand": 0.0395
+  },
+  {
+   "keyword": "이태원 펍",
+   "demand": 0.0376
+  },
+  {
+   "keyword": "서울 불꽃축제",
+   "demand": 0.0322
+  },
+  {
+   "keyword": "더현대서울 주차요금",
+   "demand": 0.0294
+  },
+  {
+   "keyword": "7월 서울 축제",
+   "demand": 0.0203
+  },
+  {
+   "keyword": "한강 물놀이장",
+   "demand": 0.0196
+  },
+  {
+   "keyword": "강남 맛집 추천",
+   "demand": 0.0171
+  },
+  {
+   "keyword": "서울 지금 날씨",
+   "demand": 0.0125
+  },
+  {
+   "keyword": "그랑서울 주차장",
+   "demand": 0.0111
+  },
+  {
+   "keyword": "서울 주차가능 카페",
+   "demand": 0.0093
+  },
+  {
+   "keyword": "더현대서울 주차쿠폰",
+   "demand": 0.0078
+  },
+  {
+   "keyword": "서울 인구밀도",
+   "demand": 0.0063
+  },
+  {
+   "keyword": "2026 서울 불꽃축제",
+   "demand": 0.0062
+  },
+  {
+   "keyword": "서울 주차장",
+   "demand": 0.0062
+  },
+  {
+   "keyword": "그랑서울 주차",
+   "demand": 0.0058
+  },
+  {
+   "keyword": "더현대서울 주차비",
+   "demand": 0.0057
+  },
+  {
+   "keyword": "강남 맛집 내돈내산",
+   "demand": 0.0049
+  },
+  {
+   "keyword": "서울 축제 일정",
+   "demand": 0.0041
+  },
+  {
+   "keyword": "2026 서울 축제",
+   "demand": 0.0035
+  },
+  {
+   "keyword": "8월 서울 축제",
+   "demand": 0.0034
+  },
+  {
+   "keyword": "서울 강남 맛집 추천",
+   "demand": 0.0034
+  },
+  {
+   "keyword": "홍대 새벽 4시 30분",
+   "demand": 0.0034
+  },
+  {
+   "keyword": "서울 주차",
+   "demand": 0.003
+  },
+  {
+   "keyword": "서울 주차 카페",
+   "demand": 0.0029
+  },
+  {
+   "keyword": "오늘 서울 축제",
+   "demand": 0.0028
+  },
+  {
+   "keyword": "서울 혼잡도",
+   "demand": 0.0027
+  },
+  {
+   "keyword": "서울 불꽃축제 2026 일정",
+   "demand": 0.0025
+  },
+  {
+   "keyword": "이번주 서울 축제",
+   "demand": 0.0025
+  },
+  {
+   "keyword": "서울 불꽃축제 호텔",
+   "demand": 0.0023
+  },
+  {
+   "keyword": "서울 인구 통계",
+   "demand": 0.0017
+  },
+  {
+   "keyword": "뉴코아 강남 맛집",
+   "demand": 0.0015
+  },
+  {
+   "keyword": "롯데백화점 강남 맛집",
+   "demand": 0.0008
+  },
+  {
+   "keyword": "서울 불꽃축제 명당",
+   "demand": 0.0008
+  },
+  {
+   "keyword": "서울 불꽃축제 숙소",
+   "demand": 0.0007
+  },
+  {
+   "keyword": "조선팰리스 강남 맛집",
+   "demand": 0.0006
+  },
+  {
+   "keyword": "성기완의 명동연가",
+   "demand": 0.0005
+  },
+  {
+   "keyword": "서울 불꽃축제 2026 호텔",
+   "demand": 0.0003
+  },
+  {
+   "keyword": "서울 인구수 2025",
+   "demand": 0.0003
+  },
+  {
+   "keyword": "서울 불꽃축제 2026 시간",
+   "demand": 0.0002
+  },
+  {
+   "keyword": "서울 지금 기온",
+   "demand": 0.0002
+  },
+  {
+   "keyword": "서울 지금 온도",
+   "demand": 0.0002
+  },
+  {
+   "keyword": "강남 맛집 혼밥",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울 상권 순위",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울 인구 감소",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울 인구 추이",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울 인구밀집도",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울 인구수 통계",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울 전기차 충전소",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울 축제 7월",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울 축제 일정 7월",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "서울지금날씨어때요",
+   "demand": 0.0001
+  },
+  {
+   "keyword": "강남 맛집 가성비",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 불꽃축제 시간",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 상권 의료매출 비교",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 인구밀도 현황",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 전기차 충전방법",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 전기차충전 무료주차",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 지금 가볼만한곳",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 지금 강수량",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 지금 몇시",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 지금 비",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 지금 비오나요",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 지금 행사",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 축제 8월",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울 혼잡도 확인 방법",
+   "demand": 0.0
+  },
+  {
+   "keyword": "서울혼잡통행료",
+   "demand": 0.0
+  }
+ ]
+}
