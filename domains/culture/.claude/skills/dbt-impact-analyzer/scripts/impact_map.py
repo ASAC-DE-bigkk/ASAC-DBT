@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 TRAVERSABLE = ("model.", "seed.")
+GATE_THRESHOLD = 10  # 초과(>) 시 SKILL.md 3단계가 자동 진행을 멈추고 사용자에게 묻는다
 LAYER_PREFIXES = (("silver_", "silver"), ("int_", "int"), ("gold_", "gold"), ("dim_", "dim"))
 
 
@@ -103,18 +104,24 @@ def check_staleness(manifest, project_dir):
             "stale_files": stale_files[:10]}
 
 
-def build_report(manifest, model_names, project_dir, max_depth):
+def build_report(manifest, model_names, project_dir, max_depth,
+                 threshold=GATE_THRESHOLD):
     targets = []
+    gate_ids = set()  # 대상 간 공유 downstream 은 union 으로 1회만 센다
     for resolved in resolve_targets(manifest, model_names):
         if not resolved["found"]:
             targets.append(resolved)
             continue
         downstream = downstream_of(manifest, resolved["unique_id"], max_depth)
+        gate_ids.update(d["unique_id"] for d in downstream)
         targets.append({"name": resolved["query"],
                         "unique_id": resolved["unique_id"], "found": True,
                         "downstream": downstream,
                         "summary": summarize(downstream)})
     return {"manifest": check_staleness(manifest, project_dir),
+            "gate": {"threshold": threshold,
+                     "total_downstream": len(gate_ids),
+                     "exceeded": len(gate_ids) > threshold},
             "targets": targets}
 
 
@@ -130,10 +137,13 @@ def main(argv=None):
     p.add_argument("--manifest", type=Path, default=None,
                    help="manifest.json 경로 (기본: <project-dir>/target/manifest.json)")
     p.add_argument("--max-depth", type=int, default=None, help="BFS 깊이 제한")
+    p.add_argument("--threshold", type=int, default=GATE_THRESHOLD,
+                   help="게이트 임계값 — downstream union 이 이 값을 초과하면 gate.exceeded")
     args = p.parse_args(argv)
     manifest_path = args.manifest or args.project_dir / "target" / "manifest.json"
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
-    report = build_report(manifest, args.model, args.project_dir, args.max_depth)
+    report = build_report(manifest, args.model, args.project_dir, args.max_depth,
+                          threshold=args.threshold)
     json.dump(report, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     return 0

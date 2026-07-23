@@ -4,7 +4,10 @@ from tests.weather.w2_contract_fixtures import (
     BRIDGE_VERSION,
     CANONICAL_REVISION_DATE,
     DATA_TESTS,
+    EXPECTED_BRIDGE_V1_COUNT,
+    EXPECTED_CANONICAL_COUNT,
     EXPECTED_COLUMNS,
+    EXPECTED_MAPPED_CANONICAL_COUNT,
     MODEL_NAME,
     NAMED_TESTS,
     PROJECT_ROOT,
@@ -218,9 +221,9 @@ def test_contract_commands_and_operating_docs_target_new_public_gold() -> None:
     assert contract_doc.count(f"--resource {MODEL_NAME}") >= 3
     for document in (contract_doc, operating_doc, schema_doc):
         assert CANONICAL_REVISION_DATE in document
-        assert "427" in document
-        assert "426" in document
-        assert "425" in document
+        assert str(EXPECTED_BRIDGE_V1_COUNT) in document
+        assert str(EXPECTED_CANONICAL_COUNT) in document
+        assert str(EXPECTED_MAPPED_CANONICAL_COUNT) in document
     for token in (
         "weather_w2_repair_mode",
         "weather_w2_repair_start_at",

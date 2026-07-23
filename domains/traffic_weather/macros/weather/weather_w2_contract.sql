@@ -112,9 +112,9 @@
 {%- endif -%}
 {{ return({
     'revision_date': approved_revision_date,
-    'bridge_count': 427,
+    'bridge_count': 428,
     'canonical_count': 426,
-    'mapped_canonical_count': 425,
+    'mapped_canonical_count': 426,
 }) }}
 {%- endmacro %}
 

@@ -1,5 +1,5 @@
 -- W-A1 ★full: 동당 1행 = 현재 예보시각의 최신 KMA 예보 WIDE.
--- 정본 gold_weather_forecast_by_admin_dong(425동, 최신 issued/(동,forecast_at,category))만 소비.
+-- 정본 gold_weather_forecast_by_admin_dong(426동, 최신 issued/(동,forecast_at,category))만 소비.
 -- current = forecast_at >= 현재 KST 시 중 가장 이른 것. LONG→WIDE는 weather_wide_pivot.
 -- materialized=table·schema=weather·tag=ask_seoul_weather_transform_gold 은 dbt_project.yml 상속.
 

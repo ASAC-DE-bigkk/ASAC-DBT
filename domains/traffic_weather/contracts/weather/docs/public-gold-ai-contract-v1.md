@@ -499,18 +499,18 @@ W1 Issue #151의 로컬 candidate 구현 상태는 다음과 같다.
 
 - `silver_kma_vilage_fcst_observation` candidate가 publishable run/raw/page/item signature grain과 invalid-time·격자·category의 Grid 제외 상태, raw lineage를 보존한다.
 - `silver_kma_vilage_fcst_grid` candidate가 native Grid grain에서 결정적 observation을 선택하고 `kma_value_semantics` 결과를 전파한다.
-- `bridge_weather_admin_dong_grid` candidate가 legacy 427행 assertion을 보존하고 `asac_axes.dim_admin_dong`의 승인 revision `2025-04-01`에서 canonical 다섯 필드를 exact-code로 stamp한다.
+- `bridge_weather_admin_dong_grid` candidate가 legacy 427행 assertion과 용신동 수동 backfill 1행(총 428행)을 보존하고 `asac_axes.dim_admin_dong`의 승인 revision `2025-04-01`에서 canonical 다섯 필드를 exact-code로 stamp한다.
 - 세 relation과 bridge history seed는 공개 소비 표면이 아닌 내부 producer다. 기존 target을 가진 observation·Grid의 normal incremental은 기존 30분 lookback으로 계속 허용하고, shared bootstrap과 bounded historical recovery만 검증된 DEV repair로 제한한다. scoped shared DEV smoke에서는 427행 bridge, 426행 canonical, 425개 mapped code와 동일 cutoff 두 번 실행 convergence를 관찰했지만, 이는 formal approved-dev physical/data proof나 운영 DAG·live consumer 증거가 아니다.
 
 남은 gap은 다음과 같다.
 
 - 기존 `silver_weather_forecast_by_admin_dong`과 `gold_weather_forecast_by_place`는 호환 표면으로 유지되어 W1 candidate로 재배선되지 않았다.
 - W2의 `gold_weather_forecast_by_admin_dong`은 목표 grain, 최신 `issued_at` 선택, stale extra 양방향 reconciliation, explicit cutoff no-downgrade repair를 선언하고 구현한다.
-- 이 Gold는 latest revision을 자동 선택하지 않고 승인 revision `2025-04-01`의 다섯 필드를 stamp한다. bridge v1 427행, 해당 revision 정본 426행, mapped canonical code 425개를 exact source contract로 검증하며 426개 전체 coverage를 주장하지 않는다.
+- 이 Gold는 latest revision을 자동 선택하지 않고 승인 revision `2025-04-01`의 다섯 필드를 stamp한다. bridge v1 428행, 해당 revision 정본 426행, mapped canonical code 426개를 exact source contract로 검증하며 정본 426개 전체가 결합된다.
 - W1 bridge 저장 grain은 좌표 assertion을 보존하지만 W2 active v1은 `source_admin_code`당 한 격자만 허용한다. v1 seed는 immutable이고 mapping 변경은 새 version으로 발행한다.
 - normal Gold도 `weather_w2_canonical_revision_date=2025-04-01`을 명시적으로 요구한다. bounded repair는 이 revision과 `weather_w2_repair_mode`, `weather_w2_repair_start_at`, `weather_w2_publishable_cutoff_at`, `weather_w2_bridge_version` 네 recovery 제어를 함께 요구한다.
 - Gold temp는 delta가 아니라 완전한 desired relation이다. normal은 승인 정본의 기존 target을 보존하고 repair는 경계 밖만 보존한 뒤 경계 안을 expected set으로 재구성한다. MERGE는 desired temp에 없는 target grain만 단일 sentinel로 삭제하며 live dimension을 다시 조회하지 않는다.
-- 최초 target 부재 시 dbt-trino의 atomic CTAS가 custom MERGE를 우회하므로 typed failure branch를 최종 SQL에 union해 product 0건에서도 revision·427/426/425 count·non-null·중복·anchor 조건을 검증한다.
+- 최초 target 부재 시 dbt-trino의 atomic CTAS가 custom MERGE를 우회하므로 typed failure branch를 최종 SQL에 union해 product 0건에서도 revision·428/426/426 count·non-null·중복·anchor 조건을 검증한다.
 - Grid repair는 cutoff 시점 latest eligible manifest anchor에 observation을 결합한다. 더 최신인 현재 winner가 retract/non-publishable run이면 no-downgrade 보호를 적용하지 않고 authoritative eligible winner로 교체한다.
 - selector ordering, fixed `__dbt_tmp` 이름을 사용하는 normal/repair writer 직렬화, failure injection에서 Silver/Gold 0건·`upstream_failed`를 증명하는 실행 차단은 A1이 소유한다.
 - `contract_status: dev_pending`과 `exposure_status: none_no_live_consumer`를 유지한다. scoped shared DEV smoke의 catalog shape·data tests·two-run convergence는 통과했지만 formal approved-dev proof, effective dbt contract enforcement, live consumer가 아직 없기 때문이다.

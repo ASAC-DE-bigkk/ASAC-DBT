@@ -57,9 +57,9 @@ BRIDGE_SEED_CONTRACT = Path("tests/weather/fixtures/weather_w2_seed_contract.yml
 MODEL_NAME = "gold_weather_forecast_by_admin_dong"
 BRIDGE_VERSION = "weather_admin_dong_grid_bridge_v1"
 CANONICAL_REVISION_DATE = "2025-04-01"
-EXPECTED_BRIDGE_V1_COUNT = 427
+EXPECTED_BRIDGE_V1_COUNT = 428
 EXPECTED_CANONICAL_COUNT = 426
-EXPECTED_MAPPED_CANONICAL_COUNT = 425
+EXPECTED_MAPPED_CANONICAL_COUNT = 426
 EXPECTED_COLUMNS = [
     "product_row_id",
     "admin_dong_code",

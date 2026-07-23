@@ -126,7 +126,7 @@ select
         else cast(scored.observed_cell_count as double) / scored.expected_cell_count
     end as issue_cycle_coverage_ratio,
     case
-        when scored.mapped_admin_dong_count <> 425 then 'bridge_contract_mismatch'
+        when scored.mapped_admin_dong_count <> 426 then 'bridge_contract_mismatch'
         when scored.observed_cell_count = scored.expected_cell_count then 'complete'
         when scored.observed_cell_count = 0 then 'missing'
         else 'partial'

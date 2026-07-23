@@ -9,14 +9,17 @@ dbt 모델 수정 **전에** downstream 영향을 파악한다. 추출은 스크
 판정은 sub-agent가 SQL 실참조 기준으로 수행한다. 설계:
 `domains/culture/docs/design/2026-07-20-dbt-impact-analyzer.md` (이슈 #129·#294 참조).
 
-## 환경 노트 (이 레포 전용)
+## 환경 노트
 
-- manifest는 컨테이너 빌드 산출물 — 이 환경 실경로:
-  `C:/Users/Dell3571/ask-seoul/sample/dbt/domains/culture/target/manifest.json`
-  (ASAC-DBT 워킹트리는 `target/` gitignore). 반드시 `--manifest`로 전달.
-- 재파싱(빌드 아님, ~10초):
-  `MSYS_NO_PATHCONV=1 docker exec elt-infra-airflow-scheduler-1 bash -c "cd /opt/airflow/dbt/domains/culture && /home/airflow/dbt-venv/bin/dbt parse --project-dir . --profiles-dir . --target dev"`
-  실행 후 sample/dbt 체크아웃이 dev 기준이면 그대로, 다른 브랜치 검증 중이면 해당 브랜치 파일 기준으로 재생성됨에 유의.
+- manifest는 dbt 빌드 산출물(`target/` gitignore) — 스크립트가 스킬 위치에서
+  culture 프로젝트 루트를 자동 유도해 `<project-dir>/target/manifest.json`을
+  기본 사용한다. 다른 체크아웃의 manifest를 분석할 때만 `--manifest`로 지정.
+- 재파싱(빌드 아님, ~10초) — Airflow scheduler 컨테이너에서 실행.
+  컨테이너명은 `docker ps --filter name=scheduler`로 확인:
+  `docker exec <scheduler-컨테이너> bash -c "cd /opt/airflow/dbt/domains/culture && /home/airflow/dbt-venv/bin/dbt parse --project-dir . --profiles-dir . --target dev"`
+  (Windows Git Bash에서는 경로 변환 방지로 `MSYS_NO_PATHCONV=1` 접두 필요.)
+  실행 후 워킹트리가 dev 기준이면 그대로, 다른 브랜치 검증 중이면 해당 브랜치
+  파일 기준으로 재생성됨에 유의.
 
 ## 워크플로 (순서 고정)
 
@@ -24,12 +27,13 @@ dbt 모델 수정 **전에** downstream 영향을 파악한다. 추출은 스크
    `domains/culture/models/**/*.sql|yml` 추출. diff가 없으면 사용자가 지목한
    모델을 사용(가정 시나리오 분석 허용 — 이때 리포트에 "가정" 명시).
 2. **추출**: `PYTHONIOENCODING=utf-8 python <이 스킬 디렉토리>/scripts/impact_map.py
-   --model <names> --manifest <환경 노트 경로>`.
+   --model <names>` (manifest는 기본 경로 자동 사용 — 환경 노트 참조).
    `manifest.stale == true`면: 경고 표시(stale_files 목록) → 사용자에게 재파싱
    (환경 노트 커맨드) 승인을 물은 뒤, 승인 시 재파싱+재추출, 거절 시
    리포트에 "stale manifest 기준" 명시하고 진행.
-3. **임계값 게이트**: 대상 모델 합산 `total_downstream`(테스트 제외) > **10**이면
-   자동 진행 금지 — AskUserQuestion으로 ①대상 모델 축소 ②`--max-depth` 제한
+3. **임계값 게이트**: 리포트 `gate.exceeded == true`(대상 모델 downstream
+   union·테스트 제외 > **10**, `--threshold`로 조정 가능)면 자동 진행 금지 —
+   AskUserQuestion으로 ①대상 모델 축소 ②`--max-depth` 제한
    ③전체 계속 중 선택받는다.
 4. **변경 유형 분류**: 대상 모델 SQL·yml diff(가정 시나리오면 사용자 서술)에서
    컬럼 추가 / 컬럼 삭제 / 타입 변경 / 로직 변경(스키마 불변)을 구분하고,
@@ -67,6 +71,10 @@ dbt 모델 수정 **전에** downstream 영향을 파악한다. 추출은 스크
 ## 한계 (프로토타입)
 
 - culture 프로젝트 한정 — 루트 승격은 #129 본안(멘토 게이트)
+- **크로스 도메인 미탐지**: 도메인별 독립 dbt 프로젝트라 culture manifest 밖의
+  참조는 downstream에 잡히지 않는다 — 실사례: citydata의
+  `gold_citydata_ppltn_x_culture_daily`가 culture 마트를 참조하지만 미탐지.
+  타 도메인 영향까지 보려면 전 도메인 manifest 순회가 필요(루트 승격 설계 논점)
 - raw SQL 기준 실참조 판정(compiled 미사용) — dbt_utils 매크로가 컬럼을 숨기는
   경우 sub-agent가 `매크로 경유 가능`으로 보고하고 사람 확인 요청
 - exposure 노드 추적 없음(culture manifest에 현행 exposure 없음)
