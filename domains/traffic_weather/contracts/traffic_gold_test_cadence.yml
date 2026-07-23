@@ -177,25 +177,25 @@ tests:
   path: tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_admin_join_reconciles.sql
   test_type: singular
   owner_unique_ids:
-  - model.asac_axes.dim_admin_dong
   - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
+  - seed.asac_axes.seoul_admin_dong_crosswalk
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact
   path: tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_admin_stamp_exact.sql
   test_type: singular
   owner_unique_ids:
-  - model.asac_axes.dim_admin_dong
   - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
+  - seed.asac_axes.seoul_admin_dong_crosswalk
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles
   path: tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_fanout_reconciles.sql
   test_type: singular
   owner_unique_ids:
-  - model.asac_axes.dim_admin_dong
   - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
   - model.asac_seoul.silver_seoul_traffic_incident_current
+  - seed.asac_axes.seoul_admin_dong_crosswalk
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.assert_gold_traffic_current_by_admin_dong_hourly_grain_unique
@@ -209,8 +209,8 @@ tests:
   path: tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_hourly_completeness.sql
   test_type: singular
   owner_unique_ids:
-  - model.asac_axes.dim_admin_dong
   - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
+  - seed.asac_axes.seoul_admin_dong_crosswalk
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.assert_gold_traffic_current_by_admin_dong_hourly_product_row_id_reproducible
@@ -224,9 +224,9 @@ tests:
   path: tests/traffic/transform/gold/assert_gold_traffic_current_by_admin_dong_hourly_snapshot_reconciles.sql
   test_type: singular
   owner_unique_ids:
-  - model.asac_axes.dim_admin_dong
   - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
   - model.asac_seoul.silver_seoul_traffic_incident_current
+  - seed.asac_axes.seoul_admin_dong_crosswalk
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.assert_gold_traffic_current_by_admin_dong_hourly_zero_requires_complete
