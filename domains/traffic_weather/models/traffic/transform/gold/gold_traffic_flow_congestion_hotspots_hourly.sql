@@ -69,7 +69,6 @@ select
     flow_speed,
     flow_travel_time,
     flow_value_quality,
-    observed_at_utc,
     observed_at_kst,
     congestion_rank,
     observed_link_count,

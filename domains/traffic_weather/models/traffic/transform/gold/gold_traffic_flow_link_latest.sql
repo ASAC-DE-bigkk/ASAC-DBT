@@ -49,10 +49,10 @@ candidate_target as (
         cast(target.flow_speed as double) as flow_speed,
         cast(target.flow_travel_time as double) as flow_travel_time,
         cast(target.flow_value_quality as varchar) as flow_value_quality,
-        cast(target.observed_at_utc as timestamp(6)) as observed_at,
+        cast(target.observed_at_kst - interval '9' hour as timestamp(6)) as observed_at,
         cast(target.raw_object_key as varchar) as raw_object_key,
         cast(target.payload_hash as varchar) as payload_hash,
-        cast(target.collected_at_utc as timestamp(6)) as collected_at,
+        cast(target.collected_at_kst - interval '9' hour as timestamp(6)) as collected_at,
         cast(target.dag_run_id as varchar) as dag_run_id
     from {{ this }} as target
     inner join changed_links
@@ -96,12 +96,11 @@ select
     cast(flow_speed as double) as flow_speed,
     cast(flow_travel_time as double) as flow_travel_time,
     cast(flow_value_quality as varchar) as flow_value_quality,
-    cast(observed_at as timestamp(6)) as observed_at_utc,
     cast({{ asac_axes.utc_to_kst('observed_at') }} as timestamp(6)) as observed_at_kst,
     cast(raw_object_key as varchar) as raw_object_key,
     cast(payload_hash as varchar) as payload_hash,
     cast(request_id as varchar) as request_id,
-    cast(collected_at as timestamp(6)) as collected_at_utc,
+    cast({{ asac_axes.utc_to_kst('collected_at') }} as timestamp(6)) as collected_at_kst,
     cast(dag_run_id as varchar) as dag_run_id
 from ranked
 where row_num = 1

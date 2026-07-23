@@ -22,9 +22,9 @@ OWNED_PATHS = {
 }
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 EXACT_SELECTOR_COUNTS = {
-    "ask_seoul_traffic_transform_gold_gate_tests": 150,
-    "ask_seoul_traffic_transform_gold_hourly_tests": 170,
-    "ask_seoul_traffic_transform_gold_full_tests": 200,
+    "ask_seoul_traffic_transform_gold_gate_tests": 148,
+    "ask_seoul_traffic_transform_gold_hourly_tests": 168,
+    "ask_seoul_traffic_transform_gold_full_tests": 198,
 }
 
 
