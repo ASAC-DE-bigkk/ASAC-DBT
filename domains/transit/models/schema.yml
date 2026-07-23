@@ -200,6 +200,19 @@ models:
 
   # ---------------- 골드 ----------------
   - name: gold_transit_dong_hourly
+    config:
+      meta:
+        serving_tier: d1_direct   # 이력·시간별 — D1 append 서빙 (ASAC-DAG#475 1차)
+        refresh: '1시간'
+        external: true            # 외부 카탈로그 공개(1차)
+        display:
+          title: 행정동별 시간대 교통 이력
+          summary: 서울 행정동마다 시간대별 교통 상태를 쌓아 온 이력입니다. 한 시간 동안 버스가 얼마나 붐볐고, 지하철이 몇 번 도착했으며, 주차장이 얼마나 찼는지를 동×시간 한 칸에 담았습니다. 지금 상태가 아니라 과거 흐름을 보는 용도입니다.
+          caveat: 한 시간 안에 잡힌 관측들의 평균이라 연속 측정이 아닙니다. 값이 있는 동·시간만 유효하며, 관측 수가 적은 칸은 대표성이 약할 수 있습니다.
+          use_cases:
+            - 동네 교통 시계열 분석
+            - 시간대별 혼잡 패턴 리포트
+            - 상권·인구 데이터와 교차 분석
     description: >
       동×시간대 교통 상태판(#67). grain (admin_dong_code, hour_at). hour_at=date_trunc('hour',
       event_at) KST. silver 3종(버스·지하철·주차)을 동·시간으로 집계해 한 행에 나란히(3원 outer 결합
@@ -261,6 +274,8 @@ models:
               arguments: {values: [1, 2], quote: false}
 
   - name: gold_transit_dong_15min
+    config:
+      meta: {serving_tier: hold, refresh: '15분'}  # 원자재 아카이브 — 서빙은 파생(dong_now·hourly)이 대체
     description: >
       동×15분 교통 상태 기반 아카이브(#286). grain (admin_dong_code, bucket_at).
       gold_transit_dong_hourly(#67)의 15분판 + 버스 tier1 한정 컬럼(*_t1, 시간대 비교
@@ -288,6 +303,8 @@ models:
         description: 버킷 내 주차 최신 관측 시각(KST).
 
   - name: gold_transit_route_section_30min
+    config:
+      meta: {serving_tier: hold, refresh: '30분'}  # 원자재 — 사용자향은 bus_route_comfort(2차) 예정
     description: >
       노선×구간×30분 버스 아카이브(#286). grain (bus_route_id, sect_ord, bucket_at).
       티어링(#440) 후 30분 주기에 맞춘 버킷 = 런 1회 스냅샷. 전 티어 저장 + tier 스탬프
@@ -313,6 +330,8 @@ models:
               arguments: {values: [1, 2], quote: false}
 
   - name: gold_transit_parking_lot_15min
+    config:
+      meta: {serving_tier: hold, refresh: '15분'}  # 원자재 — 서빙은 full_risk·profile 이 대체
     description: >
       주차장 개소×15분 점유 아카이브(#286). grain (parking_id, bucket_at). 수집 5분 주기라
       버킷당 ~3관측. occ_last(max_by 최신 점유율)는 G2 변화율(연속 버킷 lag)용.
@@ -335,6 +354,19 @@ models:
 
   # ---------------- 사용자향 골드 1차 (#289) ----------------
   - name: gold_transit_dong_now
+    config:
+      meta:
+        serving_tier: d1_direct   # 스냅샷 ~410행 — 15분 전량 교체 (ASAC-DAG#475 1차)
+        refresh: '15분'
+        external: true            # 외부 카탈로그 공개(1차)
+        display:
+          title: 지금 우리 동네 교통 상태
+          summary: 서울 각 행정동의 현재 교통 상태를 한 행으로 보여줍니다. 버스가 얼마나 붐비는지(여유·보통·혼잡), 인근 공영주차장에 자리가 얼마나 남았는지(%), 지하철이 평균 몇 분 뒤 도착하는지를 동 단위로 묶었습니다. 각 값이 몇 분 전 관측인지도 함께 있어 얼마나 최신인지 판단할 수 있습니다.
+          caveat: 버스가 자주 다니지 않는 동은 표시된 값이 수 시간 전 관측일 수 있어, 함께 제공되는 관측 시각(_last_event_at)을 확인하세요. 지하철 대기 시간은 실시간 도착정보가 있는 역 주변 동에만 채워집니다.
+          use_cases:
+            - 동네 교통 현황 위젯·대시보드
+            - 외출 전 대중교통·주차 상황 확인
+            - 행정동별 실시간 혼잡 지도
     description: >
       "지금 우리 동네 교통" 스코어카드(#289 G1). grain admin_dong_code — 소스(버스·지하철·
       주차)별 최근 24h 내 최신 관측 버킷 지표 + 관측 시각(*_last_event_at, "N분 전 관측"
@@ -354,6 +386,8 @@ models:
         description: 주차 여유 %((1-점유율)×100 반올림).
 
   - name: gold_transit_x_weather_dong_hourly
+    config:
+      meta: {serving_tier: hold, refresh: '1시간'}  # 2차 후보 (G6) — 카드 화면 붙일 때 d1_direct 전환
     description: >
       날씨 조건부 교통 상태(#289 G6, × weather). grain (admin_dong_code, hour_at).
       과거 행 = 교통 실측(버스 tier1 한정) + 당시 예보(패턴 학습), 미래 행 = 예보만
@@ -374,6 +408,8 @@ models:
         description: 강수 예보 여부(precip_type>0).
 
   - name: gold_transit_lastmile_dong_hourly
+    config:
+      meta: {serving_tier: hold, refresh: '1시간'}  # 2차 후보 (G9)
     description: >
       지하철 주변 따릉이 라스트마일(#289 G9, × citydata). grain (admin_dong_code, hour_at),
       지하철역 보유 동 한정. 따릉이는 핫스팟 121곳 주변 대여소만 — sbike_* null 은
@@ -390,6 +426,8 @@ models:
         description: 동 내 대여소별 최신 잔여 대수 합(시간 내 마지막 관측 기준).
 
   - name: gold_transit_dong_rhythm
+    config:
+      meta: {serving_tier: hold, refresh: '패턴'}  # 2차 후보 (G4 히트맵)
     description: >
       동별 요일×시간 교통 리듬(#287 G4). grain (admin_dong_code, dow, hh) — dow ISO(1=월),
       hh 0~23, KST. 아카이브(dong_15min) 전량 재집계(table). 버스는 tier1 한정·관측수 가중
@@ -413,6 +451,19 @@ models:
         description: 버스(tier1) 기여 버킷 수 — 표본 배지 근거.
 
   - name: gold_transit_parking_profile
+    config:
+      meta:
+        serving_tier: d1_direct   # dow×hh 프로파일 ~864행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
+        refresh: '패턴'
+        external: true            # 외부 카탈로그 공개(1차)
+        display:
+          title: 주차장 요일·시간대 혼잡 패턴
+          summary: 공영주차장마다 요일과 시간대별로 평소 얼마나 차는지를 정리했습니다. 예를 들어 '이 주차장은 평일 오후에 만차 확률이 높다' 같은 평시 패턴을 만차 확률과 함께 제공합니다. 지금 상태가 아니라 '보통 이 시간엔 이렇다'는 기준선입니다.
+          caveat: 관측이 쌓인 만큼 정확해지므로, 함께 제공되는 표본 수(base_n)가 적은 칸은 아직 신뢰도가 낮습니다. 운영 초기에는 표본이 얇을 수 있습니다.
+          use_cases:
+            - 언제 가면 자리 있나 안내
+            - 주차 수요 예측·요금 정책
+            - 목적지 도착 시간대 추천
     description: >
       주차장별 요일×시간 점유 프로파일(#288 G2 프로파일 축). grain (parking_id, dow, hh).
       아카이브(parking_lot_15min) 전량 재집계. full_prob = 버킷 중 occ_max>=0.95 비율.
@@ -430,6 +481,19 @@ models:
         description: 만차 확률(0~1). base_n 얇으면(운영 초기) 소비 측 배지 처리.
 
   - name: gold_transit_parking_full_risk
+    config:
+      meta:
+        serving_tier: d1_direct   # 스냅샷 ~108행 — 15분 전량 교체 (ASAC-DAG#475 1차)
+        refresh: '15분'
+        external: true            # 외부 카탈로그 공개(1차)
+        display:
+          title: 지금 주차장 만차 위험
+          summary: 공영주차장별 현재 얼마나 찼는지(%)와, 채워지는 속도로 본 '만차까지 남은 예상 시간'을 보여줍니다. 여기에 '이 시간대 평소 만차 확률'을 더해, 지금 출발하면 자리가 있을지 판단하도록 했습니다.
+          caveat: 만차까지 예상 시간은 최근 관측 추세로 계산해 급격한 변동(행사 등)은 빗나갈 수 있습니다. 실시간 정보를 제공하는 주차장만 포함됩니다.
+          use_cases:
+            - 목적지 주차 가능 여부 안내
+            - 만차 임박 알림
+            - 주차장 실시간 지도
     description: >
       주차장별 현재 만차 리스크 스냅샷(#288 G2). grain parking_id — 현재 점유·잔여 추정
       + 최근 1시간(4버킷) occ_last 추세의 만차까지 예상 분 + 이 시간대 평시 만차 확률
@@ -445,6 +509,8 @@ models:
         description: 분당 점유율 변화(최근 4버킷 처음↔끝). 4버킷 미만 관측이면 null.
 
   - name: gold_transit_bus_route_comfort
+    config:
+      meta: {serving_tier: hold, refresh: '패턴'}  # 2차 후보 (G3) — 행수 확인 전 서빙 투입 금지
     description: >
       노선×구간별 요일×시간 쾌적도(#288 G3). grain (bus_route_id, sect_ord, dow, hh).
       tier1(간선·광역) 한정 — tier2 는 하루 3회 관측이라 시간대 프로파일 불성립(#440).
@@ -460,6 +526,19 @@ models:
         description: 기여 30분 버킷 수(같은 칸 주 1회×2버킷 → 4주 ~8).
 
   - name: gold_transit_event_access
+    config:
+      meta:
+        serving_tier: d1_direct   # 행사 명부 ~1천 행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
+        refresh: '1일'
+        external: true            # 외부 카탈로그 공개(1차)
+        display:
+          title: 행사장 가는 길 안내
+          summary: 진행·예정 문화행사마다 가장 가까운 지하철역과 공영주차장을 거리와 함께 정리했습니다. 도보 몇 분 거리에 어떤 역이 있는지, 주차장은 얼마나 가까운지, 그 시간대 주차가 붐비는지까지 한 행에 담아 '이 행사 어떻게 갈까'를 바로 답합니다.
+          caveat: 역·주차장 거리는 직선거리라 실제 도보 경로와 다를 수 있습니다. 수도권 전 노선 역을 대상으로 하므로 서울 밖 역이 최근접일 수 있습니다.
+          use_cases:
+            - 행사 상세 페이지의 교통 안내
+            - 나들이·공연 예매 서비스
+            - 대중교통 vs 자차 추천
     description: >
       행사장 가는 길 안내판(#290 G7, × culture). grain event_ref — 진행·예정 행사의
       최근접 지하철역·주차장(dim 마스터 기반 great_circle_distance, 전 행사 즉시 제공)
@@ -478,6 +557,8 @@ models:
           null = 실시간 미제공 lot(정보 없음).
 
   - name: gold_transit_supply_x_demand_hourly
+    config:
+      meta: {serving_tier: hold, refresh: '1시간'}  # 2차 후보 (G8)
     description: >
       핫스팟 수요×공급 교통 압박(#291 G8, × citydata). grain (area_cd, hour_at).
       **범위(#291 결론)**: 핫스팟에서만 얻을 수 있는 것만 담는다 — 수요(실시간 인구·
@@ -500,6 +581,19 @@ models:
         description: 혼잡('약간 붐빔'/'붐빔') AND 주차 점유>=0.8. 주차 실측 없는 동은 false 아님 null 주의.
 
   - name: gold_transit_forecast_card
+    config:
+      meta:
+        serving_tier: d1_direct   # 예보 카드 ~7.7천 행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
+        refresh: '1일'
+        external: true            # 외부 카탈로그 공개(1차)
+        display:
+          title: 내일 이 시간 교통 예측 카드
+          summary: 서울 주요 지역의 앞으로 며칠간 시간대별 예상을 담았습니다. 기대 인구(붐빌지), 날씨 예보(비/기온), 그 지역의 평시 교통 패턴을 합쳐 '내일 이 시간에 여기 가면 어떨지'를 미리 보여줍니다. 대중교통이 나은지 여부도 함께 표시합니다.
+          caveat: 예보와 평시 패턴을 결합한 전망이라 실제와 다를 수 있습니다. 날씨 단기예보 가용 범위(약 +3일)까지만 제공됩니다.
+          use_cases:
+            - 나들이 계획 추천 서비스
+            - 혼잡 회피 경로 안내
+            - 날씨 연동 외출 도우미
     description: >
       "내일 이 시간 교통" 예측 카드(#292 G10, × citydata × weather). grain (area_cd,
       target_hour_at 미래 시각 — 프런티어 이후, 상한은 단기예보 +3일). 기대 인구
