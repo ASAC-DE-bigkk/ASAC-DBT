@@ -140,7 +140,7 @@ def test_quality_sql_locks_core8_denominators_and_lineage():
     assert "weather_admin_dong_grid_bridge_v1" in issue
     assert "canonical_join_eligible" in issue
     assert "mapped_admin_dong_count" in issue
-    assert "425" in issue
+    assert "426" in issue
     assert "mapped_admin_universe" in issue
     assert "bridge_summary" in issue
     assert "observed_cell_keys" in issue

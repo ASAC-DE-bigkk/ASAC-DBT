@@ -193,7 +193,7 @@ models:
         weather_new_gold_product: true
         grain: issued_at × forecast_date
         row_meaning: 한 KMA issue 시각과 forecast date의 forecast slot × canonical 행정동 × core8 expected cell coverage 한 행입니다.
-        anchor_universe: ref('silver_kma_vilage_fcst_grid')의 관측 issue/date forecast slot과 bridge_weather_admin_dong_grid_bridge_v1 canonical 425개 행정동입니다.
+        anchor_universe: ref('silver_kma_vilage_fcst_grid')의 관측 issue/date forecast slot과 bridge_weather_admin_dong_grid_bridge_v1 canonical 426개 행정동입니다.
     columns:
       - name: product_row_id
         description: issued_at과 forecast_date를 연결한 결정적 제품 행 식별자입니다.
@@ -214,7 +214,7 @@ models:
         description: expected_cell_count - observed_cell_count입니다.
         tests: [not_null]
       - name: mapped_admin_dong_count
-        description: bridge v1 canonical_join_eligible=true 행정동 수이며 계약상 425입니다.
+        description: bridge v1 canonical_join_eligible=true 행정동 수이며 계약상 426입니다.
         tests: [not_null]
       - name: issue_cycle_coverage_ratio
         description: observed_cell_count / expected_cell_count이며 bridge 행정동이 0개라 분모가 0이면 null입니다.

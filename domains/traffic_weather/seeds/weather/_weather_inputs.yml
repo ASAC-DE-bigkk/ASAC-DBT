@@ -62,7 +62,7 @@ seeds:
         tests:
           - not_null
   - name: weather_admin_dong_grid_bridge_history
-    description: legacy 427행을 손실 없이 복제하고 버전·기록 시각·시간 증거 품질을 추가한 append-only 행정동-격자 assertion seed다.
+    description: legacy 427행을 손실 없이 복제하고 버전·기록 시각·시간 증거 품질을 추가한 뒤 용신동 수동 backfill 1행(2026-07-23)을 더한 append-only 행정동-격자 assertion seed다.
     config:
       meta:
         row_meaning_ko: source 행정코드·버전·격자에 대한 한 개의 mapping assertion이다.
@@ -121,7 +121,7 @@ seeds:
       - name: effective_from_basis
         description: recorded_at과 source 유효 시작일을 구분하는 근거 설명 token이다.
       - name: mapping_method
-        description: 이 assertion이 legacy seed exact copy로 생성됐음을 나타낸다.
+        description: assertion 생성 방식이다(legacy_seed_exact_copy 또는 manual_centroid_backfill).
       - name: temporal_quality
         description: 시간 구간 증거 품질이며 v1은 revision_only다.
       - name: grid_distance_m

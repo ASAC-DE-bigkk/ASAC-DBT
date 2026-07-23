@@ -132,7 +132,7 @@ def test_bridge_stamps_canonical_fields_only_from_common_dimension():
     assert "source_admin_code as admin_dong_code" not in sql
 
 
-def test_bridge_seed_is_exact_427_row_legacy_copy_with_frozen_evidence():
+def test_bridge_seed_preserves_427_row_legacy_copy_plus_yongsin_backfill():
     legacy_path = weather_path("seeds/weather_place_grid_mapping.csv")
     history_path = weather_path("seeds/weather_admin_dong_grid_bridge_history.csv")
     with legacy_path.open(encoding="utf-8", newline="") as handle:
@@ -140,7 +140,8 @@ def test_bridge_seed_is_exact_427_row_legacy_copy_with_frozen_evidence():
     with history_path.open(encoding="utf-8", newline="") as handle:
         history = list(csv.DictReader(handle))
 
-    assert len(legacy) == len(history) == 427
+    assert len(legacy) == 427
+    assert len(history) == 428
     legacy_keys = {
         (row["place_id"], row["source_admin_code"], row["nx"], row["ny"])
         for row in legacy
@@ -149,20 +150,33 @@ def test_bridge_seed_is_exact_427_row_legacy_copy_with_frozen_evidence():
         (row["place_id"], row["source_admin_code"], row["nx"], row["ny"])
         for row in history
     }
-    assert history_keys == legacy_keys
-    assert len(legacy_keys) == len(history_keys) == 427
+    yongsin_key = ("seoul_admd_1123053600", "1123053600", "61", "127")
+    assert history_keys - legacy_keys == {yongsin_key}
+    assert legacy_keys <= history_keys
+    assert len(legacy_keys) == 427
+    assert len(history_keys) == 428
     assert all(
         row["bridge_version"] == "weather_admin_dong_grid_bridge_v1" for row in history
     )
+    legacy_copy = [row for row in history if row["place_id"] != "seoul_admd_1123053600"]
     assert all(
         row["legacy_mapping_method"] == "kma_admin_dong_grid_20260325"
-        for row in history
+        for row in legacy_copy
     )
     assert all(
         row["mapping_revision_label"] == "kma_admin_dong_grid_20260325"
-        for row in history
+        for row in legacy_copy
     )
-    assert all(row["recorded_at"] == "2026-07-04 12:38:58.000000" for row in history)
+    assert all(
+        row["recorded_at"] == "2026-07-04 12:38:58.000000" for row in legacy_copy
+    )
+    yongsin = next(
+        row for row in history if row["place_id"] == "seoul_admd_1123053600"
+    )
+    assert yongsin["legacy_mapping_method"] == ""
+    assert yongsin["mapping_revision_label"] == "manual_yongsin_backfill_20260723"
+    assert yongsin["mapping_method"] == "manual_centroid_backfill"
+    assert yongsin["recorded_at"] == "2026-07-23 12:00:00.000000"
     assert all(row["valid_from_at"] == row["valid_to_at"] == "" for row in history)
     assert all(row["temporal_quality"] == "revision_only" for row in history)
 
