@@ -382,10 +382,17 @@ def test_w1_keeps_normal_lookback_and_adds_bounded_repair_no_downgrade() -> None
 
 
 def test_gold_execute_time_contract_dependencies_are_explicit() -> None:
-    gold_hints = "\n".join(read(W2_GOLD_MODEL).splitlines()[:6])
+    gold_hints = "\n".join(read(W2_GOLD_MODEL).splitlines()[:8])
 
     assert "-- depends_on: {{ ref('bridge_weather_admin_dong_grid') }}" in gold_hints
-    assert "-- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}" in gold_hints
+    assert (
+        "-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}"
+        in gold_hints
+    )
+    assert (
+        "-- depends_on: {{ source('axes_bronze', 'admin_dong_master') }}"
+        in gold_hints
+    )
     assert "-- depends_on: {{ ref('silver_kma_vilage_fcst_grid') }}" in gold_hints
 
 

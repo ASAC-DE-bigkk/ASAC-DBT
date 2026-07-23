@@ -6,7 +6,7 @@ with canonical_counts as (
     select
         cast(admin_dong_code as varchar) as admin_dong_code,
         count(*) as canonical_row_count
-    from {{ ref('asac_axes', 'dim_admin_dong') }}
+    from {{ asac_axes.pinned_dim_admin_dong() }}
     where cast(revision_date as date) = date '{{ canonical_contract['revision_date'] }}'
     group by cast(admin_dong_code as varchar)
 )

@@ -1,6 +1,7 @@
 -- depends_on: {{ ref('gold_weather_forecast_by_admin_dong') }}
 -- depends_on: {{ ref('bridge_weather_admin_dong_grid') }}
--- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
+-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}
+-- depends_on: {{ source('axes_bronze', 'admin_dong_master') }}
 
 {% set canonical_contract = weather_w2_canonical_contract() %}
 
@@ -11,7 +12,7 @@ with canonical as (
         cast(gu_code as varchar) as gu_code,
         cast(gu as varchar) as gu,
         cast(revision_date as date) as revision_date
-    from {{ ref('asac_axes', 'dim_admin_dong') }}
+    from {{ asac_axes.pinned_dim_admin_dong() }}
     where cast(revision_date as date) = date '{{ canonical_contract['revision_date'] }}'
 ),
 

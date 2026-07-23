@@ -8,7 +8,7 @@ select
     gold.admin_dong_revision_date as actual_revision_date,
     cast(canonical.revision_date as date) as expected_revision_date
 from {{ ref('gold_weather_forecast_by_admin_dong') }} as gold
-left join {{ ref('asac_axes', 'dim_admin_dong') }} as canonical
+left join {{ asac_axes.pinned_dim_admin_dong() }} as canonical
     on gold.admin_dong_code = cast(canonical.admin_dong_code as varchar)
    and cast(canonical.revision_date as date) = date '{{ canonical_contract['revision_date'] }}'
 where canonical.admin_dong_code is null

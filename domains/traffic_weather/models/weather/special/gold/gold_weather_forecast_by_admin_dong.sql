@@ -1,6 +1,7 @@
 -- W2 public Gold: latest forecast at product grain stamped by an approved canonical revision.
 -- depends_on: {{ ref('bridge_weather_admin_dong_grid') }}
--- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
+-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}
+-- depends_on: {{ source('axes_bronze', 'admin_dong_master') }}
 -- depends_on: {{ ref('silver_kma_vilage_fcst_grid') }}
 {{ config(
     materialized='incremental',
@@ -25,7 +26,7 @@ with canonical as (
         cast(gu_code as varchar) as gu_code,
         cast(gu as varchar) as gu,
         cast(canonical.revision_date as date) as admin_dong_revision_date
-    from {{ ref('asac_axes', 'dim_admin_dong') }} as canonical
+    from {{ asac_axes.pinned_dim_admin_dong() }} as canonical
     where cast(canonical.revision_date as date) = date '{{ canonical_contract['revision_date'] }}'
 ),
 

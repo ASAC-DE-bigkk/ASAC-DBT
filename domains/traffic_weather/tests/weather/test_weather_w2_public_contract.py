@@ -33,7 +33,7 @@ def test_gold_sql_has_exact_refs_grain_winner_row_id_and_approved_revision_snaps
         "full_refresh=false",
         "ref('silver_kma_vilage_fcst_grid')",
         "ref('bridge_weather_admin_dong_grid')",
-        "ref('asac_axes', 'dim_admin_dong')",
+        "asac_axes.pinned_dim_admin_dong()",
         BRIDGE_VERSION,
         "cast(canonical.revision_date as date)",
         "date '{{ canonical_contract['revision_date'] }}'",
