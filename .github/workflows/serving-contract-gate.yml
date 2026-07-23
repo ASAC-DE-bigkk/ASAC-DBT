@@ -1,0 +1,41 @@
+name: Serving Contract gate
+
+# Enforces the common Serving Contract v1 (ASAC-DAG docs/contracts/serving-contract-v1.md).
+# Independent of the Traffic/Weather monoproject gate so it never collides with that
+# workflow's owned-path scope or test inventory.
+
+on:
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - "serving_contract/**"
+      - "domains/**/*.yml"
+      - "packages/**/*.yml"
+      - ".github/workflows/serving-contract-gate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  serving-contract:
+    name: validate-serving-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install harness dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pyyaml>=6" "pytest>=7"
+      - name: Harness self-test
+        run: python -m pytest -q serving_contract/tests -p no:cacheprovider
+      - name: Validate declared serving contracts (manifest-free)
+        # meta.serving 이 없는 모델은 건너뛰므로 마이그레이션 전엔 0 models = PASS.
+        # 도메인이 v1 계약을 선언하면 이 단계가 자동으로 강제한다(전역 product_id 유일성 포함).
+        run: |
+          python serving_contract/validate_serving_contract.py \
+            --source "domains/**/*.yml" "packages/**/*.yml" \
+            --format text

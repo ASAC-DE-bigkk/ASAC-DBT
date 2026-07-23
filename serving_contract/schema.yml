@@ -1,0 +1,74 @@
+# Machine-readable Serving Contract schema (v1).
+#
+# Single source for the STRUCTURAL rules of ASAC-DAG docs/contracts/serving-contract-v1.md.
+# The validator (serving_contract/validator.py) loads this file and drives required/optional/
+# excluded/enum checks from it; cross-model and semantic rules are coded in validator.py.
+#
+# Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
+# and update the doc per its §8 version policy.
+
+schema_version: v1
+supported_contract_versions: [v1]
+
+# meta.serving.* fields that MUST be present (non-empty) on every model declaring a
+# serving contract. Missing any of these => publication forbidden.
+required:
+  enabled:              {type: bool}
+  external:             {type: bool}
+  product_id:           {type: string, pattern: '^[a-z0-9_]+$'}
+  product_question:     {type: string, non_empty: true}
+  grain:                {type: string, non_empty: true}
+  primary_key:          {type: list, min_items: 1}
+  publication_mode:     {type: enum, allowed: [snapshot, upsert, append]}
+  zero_policy:          {type: enum, allowed: [fail, retain_last_good, allow, warn]}
+  publication_trigger:  {type: object}
+
+# Optional fields — absence is legal (validator applies the documented fallback).
+optional:
+  contract_version:       {type: enum, allowed: [v1]}
+  event_time:             {type: string}
+  retention_or_horizon:   {type: string}
+  partial_policy:         {type: object}
+  freshness_slo_minutes:  {type: int, min: 1}
+  shape:                  {type: enum, allowed: [wide, rollup, event]}
+  reliability:            {type: object}
+
+# Defaults the Publisher applies when the field is absent (documentation of intent;
+# the validator does not require them but forbids illegal explicit values).
+defaults:
+  enabled: false
+  external: false
+  zero_policy: retain_last_good
+  contract_version: v1
+
+# Fields that MUST NOT appear under meta.serving — measured at runtime or owned by
+# the Gateway/Worker API contract (#476).
+excluded:
+  - estimated_rows
+  - estimated_daily_write_rows
+  - api_path
+  - allowed_filters
+  - default_limit
+  - max_limit
+  - pagination
+
+# Legacy meta keys (siblings of `serving` under config.meta). Presence of ANY of these
+# together with a meta.serving block is a double declaration and fails.
+legacy_meta_keys:
+  - serving_tier
+  - serving_gold_candidate
+  - external
+  - refresh
+
+# Nested enums validated when the owning optional object is present.
+nested_enums:
+  reliability.insufficient_sample_policy: [suppress_row, flag_degraded, allow]
+
+# publication_trigger must be EXACTLY one of these shapes.
+publication_trigger_shapes:
+  - required_keys: [schedule_cron]
+    forbidden_keys: [trigger_type, max_interval_minutes]
+  - required_keys: [trigger_type, max_interval_minutes]
+    forbidden_keys: [schedule_cron]
+    field_values:
+      trigger_type: asset

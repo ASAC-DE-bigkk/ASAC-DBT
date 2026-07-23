@@ -1,0 +1,220 @@
+version: 2
+
+# Each model triggers at least one specific rule. Validated WITHOUT a manifest, so
+# primary_key existence is checked against the yml columns and manifest-membership is
+# not applied here (that rule has its own fixture).
+
+models:
+  # required_field_missing: product_question / grain / primary_key / publication_mode ... 누락
+  - name: bad_missing_required
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_missing_required
+
+  # external_enabled_conflict: external=true, enabled=false
+  - name: bad_external_conflict
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: false
+          external: true
+          product_id: bad_external_conflict
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger: {schedule_cron: "0 * * * *"}
+
+  # invalid_enum_value: publication_mode=replace, zero_policy=skip
+  - name: bad_enum
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_enum
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: replace
+          zero_policy: skip
+          publication_trigger: {schedule_cron: "0 * * * *"}
+
+  # primary_key_not_a_column + primary_key_evidence_missing
+  - name: bad_primary_key
+    columns:
+      - name: real_col
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_primary_key
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [ghost_col]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+
+  # excluded_field_present: estimated_rows / api_path
+  - name: bad_excluded
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_excluded
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+          estimated_rows: 5000
+          api_path: /data/bad_excluded
+
+  # legacy_double_declaration: meta.serving_tier alongside meta.serving
+  - name: bad_double_decl
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving_tier: d1_direct
+        refresh: 1시간
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_double_decl
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+
+  # publication_trigger_invalid: cron + asset 동시
+  - name: bad_trigger
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_trigger
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger:
+            schedule_cron: "0 * * * *"
+            trigger_type: asset
+            max_interval_minutes: 30
+
+  # invalid_field_format: product_id 대문자·하이픈
+  - name: bad_pid_format
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: Bad-ID
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+
+  # partial_policy_invalid: min_publish_ratio 범위 밖
+  - name: bad_partial
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_partial
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+          partial_policy: {min_publish_ratio: 1.5}
+
+  # reliability_invalid: 키 누락 + 잘못된 정책
+  - name: bad_reliability
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_reliability
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+          reliability:
+            insufficient_sample_policy: drop
+
+  # product_id_duplicate: 아래 둘이 같은 product_id
+  - name: bad_dup_a
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: dup_product
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+  - name: bad_dup_b
+    columns:
+      - name: id
+        tests: [not_null, unique]
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: dup_product
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
