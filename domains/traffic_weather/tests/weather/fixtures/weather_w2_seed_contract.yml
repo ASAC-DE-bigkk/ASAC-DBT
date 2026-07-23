@@ -2,5 +2,5 @@ fixture_version: 1
 resource: weather_admin_dong_grid_bridge_history
 path: seeds/weather/weather_admin_dong_grid_bridge_history.csv
 bridge_version: weather_admin_dong_grid_bridge_v1
-expected_rows: 427
-semantic_sha256: ead91675f13465a1d9211780b20246f755e9df372c5dee4795ce815bc9468767
+expected_rows: 428
+semantic_sha256: 0641903f4d3e4ca03d8c107d8425fd569ca08e8fd02a6ee5916557aa3725bd5d
