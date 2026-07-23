@@ -1,7 +1,8 @@
 {{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('silver_seoul_traffic_incident_current') }}
 -- depends_on: {{ ref('gold_traffic_incident_current_by_admin_dong_hourly') }}
--- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
+-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}
+-- depends_on: {{ source('axes_bronze', 'admin_dong_master') }}
 
 {% set snapshot_dag_run_id = var('traffic_snapshot_dag_run_id') %}
 
@@ -262,7 +263,7 @@ canonical as (
         cast(gu_code as varchar) as gu_code,
         cast(gu as varchar) as gu,
         try_cast(revision_date as date) as revision_date
-    from {{ ref('asac_axes', 'dim_admin_dong') }}
+    from {{ asac_axes.pinned_dim_admin_dong() }}
 ),
 
 canonical_evidence as (

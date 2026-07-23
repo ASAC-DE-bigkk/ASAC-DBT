@@ -69,7 +69,7 @@ def test_canonical_gold_declares_snapshot_and_graph_dependencies():
 
     assert "var('traffic_snapshot_dag_run_id')" in sql
     assert "ref('silver_seoul_traffic_incident_current')" in sql
-    assert "ref('asac_axes', 'dim_admin_dong')" in sql
+    assert "asac_axes.pinned_dim_admin_dong()" in sql
     assert (
         "latest_manifest_run_state("
         "'traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident'"
@@ -95,7 +95,7 @@ def test_snapshot_reconciliation_independently_derives_state_and_evidence():
     for dependency in (
         "ref('silver_seoul_traffic_incident_current')",
         "ref('gold_traffic_incident_current_by_admin_dong_hourly')",
-        "ref('asac_axes', 'dim_admin_dong')",
+        "asac_axes.pinned_dim_admin_dong()",
         "latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident')",
         "source('traffic_bronze', 'seoul_traffic_incident_request_audit')",
         "source('traffic_bronze', 'seoul_traffic_incident')",

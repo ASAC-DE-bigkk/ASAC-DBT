@@ -6,7 +6,8 @@
 -- Names, district fields, and revision are stamped only from dim_admin_dong.
 -- GRS80 TM coordinates are deliberately not interpreted in Gold.
 -- depends_on: {{ ref('silver_seoul_traffic_incident_current') }}
--- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
+-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}
+-- depends_on: {{ source('axes_bronze', 'admin_dong_master') }}
 
 {{ config(materialized='table') }}
 
@@ -279,7 +280,7 @@ canonical_raw as (
         cast(canonical.gu_code as varchar) as gu_code,
         cast(canonical.gu as varchar) as gu,
         try_cast(canonical.revision_date as date) as admin_dong_revision_date
-    from {{ ref('asac_axes', 'dim_admin_dong') }} as canonical
+    from {{ asac_axes.pinned_dim_admin_dong() }} as canonical
 ),
 
 canonical_ranked as (
