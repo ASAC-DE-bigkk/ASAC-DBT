@@ -148,6 +148,51 @@ def test_build_report_shape(tmp_path):
     assert r["targets"][1] == {"query": "nope", "found": False, "candidates": []}
 
 
+def fanout_manifest(n_children):
+    """silver_root 하나가 gold_c00..gold_cNN 을 직접 참조하는 팬아웃 픽스처."""
+    nodes = {"model.culture.silver_root": node("silver_root", "silver/silver_root.sql")}
+    children = []
+    for i in range(n_children):
+        name = f"gold_c{i:02d}"
+        uid = f"model.culture.{name}"
+        nodes[uid] = node(name, f"gold/{name}.sql")
+        children.append(uid)
+    return {
+        "metadata": {"generated_at": "2099-01-01T00:00:00.000000Z"},
+        "nodes": nodes,
+        "child_map": {"model.culture.silver_root": children},
+    }
+
+
+def test_gate_exceeded_over_threshold(tmp_path):
+    m = fanout_manifest(11)
+    r = impact_map.build_report(m, ["silver_root"], _write_project(tmp_path), None)
+    assert r["gate"] == {"threshold": 10, "total_downstream": 11, "exceeded": True}
+
+
+def test_gate_passes_at_threshold(tmp_path):
+    # 게이트 규칙은 초과(>)일 때만 발동 — 정확히 10개면 통과
+    m = fanout_manifest(10)
+    r = impact_map.build_report(m, ["silver_root"], _write_project(tmp_path), None)
+    assert r["gate"] == {"threshold": 10, "total_downstream": 10, "exceeded": False}
+
+
+def test_gate_unions_shared_downstream(tmp_path):
+    # 두 대상이 같은 downstream 을 공유하면 중복 없이 union 으로 센다
+    m = mini_manifest()
+    r = impact_map.build_report(m, ["silver_a", "int_b"], _write_project(tmp_path), None)
+    # silver_a: int_b·gold_d·gold_c / int_b: gold_c → union = int_b·gold_d·gold_c
+    assert r["gate"]["total_downstream"] == 3
+    assert r["gate"]["exceeded"] is False
+
+
+def test_gate_custom_threshold(tmp_path):
+    m = fanout_manifest(3)
+    r = impact_map.build_report(m, ["silver_root"], _write_project(tmp_path), None,
+                                threshold=2)
+    assert r["gate"] == {"threshold": 2, "total_downstream": 3, "exceeded": True}
+
+
 def test_cli_smoke(tmp_path, capsys):
     import json as _json
     m = mini_manifest()
