@@ -6,6 +6,7 @@
     incremental_strategy='merge',
     unique_key='link_id',
     on_table_exists='drop',
+    on_schema_change='fail',
     views_enabled=false,
     pre_hook="{{ traffic_flow_assert_pinned_incremental_rows() }}"
 ) }}
