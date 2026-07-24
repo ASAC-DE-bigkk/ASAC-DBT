@@ -1,10 +1,11 @@
 {{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('gold_traffic_incident_current_by_admin_dong_hourly') }}
--- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
+-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}
+-- depends_on: {{ source('axes_bronze', 'admin_dong_master') }}
 
 with canonical as (
     select cast(admin_dong_code as varchar) as admin_dong_code
-    from {{ ref('asac_axes', 'dim_admin_dong') }}
+    from {{ asac_axes.pinned_dim_admin_dong() }}
 ),
 
 target_hours as (

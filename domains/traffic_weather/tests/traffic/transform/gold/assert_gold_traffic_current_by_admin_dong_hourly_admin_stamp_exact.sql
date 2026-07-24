@@ -1,6 +1,7 @@
 {{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('gold_traffic_incident_current_by_admin_dong_hourly') }}
--- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
+-- depends_on: {{ ref('asac_axes', 'seoul_admin_dong_crosswalk') }}
+-- depends_on: {{ source('axes_bronze', 'admin_dong_master') }}
 
 select
     gold.product_row_id,
@@ -14,7 +15,7 @@ select
     gold.admin_dong_revision_date as actual_revision_date,
     cast(canonical.revision_date as date) as expected_revision_date
 from {{ ref('gold_traffic_incident_current_by_admin_dong_hourly') }} as gold
-left join {{ ref('asac_axes', 'dim_admin_dong') }} as canonical
+left join {{ asac_axes.pinned_dim_admin_dong() }} as canonical
     on gold.admin_dong_code = cast(canonical.admin_dong_code as varchar)
 where canonical.admin_dong_code is null
    or gold.admin_dong is distinct from cast(canonical.admin_dong as varchar)
