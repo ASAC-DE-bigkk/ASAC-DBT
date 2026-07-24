@@ -199,7 +199,7 @@ models:
 
   - name: gold_citydata_ppltn_hourly
     config:
-      tags: ['slow']
+      tags: ['hourly']
       meta:
         serving_tier: d1_direct
         refresh: '1시간'
@@ -655,7 +655,7 @@ models:
 
   - name: gold_citydata_transit_x_incident_hourly
     config:
-      tags: ['fast']
+      tags: ['hourly']
       meta:
         serving_tier: d1_direct
         refresh: '1시간'
@@ -723,7 +723,7 @@ models:
 
   - name: gold_citydata_ppltn_x_weather_hourly
     config:
-      tags: ['fast']
+      tags: ['hourly']
       meta:
         serving_tier: d1_direct
         refresh: '1시간'
@@ -1148,7 +1148,7 @@ models:
 
   - name: gold_citydata_ppltn_forecast
     config:
-      tags: ['fast']
+      tags: ['daily']
       meta:
         serving_tier: d1_direct
         refresh: '패턴'
@@ -1211,7 +1211,7 @@ models:
         description: 표본 수 (작으면 신뢰도 낮음)
   - name: gold_citydata_ppltn_demographics
     config:
-      tags: ['slow']
+      tags: ['daily']
       meta:
         serving_tier: d1_direct
         refresh: '패턴'
@@ -1381,7 +1381,7 @@ models:
 
   - name: gold_citydata_ppltn_dow_hour
     config:
-      tags: ['fast']
+      tags: ['daily']
       meta:
         serving_tier: d1_direct
         refresh: '패턴'
