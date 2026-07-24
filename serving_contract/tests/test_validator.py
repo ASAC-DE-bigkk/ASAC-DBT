@@ -56,6 +56,7 @@ def test_invalid_contracts_fail_with_expected_rules():
         "partial_policy_invalid",
         "reliability_invalid",
         "product_id_duplicate",
+        "conditional_required_missing",
     }
     missing = expected - rules
     assert not missing, f"expected rules not raised: {missing}"
@@ -74,6 +75,7 @@ def test_invalid_contracts_fail_with_expected_rules():
         ("bad_pid_format", "invalid_field_format"),
         ("bad_partial", "partial_policy_invalid"),
         ("bad_reliability", "reliability_invalid"),
+        ("bad_missing_freshness_slo", "conditional_required_missing"),
     ],
 )
 def test_specific_rule_attaches_to_model(model_name, rule):

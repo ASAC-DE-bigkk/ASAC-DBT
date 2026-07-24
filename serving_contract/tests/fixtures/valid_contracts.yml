@@ -24,6 +24,7 @@ models:
           publication_trigger:
             schedule_cron: "10 * * * *"
           event_time: forecast_at
+          freshness_slo_minutes: 90   # v1.1: event_time 선언 시 필수
           shape: wide
 
   # Internal-only (enabled true / external false), append, composite PK, rollup reliability, asset trigger.

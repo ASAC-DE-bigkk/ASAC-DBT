@@ -128,6 +128,26 @@ models:
             trigger_type: asset
             max_interval_minutes: 30
 
+  # conditional_required_missing (v1.1): event_time 선언했는데 freshness_slo_minutes 누락
+  - name: bad_missing_freshness_slo
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: observed_at
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_missing_freshness_slo
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+          event_time: observed_at
+
   # invalid_field_format: product_id 대문자·하이픈
   - name: bad_pid_format
     columns:

@@ -41,6 +41,7 @@ python serving_contract/validate_serving_contract.py \
 - `legacy_double_declaration` — 구 메타(`serving_tier`·`external`·`refresh`·`serving_gold_candidate`) + `meta.serving` 이중 선언
 - `publication_trigger_invalid` — cron·asset 정확히 하나
 - `partial_policy_invalid` / `reliability_invalid` — 정책 값 범위·키
+- `conditional_required_missing` — **v1.1**: `event_time` 선언 제품의 `freshness_slo_minutes` 누락 (명부성 제품은 면제, `schema.yml`의 `conditional_required`로 구동)
 - `model_not_in_manifest` — manifest에 없는 모델 선언 (manifest 제공 시)
 
 > 참고: 문서 §8의 "알 수 없는 `contract_version` → ERROR"는 **Publisher 런타임**의 책임이다.

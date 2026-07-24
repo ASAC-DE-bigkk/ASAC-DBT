@@ -119,6 +119,12 @@ def _check_structural(model: ServingModel, schema: dict[str, Any]) -> list[Findi
         if key in model.meta:
             add("legacy_double_declaration", f"구 메타 'meta.{key}' 와 신규 'meta.serving' 이중 선언")
 
+    # v1.1 conditional requirement: declaring `if_present` obligates `then_required`.
+    for rule in schema.get("conditional_required", []):
+        trigger, needed = rule.get("if_present"), rule.get("then_required")
+        if trigger and needed and trigger in serving and needed not in serving:
+            add("conditional_required_missing", f"'{trigger}' 선언 제품은 '{needed}' 필수 (v1.1)")
+
     return findings
 
 
