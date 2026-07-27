@@ -929,6 +929,90 @@ models:
         data_type: bigint
         description: baseline 표본 수 (작으면 신뢰도 낮음)
 
+  - name: gold_citydata_air_anomaly
+    config:
+      tags: ['hourly']
+      meta:
+        serving_tier: d1_direct
+        refresh: '1시간'
+        display:
+          title: 미세먼지 평소 대비 이상
+          summary: 장소별로 지금 통합대기지수가 평소(같은 요일·시간) 대비 얼마나 나쁜지/좋은지를 z-score로 봅니다. "오늘 미세먼지 평소보다 심해?"에 답합니다.
+          caveat: 통합대기지수가 높을수록 나쁨 → 양의 편차 = 평소보다 나쁨. 3주 데이터라 base_n 작은 셀은 신뢰도 낮습니다.
+          use_cases:
+            - 오늘 유독 뿌연지 판단
+            - 평소 대비 대기질 악화 감지
+            - 실시간이 못 하는 기준선 비교
+      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
+    description: >
+      gold_citydata_air_anomaly — 장소별 대기질(미세먼지) 이상탐지 스냅샷(장소당 1행).
+      (장소×주말여부×시간) 과거 baseline 통합대기지수 평균±표준편차 대비 현재 편차 —
+      z_score·pct_vs_normal·vs_normal. 통합대기지수↑=나쁨 → 양의 편차=평소보다 나쁨.
+      해결 질문: "오늘 강남 미세먼지 평소보다 심해", "지금 평소 대비 공기 나쁜 동네 톱".
+      find_anomalies(붐빔)의 대기질 버전. grain area_cd · 갱신 hourly · silver_air 파생.
+      ⚠ base_n 작으면 신뢰도 낮음.
+    columns:
+      - name: area_cd
+        data_type: varchar
+        description: 장소 코드 (POI###, grain 축)
+      - name: area_nm
+        data_type: varchar
+        description: 장소명
+      - name: gu
+        data_type: varchar
+        description: 자치구명
+      - name: gu_code
+        data_type: varchar
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명
+      - name: admin_dong_code
+        data_type: varchar
+        description: 행안부 행정동 코드 10자리
+      - name: event_at
+        data_type: timestamp(6)
+        description: 현재(최신) 측정 시각 (KST)
+      - name: hr
+        data_type: bigint
+        description: 현재 시각의 시(0~23) — baseline 매칭 기준
+      - name: pm25
+        data_type: integer
+        description: 현재 초미세먼지 농도
+      - name: pm25_index
+        data_type: varchar
+        description: 현재 초미세먼지 지수
+      - name: pm10
+        data_type: integer
+        description: 현재 미세먼지 농도
+      - name: pm10_index
+        data_type: varchar
+        description: 현재 미세먼지 지수
+      - name: air_idx
+        data_type: varchar
+        description: 현재 통합대기환경지수 등급
+      - name: cur_air_idx
+        data_type: decimal(7,1)
+        description: 현재 통합대기지수 수치 (높을수록 나쁨)
+      - name: base_mean
+        data_type: decimal(7,1)
+        description: 평소값 — 같은 (장소·시간) 과거 평균 통합대기지수
+      - name: deviation
+        data_type: decimal(8,1)
+        description: 현재 − 평소 (양수면 평소보다 나쁨)
+      - name: z_score
+        data_type: double
+        description: (현재−평소)/표준편차 — 이례성 (|z|>2 강한 이례)
+      - name: pct_vs_normal
+        data_type: decimal(20,8)
+        description: 현재 ÷ 평소 − 1 (예 +0.3 = 평소보다 30% 나쁨)
+      - name: vs_normal
+        data_type: varchar
+        description: 평소보다 나쁨/좋음/평소 수준 (±5% 기준)
+      - name: base_n
+        data_type: bigint
+        description: baseline 표본 수 (작으면 신뢰도 낮음)
+
   - name: gold_citydata_ppltn_trend
     config:
       tags: ['fast']
@@ -990,6 +1074,90 @@ models:
       - name: trend
         data_type: varchar
         description: 증가/감소/유지 (±5% 기준)
+
+  - name: gold_citydata_air_trend
+    config:
+      tags: ['hourly']
+      meta:
+        serving_tier: d1_direct
+        refresh: '1시간'
+        display:
+          title: 실시간 미세먼지 추세
+          summary: 장소별로 지금 대기질(미세먼지)이 나아지고 있는지 나빠지고 있는지 추세를 봅니다. 실시간 스냅샷만으론 못 답하는 "좋아지는 중이야?"에 답합니다.
+          caveat: 최근 1시간 vs 이전 1시간 평균 변화라 단기 변동이 섞일 수 있고, 대기질은 서울시 API의 ~10분 주기 발표입니다.
+          use_cases:
+            - 외출·환기 타이밍 판단
+            - 대기질 악화 선제 감지
+            - 실시간 대시보드
+      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
+    description: >
+      gold_citydata_air_trend — 장소별 실시간 대기질(미세먼지) 추세 스냅샷(장소당 1행).
+      최근 1시간 vs 이전 1시간 평균 통합대기지수(air_idx_value) 변화율(change_pct)과
+      개선/악화/유지 판정. 통합대기지수는 높을수록 나쁨 → 상승 = 악화. 해결 질문:
+      "지금 강남 미세먼지 좋아지는 중이야", "여의도 공기 나빠지고 있나". place_latest(실시간
+      스냅샷)와 달리 시계열이 있어야만 답하는 차별 질문. grain area_cd · 갱신 hourly ·
+      적재 table+replace(통째 재빌드, silver_air 최근 12버킷 파생).
+    columns:
+      - name: area_cd
+        data_type: varchar
+        description: 장소 코드 (POI###, grain 축)
+      - name: area_nm
+        data_type: varchar
+        description: 장소명
+      - name: area_category
+        data_type: varchar
+        description: 장소 분류
+      - name: gu
+        data_type: varchar
+        description: 자치구명
+      - name: gu_code
+        data_type: varchar
+        description: 행안부 자치구 코드 5자리
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명
+      - name: admin_dong_code
+        data_type: varchar
+        description: 행안부 행정동 코드 10자리
+      - name: event_at
+        data_type: timestamp(6)
+        description: 현재(최신) 측정 시각 (KST)
+      - name: pm25
+        data_type: integer
+        description: 현재 초미세먼지 농도 (㎍/㎥)
+      - name: pm25_index
+        data_type: varchar
+        description: 현재 초미세먼지 지수 (좋음/보통/나쁨…)
+      - name: pm10
+        data_type: integer
+        description: 현재 미세먼지 농도 (㎍/㎥)
+      - name: pm10_index
+        data_type: varchar
+        description: 현재 미세먼지 지수
+      - name: air_idx
+        data_type: varchar
+        description: 현재 통합대기환경지수 등급
+      - name: air_idx_value
+        data_type: decimal(6,1)
+        description: 현재 통합대기지수 수치 (높을수록 나쁨)
+      - name: air_idx_last_1h
+        data_type: decimal(7,1)
+        description: 최근 1시간(6버킷) 평균 통합대기지수
+      - name: air_idx_prev_1h
+        data_type: decimal(7,1)
+        description: 그 이전 1시간(6버킷) 평균 통합대기지수
+      - name: pm25_last_1h
+        data_type: double
+        description: 최근 1시간 평균 초미세먼지
+      - name: pm25_prev_1h
+        data_type: double
+        description: 그 이전 1시간 평균 초미세먼지
+      - name: change_pct
+        data_type: decimal(20,8)
+        description: 최근1h ÷ 이전1h − 1 (통합대기지수 변화율, +면 악화)
+      - name: trend
+        data_type: varchar
+        description: 개선/악화/유지 (±5% 기준, 지수 상승=악화)
 
   - name: gold_citydata_place_scorecard
     config:
@@ -1378,6 +1546,70 @@ models:
       - name: observed_at
         data_type: timestamp(6)
         description: 최신 상태 갱신 시각 (KST, 데이터 기준일)
+
+  - name: gold_citydata_sbike_availability
+    config:
+      tags: ['fast']
+      meta:
+        serving_tier: d1_direct
+        refresh: '5분'
+        display:
+          title: 따릉이 대여소별 실시간 가용
+          summary: 장소별 따릉이 대여소마다 지금 남은 자전거 수(parking_count)와 거치율을 제공합니다. "여기 지금 따릉이 남았어?"에 대여소 단위로 답합니다.
+          caveat: 현재 상태 스냅샷이라 과거 이력은 없습니다. place_latest는 장소 합계만 주지만 이 골드는 대여소 단위입니다.
+          use_cases:
+            - 대여소별 잔여 자전거 확인
+            - 근처 빌릴 수 있는 대여소 탐색
+            - 반납 가능 거치대 확인
+      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
+    description: >
+      gold_citydata_sbike_availability — 장소×대여소 현재 따릉이 가용 현황 스냅샷.
+      silver_citydata_sbike 에서 대여소별 최신 관측만 골라 서빙. 해결 질문:
+      "지금 여의도한강공원 따릉이 남아 있어", "근처 빌릴 수 있는 대여소는" — parking_count>0 필터.
+      grain (area_cd, spot_id) · 갱신 fast · 적재 table+replace(통째 재빌드). ⚠ 최신 스냅샷만(이력 없음).
+    columns:
+      - name: area_cd
+        data_type: varchar
+        description: 장소 코드 (POI###, grain 축)
+      - name: area_nm
+        data_type: varchar
+        description: 장소명
+      - name: area_category
+        data_type: varchar
+        description: 장소 분류
+      - name: admin_dong_code
+        data_type: varchar
+        description: 행안부 행정동 코드 10자리
+      - name: gu_code
+        data_type: varchar
+        description: 행안부 자치구 코드 5자리
+      - name: spot_id
+        data_type: varchar
+        description: 대여소 ID (grain 축)
+      - name: spot_nm
+        data_type: varchar
+        description: 대여소명
+      - name: spot_longitude
+        data_type: double
+        description: 대여소 경도
+      - name: spot_latitude
+        data_type: double
+        description: 대여소 위도
+      - name: parking_count
+        data_type: integer
+        description: 대여 가능 자전거 수 (★ "지금 남았어?" 판단)
+      - name: rack_count
+        data_type: integer
+        description: 거치대 수
+      - name: shared_rate_percent
+        data_type: integer
+        description: 거치율(%) = 자전거/거치대
+      - name: has_bikes
+        data_type: boolean
+        description: 대여 가능 자전거 존재 여부 (parking_count>0)
+      - name: observed_at
+        data_type: timestamp(6)
+        description: 최신 관측 시각 (KST)
 
   - name: gold_citydata_ppltn_dow_hour
     config:
