@@ -21,6 +21,10 @@ models:
             - 생활권 문화 인프라 격차 분석
             - 부동산·상권 리포트의 생활편의 지표
             - 동 단위 문화 히트맵
+    tests:
+      # 서빙 계약 PK 근거(#346) — validator 가 yml 선언만 인정(싱귤러는 불변식 겸용으로 별도 유지)
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [admin_dong_code, event_date]
     columns:
       - name: admin_dong_code
         description: 행정동 코드 — 행정안전부 표준 10자리. 다른 행정동 데이터와 붙이는 조인 키
@@ -148,10 +152,15 @@ models:
             - 인기 공연 큐레이션
             - 장르별 흥행 추이 리포트
             - 공연 추천 모델의 인기도 피처
+    tests:
+      # 서빙 계약 PK 근거(#346) — 그레인은 모델 선언(snapshot_date × rank_no) 그대로
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [snapshot_date, rank_no]
     columns:
       - name: snapshot_date
         description: 순위를 집계한 날(YYYY-MM-DD). 문자열로 저장된다
         data_type: varchar
+        tests: [not_null]
       - name: rank_no
         description: 예매 순위(1=최다) — snapshot_date 안에서 유일
         data_type: integer
@@ -217,6 +226,10 @@ models:
             - 행사 개최일 선정
             - 이번 주 볼거리 많은 자치구 콘텐츠
             - 지역별 문화 공급 편차 분석
+    tests:
+      # 서빙 계약 PK 근거(#346)
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [gu_code, event_date]
     columns:
       - name: gu_code
         description: 자치구 코드
@@ -261,6 +274,10 @@ models:
             - 방문 시간대 추천
             - 행사 운영 인력·안전 배치 계획
             - 한적한 관람 시간 안내
+    tests:
+      # 서빙 계약 PK 근거(#346)
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [gu_code, day_of_week, hour_of_day]
     columns:
       - name: gu_code
         description: 자치구 코드 — 혼잡 관측과 행사 데이터를 잇는 공통 키
