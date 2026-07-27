@@ -11,8 +11,6 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
-        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
-        external: true   # 외부 카탈로그 공개(티어링 v2)
         serving:   # Serving Contract v1.1 (#346, ASAC-DAG docs/contracts/serving-contract-v1.md)
           enabled: true
           external: true
@@ -95,8 +93,6 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
-        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
-        external: true   # 외부 카탈로그 공개(티어링 v2)
         serving:   # Serving Contract v1.1 (#346) — 스냅샷 요약이라 event_time 미선언(면제)
           enabled: true
           external: true
@@ -168,8 +164,6 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
-        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
-        external: true   # 외부 카탈로그 공개(티어링 v2)
         serving:   # Serving Contract v1.1 (#346) — PK = 모델 선언 그레인(snapshot_date × rank_no)
           enabled: true
           external: true
@@ -257,8 +251,6 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
-        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
-        external: true   # 외부 카탈로그 공개(티어링 v2)
         serving:   # Serving Contract v1.1 (#346)
           enabled: true
           external: true
@@ -318,8 +310,6 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
-        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
-        external: true   # 외부 카탈로그 공개(티어링 v2)
         serving:   # Serving Contract v1.1 (#346) — 요일축 명부성이라 event_time 미선언(면제)
           enabled: true
           external: true
@@ -379,8 +369,6 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
-        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
-        external: true   # 외부 카탈로그 공개(티어링 v2)
         serving:   # Serving Contract v1.1 (#346)
           enabled: true
           external: true
@@ -806,8 +794,6 @@ models:
       contract:
         enforced: true   # published gold 계약(#180)
       meta:
-        refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
-        external: true   # 외부 카탈로그 공개(#269 티어링 v2 — 명시적 true 첫 사용, #308 AC)
         serving:   # Serving Contract v1.1 (#346) — 명부성이라 event_time 미선언(면제)
           enabled: true
           external: true
