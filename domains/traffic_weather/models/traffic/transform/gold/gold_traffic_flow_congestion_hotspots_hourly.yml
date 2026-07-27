@@ -8,8 +8,21 @@ models:
       contract:
         enforced: true
       meta:
-        serving_tier: d1_direct
-        serving_tier_basis: 2026-07-21 dev 실측 277행이나 unique_key=[hour_at, link_id] incremental merge로 무기한 누적되는 형태입니다(link_latest처럼 상한이 없음). 관측 링크 상한(~103, flow_link_latest 기준)으로 추정하면 연 최대 약 90만 행, citydata gold_citydata_ppltn_hourly(연 106만행·5년 530만행≈800MB)와 유사한 성장 곡선입니다. 보존·purge 정책이 아직 없어 d1_direct로 두되 citydata 사례처럼 연 단위 재검토가 필요합니다(#323 후속 이슈로 별도 제안 예정).
+        serving:
+          enabled: true
+          external: true
+          product_id: traffic_flow_congestion_hotspots_hourly
+          product_question: 특정 시간에 관측 속도가 가장 낮은 링크는 어디입니까?
+          grain: hour_at과 link_id마다 한 행 — 시간대별 링크 혼잡 순위 관측.
+          primary_key: [product_row_id]
+          publication_mode: upsert
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '12 * * * *'
+          event_time: hour_at
+          freshness_slo_minutes: 90
+          retention_or_horizon: 무기한 누적 Gold이며 D1 exporter 적재 전 보존·purge 정책을 별도 승인합니다.
+          shape: event
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR

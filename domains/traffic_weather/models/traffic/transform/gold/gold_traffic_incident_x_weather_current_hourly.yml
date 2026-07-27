@@ -14,8 +14,20 @@ models:
         anchor_model: gold_traffic_incident_current_by_admin_dong_hourly
         context_domain: weather
         null_semantics: Missing weather context remains null and never rewrites Traffic incident_count or has_incident semantics.
-        serving_tier: d1_direct
-        serving_tier_basis: 2026-07-21 dev 실측 426행(admin_dong scaffold 고정, materialized=table 매 실행 전체 재계산이라 장기 누적 성장 없음). commerce/citydata의 d1_direct·d1_rollup·hold tier taxonomy와 D1 실용 상한(≪1GB) 기준 참고.
+        serving:
+          enabled: true
+          external: true
+          product_id: traffic_incident_x_weather_current_hourly
+          product_question: 돌발이 있는(또는 없는) 서울 행정동의 같은 평가 시간 KMA 예보 맥락은 무엇입니까?
+          grain: admin_dong_code와 hour_at마다 한 행 — 행정동 현재 돌발·날씨 맥락 스냅샷.
+          primary_key: [product_row_id]
+          publication_mode: snapshot
+          zero_policy: fail
+          publication_trigger:
+            schedule_cron: '12 * * * *'
+          event_time: hour_at
+          freshness_slo_minutes: 90
+          shape: wide
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR

@@ -8,8 +8,20 @@ models:
       contract:
         enforced: true
       meta:
-        serving_tier: d1_direct
-        serving_tier_basis: 2026-07-21 dev 실측 103행. unique_key=link_id upsert(incremental merge)라 지금까지 관측된 link_id 수 이상으로 늘지 않는 상한 고정 테이블. commerce/citydata의 d1_direct·d1_rollup·hold tier taxonomy와 D1 실용 상한(≪1GB) 기준 참고.
+        serving:
+          enabled: true
+          external: true
+          product_id: traffic_flow_link_latest
+          product_question: 각 도로 링크의 가장 최근 속도와 통행시간은 무엇입니까?
+          grain: link_id마다 한 행 — 링크별 최신 교통 흐름 스냅샷.
+          primary_key: [product_row_id]
+          publication_mode: upsert
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '12 * * * *'
+          event_time: observed_at_kst
+          freshness_slo_minutes: 90
+          shape: wide
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
