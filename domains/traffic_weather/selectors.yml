@@ -309,6 +309,42 @@ selectors:
     description: Weather W2 bounded recovery final publishability contract phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_w2_recovery_final_contract, indirect_selection: cautious}
 
+  - name: ask_seoul_weather_w2_recovery_stage_window_contract
+    description: 용신동 경량 recovery stage의 현재 6시간 창 계약 하나만 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/recovery/stage/assert_weather_w2_recovery_stage_window.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_stage_model
+    description: 용신동 경량 recovery의 project-internal protected staging model만 선택한다.
+    definition:
+      union:
+        - {method: path, value: models/weather/special/recovery/weather_w2_observation_recovery_stage.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_post_publish_bridge_contract
+    description: 경량 recovery publish 직후 전 동 missing·extra·invalid bridge를 검증하는 FULL reconcile 하나만 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_bridge_exclusions_reconcile.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_stage_final
+    description: 용신동 경량 recovery stage 전체 reconciliation 계약을 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/recovery/stage/assert_weather_w2_recovery_stage_final_reconciles.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_stage_winner
+    description: 용신동 경량 recovery stage winner bucket 계약을 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/recovery/stage/assert_weather_w2_recovery_stage_no_downgrade.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_stage_lineage
+    description: 용신동 경량 recovery stage lineage bucket 계약을 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/recovery/stage/assert_weather_w2_recovery_stage_lineage.sql, indirect_selection: empty}
+
   - name: ask_seoul_weather_w2_canonical_models
     description: Weather canonical W2 observation, native grid, public Gold model만 선택한다.
     definition:
@@ -318,7 +354,7 @@ selectors:
         - {method: path, value: models/weather/special/gold/gold_weather_forecast_by_admin_dong.sql, indirect_selection: empty}
 
   - name: ask_seoul_weather_w2_canonical_contracts
-    description: Weather canonical W2 public Gold의 필수 계약 test만 선택한다.
+    description: Weather canonical W2 public Gold의 매 snapshot 영향 grain 계약 test만 선택한다.
     definition:
       union:
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_join_reconciles.sql, indirect_selection: empty}
@@ -328,6 +364,21 @@ selectors:
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_canonical_source_contract.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_grain_unique.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_latest_grid_record.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_product_row_id_reproducible.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/recovery/winner/assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/recovery/reconciliation/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_canonical_full_contracts
+    description: Weather canonical W2 public Gold의 일일 전체 이력 계약 test만 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_join_reconciles.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_revision_exact.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_stamp_exact.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_bridge_exclusions_reconcile.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_canonical_source_contract.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_grain_unique.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_latest_grid_record_full.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_product_row_id_reproducible.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/recovery/winner/assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/recovery/reconciliation/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql, indirect_selection: empty}

@@ -419,11 +419,14 @@ cross join params
 )
 {%- endmacro %}
 
-{% macro weather_w2_assert_gold_dev_target() -%}
+{% macro weather_w2_assert_gold_dev_target(relation=none) -%}
+{%- if relation is none -%}
+    {%- set relation = this -%}
+{%- endif -%}
 {%- if execute and (
     target.name != 'dev'
     or target.database != 'iceberg_dev'
-    or this.schema != weather_schema_name()
+    or relation.schema != weather_schema_name()
 ) -%}
     {{ exceptions.raise_compiler_error(
         'Weather W2 public Gold는 승인된 dev/iceberg_dev/weather에서만 실행할 수 있습니다.'
