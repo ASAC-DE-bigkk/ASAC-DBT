@@ -11,6 +11,7 @@
     on_schema_change='fail',
     views_enabled=false,
     on_table_exists='drop',
+    pre_hook="{{ weather_delete_nonpublishable_kma_silver_runs(this) }}",
 ) }}
 
 {% set snapshot_dag_run_id = var('weather_snapshot_dag_run_id') %}
