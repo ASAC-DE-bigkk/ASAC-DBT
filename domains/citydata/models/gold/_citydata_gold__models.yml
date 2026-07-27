@@ -933,8 +933,24 @@ models:
     config:
       tags: ['hourly']
       meta:
-        serving_tier: d1_direct
-        refresh: '1시간'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_air_anomaly
+          product_question: 오늘 이 동네 미세먼지가 평소보다 심합니까?
+          grain: area_cd 마다 한 행 — 장소별 '평소(같은 시간대) 대비 지금'.
+          primary_key: [area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "15 * * * *"
+          event_time: event_at
+          freshness_slo_minutes: 150
+          shape: rollup
+          reliability:
+            sample_count_field: base_n
+            minimum_sample_count: 30
+            insufficient_sample_policy: flag_degraded
         display:
           title: 미세먼지 평소 대비 이상
           summary: 장소별로 지금 통합대기지수가 평소(같은 요일·시간) 대비 얼마나 나쁜지/좋은지를 z-score로 봅니다. "오늘 미세먼지 평소보다 심해?"에 답합니다.
@@ -955,6 +971,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
+        tests: [not_null, unique]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1079,8 +1096,20 @@ models:
     config:
       tags: ['hourly']
       meta:
-        serving_tier: d1_direct
-        refresh: '1시간'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_air_trend
+          product_question: 지금 이 장소의 미세먼지가 좋아지는 중입니까 나빠지는 중입니까?
+          grain: area_cd 마다 한 행 — 장소별 현재 대기질 추세.
+          primary_key: [area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "15 * * * *"
+          event_time: event_at
+          freshness_slo_minutes: 150
+          shape: wide
         display:
           title: 실시간 미세먼지 추세
           summary: 장소별로 지금 대기질(미세먼지)이 나아지고 있는지 나빠지고 있는지 추세를 봅니다. 실시간 스냅샷만으론 못 답하는 "좋아지는 중이야?"에 답합니다.
@@ -1101,6 +1130,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
+        tests: [not_null, unique]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1551,8 +1581,22 @@ models:
     config:
       tags: ['fast']
       meta:
-        serving_tier: d1_direct
-        refresh: '5분'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_sbike_availability
+          product_question: 지금 여기 따릉이가 몇 대 남아 있습니까?
+          grain: (area_cd, spot_id) 마다 한 행 — 대여소별 현재 가용.
+          primary_key: [area_cd, spot_id]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "*/5 * * * *"
+          event_time: observed_at
+          freshness_slo_minutes: 60
+          shape: wide
+          partial_policy:
+            min_publish_ratio: 0.8
         display:
           title: 따릉이 대여소별 실시간 가용
           summary: 장소별 따릉이 대여소마다 지금 남은 자전거 수(parking_count)와 거치율을 제공합니다. "여기 지금 따릉이 남았어?"에 대여소 단위로 답합니다.
@@ -1567,10 +1611,14 @@ models:
       silver_citydata_sbike 에서 대여소별 최신 관측만 골라 서빙. 해결 질문:
       "지금 여의도한강공원 따릉이 남아 있어", "근처 빌릴 수 있는 대여소는" — parking_count>0 필터.
       grain (area_cd, spot_id) · 갱신 fast · 적재 table+replace(통째 재빌드). ⚠ 최신 스냅샷만(이력 없음).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [area_cd, spot_id]
     columns:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
+        tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1586,6 +1634,7 @@ models:
       - name: spot_id
         data_type: varchar
         description: 대여소 ID (grain 축)
+        tests: [not_null]
       - name: spot_nm
         data_type: varchar
         description: 대여소명

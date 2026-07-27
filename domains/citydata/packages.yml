@@ -4,3 +4,7 @@
 # ⚠ 이 패키지는 ASAC-DBT #49로 dev에 반영 예정 — population은 #49 머지 후에 머지한다.
 packages:
   - local: /opt/airflow/dbt/packages/asac_axes
+  # 복합 PK 골드의 조합 고유성 근거(unique_combination_of_columns) — Serving Contract v1.1
+  # PK 증명 요구(#478). dbt hub 표준 패키지. `dbt deps`로 dbt_packages/에 설치.
+  - package: dbt-labs/dbt_utils
+    version: [">=1.1.1", "<2.0.0"]
