@@ -1,18 +1,6 @@
 -- depends_on: {{ ref('gold_weather_forecast_by_admin_dong') }}
 
 {% set canonical_contract = weather_w2_canonical_contract() %}
-{% set repair_mode = weather_w2_is_repair() %}
-{% set snapshot_dag_run_id = var('weather_snapshot_dag_run_id', none) %}
-{% if not repair_mode %}
-    {% if snapshot_dag_run_id is none and not execute %}
-        {% set snapshot_dag_run_id = 'parse-only' %}
-    {% elif snapshot_dag_run_id is not string
-          or snapshot_dag_run_id | length == 0 %}
-        {{ exceptions.raise_compiler_error(
-            'Weather W2 routine latest-record contract requires weather_snapshot_dag_run_id.'
-        ) }}
-    {% endif %}
-{% endif %}
 
 with active_bridge as (
     select
@@ -58,33 +46,6 @@ eligible_manifest_anchors as (
 ),
 {% endif %}
 
-{% if not repair_mode %}
-snapshot_grid_keys as (
-    select distinct
-        cast(grid.nx as integer) as nx,
-        cast(grid.ny as integer) as ny,
-        cast(grid.forecast_at as timestamp(6)) as forecast_at,
-        cast(grid.category as varchar) as category
-    from {{ ref('silver_kma_vilage_fcst_grid') }} as grid
-    inner join eligible_manifest_anchors as anchor
-        on cast(grid.source_id as varchar) = anchor.anchor_source_id
-       and cast(grid.selected_dag_run_id as varchar) = anchor.anchor_dag_run_id
-    where cast(grid.selected_dag_run_id as varchar)
-          = '{{ snapshot_dag_run_id | replace("'", "''") }}'
-),
-
-affected_product_keys as (
-    select distinct
-        bridge.admin_dong_code,
-        snapshot.forecast_at,
-        snapshot.category
-    from snapshot_grid_keys as snapshot
-    inner join active_bridge as bridge
-        on snapshot.nx = bridge.nx
-       and snapshot.ny = bridge.ny
-),
-{% endif %}
-
 joined_candidates as (
     select
         bridge.admin_dong_code,
@@ -122,12 +83,7 @@ joined_candidates as (
     inner join eligible_manifest_anchors as anchor
         on cast(grid.source_id as varchar) = anchor.anchor_source_id
        and cast(grid.selected_dag_run_id as varchar) = anchor.anchor_dag_run_id
-    {% if not repair_mode %}
-    inner join affected_product_keys as affected
-        on bridge.admin_dong_code = affected.admin_dong_code
-       and cast(grid.forecast_at as timestamp(6)) = affected.forecast_at
-       and cast(grid.category as varchar) = affected.category
-    {% else %}
+    {% if weather_w2_is_repair() %}
     where cast(grid.published_at as timestamp(6))
           >= timestamp '{{ weather_w2_repair_start_at() }}'
       and cast(grid.published_at as timestamp(6))
@@ -177,35 +133,29 @@ expected as (
 
 actual as (
     select
-        gold.admin_dong_code,
-        gold.forecast_at,
-        gold.category,
-        gold.bridge_version,
-        gold.issued_at,
-        gold.collected_at,
-        gold.published_at,
-        gold.fcst_value_raw,
-        gold.fcst_value_num,
-        gold.value_representation,
-        gold.value_num,
-        gold.value_lower_bound,
-        gold.value_upper_bound,
-        gold.qualitative_code,
-        gold.forecast_lead_hours,
-        gold.source_id,
-        gold.raw_object_key,
-        gold.request_id,
-        gold.dag_run_id,
-        gold.source_grid_place_id,
-        gold.nx,
-        gold.ny
-    from {{ ref('gold_weather_forecast_by_admin_dong') }} as gold
-    {% if not repair_mode %}
-    inner join affected_product_keys as affected
-        on gold.admin_dong_code = affected.admin_dong_code
-       and gold.forecast_at = affected.forecast_at
-       and gold.category = affected.category
-    {% endif %}
+        admin_dong_code,
+        forecast_at,
+        category,
+        bridge_version,
+        issued_at,
+        collected_at,
+        published_at,
+        fcst_value_raw,
+        fcst_value_num,
+        value_representation,
+        value_num,
+        value_lower_bound,
+        value_upper_bound,
+        qualitative_code,
+        forecast_lead_hours,
+        source_id,
+        raw_object_key,
+        request_id,
+        dag_run_id,
+        source_grid_place_id,
+        nx,
+        ny
+    from {{ ref('gold_weather_forecast_by_admin_dong') }}
 )
 
 select
@@ -226,7 +176,7 @@ left join actual
    and expected.forecast_at = actual.forecast_at
    and expected.category = actual.category
 where actual.admin_dong_code is null
-{% if repair_mode %}
+{% if weather_w2_is_repair() %}
    or not {{ weather_w2_gold_winner_is_not_older('actual', 'expected') }}
    or (
        {{ weather_w2_gold_winner_is_not_older('actual', 'expected') }}
@@ -265,45 +215,29 @@ where actual.admin_dong_code is null
        )
    )
 {% else %}
-   or actual.bridge_version is distinct from expected.bridge_version
-   or actual.nx is distinct from expected.nx
-   or actual.ny is distinct from expected.ny
-   or actual.source_grid_place_id is distinct from expected.source_grid_place_id
-   or actual.issued_at is distinct from expected.issued_at
-   or actual.collected_at is distinct from expected.collected_at
-   or actual.published_at is distinct from expected.published_at
-   or actual.fcst_value_raw is distinct from expected.fcst_value_raw
-   or actual.fcst_value_num is distinct from expected.fcst_value_num
-   or actual.value_representation is distinct from expected.value_representation
-   or actual.value_num is distinct from expected.value_num
-   or actual.value_lower_bound is distinct from expected.value_lower_bound
-   or actual.value_upper_bound is distinct from expected.value_upper_bound
-   or actual.qualitative_code is distinct from expected.qualitative_code
-   or actual.forecast_lead_hours is distinct from expected.forecast_lead_hours
-   or actual.source_id is distinct from expected.source_id
-   or actual.raw_object_key is distinct from expected.raw_object_key
-   or actual.request_id is distinct from expected.request_id
-   or actual.dag_run_id is distinct from expected.dag_run_id
-{% endif %}
-
-{% if not repair_mode %}
-union all
-select
-    cast('__snapshot_not_publishable_or_empty__' as varchar) as admin_dong_code,
-    cast(null as timestamp(6)) as forecast_at,
-    cast(null as varchar) as category,
-    cast(null as timestamp(6)) as expected_issued_at,
-    cast(null as timestamp(6)) as actual_issued_at,
-    cast(null as varchar) as expected_dag_run_id,
-    cast(null as varchar) as actual_dag_run_id,
-    cast(null as varchar) as expected_raw_object_key,
-    cast(null as varchar) as actual_raw_object_key,
-    cast(null as varchar) as expected_request_id,
-    cast(null as varchar) as actual_request_id
-where not exists (
-    select 1
-    from eligible_manifest_anchors
-    where anchor_dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
-)
-   or not exists (select 1 from snapshot_grid_keys)
+   or not {{ weather_w2_gold_winner_is_not_older('actual', 'expected') }}
+   or (
+       {{ weather_w2_gold_winner_is_not_older('expected', 'actual') }}
+       and (
+           actual.bridge_version is distinct from expected.bridge_version
+           or actual.nx is distinct from expected.nx
+           or actual.ny is distinct from expected.ny
+           or actual.source_grid_place_id is distinct from expected.source_grid_place_id
+           or actual.issued_at is distinct from expected.issued_at
+           or actual.collected_at is distinct from expected.collected_at
+           or actual.published_at is distinct from expected.published_at
+           or actual.fcst_value_raw is distinct from expected.fcst_value_raw
+           or actual.fcst_value_num is distinct from expected.fcst_value_num
+           or actual.value_representation is distinct from expected.value_representation
+           or actual.value_num is distinct from expected.value_num
+           or actual.value_lower_bound is distinct from expected.value_lower_bound
+           or actual.value_upper_bound is distinct from expected.value_upper_bound
+           or actual.qualitative_code is distinct from expected.qualitative_code
+           or actual.forecast_lead_hours is distinct from expected.forecast_lead_hours
+           or actual.source_id is distinct from expected.source_id
+           or actual.raw_object_key is distinct from expected.raw_object_key
+           or actual.request_id is distinct from expected.request_id
+           or actual.dag_run_id is distinct from expected.dag_run_id
+       )
+   )
 {% endif %}
