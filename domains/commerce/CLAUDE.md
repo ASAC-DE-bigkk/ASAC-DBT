@@ -20,17 +20,23 @@ ASAC-DAG `dags/domains/commerce/CLAUDE.md` 를 따른다.
   수정하지 않는다.** 교차 도메인 참조는 gold 레이어의 published source 계약으로만 이뤄진다
   (예: weather 가 `commerce_gold.gold_license_dong_summary` 를 source 로 소비).
 
-## 공용 D1 Serving Contract (추적 — 지금은 대상 아님)
+## D1 서빙 계약 (commerce 자체 관리)
 
-공용 Cloudflare **D1** 서빙용 도메인 공통 계약(ASAC-DAG #478)이 있다. dbt 쪽 몫은 모델
-`config.meta.serving.*` 선언 + ASAC-DBT `serving_contract/` **Validator/CI Gate** 통과다.
-단, **commerce D1 export 는 미구현**(gold 는 Iceberg 카탈로그에만 존재 — [serving-design.md](docs/DB/gold/serving-design.md) §5-⑤)
-이고, CI 게이트(`serving-contract-gate`)는 **`meta.serving` 선언 모델만 검증**하므로 선언이 없는 지금
-commerce yml PR 은 **0 models = PASS**(강제되지 않음). 즉 지금 고칠 D1 서빙 코드도, merge 를 막는
-포맷 위반도 없다. commerce 는 자체 tier 스킴(iceberg_api/d1_rollup/d1_direct)을 갖고 있어 **D1 export
-를 짓는 시점에** 이 계약(`meta.serving.*`)으로 수렴해야 한다.
+commerce gold → 공유 Cloudflare **D1(SQLite)** 서빙은 **commerce 안에서 자체 규약으로 관리**한다.
+타 도메인 방식을 따라갈 필요 없다.
 
-- **필드 매핑 정본(각 gold 모델의 계약 필드값·근거·적용 절차)**: [docs/DB/gold/serving-contract-mapping.md](docs/DB/gold/serving-contract-mapping.md)
-  — 22 gold 중 지금 선언 대상은 d1_direct 15개, product_id·grain·primary_key·publication_mode 등 값 확정.
-- 추적(정본으로 가는 길): dags 번들 [`docs/serving-contract-chain.md`](../../../dags/domains/commerce/docs/serving-contract-chain.md)
-  (상위 규약 `dags/domains/commerce/CLAUDE.md` §19.2). 타 도메인 dbt 폴더는 여전히 무접촉.
+- **정본 규약**: gold 모델 `config.meta.serving.serving_tier`(`d1_direct`/`d1_rollup`/`iceberg_api`)
+  + `d1_table` · `publication_mode`(`iceberg`/`rollup`) · `product_id`(`gold_*`) · `product_question`.
+  선언·소비의 정본은 export `SERVING_SPEC` 과 대조된다.
+- **구현(진행 중, 미구현 아님)**:
+  - 계약(dbt): **ASAC-DBT #334 → PR #335**(`serving_tier` 재정리).
+  - export(dags): **ASAC-DAG #493 → PR #494** `commerce_serving_export`(gold Asset 트리거 분리 DAG,
+    `include/gold/serving_export.py`). direct 15 = `SELECT *` 스냅샷, rollup = export 시 GROUP BY 파생,
+    iceberg_api = D1 금지·Trino 직조회. 기존 serving Postgres 경로는 폐기(2026-07-14).
+- **설계 정본**: [docs/DB/gold/serving-design.md](docs/DB/gold/serving-design.md)(tier 분류·화면 매핑·서빙 계약).
+- **org 공통 계약(#478)과의 관계**: ASAC-DAG #478 `meta.serving.enabled/…` 는 별개의 org 공통 계약이다.
+  commerce 는 자체 `serving_tier` 규약을 쓰며 org 계약에 강제 종속되지 않는다. 추적(참고): dags 번들
+  [`docs/serving-contract-chain.md`](../../../dags/domains/commerce/docs/serving-contract-chain.md).
+  **주의(향후 확인)**: ASAC-DBT `serving-contract-gate` CI 는 `config.meta.serving` 이 있는 **모든** 모델을
+  #478 규격으로 검사하므로, commerce 의 `serving_tier` 블록이 그 게이트에 걸릴 수 있다 — 이 정합은
+  commerce 자체 PR(#335 계열)에서 결정한다(게이트 예외/네임스페이스 분리/수렴 중 택1). 타 도메인 무접촉.
