@@ -120,8 +120,18 @@ models:
     config:
       tags: ['slow']
       meta:
-        serving_tier: d1_direct
-        refresh: '1일'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_daily
+          product_question: 이 장소는 하루 평균·최대 얼마나 붐볐습니까?
+          grain: (event_date, area_code) 마다 한 행 — 장소·일 인구 집계.
+          primary_key: [event_date, area_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
         display:
           title: 장소별 일 혼잡 요약
           summary: 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
@@ -131,10 +141,6 @@ models:
             - 요일·계절 비교
             - 리포트 KPI
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [event_date, area_code]
     description: >
       gold_citydata_ppltn_daily — 장소별 하루 혼잡 인사이트. 일 평균/최대/최소 인구,
       피크 시각·피크 혼잡도, 붐빔 비율, 측정 완결성(슬라이스 수). 해결 질문:
@@ -145,9 +151,11 @@ models:
       - name: event_date
         data_type: date
         description: 집계 날짜 (event_at의 KST 날짜) — grain 축
+        tests: [not_null]
       - name: area_code
         data_type: varchar
         description: 장소 코드 (POI###) — grain 축
+        tests: [not_null]
       - name: area_name
         data_type: varchar
         description: 장소명
@@ -197,12 +205,28 @@ models:
         data_type: bigint
         description: 그날 수집 슬라이스 수 (완결성 지표)
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [event_date, area_code]
   - name: gold_citydata_ppltn_hourly
     config:
       tags: ['hourly']
       meta:
-        serving_tier: d1_direct
-        refresh: '1시간'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_hourly
+          product_question: 이 장소는 몇 시에 붐비고 몇 시에 한산합니까?
+          grain: (time_bucket, area_cd) 마다 한 행 — 장소·시간 인구 집계.
+          primary_key: [time_bucket, area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 15 * * * *
+          event_time: time_bucket
+          freshness_slo_minutes: 150
+          shape: rollup
         display:
           title: 장소별 시간대 혼잡
           summary: 장소마다 시간 단위로 인구·혼잡을 집계했습니다. 몇 시가 붐비고 한산한지 시간대별로 볼 수 있습니다.
@@ -212,10 +236,6 @@ models:
             - 피크타임 분석
             - 운영 인력 배치
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [time_bucket, area_cd]
     description: >
       gold_citydata_ppltn_hourly — 장소별 시간 혼잡 인사이트. 시간 평균/최대/최소 인구,
       피크 5분 시각·혼잡도, 붐빔 비율, 측정 완결성(최대 12슬라이스). daily(일)와 by_time(5분)
@@ -227,9 +247,11 @@ models:
       - name: time_bucket
         data_type: timestamp(6)
         description: 시간 버킷 (KST, date_trunc hour) — grain 축
+        tests: [not_null]
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###) — grain 축
+        tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -281,12 +303,28 @@ models:
 
   # ── citydata 계열 (#69, ASAC-DAG#192) ───────────────────────────────────────
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [time_bucket, area_cd]
   - name: gold_citydata_place_latest
     config:
       tags: ['fast']
       meta:
-        serving_tier: d1_direct
-        refresh: '5분'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_place_latest
+          product_question: 지금 이 장소는 어떤 상태입니까? (혼잡·대기질·상권·따릉이)
+          grain: area_cd 마다 한 행 — 장소별 최신 크로스 신호 스냅샷.
+          primary_key: [area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '*/5 * * * *'
+          event_time: ppltn_at
+          freshness_slo_minutes: 90
+          shape: wide
         display:
           title: 실시간 장소 종합 신호
           summary: 서울 주요 장소의 최신 혼잡·대기질·상권·따릉이 신호를 한 행으로 모았습니다. "지금 여기 어때"에 바로 답합니다.
@@ -306,7 +344,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
-        data_tests: [unique, not_null]
+        tests: [unique, not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -403,14 +441,24 @@ models:
       - name: refreshed_at
         data_type: timestamp(6)
         description: 이 행에 반영된 신호들의 최신 시각
-        data_tests: [not_null]
+        tests: [not_null]
 
   - name: gold_citydata_cmrcl_daily
     config:
       tags: ['slow']
       meta:
-        serving_tier: d1_direct
-        refresh: '1일'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_cmrcl_daily
+          product_question: 이 장소는 하루 결제·상권 활력이 어느 정도입니까?
+          grain: (event_date, area_cd) 마다 한 행 — 장소·일 상권 집계.
+          primary_key: [event_date, area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
         display:
           title: 장소별 일 소비(상권)
           summary: 장소마다 하루 결제 건수와 상권 활력을 집계했습니다. 붐빔 대비 얼마나 소비가 일어나는지 봅니다.
@@ -420,10 +468,6 @@ models:
             - 붐빔 대비 소비 분석
             - 입지 리포트
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [event_date, area_cd]
     description: >
       gold_citydata_cmrcl_daily — 장소별 일 소비(상권) 인사이트. 결제 건수 합/평균,
       최대 결제금액, 결제 피크 시각·피크 활성 수준, 바쁨 비율, 측정 완결성. 해결 질문:
@@ -433,11 +477,11 @@ models:
       - name: event_date
         data_type: date
         description: 집계 날짜 (KST) — grain 축
-        data_tests: [not_null]
+        tests: [not_null]
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
-        data_tests: [not_null]
+        tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -486,12 +530,26 @@ models:
 
   # ── 신규 골드 (#122) ─────────────────────────────────────────────────────────
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [event_date, area_cd]
   - name: gold_citydata_purchasing_power_daily
     config:
       tags: ['slow']
       meta:
-        serving_tier: d1_direct
-        refresh: '1일'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_purchasing_power_daily
+          product_question: 이 장소는 유동인구가 실제 소비로 잘 이어집니까?
+          grain: (event_date, area_cd) 마다 한 행 — 장소·일 구매력 지수.
+          primary_key: [event_date, area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
         display:
           title: 장소별 구매력 지수
           summary: 붐빔 대비 결제를 지수화해 어느 장소의 유동인구가 실제 소비로 잘 이어지는지 봅니다.
@@ -501,10 +559,6 @@ models:
             - 유동 대비 소비 효율
             - 입점 우선순위
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [event_date, area_cd]
     description: >
       gold_citydata_purchasing_power_daily — 장소별 일 구매력·붐빔대비구매 지수.
       유동인구(ppltn)와 결제(cmrcl)를 일집계 조인해 buy/spend_per_crowd_idx 와
@@ -516,11 +570,11 @@ models:
       - name: event_date
         data_type: date
         description: 집계 날짜 (KST) — grain 축
-        data_tests: [not_null]
+        tests: [not_null]
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
-        data_tests: [not_null]
+        tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -582,12 +636,26 @@ models:
         data_type: bigint
         description: 그날 자치구 내 순위
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [event_date, area_cd]
   - name: gold_citydata_ppltn_x_culture_daily
     config:
       tags: ['slow']
       meta:
-        serving_tier: d1_direct
-        refresh: '1일'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_x_culture_daily
+          product_question: 이 동네는 문화행사가 유동인구와 어떻게 맞물립니까?
+          grain: (event_date, admin_dong_code) 마다 한 행 — 동·일 인구×문화.
+          primary_key: [event_date, admin_dong_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
         display:
           title: 동네 혼잡 × 문화활동
           summary: 행정동·일 단위로 인구 혼잡과 문화행사·활동을 겹쳐 봤습니다. 행사와 유동의 관계를 봅니다.
@@ -597,10 +665,6 @@ models:
             - 문화·유동 상관 분석
             - 행사 입지 검토
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [event_date, admin_dong_code]
     description: >
       gold_citydata_ppltn_x_culture_daily — 행정동×일 인구혼잡 × 문화활동 6종
       (행사·축제·공연·전시·세종·KCISA, 크로스도메인 culture source). 동별 일 붐빔과
@@ -611,11 +675,11 @@ models:
       - name: event_date
         data_type: date
         description: 집계 날짜 (KST) — grain 축
-        data_tests: [not_null]
+        tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
         description: 행안부 행정동 코드 10자리 — grain 축·조인 키
-        data_tests: [not_null]
+        tests: [not_null]
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -653,12 +717,28 @@ models:
         data_type: varchar
         description: 존재하는 문화활동 유형 목록 (예 '행사, 공연, 전시')
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [event_date, admin_dong_code]
   - name: gold_citydata_transit_x_incident_hourly
     config:
       tags: ['hourly']
       meta:
-        serving_tier: d1_direct
-        refresh: '1시간'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_transit_x_incident_hourly
+          product_question: 이 동네는 언제 교통이 막히고 돌발이 잦습니까?
+          grain: (time_bucket, admin_dong_code) 마다 한 행 — 동·시간 교통×돌발.
+          primary_key: [time_bucket, admin_dong_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 15 * * * *
+          event_time: time_bucket
+          freshness_slo_minutes: 150
+          shape: rollup
         display:
           title: 동네 교통량 × 돌발
           summary: 행정동·시간별 승하차 강도와 교통 돌발 상황을 함께 봅니다. 어디가 언제 막히는지 봅니다.
@@ -668,10 +748,6 @@ models:
             - 돌발 영향 분석
             - 이동 계획
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [time_bucket, admin_dong_code]
     description: >
       gold_citydata_transit_x_incident_hourly — 행정동×시간 승하차 강도 × 교통돌발
       (크로스도메인 traffic source). 5분창 승하차 중앙값의 시간내 평균(대표 강도)과
@@ -682,11 +758,11 @@ models:
       - name: time_bucket
         data_type: timestamp(6)
         description: 시간 버킷 (KST, date_trunc hour) — grain 축
-        data_tests: [not_null]
+        tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
         description: 행안부 행정동 코드 10자리 — grain 축·조인 키
-        data_tests: [not_null]
+        tests: [not_null]
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -721,12 +797,28 @@ models:
         data_type: varchar
         description: 활성 돌발의 유형 목록 (사고·공사 등)
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [time_bucket, admin_dong_code]
   - name: gold_citydata_ppltn_x_weather_hourly
     config:
       tags: ['hourly']
       meta:
-        serving_tier: d1_direct
-        refresh: '1시간'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_x_weather_hourly
+          product_question: 날씨가 이 동네 붐빔에 어떻게 영향을 줍니까?
+          grain: (time_bucket, admin_dong_code) 마다 한 행 — 동·시간 인구×기상.
+          primary_key: [time_bucket, admin_dong_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 15 * * * *
+          event_time: time_bucket
+          freshness_slo_minutes: 150
+          shape: rollup
         display:
           title: 동네 혼잡 × 날씨
           summary: 행정동·시간별 인구 혼잡과 기상 예보를 겹쳐 봤습니다. 날씨가 붐빔에 어떻게 영향 주는지 봅니다.
@@ -736,10 +828,6 @@ models:
             - 우천 시 혼잡 예측
             - 야외 행사 리스크
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [time_bucket, admin_dong_code]
     description: >
       gold_citydata_ppltn_x_weather_hourly — 행정동×시간 인구혼잡 × 기상청 단기예보
       (기온·강수확률·습도·풍속·하늘상태, 크로스도메인 weather source, 최신 발표분 피벗).
@@ -750,11 +838,11 @@ models:
       - name: time_bucket
         data_type: timestamp(6)
         description: 시간 버킷 (KST, date_trunc hour) — grain 축
-        data_tests: [not_null]
+        tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
         description: 행안부 행정동 코드 10자리 — grain 축·조인 키
-        data_tests: [not_null]
+        tests: [not_null]
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -795,13 +883,27 @@ models:
         data_type: boolean
         description: 강수형태 예보로 판단한 비/눈 여부 (boolean)
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [time_bucket, admin_dong_code]
   - name: gold_citydata_ppltn_x_commerce_dong
     config:
       # commerce silver_license_current 복구 확인(2026-07-21, 2.79M행) → fast 태그 원복(#296 해소)
       tags: ['fast']
       meta:
-        serving_tier: d1_direct
-        refresh: '5분'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_x_commerce_dong
+          product_question: 이 동네는 유동 대비 상가 공급이 어떻습니까?
+          grain: admin_dong_code 마다 한 행 — 동별 인구×상가밀도.
+          primary_key: [admin_dong_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '*/5 * * * *'
+          shape: wide
         display:
           title: 동네 혼잡 × 상가밀도
           summary: 행정동 단위로 인구 혼잡과 상가 밀도를 함께 봅니다. 유동 대비 상가 공급을 봅니다.
@@ -811,10 +913,6 @@ models:
             - 창업 입지
             - 상권 포화도
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [admin_dong_code]
     description: >
       gold_citydata_ppltn_x_commerce_dong — 행정동 단위 인구혼잡 × 상가 밀도
       (크로스도메인 commerce 인허가 명부 — 영업중 개수, 음식점·미용실 등). 동 평균 붐빔과
@@ -825,7 +923,7 @@ models:
       - name: admin_dong_code
         data_type: varchar
         description: 행안부 행정동 코드 10자리 (grain 축·동 조인 키)
-        data_tests: [unique, not_null]
+        tests: [unique, not_null]
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -857,12 +955,28 @@ models:
         data_type: bigint
         description: 그중 미용실 영업중 수
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [admin_dong_code]
   - name: gold_citydata_ppltn_anomaly
     config:
       tags: ['fast']
       meta:
-        serving_tier: d1_direct
-        refresh: '5분'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_anomaly
+          product_question: 지금 이 장소가 평소보다 유난히 붐빕니까?
+          grain: area_cd 마다 한 행 — 장소별 평소 대비 현재 혼잡.
+          primary_key: [area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '*/5 * * * *'
+          event_time: event_at
+          freshness_slo_minutes: 90
+          shape: rollup
         display:
           title: 혼잡 이상 감지
           summary: 평소(요일×시간) 대비 지금 유난히 붐비는 장소를 z-score로 탐지합니다.
@@ -882,7 +996,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
-        data_tests: [unique, not_null]
+        tests: [unique, not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1034,8 +1148,20 @@ models:
     config:
       tags: ['fast']
       meta:
-        serving_tier: d1_direct
-        refresh: '5분'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_trend
+          product_question: 지금 이 장소의 붐빔이 늘고 있습니까 줄고 있습니까?
+          grain: area_cd 마다 한 행 — 장소별 현재 혼잡 추세.
+          primary_key: [area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '*/5 * * * *'
+          event_time: event_at
+          freshness_slo_minutes: 90
+          shape: rollup
         display:
           title: 실시간 붐빔 추세
           summary: 장소별로 지금 붐빔이 늘고 있는지 줄고 있는지 추세를 봅니다.
@@ -1054,7 +1180,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
-        data_tests: [unique, not_null]
+        tests: [unique, not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1193,8 +1319,18 @@ models:
     config:
       tags: ['fast']
       meta:
-        serving_tier: d1_direct
-        refresh: '5분'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_place_scorecard
+          product_question: 지금 이 장소의 종합 상태 점수는 몇 점입니까?
+          grain: area_cd 마다 한 행 — 장소별 종합 스코어.
+          primary_key: [area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '*/5 * * * *'
+          shape: rollup
         display:
           title: 장소 종합 스코어카드
           summary: 장소마다 혼잡·상권·신호를 종합한 현재 점수를 한 행으로 제공합니다.
@@ -1214,7 +1350,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
-        data_tests: [unique, not_null]
+        tests: [unique, not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1292,8 +1428,18 @@ models:
     config:
       tags: ['fast']
       meta:
-        serving_tier: d1_direct
-        refresh: '5분'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_hot_commerce
+          product_question: 요즘 뜨는 상권은 어디입니까?
+          grain: area_cd 마다 한 행 — 장소별 상권 상승 지수.
+          primary_key: [area_cd]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '*/5 * * * *'
+          shape: rollup
         display:
           title: 뜨는 상권 지수
           summary: 붐빔 변화율과 구매력으로 요즘 뜨는 상권을 지수화했습니다.
@@ -1312,7 +1458,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
-        data_tests: [unique, not_null]
+        tests: [unique, not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1348,8 +1494,18 @@ models:
     config:
       tags: ['daily']
       meta:
-        serving_tier: d1_direct
-        refresh: '패턴'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_forecast
+          product_question: 이번 주말 이 장소는 몇 시가 붐빌까요?
+          grain: (area_cd, is_weekend, hr) 마다 한 행 — 과거 평균 붐빔 예보.
+          primary_key: [area_cd, is_weekend, hr]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
         display:
           title: 장소 혼잡 예보 (주말·시간대)
           summary: 장소×주말여부×시간대의 과거 평균 붐빔으로 "이번 주말 몇 시가 붐빌까"를 예보합니다.
@@ -1359,10 +1515,6 @@ models:
             - 한산한 때 추천
             - 혼잡 회피
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [area_cd, is_weekend, hr]
     description: >
       gold_citydata_ppltn_forecast — 장소×주말여부×시간대 인구혼잡 예보(패턴 기반).
       과거 평균 붐빔(expected_ppltn)±표준편차·과거 최대. 해결 질문: "이번 주말 홍대
@@ -1373,7 +1525,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
-        data_tests: [not_null]
+        tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1392,9 +1544,11 @@ models:
       - name: is_weekend
         data_type: boolean
         description: 주말 여부 — 예보 분할 축 (토·일 = true)
+        tests: [not_null]
       - name: hr
         data_type: bigint
         description: 시(0~23) — 예보 분할 축
+        tests: [not_null]
       - name: expected_ppltn
         data_type: double
         description: 그 장소·주말여부·시간대 과거 평균 붐빔 (= 예상값)
@@ -1407,12 +1561,26 @@ models:
       - name: base_n
         data_type: bigint
         description: 표본 수 (작으면 신뢰도 낮음)
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, is_weekend, hr]
   - name: gold_citydata_ppltn_demographics
     config:
       tags: ['daily']
       meta:
-        serving_tier: d1_direct
-        refresh: '패턴'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_demographics
+          product_question: 이 장소는 어떤 성별·나이대가 언제 몰립니까?
+          grain: (area_cd, dow, hour, segment_type, segment) 마다 한 행 — 방문객 구성 패턴.
+          primary_key: [area_cd, dow, hour, segment_type, segment]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
         display:
           title: 방문객 인구통계 패턴
           summary: 장소·요일·시간대별로 방문객의 성별·나이대 비율 패턴을 제공합니다. "20대는 언제 몰리나"에 답합니다.
@@ -1422,10 +1590,6 @@ models:
             - 시간대별 마케팅
             - 상권 인구 프로파일
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [area_cd, dow, hour, segment_type, segment]
     description: >
       gold_citydata_ppltn_demographics — 장소×요일×시간대 인구 성별·나이대 세그먼트 패턴.
       silver_ppltn 의 wide 비율을 long 으로 언피벗해 요일×시간대 평균 집계
@@ -1438,6 +1602,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
+        tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명 (예 홍대 관광특구)
@@ -1459,15 +1624,19 @@ models:
       - name: dow
         data_type: bigint
         description: 요일 (Trino day_of_week — 1=월 … 6=토 … 7=일, grain 축)
+        tests: [not_null]
       - name: hour
         data_type: bigint
         description: 시각 (0~23, KST event_at 기준, grain 축)
+        tests: [not_null]
       - name: segment_type
         data_type: varchar
         description: 세그먼트 차원 — gender | age (grain 축)
+        tests: [not_null]
       - name: segment
         data_type: varchar
         description: 세그먼트 값 — gender=male/female, age=0/10/…/70(대) (grain 축)
+        tests: [not_null]
       - name: avg_rate_pct
         data_type: decimal(6,2)
         description: 그 (요일,시간) 버킷 세그먼트 비율(%) 평균
@@ -1484,12 +1653,28 @@ models:
         data_type: bigint
         description: 집계된 5분 실측 스냅샷 수 (신뢰도 지표)
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, dow, hour, segment_type, segment]
   - name: gold_citydata_charger_availability
     config:
       tags: ['fast']
       meta:
-        serving_tier: d1_direct
-        refresh: '5분'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_charger_availability
+          product_question: 지금 이 장소의 EV 충전소를 쓸 수 있습니까?
+          grain: (area_cd, stat_id) 마다 한 행 — 충전소별 현재 가용.
+          primary_key: [area_cd, stat_id]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '*/5 * * * *'
+          event_time: observed_at
+          freshness_slo_minutes: 60
+          shape: wide
         display:
           title: 전기차 충전 실시간 가용
           summary: 장소별 EV 충전소의 현재 이용 가능 현황을 제공합니다.
@@ -1499,10 +1684,6 @@ models:
             - 충전 인프라 혼잡
             - 경로 계획
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [area_cd, stat_id]
     description: >
       gold_citydata_charger_availability — 장소×충전소 현재 EV 충전 가용 현황 스냅샷.
       silver_charger 에서 충전기별 최신 상태만 골라 충전소 단위 집계(가용/전체 대수).
@@ -1513,6 +1694,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
+        tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1534,6 +1716,7 @@ models:
       - name: stat_id
         data_type: varchar
         description: 충전소 ID (grain 축)
+        tests: [not_null]
       - name: stat_nm
         data_type: varchar
         description: 충전소명
@@ -1577,6 +1760,10 @@ models:
         data_type: timestamp(6)
         description: 최신 상태 갱신 시각 (KST, 데이터 기준일)
 
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, stat_id]
   - name: gold_citydata_sbike_availability
     config:
       tags: ['fast']
@@ -1664,8 +1851,18 @@ models:
     config:
       tags: ['daily']
       meta:
-        serving_tier: d1_direct
-        refresh: '패턴'
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_ppltn_dow_hour
+          product_question: 이 장소는 무슨 요일 몇 시가 붐빕니까?
+          grain: (area_cd, dow, hr) 마다 한 행 — 요일×시간 붐빔 패턴.
+          primary_key: [area_cd, dow, hr]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
         display:
           title: 요일·시간 혼잡 패턴
           summary: 장소마다 무슨 요일 몇 시가 붐비고 한산한지 요일×시간으로 요약했습니다. 실검 수요가 가장 많은 축입니다.
@@ -1675,10 +1872,6 @@ models:
             - 요일별 방문 계획
             - 한산한 요일·시간 추천
       contract: {enforced: true}
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [area_cd, dow, hr]
     description: >
       gold_citydata_ppltn_dow_hour — 장소×요일×시간 인구혼잡 롤업. by_time 파생.
       해결 질문: "화요일 저녁 강남 붐빔?", "성수동 제일 한산한 요일·시간?".
@@ -1689,6 +1882,7 @@ models:
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
+        tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
@@ -1733,3 +1927,7 @@ models:
       - name: reliable
         data_type: boolean
         description: 표본 충분 여부 (base_n>=30). 초기엔 false 많음 — 소비측 캐비앳용
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, dow, hr]
