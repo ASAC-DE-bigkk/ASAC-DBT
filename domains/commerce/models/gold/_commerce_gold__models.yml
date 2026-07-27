@@ -216,6 +216,25 @@ models:
     description: 개업/폐업 월중 계절성(1~12월) × 업종 — '어느 달에 개·폐업 몰리나'(연도 무관, 최근 10개 완결연).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_seasonality
+          product_question: 개·폐업이 한 해 중 어느 달(계절)에 몰리나?
+          grain: event_type×month_of_year×major×category×dataset 마다 한 행입니다.
+          primary_key: [event_type, month_of_year, major, category, dataset]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [event_type, month_of_year, major, category, dataset]
     columns:
       - name: event_type
         data_type: varchar
@@ -236,9 +255,11 @@ models:
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]
       - name: cnt
         data_type: bigint
         description: 해당 월 개업/폐업 누적 건수(최근 10년 완결연 합).
@@ -313,6 +334,25 @@ models:
     description: 이 업종 얼마나 버티나 — 폐업 완결분 수명(개업→폐업 일수) 분포 × 업종 × 자치구. 조기폐업률 포함(폐업분 기준 편향 주의).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_lifespan
+          product_question: 이 업종 폐업 업소는 보통 몇 년 버텼고 조기폐업률은 얼마인가?
+          grain: major×category×dataset×gu_code 마다 한 행입니다.
+          primary_key: [major, category, dataset, gu_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset, gu_code]
     columns:
       - name: major
         data_type: varchar
@@ -321,12 +361,15 @@ models:
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]
       - name: n_closed
         data_type: bigint
         description: 수명 계산 모수 — 개업일·폐업일이 모두 유효한 폐업 완결 업소 수.
@@ -365,6 +408,25 @@ models:
     description: 창업 생존율 곡선 — 개업연도 코호트의 경과연차별 생존율 × 대/중분류. 우측검열 차단(관측 가능 연차만), 연 단위 근사.
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_cohort_survival
+          product_question: 이 업종으로 창업하면 k년 후 생존확률은 얼마인가?
+          grain: major×category×cohort_y×years_elapsed 마다 한 행입니다.
+          primary_key: [major, category, cohort_y, years_elapsed]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, cohort_y, years_elapsed]
     columns:
       - name: major
         data_type: varchar
@@ -373,6 +435,7 @@ models:
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]
       - name: cohort_y
         data_type: integer
         description: 개업연도 코호트(정수).
@@ -400,10 +463,30 @@ models:
     description: 휴업하면 얼마나 쉬나 — 상태(영업/휴업/폐업/취소) 세그먼트 지속기간 요약 × 업종·상태군. 이력 기반(씨앗 — 표본 축적 중).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_status_duration
+          product_question: 휴업/영업/폐업 상태는 각각 얼마나 지속되나?
+          grain: dataset×status_code×is_ongoing 마다 한 행입니다.
+          primary_key: [dataset, status_code, is_ongoing]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [dataset, status_code, is_ongoing]
     columns:
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]
       - name: major
         data_type: varchar
         description: 대분류.
@@ -420,6 +503,7 @@ models:
       - name: is_ongoing
         data_type: boolean
         description: 진행중 세그먼트 여부(true=아직 종료 안 된 현재 상태).
+        tests: [not_null]
       - name: n_segments
         data_type: bigint
         description: 집계 세그먼트 수(표본). 30 미만은 저표본(회색 처리 권장).
@@ -448,16 +532,38 @@ models:
     description: 휴업 다음은 재개? 폐업? — 상태 전이 매트릭스(from→to) × 업종. 씨앗 지표(이력 축적에 따라 성장).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_status_transition
+          product_question: 휴업 다음은 재개인가 폐업인가(상태 전이 방향)?
+          grain: major×category×dataset×from_status×to_status 마다 한 행입니다.
+          primary_key: [major, category, dataset, from_status, to_status]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset, from_status, to_status]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]
       - name: from_status
         data_type: varchar
         description: 전이 이전 상태코드(01~06).
@@ -491,6 +597,22 @@ models:
     description: 우리 동네 상권 요약 — 행정동별 업소 현황 스냅샷(전체·영업·폐업·업종수·지도표시 가능). 동 지도/요약 서빙 표면.
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_dong_summary
+          product_question: 이 행정동엔 업소가 몇 곳이고 영업/폐업 구성과 지도 커버리지는 어떤가?
+          grain: admin_dong_code 마다 한 행입니다.
+          primary_key: [admin_dong_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: wide
+          partial_policy:
+            min_publish_ratio: 0.8
     columns:
       - name: admin_dong_code
         data_type: varchar
@@ -529,6 +651,25 @@ models:
     description: 우리 동네엔 뭐가 많나 — 행정동 × 중분류 스톡(영업/전체) + 최근 1년 신규 개업. 동네 프로파일/지도 서빙.
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_dong_category_matrix
+          product_question: 이 동네엔 어떤 업종이 많고 최근 1년 새로 생긴 업종은 무엇인가?
+          grain: admin_dong_code×gu_code×major×category 마다 한 행입니다.
+          primary_key: [admin_dong_code, gu_code, major, category]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [admin_dong_code, gu_code, major, category]
     columns:
       - name: admin_dong_code
         data_type: varchar
@@ -540,12 +681,14 @@ models:
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리.
+        tests: [not_null]
       - name: gu
         data_type: varchar
         description: 자치구명(한글).
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]
       - name: category
         data_type: varchar
         description: 중분류(동네 업종 구성축).
@@ -601,6 +744,25 @@ models:
     description: 우리 구 특화 업종 — 자치구별 업종 특화지수(LQ)·구성비. LQ>1 이면 서울 평균 대비 밀집.
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_gu_specialization
+          product_question: 이 자치구는 서울 평균 대비 어떤 업종에 특화(LQ>1)돼 있나?
+          grain: gu_code×major×category 마다 한 행입니다.
+          primary_key: [gu_code, major, category]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [gu_code, major, category]
     columns:
       - name: gu_code
         data_type: varchar
@@ -612,6 +774,7 @@ models:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]
       - name: category
         data_type: varchar
         description: 중분류(특화 판정 업종축).
@@ -678,13 +841,34 @@ models:
     description: 이 업종 가게 크기 — 영업장 면적(sitearea) 분포 × 업종 × 자치구. avg/p50/p90 + 소형/대형 비중(면적 보유분 기준).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_detail_area_profile
+          product_question: 이 업종 가게는 보통 몇 ㎡이고 소형/대형 구성은?
+          grain: major×category×dataset×gu_code 마다 한 행입니다.
+          primary_key: [major, category, dataset, gu_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset, gu_code]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(면적 필드 보유 detail 한정).
@@ -692,6 +876,7 @@ models:
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]
       - name: n_with_area
         data_type: bigint
         description: 면적(sitearea) 유효 업소 수(모수 — 표본 신뢰 배지).
@@ -770,13 +955,34 @@ models:
     description: 체인·다점포 비율 — 동일 전화 다지점(체인/다점포 추정) 비율 × 업종. 근사(전화 44%·번호공유 노이즈).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_multi_site
+          product_question: 이 업종은 얼마나 체인화(동일 전화 다지점)돼 있나?
+          grain: major×category×dataset 마다 한 행입니다.
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(grain).
@@ -809,13 +1015,34 @@ models:
     description: 간판·자리 자주 바꾸는 업종 — 업소당 버전수·개명/이전 발생률 × 업종. 씨앗 지표(이력 축적 초기, 상대순위로 해석).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_change_activity
+          product_question: 어떤 업종이 상호·주소를 자주 바꾸나(개명·이전 활발도)?
+          grain: major×category×dataset 마다 한 행입니다.
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(grain).
@@ -856,6 +1083,25 @@ models:
     description: 이 자리엔 다음에 뭐가? — 폐업 후 같은 도로명주소 후속 개업(365일 이내 최근접 1건) 업종 승계. 건물 단위 주소 근사.
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_address_succession
+          product_question: 폐업한 그 자리엔 다음에 어떤 업종이 들어오나?
+          grain: (closed_major·closed_category)→(opened_major·opened_category) 전이마다 한 행입니다.
+          primary_key: [closed_major, closed_category, opened_major, opened_category]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [closed_major, closed_category, opened_major, opened_category]
     columns:
       - name: closed_major
         data_type: varchar
@@ -864,6 +1110,7 @@ models:
       - name: closed_category
         data_type: varchar
         description: 폐업(선행) 업소 중분류.
+        tests: [not_null]
       - name: opened_major
         data_type: varchar
         description: 후속 개업 업소 대분류.
@@ -871,6 +1118,7 @@ models:
       - name: opened_category
         data_type: varchar
         description: 후속 개업 업소 중분류.
+        tests: [not_null]
       - name: successions
         data_type: bigint
         description: 해당 전이(폐업업종→개업업종) 승계 건수(매칭 성사분).
@@ -900,6 +1148,25 @@ models:
     description: 폐업 사장님의 재도전 — 동일 전화의 폐업→개업(3년 이내·주소 상이) 업종 전환. 연쇄창업 근사(전화 44%).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_phone_succession
+          product_question: 폐업 사장님은 다음에 같은 업종인가 다른 업종으로 재도전하나?
+          grain: 동일 전화 (closed_major·closed_category)→(opened_major·opened_category) 전이마다 한 행입니다.
+          primary_key: [closed_major, closed_category, opened_major, opened_category]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [closed_major, closed_category, opened_major, opened_category]
     columns:
       - name: closed_major
         data_type: varchar
@@ -908,6 +1175,7 @@ models:
       - name: closed_category
         data_type: varchar
         description: 폐업(선행) 업소 중분류.
+        tests: [not_null]
       - name: opened_major
         data_type: varchar
         description: 재도전(후속) 업소 대분류.
@@ -915,6 +1183,7 @@ models:
       - name: opened_category
         data_type: varchar
         description: 재도전(후속) 업소 중분류.
+        tests: [not_null]
       - name: successions
         data_type: bigint
         description: 해당 전환 건수(동일 전화·주소 상이·공용번호 컷).
@@ -946,13 +1215,34 @@ models:
     description: 데이터 신뢰도 진단 — dataset(API)별 필드 커버리지(전화/좌표/행정동/주소/폐업일/상호). 거버넌스·수집 우선순위.
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_license_data_quality
+          product_question: 어느 API(dataset)가 좌표/전화/행정동 결측이 심한가?
+          grain: major×category×dataset 마다 한 행입니다.
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(grain — API 단위).
@@ -994,6 +1284,25 @@ models:
     description: 우리 구 배출시설 가동 — 환경 배출시설(대기/수질) 자치구별 연간 가동일수·가동시간. 영업시간 필드는 LOCALDATA 원천 부재(수질 가동필드 결측 큼).
     config:
       contract: {enforced: true}
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: commerce_env_facility_operation
+          product_question: 자치구별 환경 배출시설의 연간 가동일수·가동시간 분포는?
+          grain: dataset×gu_code 마다 한 행입니다.
+          primary_key: [dataset, gu_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "0 6 * * *"
+          shape: rollup
+          partial_policy:
+            min_publish_ratio: 0.8
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [dataset, gu_code]
     columns:
       - name: dataset
         data_type: varchar
@@ -1002,6 +1311,7 @@ models:
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]
       - name: gu
         data_type: varchar
         description: 자치구명(한글).
