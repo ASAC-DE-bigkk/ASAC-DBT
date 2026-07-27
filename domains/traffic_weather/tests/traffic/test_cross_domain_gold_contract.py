@@ -31,8 +31,12 @@ def _compact(text: str) -> str:
 
 
 def _gold_models() -> dict[str, dict]:
-    document = yaml.safe_load(GOLD_METADATA_PATH.read_text(encoding="utf-8")) or {}
-    return {model["name"]: model for model in document.get("models", [])}
+    models: dict[str, dict] = {}
+    for yml_path in sorted(GOLD_DIR.glob("*.yml")):
+        document = yaml.safe_load(yml_path.read_text(encoding="utf-8")) or {}
+        for model in document.get("models", []):
+            models[model["name"]] = model
+    return models
 
 
 def test_design_and_implementation_plan_exist_for_issue_234() -> None:

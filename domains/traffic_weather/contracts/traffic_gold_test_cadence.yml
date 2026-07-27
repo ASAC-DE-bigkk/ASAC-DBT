@@ -1,7 +1,7 @@
 version: 1
 tiers:
   gate:
-    expected_count: 123
+    expected_count: 148
   hourly_extension:
     expected_count: 20
   daily_extension:
@@ -9,28 +9,28 @@ tiers:
   full_static:
     expected_count: 10
 total_expected:
-  gold_gate: 123
-  gold_hourly: 143
-  gold_full: 173
-  traffic_gate: 237
-  traffic_hourly: 257
-  traffic_full: 297
+  gold_gate: 148
+  gold_hourly: 168
+  gold_full: 198
+  traffic_gate: 262
+  traffic_hourly: 282
+  traffic_full: 322
 portfolio_expected:
   availability: 1
   bronze_source: 70
   silver: 43
-  gold_gate: 123
+  gold_gate: 148
   gold_hourly_extension: 20
   gold_daily_extension: 30
   full_static: 10
 selector_expected:
-  ask_seoul_traffic_transform_gold_gate_tests: 123
-  ask_seoul_traffic_transform_gold_hourly_tests: 143
-  ask_seoul_traffic_transform_gold_full_tests: 173
+  ask_seoul_traffic_transform_gold_gate_tests: 148
+  ask_seoul_traffic_transform_gold_hourly_tests: 168
+  ask_seoul_traffic_transform_gold_full_tests: 198
 cadence_expected:
-  traffic_gate: 237
-  traffic_hourly: 257
-  traffic_full: 297
+  traffic_gate: 262
+  traffic_hourly: 282
+  traffic_full: 322
 tests:
 - unique_id: test.asac_axes.axis_coverage_seoul_admin_dong_boundary_admin_dong_code__0_98.5cc8b51e18
   path: seeds/_asac_axes__seeds.yml
@@ -102,6 +102,27 @@ tests:
   - seed.asac_axes.seoul_gu_boundary
   tier: full_static
   tier_tag: ask_seoul_traffic_transform_asac_axes_contract
+- unique_id: test.asac_seoul.accepted_values_gold_traffic_flow_congestion_hotspots_hourly_flow_value_quality__available__missing_value.abddb1c9c4
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.accepted_values_gold_traffic_flow_congestion_hotspots_hourly_hotspot_state__missing_speed__lowest_speed_top_10__observed.4dd0cfd9a2
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.accepted_values_gold_traffic_flow_link_latest_flow_value_quality__available__missing_value.ae51aa817b
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.accepted_values_gold_traffic_incident_collection_coverage_5m_coverage_state__manifest_missing__api_failure__manifest_not_publishable__materialized_partial__materialized_zero__materialized_consistent.b98f988251
   path: models/traffic/transform/gold/_gold.yml
   test_type: generic
@@ -327,6 +348,22 @@ tests:
   - model.asac_seoul.silver_seoul_traffic_incident_current
   tier: gate
   tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.assert_gold_traffic_incident_x_weather_current_hourly_admin_join_reconciles
+  path: tests/traffic/transform/gold/assert_gold_traffic_incident_x_weather_current_hourly_admin_join_reconciles.sql
+  test_type: singular
+  owner_unique_ids:
+  - model.asac_axes.dim_admin_dong
+  - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.assert_gold_traffic_incident_x_weather_current_hourly_admin_stamp_exact
+  path: tests/traffic/transform/gold/assert_gold_traffic_incident_x_weather_current_hourly_admin_stamp_exact.sql
+  test_type: singular
+  owner_unique_ids:
+  - model.asac_axes.dim_admin_dong
+  - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.assert_gold_traffic_incident_x_weather_current_hourly_context_reconciles
   path: tests/traffic/transform/gold/assert_gold_traffic_incident_x_weather_current_hourly_context_reconciles.sql
   test_type: singular
@@ -381,15 +418,148 @@ tests:
   - model.asac_seoul.gold_traffic_flow_change_latest
   tier: gate
   tier_tag: traffic_gold_gate
-- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_product_row_id.f05060261d
-  path: models/traffic/transform/gold/_serving_gold.yml
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_congestion_rank.5e2e97b3da
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
   tier: gate
   tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_dag_run_id.f9593cc6c5
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_flow_value_quality.474f108706
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_hotspot_state.716ae548c5
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_hour_at.bed6b77bd0
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_link_id.00ca5c43cc
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_observed_at_kst.7e230ba46b
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_observed_link_count.5c87f8aaa7
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_payload_hash.e91c9c9c6c
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_product_row_id.f05060261d
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_congestion_hotspots_hourly_raw_object_key.71c820db4f
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_collected_at_kst.b8977fab82
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_dag_run_id.11dd78bed8
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_flow_value_quality.844a2f7fe3
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_link_id.c0575671fd
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_observed_at_kst.095b6e438d
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_payload_hash.2ff725392a
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_product_row_id.37c1236edd
-  path: models/traffic/transform/gold/_serving_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_raw_object_key.101a8e1ba7
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_request_id.9651c20143
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.not_null_gold_traffic_flow_link_latest_source_id.ff01111366
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_flow_link_latest
@@ -1103,84 +1273,84 @@ tests:
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_admin_dong.45658b3d84
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_admin_dong_code.465ee14aa9
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_admin_dong_revision_date.b5b51ad847
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_gu.ac4dedb693
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_gu_code.2d30339198
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_hour_at.5db0f1cb7b
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_product_row_id.b2de3ea6d7
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_published_at.79622cff3d
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_quality_state.bba1d2827a
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_snapshot_dag_run_id.6ed591adb4
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_source_id.25d613c26e
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.not_null_gold_traffic_incident_x_weather_current_hourly_status_observed_at.8cb8652e4f
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
@@ -1194,14 +1364,21 @@ tests:
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.unique_gold_traffic_flow_congestion_hotspots_hourly_product_row_id.02a4da5339
-  path: models/traffic/transform/gold/_serving_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_flow_congestion_hotspots_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly
   tier: gate
   tier_tag: traffic_gold_gate
+- unique_id: test.asac_seoul.unique_gold_traffic_flow_link_latest_link_id.b526a8a6b4
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
+  test_type: generic
+  owner_unique_ids:
+  - model.asac_seoul.gold_traffic_flow_link_latest
+  tier: gate
+  tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.unique_gold_traffic_flow_link_latest_product_row_id.57b35c8a8c
-  path: models/traffic/transform/gold/_serving_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_flow_link_latest.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_flow_link_latest
@@ -1327,7 +1504,7 @@ tests:
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.unique_gold_traffic_incident_x_weather_current_hourly_product_row_id.3054f568fd
-  path: models/traffic/transform/gold/_gold.yml
+  path: models/traffic/transform/gold/gold_traffic_incident_x_weather_current_hourly.yml
   test_type: generic
   owner_unique_ids:
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly

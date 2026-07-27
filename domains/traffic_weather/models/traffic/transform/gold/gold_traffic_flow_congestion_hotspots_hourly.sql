@@ -6,6 +6,7 @@
     incremental_strategy='merge',
     unique_key=['hour_at', 'link_id'],
     on_table_exists='drop',
+    on_schema_change='fail',
     views_enabled=false,
     pre_hook="{{ traffic_flow_assert_pinned_incremental_rows() }}"
 ) }}
@@ -68,7 +69,6 @@ select
     flow_speed,
     flow_travel_time,
     flow_value_quality,
-    observed_at_utc,
     observed_at_kst,
     congestion_rank,
     observed_link_count,

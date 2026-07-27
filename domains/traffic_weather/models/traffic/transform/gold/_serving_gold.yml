@@ -57,32 +57,6 @@ models:
         description: 예상 해제 구간과 같은 결정적 제품 식별자입니다.
         tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}, {unique: {config: {tags: [traffic_gold_gate]}}}]
 
-  - name: gold_traffic_flow_link_latest
-    description: 도로 링크별 가장 최근 속도와 통행시간 관측을 제공해 지금 어느 링크의 상태가 최신인지 확인합니다.
-    config:
-      meta:
-        serving_gold_candidate: true
-        product_question: 각 도로 링크의 가장 최근 속도와 통행시간은 무엇입니까?
-        grain: link_id마다 한 행입니다.
-        limitations: 링크별 관측시각이 다를 수 있으므로 서로 같은 순간의 전수 비교로 해석하면 안 됩니다.
-    columns:
-      - name: product_row_id
-        description: link_id와 같은 결정적 제품 식별자입니다.
-        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}, {unique: {config: {tags: [traffic_gold_gate]}}}]
-
-  - name: gold_traffic_flow_congestion_hotspots_hourly
-    description: KST 시간대 안에서 가장 느린 관측 링크를 순위화해 특정 시간의 저속 후보를 찾습니다.
-    config:
-      meta:
-        serving_gold_candidate: true
-        product_question: 특정 시간에 관측 속도가 가장 낮은 링크는 어디입니까?
-        grain: hour_at과 link_id 조합마다 한 행입니다.
-        limitations: 순위는 해당 관측 집합의 상대순위이며 도로등급 보정이나 공식 혼잡등급이 아닙니다.
-    columns:
-      - name: product_row_id
-        description: 시간과 링크를 직렬화한 결정적 식별자입니다.
-        tests: [{not_null: {config: {tags: [traffic_gold_gate]}}}, {unique: {config: {tags: [traffic_gold_gate]}}}]
-
   - name: gold_traffic_flow_change_latest
     description: 링크별 최신 관측과 직전 관측의 속도·통행시간 차이를 제공해 악화 또는 개선 후보를 찾습니다.
     config:
