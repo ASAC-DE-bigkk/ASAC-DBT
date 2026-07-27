@@ -127,11 +127,13 @@ models:
           product_question: 이 장소는 하루 평균·최대 얼마나 붐볐습니까?
           grain: (event_date, area_code) 마다 한 행 — 장소·일 인구 집계.
           primary_key: [event_date, area_code]
-          publication_mode: snapshot
+          publication_mode: append
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: 30 0 * * *
           shape: rollup
+          event_time: event_date
+          freshness_slo_minutes: 1560
         display:
           title: 장소별 일 혼잡 요약
           summary: 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
@@ -220,7 +222,7 @@ models:
           product_question: 이 장소는 몇 시에 붐비고 몇 시에 한산합니까?
           grain: (time_bucket, area_cd) 마다 한 행 — 장소·시간 인구 집계.
           primary_key: [time_bucket, area_cd]
-          publication_mode: snapshot
+          publication_mode: append
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: 15 * * * *
@@ -454,11 +456,13 @@ models:
           product_question: 이 장소는 하루 결제·상권 활력이 어느 정도입니까?
           grain: (event_date, area_cd) 마다 한 행 — 장소·일 상권 집계.
           primary_key: [event_date, area_cd]
-          publication_mode: snapshot
+          publication_mode: append
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: 30 0 * * *
           shape: rollup
+          event_time: event_date
+          freshness_slo_minutes: 1560
         display:
           title: 장소별 일 소비(상권)
           summary: 장소마다 하루 결제 건수와 상권 활력을 집계했습니다. 붐빔 대비 얼마나 소비가 일어나는지 봅니다.
@@ -545,11 +549,13 @@ models:
           product_question: 이 장소는 유동인구가 실제 소비로 잘 이어집니까?
           grain: (event_date, area_cd) 마다 한 행 — 장소·일 구매력 지수.
           primary_key: [event_date, area_cd]
-          publication_mode: snapshot
+          publication_mode: append
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: 30 0 * * *
           shape: rollup
+          event_time: event_date
+          freshness_slo_minutes: 1560
         display:
           title: 장소별 구매력 지수
           summary: 붐빔 대비 결제를 지수화해 어느 장소의 유동인구가 실제 소비로 잘 이어지는지 봅니다.
@@ -651,11 +657,13 @@ models:
           product_question: 이 동네는 문화행사가 유동인구와 어떻게 맞물립니까?
           grain: (event_date, admin_dong_code) 마다 한 행 — 동·일 인구×문화.
           primary_key: [event_date, admin_dong_code]
-          publication_mode: snapshot
+          publication_mode: append
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: 30 0 * * *
           shape: rollup
+          event_time: event_date
+          freshness_slo_minutes: 1560
         display:
           title: 동네 혼잡 × 문화활동
           summary: 행정동·일 단위로 인구 혼잡과 문화행사·활동을 겹쳐 봤습니다. 행사와 유동의 관계를 봅니다.
@@ -1570,8 +1578,8 @@ models:
       tags: ['daily']
       meta:
         serving:
-          enabled: true
-          external: true
+          enabled: false
+          external: false
           product_id: citydata_ppltn_demographics
           product_question: 이 장소는 어떤 성별·나이대가 언제 몰립니까?
           grain: (area_cd, dow, hour, segment_type, segment) 마다 한 행 — 방문객 구성 패턴.
