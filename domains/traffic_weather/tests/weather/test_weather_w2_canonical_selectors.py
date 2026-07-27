@@ -45,10 +45,8 @@ STAGE_WINDOW_CONTRACT_PATH = (
     "tests/weather/special/recovery/stage/"
     "assert_weather_w2_recovery_stage_window.sql"
 )
-STAGE_MODEL_PATH = (
-    "models/weather/special/recovery/"
-    "weather_w2_observation_recovery_stage.sql"
-)
+STAGE_MODEL_SELECTOR = "ask_seoul_weather_w2_recovery_stage_model"
+STAGE_MODEL_NAME = "weather_w2_observation_recovery_stage"
 STAGE_FINAL_CONTRACT_PATH = (
     "tests/weather/special/recovery/stage/"
     "assert_weather_w2_recovery_stage_final_reconciles.sql"
@@ -73,6 +71,19 @@ def _path_criteria(selector):
     assert all(criterion["method"] == "path" for criterion in criteria)
     assert all(criterion["indirect_selection"] == "empty" for criterion in criteria)
     return {criterion["value"] for criterion in criteria}
+
+
+def _model_names_with_tag(tag):
+    names = set()
+    for properties_path in (PROJECT_ROOT / "models").rglob("*.yml"):
+        document = yaml.safe_load(properties_path.read_text(encoding="utf-8")) or {}
+        for model in document.get("models", []) or []:
+            tags = model.get("config", {}).get("tags", [])
+            if isinstance(tags, str):
+                tags = [tags]
+            if tag in tags:
+                names.add(model["name"])
+    return names
 
 
 def test_canonical_w2_model_selector_has_only_owned_models():
@@ -127,9 +138,14 @@ def test_recovery_stage_window_selector_owns_one_lightweight_contract():
 
 
 def test_recovery_stage_model_selector_owns_only_internal_stage():
-    selector = _selectors_by_name()["ask_seoul_weather_w2_recovery_stage_model"]
+    selector = _selectors_by_name()[STAGE_MODEL_SELECTOR]
 
-    assert _path_criteria(selector) == {STAGE_MODEL_PATH}
+    assert selector["definition"] == {
+        "method": "tag",
+        "value": STAGE_MODEL_SELECTOR,
+        "indirect_selection": "cautious",
+    }
+    assert _model_names_with_tag(STAGE_MODEL_SELECTOR) == {STAGE_MODEL_NAME}
 
 
 def test_recovery_post_publish_selector_owns_full_bridge_reconcile_only():

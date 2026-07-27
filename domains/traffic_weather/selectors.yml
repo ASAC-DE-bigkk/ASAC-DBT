@@ -317,9 +317,7 @@ selectors:
 
   - name: ask_seoul_weather_w2_recovery_stage_model
     description: 용신동 경량 recovery의 project-internal protected staging model만 선택한다.
-    definition:
-      union:
-        - {method: path, value: models/weather/special/recovery/weather_w2_observation_recovery_stage.sql, indirect_selection: empty}
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_stage_model, indirect_selection: cautious}
 
   - name: ask_seoul_weather_w2_recovery_post_publish_bridge_contract
     description: 경량 recovery publish 직후 전 동 missing·extra·invalid bridge를 검증하는 FULL reconcile 하나만 선택한다.
