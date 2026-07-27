@@ -13,6 +13,20 @@ models:
       meta:
         refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
+        serving:   # Serving Contract v1.1 (#346, ASAC-DAG docs/contracts/serving-contract-v1.md)
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: culture_activity_by_dong
+          product_question: "어느 행정동에서 언제 문화 활동이 얼마나 열리나?"
+          grain: "행정동×날짜마다 한 행"
+          primary_key: [admin_dong_code, event_date]
+          event_time: event_date
+          freshness_slo_minutes: 1800
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "30 4 * * *"
         display:
           title: 행정동별 일자 문화활동량
           summary: 서울 426개 행정동에 대해 하루 단위로 문화활동이 몇 건 열리는지 집계했습니다. 공연·행사·축제·전시 등 유형별 건수와 함께 무료 행사, 교육·체험 행사 건수를 따로 제공합니다.
@@ -83,6 +97,18 @@ models:
       meta:
         refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
+        serving:   # Serving Contract v1.1 (#346) — 스냅샷 요약이라 event_time 미선언(면제)
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: culture_booking_curve
+          product_question: "공연 예매 인기가 개막까지 어떤 궤적으로 차오르나?"
+          grain: "공연(performance_id)마다 한 행"
+          primary_key: [performance_id]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "30 4 * * *"
         display:
           title: 공연별 인기 궤적 요약
           summary: 공연 한 편이 예매 순위에 언제 진입해 며칠 머물렀고 최고 몇 위까지 올랐는지를 한 행으로 요약했습니다. 진입 순위와 마지막 순위가 함께 있어 상승세인지 하락세인지 바로 판단할 수 있습니다.
@@ -144,6 +170,20 @@ models:
       meta:
         refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
+        serving:   # Serving Contract v1.1 (#346) — PK = 모델 선언 그레인(snapshot_date × rank_no)
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: culture_boxoffice_daily
+          product_question: "지금 서울에서 예매 상위 공연은 무엇인가?"
+          grain: "스냅샷일×순위마다 한 행"
+          primary_key: [snapshot_date, rank_no]
+          event_time: snapshot_date
+          freshness_slo_minutes: 1800
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "30 4 * * *"
         display:
           title: 공연 예매 랭킹 (일별)
           summary: 공연 예매 순위를 매일 한 번 찍어 쌓은 데이터입니다. 3일 전 순위와의 변동폭, 차트 체류 일수, 신규 진입 여부까지 계산돼 있어 "요즘 뜨는 공연"을 바로 뽑을 수 있습니다.
@@ -219,6 +259,20 @@ models:
       meta:
         refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
+        serving:   # Serving Contract v1.1 (#346)
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: culture_calendar_density
+          product_question: "구별로 어느 날짜에 행사가 몰리나(밀집도)?"
+          grain: "구×날짜마다 한 행"
+          primary_key: [gu_code, event_date]
+          event_time: event_date
+          freshness_slo_minutes: 1800
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "30 4 * * *"
         display:
           title: 자치구 일자별 문화행사 밀도
           summary: 자치구마다 하루에 행사가 몇 건 열리고 그중 한 유형에 얼마나 몰리는지를 요약했습니다. 볼거리가 많은 날을 찾는 쪽과, 행사를 새로 열 때 경쟁을 피할 날을 고르는 쪽 모두가 같은 표를 씁니다.
@@ -266,6 +320,18 @@ models:
       meta:
         refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
+        serving:   # Serving Contract v1.1 (#346) — 요일축 명부성이라 event_time 미선언(면제)
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: culture_event_crowd
+          product_question: "무슨 요일 몇 시에 행사 주변이 붐비나?"
+          grain: "구×요일×시간대마다 한 행"
+          primary_key: [gu_code, day_of_week, hour_of_day]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "30 4 * * *"
         display:
           title: 행사 지역 요일·시간대 혼잡도
           summary: 문화행사가 열리는 자치구가 요일과 시간대별로 평소 얼마나 붐비는지에 대한 기준선입니다. 서울시 실시간 도시데이터의 인구·혼잡 관측을 요일×시간 칸으로 모아 평균 인구와 대표 혼잡 등급을 계산했습니다.
@@ -315,6 +381,20 @@ models:
       meta:
         refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(티어링 v2)
+        serving:   # Serving Contract v1.1 (#346)
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: culture_event_schedule
+          product_question: "이번 주말·특정 기간 서울에서 무슨 문화행사가 열리나?"
+          grain: "행사(event_ref)마다 한 행"
+          primary_key: [event_ref]
+          event_time: event_start_date
+          freshness_slo_minutes: 1800
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "30 4 * * *"
         display:
           title: 서울 문화행사 통합 일정
           summary: 서울에서 열리는 공연·전시·축제·체험 행사를 한 행에 하나씩 모은 통합 일정표입니다. 시작일과 종료일, 장소 이름과 좌표, 자치구·행정동, 유·무료 표기가 함께 들어 있어 "이번 주말 성동구 행사" 같은 조회를 이 데이터셋 하나로 끝낼 수 있습니다.
@@ -728,6 +808,18 @@ models:
       meta:
         refresh: '1일'   # culture_transform — culture_bronze(03:00 KST) 자산 트리거
         external: true   # 외부 카탈로그 공개(#269 티어링 v2 — 명시적 true 첫 사용, #308 AC)
+        serving:   # Serving Contract v1.1 (#346) — 명부성이라 event_time 미선언(면제)
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: culture_dine_around
+          product_question: "행사 많은 동네 주변 외식 상권은 어디인가?"
+          grain: "행정동(admin_dong_code)마다 한 행"
+          primary_key: [admin_dong_code]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "30 4 * * *"
         display:
           title: 문화·미식 동반 추천 지수
           summary: 동네마다 앞으로 90일간 예정된 문화행사량과 영업 중인 음식점 규모를 나란히 점수화했습니다. 두 값이 모두 높은 동네일수록 점수가 높아 "공연 보고 밥 먹기 좋은 동네" 정렬에 그대로 쓸 수 있습니다.
