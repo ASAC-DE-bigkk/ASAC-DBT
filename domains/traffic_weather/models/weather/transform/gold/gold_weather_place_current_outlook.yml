@@ -8,8 +8,21 @@ models:
       contract:
         enforced: true
       meta:
-        serving_tier: d1_direct
-        serving_tier_basis: 2026-07-22 dev 실측 427행. 매 실행마다 전체 재계산(table materialize, full refresh)이며 상한은 매핑된 place_id 총수로 고정된다. weather_vilage_fcst_transform DAG로 daily 자동 갱신 확인(dbt_run_gold 태스크 매일 성공). commerce/citydata의 d1_direct·d1_rollup·hold tier taxonomy와 D1 실용 상한(≪1GB) 기준 참고.
+        serving:
+          enabled: true
+          external: true
+          product_id: weather_place_current_outlook
+          product_question: 지금 이 장소의 가장 가까운 기상 예보는 무엇입니까?
+          grain: place_id마다 한 행 — 장소별 현재 예보 스냅샷.
+          primary_key: [product_row_id]
+          publication_mode: snapshot
+          zero_policy: fail
+          publication_trigger:
+            trigger_type: asset
+            max_interval_minutes: 240
+          event_time: forecast_at
+          freshness_slo_minutes: 240
+          shape: wide
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
