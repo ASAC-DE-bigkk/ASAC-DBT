@@ -43,50 +43,74 @@ from culture.silver_culture_event
 where event_start_date <= current_date and current_date <= event_end_date;
 ```
 
-## 바로 쓰는 진입점 (gold)
+## 바로 쓰는 진입점 (gold 14종)
 
-대부분의 크로스 도메인 조인은 gold로 충분합니다:
+대부분의 크로스 도메인 조인은 gold로 충분합니다. 티어링 v2([설계](docs/design/2026-07-21-gold-tiering-v2.md))에 따라 **외부 공개 트랙 7종 + 내부 운영 7종**으로 나뉩니다 — 조인 용도로는 구분 없이 전부 사용 가능합니다.
+
+**외부 공개 트랙 7종** (서빙 후보 — 자기완결·공급 약속 대상):
 
 | 테이블 | 그레인 | 행수* | 답하는 질문 |
 |---|---|---|---|
-| `gold_culture_location_daily` | gu_code × event_date | 67,593 | 구별·일별 문화활동 수 (`activities_count` + 종별: performances/events/festivals/exhibitions/sejong) |
-| `gold_culture_reservation_daily` | gu_code × snapshot_date | 250 | 구별 공공예약 가용률(`availability_rate` = 접수중/전체) |
-| `gold_culture_boxoffice_daily` | snapshot_date × rank_no | 500 | 예매 상위 50 공연이 언제·어디서 |
-| `gold_culture_movie_boxoffice_daily` | boxoffice_date (날짜 1행) | 2 | 영화 관객 서울 쏠림(`seoul_audience_share`) — 시도 그레인이라 자치구 축 없음 |
+| `gold_culture_activity_by_dong` | admin_dong_code × event_date | 169,548 | **행정동**별·일별 활동 — 426동 전체 scaffold(0건 동도 행 존재), 날짜 창 [오늘−90, 오늘+365]. 무료·교육/체험 카운트 포함 |
+| `gold_culture_calendar_density` | gu_code × event_date | 67,384 | 일×구 문화 **밀도·경쟁** — "볼 게 많은 날"(total_events) vs "주최자가 피할 날"(concentration) |
+| `gold_culture_event_schedule` | 행사 1행 | 38,168 | 행사 **목록**(제목·장소·기간) — "이번 주말 ○○구 뭐 하나" = 기간 겹침 + `gu_code` 필터 (#187). 크로스소스 dedup 완료라 union 불필요 |
+| `gold_culture_event_crowd` | gu_code × 요일 × 시간대 | 4,032 | 행사 지역의 **평시 혼잡 베이스라인** — citydata gold 크로스도메인 read (#276·#282) |
+| `gold_culture_boxoffice_daily` | snapshot_date × rank_no | 1,400 | 예매 상위 50 공연이 언제·어디서 (일별 스냅샷 누적) |
+| `gold_culture_dine_around` | admin_dong_code (426동) | 426 | 동별 문화 밀도 × **요식업 스톡** — commerce gold 크로스도메인 read (#308) |
+| `gold_culture_booking_curve` | performance_id (1공연 1행) | 82 | 공연별 예매 **순위 궤적** 요약 (KOPIS는 순위만 제공 — 예매율 아님) |
+
+**내부 운영 7종** (분석·Q&A·관측용 — 외부 카탈로그 비공개):
+
+| 테이블 | 그레인 | 행수* | 답하는 질문 |
+|---|---|---|---|
+| `gold_culture_location_daily` | gu_code × event_date | 67,384 | 구별·일별 문화활동 수 (`activities_count` + 종별: performances/events/festivals/exhibitions/sejong) |
+| `gold_culture_reservation_daily` | gu_code × snapshot_date | 700 | 구별 공공예약 가용률(`availability_rate` = 접수중/전체) |
+| `gold_culture_movie_boxoffice_daily` | boxoffice_date (날짜 1행) | 20 | 영화 관객 서울 쏠림(`seoul_audience_share`) — 시도 그레인이라 자치구 축 없음 |
 | `gold_culture_sports_schedule` | 경기 1행 | 67 | 서울 야구(잠실·고척) 홈경기 일정 |
-| `gold_culture_activity_by_dong` | admin_dong_code × event_date | 177,216 | **행정동**별·일별 활동 — 426동 전체 scaffold(0건 동도 행 존재, `activities_count=0`), 날짜 창 [오늘−90, 오늘+365] |
-| `gold_culture_event_schedule` | 행사 1행 | 37,454 | 행사 **목록**(제목·장소·기간) — "이번 주말 ○○구 뭐 하나" = 기간 겹침 + `gu_code` 필터 (#187). 크로스소스 dedup 완료라 union 불필요 |
+| `gold_culture_venue_profile` | facility_id (1시설 1행) | 1,703 | "그 공연장 어떤 곳이야" — 주소·좌표 100%, seat_scale 63.7% (#278) |
+| `gold_culture_qa_eval` | question_id | 30 | 페르소나 질문 × 마트 라우팅 커버리지 — Q&A 서비스 준비도 계측 (#284) |
+| `gold_culture_slo_daily` | 날짜 1행 | 29 | 파이프라인 SLO 성적표 — 가용·green_disguise·적재 추세 |
 
-\* 행수는 2026-07-10 dev 실측. 스냅샷·기간 전개 특성상 매일 증가합니다.
+\* 행수는 2026-07-28 dev 실측. 스냅샷·기간 전개 특성상 매일 증가합니다.
 
-## silver 카탈로그 — 12개
+## silver 카탈로그 — 15개
 
 행사/기간 fact (7): "무엇이 언제 어디서 열리나"
 
 | 테이블 | 그레인(유니크 키) | 행수* | 내용 · 원천 |
 |---|---|---|---|
-| `silver_culture_event` | `event_key` (md5 제목\|시작일\|장소) | 19,456 | 서울 문화행사 — 열린데이터광장. 최대 볼륨 축 |
-| `silver_culture_performance` | `performance_id` | 1,560 | KOPIS 공연 — 시설 정밀 조인(mt10id) |
-| `silver_culture_festival` | `festival_id` | 219 | KOPIS 축제 |
-| `silver_culture_exhibition` | `exhibition_id` | 870 | 시립미술관 전시 — 좌표는 분관만(그 외 구 레벨) |
-| `silver_culture_sejong` | `sejong_id` | 16,872 | 세종문화회관 공연/전시 — 단일 시설(좌표 상수) |
-| `silver_culture_kcisa_event` | `event_id` | 394 | KCISA 문화정보 — 국립기관(국현·중박 등) 전시 구멍 보강. 위 3축과 교차중복 dedup 완료 |
+| `silver_culture_event` | `event_key` (md5 제목\|시작일\|장소) | 19,683 | 서울 문화행사 — 열린데이터광장. 최대 볼륨 축 |
+| `silver_culture_performance` | `performance_id` | 2,117 | KOPIS 공연 — 시설 정밀 조인(mt10id) |
+| `silver_culture_festival` | `festival_id` | 284 | KOPIS 축제 |
+| `silver_culture_exhibition` | `exhibition_id` | 874 | 시립미술관 전시 — 좌표는 분관만(그 외 구 레벨) |
+| `silver_culture_sejong` | `sejong_id` | 16,904 | 세종문화회관 공연/전시 — 단일 시설(좌표 상수) |
+| `silver_culture_kcisa_event` | `event_id` | 503 | KCISA 문화정보 — 국립기관(국현·중박 등) 전시 구멍 보강. 위 3축과 교차중복 dedup 완료 |
 | `silver_culture_sports_event` | (game_date, stadium, game_time) | 67 | KBO 서울 홈경기 7월~9월초 — seed 원천(월간 수동 갱신) |
 
 스냅샷 fact (3): "그날의 상태"
 
 | 테이블 | 그레인 | 행수* | 내용 |
 |---|---|---|---|
-| `silver_culture_reservation` | (service_id, load_date) | 14,847 | 공공서비스예약 문화+체육 — 상태(`접수중` 등)·자치구 |
-| `silver_culture_boxoffice` | (load_date, rank_no) | 500 | KOPIS 예매상황판 top50 — **공간축 면제**(area=시도뿐) |
-| `silver_culture_movie_boxoffice` | (region, boxoffice_date, rank) | 40 | KOBIS 일별 박스오피스 — `region` = 'nation'/'seoul'. `boxoffice_date` = 수집일−1 |
+| `silver_culture_reservation` | (service_id, load_date) | 44,386 | 공공서비스예약 문화+체육 — 상태(`접수중` 등)·자치구 |
+| `silver_culture_boxoffice` | (load_date, rank_no) | 1,400 | KOPIS 예매상황판 top50 — **공간축 면제**(area=시도뿐) |
+| `silver_culture_movie_boxoffice` | (region, boxoffice_date, rank) | 400 | KOBIS 일별 박스오피스 — `region` = 'nation'/'seoul'. `boxoffice_date` = 수집일−1 |
 
 dim (2): 시설 마스터
 
 | 테이블 | 그레인 | 행수* | 내용 |
 |---|---|---|---|
-| `silver_culture_facility` | `facility_id` | 1,686 | KOPIS 공연시설 — **좌표 100%**, `seat_scale`(좌석수, 미상=null) |
-| `silver_culture_space` | `space_key` | 1,071 | 서울 문화공간 — 미술관·도서관 등 (원천 좌표 축 스왑 보정 완료) |
+| `silver_culture_facility` | `facility_id` | 1,703 | KOPIS 공연시설 — **좌표 100%**, `seat_scale`(좌석수, 미상=null) |
+| `silver_culture_space` | `space_key` | 1,072 | 서울 문화공간 — 미술관·도서관 등 (원천 좌표 축 스왑 보정 완료) |
+
+SLO 마트 (3): 파이프라인 관측 — **크로스 도메인 조인 대상 아님** (내부 운영용, `gold_culture_slo_daily`의 재료)
+
+| 테이블 | 그레인 | 행수* | 내용 |
+|---|---|---|---|
+| `silver_culture_dag_run` | (dag_id, run_id) | 86 | Airflow dag_run 이력 — 시각·상태·소요 (bronze 편입분) |
+| `silver_culture_slo_run` | run 1행 | 54 | run_report 요약 — 커버리지·행수·위반 |
+| `silver_culture_slo_dataset` | run × dataset | 495 | 데이터셋 단위 적재 실적 — 추세·회귀 감지의 그레인 |
+
+> seed 5종(`kbo_seoul_schedule`·`kbo_stadium_location`·`sejong_location`·`sema_branch_location`·`seed_culture_qa_questions`)은 [seeds/](seeds/) — 전부 작고 매 run 멱등 갱신.
 
 ## 주의점 — 정직 구간
 
@@ -101,9 +125,11 @@ dim (2): 시설 마스터
 
 ## 신선도 — 언제 데이터가 갱신되나
 
-- 수집(bronze): 매일 **03:00 KST** → 변환(silver/gold): Asset 트리거 자동, 대개 **03:30~04:00 반영**.
+- 수집(bronze): 매일 **03:00 KST** → 변환(silver/gold): Asset 트리거 자동, 대개 **03:20~03:40 반영**.
 - 즉 아침에 보는 데이터 = 전일까지 확정분 + 당일 새벽 스냅샷.
-- `movie_boxoffice`는 전일 관객(`boxoffice_date` = 수집일−1), `facility`는 주간 전수 리프레시(그 외 요일은 변화분만).
+- `movie_boxoffice`는 전일 관객(`boxoffice_date` = 수집일−1).
+- KOPIS 상세(시설·공연)는 야간에 **신규분만** top-up(안티조인, ASAC-DAG#466·#518) — 시설 전수 리프레시는 일요일 05:30.
+- SLO 마트 3종 + `gold_culture_slo_daily`는 별도 DAG(`culture_slo`, 05:00 KST)가 갱신.
 - 원천 신선도는 `dbt source freshness`(collected_at 기준 30h warn/48h error)로 감시 중.
 
 ## 새 행사(기간 fact) 소스를 추가한다면 — 체크리스트
@@ -121,4 +147,4 @@ dim (2): 시설 마스터
 - 축 표준 합의: [ASAC-DBT#48](https://github.com/ASAC-DE-bigkk/ASAC-DBT/issues/48) — 시간/공간축 규약 원문
 - 모델별 설계·트레이드오프: [docs/design/](docs/design/) (silver 재설계, KCISA 편입, 공간축 canonical 전환 등)
 - 수집 내부(계약·재시도·볼륨 감시): ASAC-DAG `dags/domains/culture/docs/`
-- bronze를 직접 읽어야 한다면: [models/sources.yml](models/sources.yml) — 15개 테이블, `record_json`(원본 JSON) + lineage. 단 dedup 전이므로 silver 경유 권장.
+- bronze를 직접 읽어야 한다면: [models/sources.yml](models/sources.yml) — 17개 테이블(수집 15 + SLO 편입 2: run_report·dag_runs), `record_json`(원본 JSON) + lineage. 단 dedup 전이므로 silver 경유 권장. 크로스 도메인 gold source 2종(citydata·commerce)도 여기 선언.
