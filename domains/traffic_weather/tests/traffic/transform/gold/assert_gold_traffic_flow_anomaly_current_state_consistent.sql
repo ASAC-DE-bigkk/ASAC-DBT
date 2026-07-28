@@ -1,3 +1,5 @@
+{{ config(tags=['traffic_gold_gate']) }}
+
 select *
 from {{ ref('gold_traffic_flow_anomaly_current') }}
 where (
