@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: gold_weather_place_risk_window
+    description: 장소별 폭염·한파·호우·대설·강풍 후보를 설명 가능한 임계값으로 선별한 공개 Gold 제품입니다. 기상청 공식 특보가 아닙니다.
+    access: public
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: weather_place_risk_window
+          product_question: 특정 장소에서 방문·이동 주의가 필요할 수 있는 예보 시간과 근거는 무엇입니까?
+          grain: place_id와 forecast_at마다 한 행 — 자체 임계값을 만족한 후보 위험 예보.
+          primary_key: [product_row_id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger:
+            trigger_type: asset
+            max_interval_minutes: 240
+          event_time: forecast_at
+          freshness_slo_minutes: 240
+          retention_or_horizon: 최신 KMA 예보가 제공하는 미래 구간만 매 게시 시점에 교체합니다.
+          shape: event
+    columns:
+      - name: product_row_id
+        description: place_id와 예보시각을 직렬화한 식별자입니다.
+        tests: [not_null, unique]
+      - name: place_id
+        description: 장소 식별자입니다.
+        tests: [not_null]
+      - name: forecast_at
+        description: 후보 위험이 적용되는 KST 예보 시각입니다.
+        tests: [not_null]
+      - name: risk_labels
+        description: 자체 임계값을 만족한 설명용 후보 목록이며 공식 특보가 아닙니다.
+        tests: [not_null]

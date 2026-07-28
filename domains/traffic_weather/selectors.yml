@@ -124,6 +124,8 @@ selectors:
         - {method: fqn, value: gold_traffic_flow_change_latest, children: true}
         - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, children: true}
         - {method: fqn, value: gold_traffic_flow_link_time_profile, children: true}
+        - {method: fqn, value: gold_traffic_flow_anomaly_current, children: true}
+
 
   - name: ask_seoul_traffic_transform_gold_incident_models
     description: Traffic Gold model nodes excluding Flow Gold scope for incident-only trigger runs.

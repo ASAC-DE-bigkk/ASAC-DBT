@@ -55,6 +55,7 @@ EXPECTED_FLOW_MODELS = {
     "gold_traffic_flow_change_latest",
     "gold_traffic_flow_congestion_hotspots_hourly",
     "gold_traffic_flow_link_time_profile",
+    "gold_traffic_flow_anomaly_current",
 }
 EXPECTED_FLOW_SILVER_TESTS = {
     "accepted_values_silver_seoul_traffic_flow_flow_value_quality__available__missing_value",
@@ -91,7 +92,7 @@ EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_x_transit_hourly",
     "gold_traffic_incident_x_weather_current_hourly",
 }
-EXPECTED_GOLD_MODEL_COUNT = 21
+EXPECTED_GOLD_MODEL_COUNT = 22
 EXPECTED_INCIDENT_TEST_COUNTS = {
     INCIDENT_GATE_TESTS: 117,
     INCIDENT_HOURLY_TESTS: 137,
@@ -257,6 +258,7 @@ def test_incident_gold_selectors_reuse_full_contract_and_exclude_flow_scope():
                 "children": True,
             },
             {"method": "fqn", "value": "gold_traffic_flow_link_time_profile", "children": True},
+            {"method": "fqn", "value": "gold_traffic_flow_anomaly_current", "children": True},
         ]
     }
 

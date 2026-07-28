@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: gold_weather_place_forecast_change_daily
+    description: 장소·예보일별 최근 두 KMA 발표를 비교해 기온·강수확률·첫 강수 예상시각의 수정 내역을 제공하는 공개 Gold 제품입니다.
+    access: public
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: weather_place_forecast_change_daily
+          product_question: 특정 장소의 일별 예보는 직전 KMA 발표보다 어떻게 바뀌었습니까?
+          grain: place_id와 forecast_date마다 한 행 — 최신 발표와 직전 발표의 일별 비교.
+          primary_key: [product_row_id]
+          publication_mode: snapshot
+          zero_policy: fail
+          publication_trigger:
+            trigger_type: asset
+            max_interval_minutes: 240
+          event_time: latest_issued_at
+          freshness_slo_minutes: 240
+          retention_or_horizon: 게시 시점 기준 오늘 이후의 최신 예보 일자만 유지합니다.
+          shape: wide
+    columns:
+      - name: product_row_id
+        description: place_id와 forecast_date를 직렬화한 식별자입니다.
+        tests: [not_null, unique]
+      - name: place_id
+        description: 장소 식별자입니다.
+        tests: [not_null]
+      - name: forecast_date
+        description: 비교 대상 KST 예보일입니다.
+        tests: [not_null]
+      - name: latest_issued_at
+        description: 비교에 사용한 최신 KMA 발표 시각입니다.
+        tests: [not_null]
+      - name: change_state
+        description: 이전 발표 없음, 부분 비교, 변경, 동일을 구분한 상태입니다.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [no_previous_issue, partial_comparison, changed, unchanged]
