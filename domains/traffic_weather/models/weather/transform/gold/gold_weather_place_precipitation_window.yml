@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: gold_weather_place_precipitation_window
+    description: 장소별로 연속된 강수 형태 예보 시간을 묶은 공개 Gold 제품입니다. 실제 강수 관측이나 발생 보장이 아닙니다.
+    access: public
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: weather_place_precipitation_window
+          product_question: 특정 장소에서 비나 눈이 연속으로 예보된 시간대는 언제입니까?
+          grain: place_id와 window_start_at마다 한 행 — 명시적으로 강수 형태가 예보된 연속 시간 구간.
+          primary_key: [product_row_id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger:
+            trigger_type: asset
+            max_interval_minutes: 240
+          event_time: window_start_at
+          freshness_slo_minutes: 240
+          retention_or_horizon: 최신 KMA 예보가 제공하는 미래 구간만 매 게시 시점에 교체합니다.
+          shape: event
+    columns:
+      - name: product_row_id
+        description: place_id와 강수 구간 시작시각을 직렬화한 식별자입니다.
+        tests: [not_null, unique]
+      - name: place_id
+        description: 장소 식별자입니다.
+        tests: [not_null]
+      - name: window_start_at
+        description: 강수 형태 예보가 연속되기 시작하는 KST 시각입니다.
+        tests: [not_null]
+      - name: window_end_at
+        description: 강수 형태 예보가 연속되는 마지막 KST 시각입니다.
+        tests: [not_null]
