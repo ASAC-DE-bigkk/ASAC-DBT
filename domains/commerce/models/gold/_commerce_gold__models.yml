@@ -14,6 +14,25 @@ models:
     description: 개업/폐업 흐름 일 grain × 업종3단 × 지역3축 — '언제·어디서·무슨 업종이 생기고 닫혔나' 추이 정본. 완결일만(append, 재실행 0건).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478) — D1 미게시 제품(iceberg_api 직조회). 필수 필드는 형식 충족, 게시는 enabled=false 로 제외
+          enabled: false              # D1 게시 안 함 — 원장 약 290만행(§1.1)
+          external: false             # enabled=false 제품은 external 불가(#478 모순 규칙)
+          serving_tier: iceberg_api   # D1 금지(원장 약 290만행) — Iceberg(Trino) 직조회 서빙(§1.1)
+          product_id: commerce_flow_daily   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 개·폐업 흐름 추이(일)
+          grain: 일×이벤트×업종×지역3축
+          primary_key: [event_date, event_type, dataset, gu_code, admin_dong_code, legal_code]
+          publication_mode: snapshot        # 형식 필수(미게시 — D1 승격 시 재정의)
+          zero_policy: retain_last_good     # 형식 필수(미게시)
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: event
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [event_date, event_type, dataset, gu_code, admin_dong_code, legal_code]
     columns:
       - name: event_date
         data_type: date
@@ -83,10 +102,34 @@ models:
     description: 개업/폐업 흐름 월 grain × 업종3단 × 지역3축 — 월별 상권 증감 추이(화면 기본 해상도). 완결월만(append, 재실행 0건).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_rollup
+          d1_table: d1_flow_monthly
+          d1_rollup: (ym,event_type,major,category,gu_code) SUM(cnt) — dataset/dong/legal 드롭(HOW 정본=export SERVING_SPEC)
+          product_id: commerce_flow_monthly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 개·폐업 흐름 추이(월)
+          grain: 월×이벤트×업종×지역3축
+          primary_key: [ym, event_type, dataset, gu_code, admin_dong_code, legal_code]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [ym, event_type, dataset, gu_code, admin_dong_code, legal_code]
     columns:
       - name: ym
         data_type: varchar
         description: 이벤트 발생 연월(YYYY-MM, 문자열). 완결월만(당월 제외).
+        tests: [not_null]              # PK 근거(#478)
       - name: y
         data_type: integer
         description: 연(정수, ym 파생) — 월 데이터의 연 단위 집계용.
@@ -151,6 +194,29 @@ models:
     description: 개업/폐업 흐름 연 grain × 업종3단 × 지역3축 — 장기(수십 년) 상권 추세. 완결연만(append, 재실행 0건).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_rollup
+          d1_table: d1_flow_yearly
+          d1_rollup: (y,event_type,major,category,gu_code) SUM(cnt) — dataset/dong 드롭, y→varchar
+          product_id: commerce_flow_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 개·폐업 흐름 추이(연)
+          grain: 연×이벤트×업종×지역3축
+          primary_key: [y, event_type, dataset, gu_code, admin_dong_code, legal_code]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [y, event_type, dataset, gu_code, admin_dong_code, legal_code]
     columns:
       - name: y
         data_type: integer
@@ -216,6 +282,28 @@ models:
     description: 개업/폐업 월중 계절성(1~12월) × 업종 — '어느 달에 개·폐업 몰리나'(연도 무관, 최근 10개 완결연).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_seasonality
+          product_id: commerce_seasonality   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 개·폐업이 몰리는 달은 언제인가?
+          grain: 이벤트×월×업종3단
+          primary_key: [event_type, month_of_year, major, category, dataset]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [event_type, month_of_year, major, category, dataset]
     columns:
       - name: event_type
         data_type: varchar
@@ -236,9 +324,11 @@ models:
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]              # PK 근거(#478)
       - name: cnt
         data_type: bigint
         description: 해당 월 개업/폐업 누적 건수(최근 10년 완결연 합).
@@ -259,6 +349,29 @@ models:
     description: 상권 역동성 — 연도별 개업/폐업/순증·교체율·신생비 × 업종 × 자치구. 순증형 vs 교체형 진단(최근 20개 완결연).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_rollup
+          d1_table: d1_churn_yearly
+          d1_rollup: (y,major,category,gu_code) 집계 후 비율 재산출(churn/birth_rate — 합산 불가) — dataset 드롭
+          product_id: commerce_churn_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 연별 교체율·신생비는?
+          grain: 연×업종3단×자치구
+          primary_key: [y, major, category, dataset, gu_code]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [y, major, category, dataset, gu_code]
     columns:
       - name: y
         data_type: integer
@@ -271,12 +384,15 @@ models:
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]              # PK 근거(#478)
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]              # PK 근거(#478)
       - name: opened
         data_type: bigint
         description: 해당 연 개업 수.
@@ -313,6 +429,28 @@ models:
     description: 이 업종 얼마나 버티나 — 폐업 완결분 수명(개업→폐업 일수) 분포 × 업종 × 자치구. 조기폐업률 포함(폐업분 기준 편향 주의).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_lifespan
+          product_id: commerce_lifespan   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 업종별 폐업까지 걸리는 수명은?
+          grain: 업종3단×자치구
+          primary_key: [major, category, dataset, gu_code]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset, gu_code]
     columns:
       - name: major
         data_type: varchar
@@ -321,12 +459,15 @@ models:
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]              # PK 근거(#478)
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]              # PK 근거(#478)
       - name: n_closed
         data_type: bigint
         description: 수명 계산 모수 — 개업일·폐업일이 모두 유효한 폐업 완결 업소 수.
@@ -365,6 +506,28 @@ models:
     description: 창업 생존율 곡선 — 개업연도 코호트의 경과연차별 생존율 × 대/중분류. 우측검열 차단(관측 가능 연차만), 연 단위 근사.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_cohort_survival
+          product_id: commerce_cohort_survival   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 창업 후 몇 년을 버티나(코호트 생존율)?
+          grain: 업종×창업연도×경과연차
+          primary_key: [major, category, cohort_y, years_elapsed]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, cohort_y, years_elapsed]
     columns:
       - name: major
         data_type: varchar
@@ -373,6 +536,7 @@ models:
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: cohort_y
         data_type: integer
         description: 개업연도 코호트(정수).
@@ -400,10 +564,33 @@ models:
     description: 휴업하면 얼마나 쉬나 — 상태(영업/휴업/폐업/취소) 세그먼트 지속기간 요약 × 업종·상태군. 이력 기반(씨앗 — 표본 축적 중).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_status_duration
+          product_id: commerce_status_duration   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 인허가 상태에 얼마나 머무나?
+          grain: dataset×상태×진행중
+          primary_key: [dataset, status_code, is_ongoing]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [dataset, status_code, is_ongoing]
     columns:
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]              # PK 근거(#478)
       - name: major
         data_type: varchar
         description: 대분류.
@@ -420,6 +607,7 @@ models:
       - name: is_ongoing
         data_type: boolean
         description: 진행중 세그먼트 여부(true=아직 종료 안 된 현재 상태).
+        tests: [not_null]              # PK 근거(#478)
       - name: n_segments
         data_type: bigint
         description: 집계 세그먼트 수(표본). 30 미만은 저표본(회색 처리 권장).
@@ -448,16 +636,41 @@ models:
     description: 휴업 다음은 재개? 폐업? — 상태 전이 매트릭스(from→to) × 업종. 씨앗 지표(이력 축적에 따라 성장).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_status_transition
+          product_id: commerce_status_transition   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 영업→폐업 등 상태 전이는 어떤 경로인가?
+          grain: 업종3단×상태전이
+          primary_key: [major, category, dataset, from_status, to_status]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset, from_status, to_status]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]              # PK 근거(#478)
       - name: from_status
         data_type: varchar
         description: 전이 이전 상태코드(01~06).
@@ -491,6 +704,25 @@ models:
     description: 우리 동네 상권 요약 — 행정동별 업소 현황 스냅샷(전체·영업·폐업·업종수·지도표시 가능). 동 지도/요약 서빙 표면.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_dong_summary
+          product_id: commerce_dong_summary   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 우리 동네(행정동)에 업소가 몇 개 있고 얼마나 열고 닫혔나?
+          grain: 행정동
+          primary_key: [admin_dong_code]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: wide
     columns:
       - name: admin_dong_code
         data_type: varchar
@@ -529,6 +761,28 @@ models:
     description: 우리 동네엔 뭐가 많나 — 행정동 × 중분류 스톡(영업/전체) + 최근 1년 신규 개업. 동네 프로파일/지도 서빙.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_dong_category_matrix
+          product_id: commerce_dong_category_matrix   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 이 동네엔 무슨 업종이 많나?
+          grain: 행정동×업종
+          primary_key: [admin_dong_code, gu_code, major, category]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [admin_dong_code, gu_code, major, category]
     columns:
       - name: admin_dong_code
         data_type: varchar
@@ -540,12 +794,14 @@ models:
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리.
+        tests: [not_null]              # PK 근거(#478)
       - name: gu
         data_type: varchar
         description: 자치구명(한글).
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류(동네 업종 구성축).
@@ -569,6 +825,29 @@ models:
     description: 상권 밀집 히트맵 — 좌표 0.005도(약 500m) 격자 × 업종 영업 밀도·최근 신규. 지도 핫스팟 질의(좌표 84%만).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_rollup
+          d1_table: [d1_geo_grid_overview, d1_geo_grid_detail]
+          d1_rollup: overview=(grid_lat,grid_lng,major) 집계 · detail=(grid_lat,grid_lng,major,category) 원 grain
+          product_id: commerce_geo_grid   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 상권이 어디에 밀집해 있나(500m 격자)?
+          grain: 500m 격자×업종
+          primary_key: [grid_lat, grid_lng, major, category]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [grid_lat, grid_lng, major, category]
     columns:
       - name: grid_lat
         data_type: double
@@ -581,9 +860,11 @@ models:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: active_cnt
         data_type: bigint
         description: 격자 내 영업(01) 업소 수(밀도).
@@ -601,6 +882,28 @@ models:
     description: 우리 구 특화 업종 — 자치구별 업종 특화지수(LQ)·구성비. LQ>1 이면 서울 평균 대비 밀집.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_gu_specialization
+          product_id: commerce_gu_specialization   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 이 자치구는 어떤 업종이 특화됐나(LQ)?
+          grain: 자치구×업종
+          primary_key: [gu_code, major, category]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [gu_code, major, category]
     columns:
       - name: gu_code
         data_type: varchar
@@ -612,6 +915,7 @@ models:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류(특화 판정 업종축).
@@ -635,6 +939,29 @@ models:
     description: 신상 상권 vs 노포 상권 — 영업 업소의 업력 밴드(1년 미만~20년+) 분포 × 업종 × 자치구.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_rollup
+          d1_table: d1_age_band
+          d1_rollup: (major,category,gu_code,age_band) SUM(active_cnt) — dataset 드롭
+          product_id: commerce_age_band   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 신상 가게와 노포의 비중은?
+          grain: 업종3단×자치구×업력밴드
+          primary_key: [major, category, dataset, gu_code, age_band]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset, gu_code, age_band]
     columns:
       - name: major
         data_type: varchar
@@ -643,12 +970,15 @@ models:
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short.
+        tests: [not_null]              # PK 근거(#478)
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]              # PK 근거(#478)
       - name: age_band
         data_type: varchar
         description: 업력 구간 라벨(1년 미만 / 1~3 / 3~5 / 5~10 / 10~20 / 20년+). 개업일 보유분 기준.
@@ -678,13 +1008,37 @@ models:
     description: 이 업종 가게 크기 — 영업장 면적(sitearea) 분포 × 업종 × 자치구. avg/p50/p90 + 소형/대형 비중(면적 보유분 기준).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_area_profile
+          product_id: commerce_area_profile   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 업종별 매장 면적 분포는?
+          grain: 업종3단×자치구
+          primary_key: [major, category, dataset, gu_code]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset, gu_code]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(면적 필드 보유 detail 한정).
@@ -692,6 +1046,7 @@ models:
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]              # PK 근거(#478)
       - name: n_with_area
         data_type: bigint
         description: 면적(sitearea) 유효 업소 수(모수 — 표본 신뢰 배지).
@@ -727,13 +1082,38 @@ models:
     description: 업종 속 세부 업태 — 업태(uptaenm) 구성·플로우 × 업종. 소분류보다 깊은 축(일반음식점 안 한식/커피숍). lodging 제외.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_rollup
+          d1_table: d1_uptae_rollup
+          d1_rollup: (major,category,dataset,uptaenm) 집계 + share 사전계산 — gu 드롭
+          product_id: commerce_uptae_rollup   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 업태 구성은 어떤가?
+          grain: 업종3단×업태×자치구
+          primary_key: [major, category, dataset, uptaenm, gu_code]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset, uptaenm, gu_code]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(업태 필드 보유 detail — 19종).
@@ -745,6 +1125,7 @@ models:
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]              # PK 근거(#478)
       - name: active_cnt
         data_type: bigint
         description: 해당 업태 영업(01) 업소 수.
@@ -770,13 +1151,37 @@ models:
     description: 체인·다점포 비율 — 동일 전화 다지점(체인/다점포 추정) 비율 × 업종. 근사(전화 44%·번호공유 노이즈).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_multi_site
+          product_id: commerce_multi_site   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 다점포 운영이 흔한 업종은?
+          grain: 업종3단
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(grain).
@@ -809,13 +1214,37 @@ models:
     description: 간판·자리 자주 바꾸는 업종 — 업소당 버전수·개명/이전 발생률 × 업종. 씨앗 지표(이력 축적 초기, 상대순위로 해석).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_change_activity
+          product_id: commerce_change_activity   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 업소 정보 변경이 활발한 업종은?
+          grain: 업종3단
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(grain).
@@ -856,6 +1285,28 @@ models:
     description: 이 자리엔 다음에 뭐가? — 폐업 후 같은 도로명주소 후속 개업(365일 이내 최근접 1건) 업종 승계. 건물 단위 주소 근사.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_address_succession
+          product_id: commerce_address_succession   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 폐업 자리에 무슨 업종이 들어서나(자리 대물림)?
+          grain: 폐업→개업 업종쌍
+          primary_key: [closed_major, closed_category, opened_major, opened_category]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [closed_major, closed_category, opened_major, opened_category]
     columns:
       - name: closed_major
         data_type: varchar
@@ -864,6 +1315,7 @@ models:
       - name: closed_category
         data_type: varchar
         description: 폐업(선행) 업소 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: opened_major
         data_type: varchar
         description: 후속 개업 업소 대분류.
@@ -871,6 +1323,7 @@ models:
       - name: opened_category
         data_type: varchar
         description: 후속 개업 업소 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: successions
         data_type: bigint
         description: 해당 전이(폐업업종→개업업종) 승계 건수(매칭 성사분).
@@ -900,6 +1353,28 @@ models:
     description: 폐업 사장님의 재도전 — 동일 전화의 폐업→개업(3년 이내·주소 상이) 업종 전환. 연쇄창업 근사(전화 44%).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_phone_succession
+          product_id: commerce_phone_succession   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 전화번호가 승계되는 업종 조합은?
+          grain: 폐업→개업 업종쌍
+          primary_key: [closed_major, closed_category, opened_major, opened_category]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [closed_major, closed_category, opened_major, opened_category]
     columns:
       - name: closed_major
         data_type: varchar
@@ -908,6 +1383,7 @@ models:
       - name: closed_category
         data_type: varchar
         description: 폐업(선행) 업소 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: opened_major
         data_type: varchar
         description: 재도전(후속) 업소 대분류.
@@ -915,6 +1391,7 @@ models:
       - name: opened_category
         data_type: varchar
         description: 재도전(후속) 업소 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: successions
         data_type: bigint
         description: 해당 전환 건수(동일 전화·주소 상이·공용번호 컷).
@@ -946,13 +1423,37 @@ models:
     description: 데이터 신뢰도 진단 — dataset(API)별 필드 커버리지(전화/좌표/행정동/주소/폐업일/상호). 거버넌스·수집 우선순위.
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_data_quality
+          product_id: commerce_data_quality   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 이 데이터셋의 품질(연락처·좌표·주소 커버리지)은?
+          grain: 업종3단
+          primary_key: [major, category, dataset]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [major, category, dataset]
     columns:
       - name: major
         data_type: varchar
         description: 대분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: category
         data_type: varchar
         description: 중분류.
+        tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
         description: 데이터셋 short(grain — API 단위).
@@ -994,6 +1495,28 @@ models:
     description: 우리 구 배출시설 가동 — 환경 배출시설(대기/수질) 자치구별 연간 가동일수·가동시간. 영업시간 필드는 LOCALDATA 원천 부재(수질 가동필드 결측 큼).
     config:
       contract: {enforced: true}
+      meta:
+        serving:   # Serving Contract v1(#478 확정 필드) + commerce 확장(serving_tier/d1_*). 소비: commerce_serving_export(분리 DAG, gold Asset 트리거)
+          enabled: true               # D1 게시 대상
+          external: true              # 공개 /catalog·외부 API 노출
+          serving_tier: d1_direct
+          d1_table: d1_env_facility_operation
+          product_id: commerce_env_facility_operation   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          contract_version: v1
+          product_question: 환경시설의 가동 일수·시간은?
+          grain: 환경 dataset×자치구
+          primary_key: [dataset, gu_code]
+          publication_mode: snapshot        # 전량 교체 스냅샷(DROP+CREATE) — rollup 파생도 게시는 스냅샷
+          zero_policy: retain_last_good     # 0행/밴드 밖 → 스왑 스킵 + 직전 스냅샷 유지(§1.4 밴드 게이트)
+          partial_policy:
+            min_publish_ratio: 0.5          # 행수 밴드(실측 ±50%) 하한의 계약 표현
+          publication_trigger:                # 구 refresh 대체(#478 v1)
+            trigger_type: asset               # gold 완료 Asset(iceberg://commerce/gold) 트리거
+            max_interval_minutes: 1560        # 26h(일 1회+여유) 초과 미게시 = stale(§7.4 감시축)
+          shape: rollup
+    tests:                                  # PK 조합 유일 근거(#478 primary_key evidence)
+      - unique_combination_of_columns:
+          combination_of_columns: [dataset, gu_code]
     columns:
       - name: dataset
         data_type: varchar
@@ -1002,6 +1525,7 @@ models:
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        tests: [not_null]              # PK 근거(#478)
       - name: gu
         data_type: varchar
         description: 자치구명(한글).
