@@ -151,7 +151,9 @@ sources:
   - name: seoul_citydata
     description: citydata 도메인 published 테이블 (ASAC-DBT domains/citydata).
     database: "{{ target.database }}"
-    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    # 스키마 이름이 target 마다 다르다 — dev=seoul_citydata / prod=citydata (#556 컷오버).
+    # culture 952fd36 관례: 기본값을 target 으로 가르고 env_var 는 오너 오버라이드용으로 유지.
+    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'citydata' if target.name == 'prod' else 'seoul_citydata') }}"
     tables:
       - name: silver_citydata_sbike
         description: >
