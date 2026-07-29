@@ -251,6 +251,51 @@ selectors:
         - {method: selector, value: ask_seoul_traffic_transform_availability}
         - {method: selector, value: traffic_transform_contract_gate}
 
+  - name: ask_seoul_traffic_transform_incident_hot_build
+    description: Pinned Incident Silver models and one compound publication receipt.
+    definition:
+      union:
+        - {method: fqn, value: silver_seoul_traffic_incident, indirect_selection: empty}
+        - {method: fqn, value: silver_seoul_traffic_incident_current, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_incident_silver_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_flow_hot_build
+    description: Pinned Flow Silver model and one compound publication receipt.
+    definition:
+      union:
+        - {method: fqn, value: silver_seoul_traffic_flow, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_flow_silver_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_gold_hot_build
+    description: Six Traffic D1 serving models and their compound publication receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_change_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_time_profile, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_anomaly_current, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_gold_incident_hot_build
+    description: Incident-only Traffic D1 model and compound receipt without Flow branches.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_daily_assurance
+    description: Full Traffic contracts executed by the 09:00 reliability audit.
+    definition:
+      union:
+        - {method: selector, value: ask_seoul_traffic_transform_incident_preflight_contracts}
+        - {method: selector, value: ask_seoul_traffic_transform_silver}
+        - {method: selector, value: ask_seoul_traffic_transform_flow_silver_tests}
+        - {method: selector, value: ask_seoul_traffic_transform_common_admin}
+        - {method: selector, value: ask_seoul_traffic_transform_asac_axes_contract}
+        - {method: selector, value: ask_seoul_traffic_transform_gold_full_tests_without_commerce}
+
   - name: ask_seoul_weather_transform_source
     description: Weather Bronze source와 해당 source 계약 리소스를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_source, indirect_selection: cautious}
