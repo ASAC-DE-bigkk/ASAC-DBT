@@ -98,3 +98,15 @@ def test_public_d1_product_ids_are_unique() -> None:
             products.append(serving["product_id"])
 
     assert len(products) == len(set(products))
+
+
+def test_enabled_external_d1_products_match_portfolio() -> None:
+    active_products = {
+        serving["product_id"]
+        for model in _models().values()
+        if (serving := model.get("config", {}).get("meta", {}).get("serving"))
+        and serving.get("enabled") is True
+        and serving.get("external") is True
+    }
+
+    assert active_products == EXPECTED_PRODUCTS
