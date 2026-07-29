@@ -5,12 +5,16 @@ version: 2
 # 공용 패키지라 소비 프로젝트가 어디서든 오버라이드할 수 있게 var()로 한 겹 감싼다.
 # 기본값은 전용 common 스키마(iceberg_dev.common / iceberg.common) — 공유 마스터의 집(#154 코멘트).
 # 카탈로그는 dev/prod 분기, 스키마는 dev/prod 공통 이름(COMMON_SCHEMA, 기본 common).
+# 카탈로그 기본값은 target.database — profiles.yml 이 이미 target 별로 카탈로그를
+# 해석하므로(prod→TRINO_ICEBERG_CATALOG, dev→TRINO_DEV_ICEBERG_CATALOG) 여기서 다시
+# 고르면 안 된다. 과거 TRINO_DEV_ICEBERG_CATALOG 를 기본값으로 두는 바람에 prod 빌드가
+# dev 카탈로그(iceberg_dev.common)를 읽었다(#368).
 sources:
   - name: axes_bronze
     description: >
       공통 공간축 원천 bronze Iceberg 테이블. ASAC-DAG 가 행안부 행정동 마스터를 적재한다.
       코드·명칭의 canonical 원천이며, seed(crosswalk)는 좌표 보조 및 source 부재 환경 폴백.
-    database: "{{ var('axes_bronze_catalog', env_var('TRINO_DEV_ICEBERG_CATALOG', 'iceberg_dev')) }}"
+    database: "{{ var('axes_bronze_catalog', target.database) }}"
     schema: "{{ var('axes_bronze_schema', env_var('COMMON_SCHEMA', 'common')) }}"
     tables:
       - name: admin_dong_master
