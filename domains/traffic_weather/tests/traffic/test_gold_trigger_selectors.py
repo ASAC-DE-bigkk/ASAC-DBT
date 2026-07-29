@@ -16,6 +16,7 @@ FLOW_SCOPE = "ask_seoul_traffic_transform_flow_gold_scope"
 COMMERCE_SCOPE = "ask_seoul_traffic_transform_commerce_gold_scope"
 SILVER_EXECUTION_TAG = "ask_seoul_traffic_transform_silver"
 INCIDENT_SILVER = "ask_seoul_traffic_transform_incident_silver"
+INCIDENT_PREFLIGHT = "ask_seoul_traffic_transform_incident_preflight_contracts"
 FLOW_SILVER_MODEL = "ask_seoul_traffic_transform_flow_silver_model"
 FLOW_SILVER_TESTS = "ask_seoul_traffic_transform_flow_silver_tests"
 INCIDENT_MODELS = "ask_seoul_traffic_transform_gold_incident_models"
@@ -380,6 +381,24 @@ def test_incident_silver_resolves_only_incident_owned_models_and_tests(
     assert incident_tests.isdisjoint(flow_tests)
     assert "assert_silver_seoul_traffic_flow_pinned_rows" not in incident_tests
     assert "assert_traffic_current_pinned_publishable_run" in incident_tests
+
+
+def test_incident_preflight_combines_availability_and_bronze_contracts(
+    resolved_selector_project: tuple[Path, dict[str, str]],
+):
+    combined = _resolved_names(resolved_selector_project, INCIDENT_PREFLIGHT, "test")
+    availability = _resolved_names(
+        resolved_selector_project,
+        "ask_seoul_traffic_transform_availability",
+        "test",
+    )
+    bronze_contracts = _resolved_names(
+        resolved_selector_project,
+        "traffic_transform_contract_gate",
+        "test",
+    )
+
+    assert combined == availability | bronze_contracts
 
 
 def test_scheduled_gold_without_commerce_reuses_existing_contracts():

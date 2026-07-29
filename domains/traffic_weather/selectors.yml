@@ -244,6 +244,13 @@ selectors:
         - method: test_type
           value: generic
 
+  - name: ask_seoul_traffic_transform_incident_preflight_contracts
+    description: Traffic Incident availability와 Bronze generic contract를 한 번에 검증한다.
+    definition:
+      union:
+        - {method: selector, value: ask_seoul_traffic_transform_availability}
+        - {method: selector, value: traffic_transform_contract_gate}
+
   - name: ask_seoul_weather_transform_source
     description: Weather Bronze source와 해당 source 계약 리소스를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_source, indirect_selection: cautious}
