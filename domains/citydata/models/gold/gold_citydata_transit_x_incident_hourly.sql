@@ -12,7 +12,7 @@
 -- 조인축 admin_dong_code. 동 이름/구는 dim_admin_dong 조인. 커버리지=우리 핫플 동 한정.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with transit_dong as (

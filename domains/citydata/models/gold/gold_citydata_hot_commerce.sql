@@ -6,7 +6,7 @@
 -- trend(붐빔 변화) + purchasing_power(구매력·결제, 최근일) 파생 table. 챗봇 "요즘 뜨는 상권?"용.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with pw as (

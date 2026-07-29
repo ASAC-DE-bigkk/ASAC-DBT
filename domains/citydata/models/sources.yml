@@ -8,8 +8,8 @@ sources:
       citydata 통합 API 원본 (#192/#69). **seoul_citydata 스키마로 분리** — population
       (seoul_ppltn)과 격리한다. DAG(ASAC-DAG population_citydata_bronze)가 적재.
     database: "{{ target.database }}"
-    # citydata 는 별도 스키마. 샌드박스 테스트 시 SEOUL_CITYDATA_SCHEMA 로 격리.
-    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    # citydata 별도 스키마 = 프로필 target 스키마(dev=seoul_citydata / prod=citydata). 샌드박스는 SEOUL_CITYDATA_SCHEMA.
+    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', target.schema) }}"
     tables:
       - name: bronze_seoul_citydata
         description: >

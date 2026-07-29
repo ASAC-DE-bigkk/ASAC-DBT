@@ -8,7 +8,7 @@
 -- (event_date, area_code) 키로 delete+insert. 오늘 값은 슬라이스가 쌓일수록 갱신된다.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with base as (

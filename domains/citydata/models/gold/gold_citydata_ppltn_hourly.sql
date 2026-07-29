@@ -7,7 +7,7 @@
 -- 적재: table+replace (citydata 골드 불변식). D1 서빙은 export 단계에서 시간버킷 append.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with base as (

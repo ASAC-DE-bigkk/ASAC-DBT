@@ -10,7 +10,7 @@
 --   (table+replace 라 컬럼 삭제는 모델·contract·export 에서 한 줄씩 지우면 끝).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with src as (

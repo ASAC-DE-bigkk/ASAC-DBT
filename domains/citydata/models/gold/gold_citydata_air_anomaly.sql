@@ -9,7 +9,7 @@
 -- silver_citydata_air 파생(air 는 by_time 없음). table+replace(조회 시 최신 재계산 → 라이브).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     tags=['hourly'],
 ) }}
 

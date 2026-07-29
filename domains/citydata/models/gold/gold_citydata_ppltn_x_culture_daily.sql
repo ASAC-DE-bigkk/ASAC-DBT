@@ -11,7 +11,7 @@
 -- 121핫플이 속한 동 한정. 6종은 서로 다른 원천이라 소량 중복은 total 로 합산(교차 dedup 안 함).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with ppltn_dong as (

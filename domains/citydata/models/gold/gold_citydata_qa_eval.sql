@@ -18,7 +18,7 @@ marts as (
     select distinct table_name, table_schema
     from {{ target.database }}.information_schema.tables
     where table_schema in (
-        '{{ env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata") }}',
+        '{{ env_var("SEOUL_CITYDATA_SCHEMA", target.schema) }}',
         '{{ env_var("WEATHER_SCHEMA", "weather") }}',
         '{{ env_var("TRANSIT_SCHEMA", "transit") }}',
         '{{ env_var("CULTURE_SCHEMA", "culture") }}',

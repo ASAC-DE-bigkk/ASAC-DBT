@@ -6,7 +6,7 @@
 -- 2주 데이터라 요일 7분할 대신 주중/주말 2분할(표본 확보). by_time 파생 table. 챗봇 예보 조회용.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with src as (

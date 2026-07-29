@@ -6,7 +6,7 @@
 -- 소형(장소당 수~수십 대여소)이라 전량 교체 스냅샷으로 D1 서빙 적합. table+replace 상속(멱등).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     tags=['fast'],
 ) }}
 

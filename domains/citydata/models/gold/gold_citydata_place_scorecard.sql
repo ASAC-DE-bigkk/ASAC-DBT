@@ -7,7 +7,7 @@
 -- 여러 골드를 area_cd 로 합친 table (매 run 재빌드). Text-to-SQL/도구호출 챗봇의 대표 조회 대상.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with pw as (
