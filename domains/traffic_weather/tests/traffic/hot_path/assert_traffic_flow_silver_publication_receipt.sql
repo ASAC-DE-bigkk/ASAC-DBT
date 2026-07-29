@@ -23,7 +23,8 @@ missing_pinned_run as (
         'missing_pinned_run' as violation_type,
         cast(null as varchar) as link_id
     from configured_run
-    left join pinned_run using (dag_run_id)
+    left join pinned_run
+        on pinned_run.dag_run_id = configured_run.dag_run_id
     where pinned_run.dag_run_id is null
        or configured_run.dag_run_id = ''
        or not exists (
