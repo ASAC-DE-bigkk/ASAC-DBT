@@ -23,6 +23,12 @@ INCIDENT_MODELS = "ask_seoul_traffic_transform_gold_incident_models"
 INCIDENT_GATE_TESTS = "ask_seoul_traffic_transform_gold_incident_gate_tests"
 INCIDENT_HOURLY_TESTS = "ask_seoul_traffic_transform_gold_incident_hourly_tests"
 INCIDENT_FULL_TESTS = "ask_seoul_traffic_transform_gold_incident_full_tests"
+INCIDENT_HOT_BUILD = "ask_seoul_traffic_transform_incident_hot_build"
+FLOW_HOT_BUILD = "ask_seoul_traffic_transform_flow_hot_build"
+GOLD_HOT_BUILD = "ask_seoul_traffic_transform_gold_hot_build"
+GOLD_INCIDENT_HOT_BUILD = (
+    "ask_seoul_traffic_transform_gold_incident_hot_build"
+)
 
 FULL_GOLD_MODELS = "ask_seoul_traffic_transform_gold_models"
 FULL_GATE_TESTS = "ask_seoul_traffic_transform_gold_gate_tests"
@@ -73,6 +79,10 @@ EXPECTED_FLOW_SILVER_TESTS = {
 EXPECTED_INCIDENT_SILVER_MODELS = {
     "silver_seoul_traffic_incident",
     "silver_seoul_traffic_incident_current",
+}
+EXPECTED_D1_HOT_MODELS = {
+    "gold_traffic_incident_x_weather_current_hourly",
+    *EXPECTED_FLOW_MODELS,
 }
 EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_active_latest",
@@ -399,6 +409,35 @@ def test_incident_preflight_combines_availability_and_bronze_contracts(
     )
 
     assert combined == availability | bronze_contracts
+
+
+def test_hot_build_selectors_resolve_exact_models_and_compound_receipts(
+    resolved_selector_project: tuple[Path, dict[str, str]],
+):
+    assert _resolved_names(
+        resolved_selector_project, INCIDENT_HOT_BUILD, "model"
+    ) == EXPECTED_INCIDENT_SILVER_MODELS
+    assert _resolved_names(
+        resolved_selector_project, INCIDENT_HOT_BUILD, "test"
+    ) == {"assert_traffic_incident_silver_publication_receipt"}
+    assert _resolved_names(
+        resolved_selector_project, FLOW_HOT_BUILD, "model"
+    ) == {"silver_seoul_traffic_flow"}
+    assert _resolved_names(
+        resolved_selector_project, FLOW_HOT_BUILD, "test"
+    ) == {"assert_traffic_flow_silver_publication_receipt"}
+    assert _resolved_names(
+        resolved_selector_project, GOLD_HOT_BUILD, "model"
+    ) == EXPECTED_D1_HOT_MODELS
+    assert _resolved_names(
+        resolved_selector_project, GOLD_HOT_BUILD, "test"
+    ) == {"assert_traffic_gold_serving_publication_receipt"}
+    assert _resolved_names(
+        resolved_selector_project, GOLD_INCIDENT_HOT_BUILD, "model"
+    ) == {"gold_traffic_incident_x_weather_current_hourly"}
+    assert _resolved_names(
+        resolved_selector_project, GOLD_INCIDENT_HOT_BUILD, "test"
+    ) == {"assert_traffic_gold_serving_publication_receipt"}
 
 
 def test_scheduled_gold_without_commerce_reuses_existing_contracts():
