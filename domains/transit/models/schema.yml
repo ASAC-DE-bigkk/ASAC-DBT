@@ -233,6 +233,10 @@ models:
       event_at) KST. silver 3종(버스·지하철·주차)을 동·시간으로 집계해 한 행에 나란히(3원 outer 결합
       — 한 소스만 있는 조합도 행 생성). 지하철은 역 3곳(4개 동)에만 존재해 대부분 행에서 subway_* null.
       정화된 silver(#66)만 소비하므로 추가 시간 필터 없음. incremental merge(-3h lookback).
+    tests:
+      # 서빙 계약 복합 PK 근거 — validator 가 unique_combination 이름으로 인정(#478, culture #346 관례).
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [admin_dong_code, hour_at]
     columns:
       - name: admin_dong_code
         description: 행안부 10자리 행정동 코드(공간축, 그레인 축). null 행은 소스에서 제외.
@@ -510,6 +514,10 @@ models:
     description: >
       주차장별 요일×시간 점유 프로파일(#288 G2 프로파일 축). grain (parking_id, dow, hh).
       아카이브(parking_lot_15min) 전량 재집계. full_prob = 버킷 중 occ_max>=0.95 비율.
+    tests:
+      # 서빙 계약 복합 PK 근거 — validator 가 unique_combination 이름으로 인정(#478, culture #346 관례).
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [parking_id, dow, hh]
     columns:
       - name: parking_id
         tests:
@@ -677,6 +685,10 @@ models:
       (citydata 프로파일) + 날씨 예보(G6 미래 행 재사용) + 평시 교통(G4 리듬, 버스 tier1)
       3원 결합. 추천은 해석 가능한 불리언 3개(v1 단순 규칙 — 합성 점수 없음).
       매 변환 재생성 table(과거 검증은 G6 아카이브 몫).
+    tests:
+      # 서빙 계약 복합 PK 근거(#478). G6 행 부활 오염(dedup 전)엔 red 가 정상 — 오염 게시 게이트.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [area_cd, target_hour_at]
     columns:
       - name: area_cd
         tests:
