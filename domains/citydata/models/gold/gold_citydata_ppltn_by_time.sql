@@ -5,7 +5,7 @@
 -- 계산한다. 실시간 지도(최신 슬라이스)와 시간별 분석(누적)용 마트. grain = (event_at, area_cd).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 -- ⚠ silver가 incremental merge 과정에서 완전동일 중복행을 남길 수 있어(dbt-trino/Iceberg

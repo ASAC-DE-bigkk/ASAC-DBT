@@ -20,7 +20,7 @@
 -- dow: Trino day_of_week — 1=월 … 6=토 … 7=일. hour: 0~23 (KST, event_at 기준).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with src as (

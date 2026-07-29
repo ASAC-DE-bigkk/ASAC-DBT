@@ -11,7 +11,7 @@
 -- 공간축: silver 는 코드·좌표만, 이름은 dim_seoul_area 조인(#115).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with ppltn as (

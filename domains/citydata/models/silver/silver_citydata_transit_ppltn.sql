@@ -6,7 +6,7 @@
 -- 값 의미: 최근 5/10/30분 창의 승·하차 인원 min~max + 당일 누적(acml).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     materialized='incremental',
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'mode', 'observed_at'],

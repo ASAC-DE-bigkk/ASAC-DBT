@@ -8,7 +8,7 @@
 -- admin_dong_code(라이브 B). 커버리지=우리 핫플 동 한정. 90행짜리 가벼운 집계 + 5분 티어라
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with ppltn_dong as (

@@ -6,7 +6,7 @@
 -- 재집계 후 (event_date, area_cd) 키로 delete+insert (멱등).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with slices as (

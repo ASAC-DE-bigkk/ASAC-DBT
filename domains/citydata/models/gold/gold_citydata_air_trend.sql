@@ -8,7 +8,7 @@
 -- table + replace(조회 시 최신 1행). place_latest 와 달리 '추세'라 시계열이 있어야만 답.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     materialized='table',
     on_table_exists='replace',
     tags=['hourly'],

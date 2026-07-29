@@ -8,7 +8,7 @@
 -- 있어(연속 두 run이 같은 event_at 처리 → 가시성 지연) 매 run 끝에 출력을 grain 당 최신 1행으로
 -- self-replace 해 무중복 수렴. 상세는 macros/dedup_latest.sql 참고.
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     materialized='incremental',
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'event_at'],

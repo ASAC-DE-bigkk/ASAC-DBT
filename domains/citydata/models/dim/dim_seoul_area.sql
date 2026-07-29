@@ -10,7 +10,7 @@
 --
 -- 121행 고정이라 table 재생성이 가장 싸고 멱등.
 
-{{ config(materialized='table', on_table_exists='drop', schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata")) }}
+{{ config(materialized='table', on_table_exists='drop', schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema)) }}
 
 with area_dong as (
     -- ② 각 POI 중심점 → 경계 point-in-polygon 으로 행정동(이름) 판정.

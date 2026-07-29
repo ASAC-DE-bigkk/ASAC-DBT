@@ -4,7 +4,7 @@
 -- event_at 은 부모 블록의 CMRCL_TIME. merge 키에 업종 축이 들어가 배치 내 dedup 후 멱등.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     materialized='incremental',
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'event_at', 'rsb_lrg_ctgr', 'rsb_mid_ctgr'],
