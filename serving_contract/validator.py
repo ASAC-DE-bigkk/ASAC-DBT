@@ -140,6 +140,9 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
         add("external_enabled_conflict", "external=true 인데 enabled 이 true 가 아니다 (게시 안 되는데 공개 노출)")
 
     # publication_trigger 는 cron 또는 asset 정확히 하나.
+    if "upsert_strategy" in serving and serving.get("publication_mode") != "upsert":
+        add("upsert_strategy_invalid", "upsert_strategy requires publication_mode=upsert")
+
     trigger = serving.get("publication_trigger")
     if isinstance(trigger, dict):
         has_cron = "schedule_cron" in trigger

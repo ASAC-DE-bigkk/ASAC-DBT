@@ -16,6 +16,7 @@ models:
           grain: hour_at과 link_id마다 한 행 — 시간대별 링크 혼잡 순위 관측.
           primary_key: [product_row_id]
           publication_mode: upsert
+          upsert_strategy: exact_set
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: '12 * * * *'

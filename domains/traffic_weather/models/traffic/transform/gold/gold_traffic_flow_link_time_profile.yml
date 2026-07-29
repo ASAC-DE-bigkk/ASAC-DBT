@@ -15,6 +15,7 @@ models:
           grain: link_id, kst_day_of_week, kst_hour마다 한 행 — 시간대별 이력 기준선.
           primary_key: [product_row_id]
           publication_mode: upsert
+          upsert_strategy: exact_set
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: '12 * * * *'

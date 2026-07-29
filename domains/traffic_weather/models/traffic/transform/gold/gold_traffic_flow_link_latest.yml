@@ -16,6 +16,7 @@ models:
           grain: link_id마다 한 행 — 링크별 최신 교통 흐름 스냅샷.
           primary_key: [product_row_id]
           publication_mode: upsert
+          upsert_strategy: exact_set
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: '12 * * * *'

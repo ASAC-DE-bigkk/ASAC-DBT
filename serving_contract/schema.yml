@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.1
+schema_version: v1.2
 supported_contract_versions: [v1]
 
 # v1.1 (#478 보강 결정): 조건부 필수 — `if_present` 필드를 선언한 모델은
@@ -38,6 +38,7 @@ optional:
   freshness_slo_minutes:  {type: int, min: 1}
   shape:                  {type: enum, allowed: [wide, rollup, event]}
   reliability:            {type: object}
+  upsert_strategy:        {type: enum, allowed: [merge, exact_set]}
 
 # Defaults the Publisher applies when the field is absent (documentation of intent;
 # the validator does not require them but forbids illegal explicit values).
