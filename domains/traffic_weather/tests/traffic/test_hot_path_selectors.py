@@ -103,3 +103,14 @@ def test_compound_receipts_are_fail_closed_for_pinned_identity_and_critical_keys
     assert "ref(model_name)" in gold
     for model in TRAFFIC_D1_MODELS:
         assert model in gold
+
+
+def test_receipt_anti_join_keeps_right_alias_addressable_in_trino():
+    for receipt_name in (INCIDENT_RECEIPT, FLOW_RECEIPT):
+        receipt = (HOT_TESTS / f"{receipt_name}.sql").read_text(encoding="utf-8")
+
+        assert "left join pinned_run using (dag_run_id)" not in receipt
+        assert (
+            "on pinned_run.dag_run_id = configured_run.dag_run_id"
+            in receipt
+        )
