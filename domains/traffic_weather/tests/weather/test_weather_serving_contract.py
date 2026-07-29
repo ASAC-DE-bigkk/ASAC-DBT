@@ -20,8 +20,8 @@ def test_weather_current_wide_declares_v11_serving_contract():
     serving = model["config"]["meta"]["serving"]
 
     assert serving == {
-        "enabled": True,
-        "external": True,
+        "enabled": False,
+        "external": False,
         "contract_version": "v1",
         "product_id": "weather_current_by_admin_dong",
         "product_question": "서울 행정동별 현재 최신 KMA 예보는 무엇인가?",

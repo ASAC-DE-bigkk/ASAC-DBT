@@ -35,8 +35,8 @@ models:
     config:
       meta:
         serving:
-          enabled: true
-          external: true
+          enabled: false
+          external: false
           contract_version: v1
           product_id: weather_current_by_admin_dong
           product_question: "서울 행정동별 현재 최신 KMA 예보는 무엇인가?"
