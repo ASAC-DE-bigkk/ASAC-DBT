@@ -51,10 +51,13 @@ sources:
         freshness: null  # 주1회 참조 마스터 — 분 단위 신선도 게이트 비대상
         columns:
           - name: bus_route_id
-            description: 노선 ID(busRouteId) — PK.
+            description: >
+              노선 ID(busRouteId) — 스냅샷 내 PK. 주간 재적재로 load_date 마다 전체
+              스냅샷이 쌓이므로 테이블 전역 unique 는 두 번째 적재(2026-07-26)부터
+              구조적으로 거짓 — 유일성 계약은 (bus_route_id, load_date) 단위로
+              assert_transit_bronze_bus_route_master_pk_per_load_date 가 지킨다.
             tests:
               - not_null
-              - unique
           - name: route_type
             description: >
               원천 routeType(varchar — 3간선·6광역·4지선·8경기 등 서울 API 코드).
