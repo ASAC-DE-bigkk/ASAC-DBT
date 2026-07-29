@@ -109,6 +109,7 @@ models:
           serving_tier: d1_rollup
           d1_table: d1_flow_monthly
           d1_rollup: (ym,event_type,major,category,gu_code) SUM(cnt) — dataset/dong/legal 드롭(HOW 정본=export SERVING_SPEC)
+          event_time: ym                      # 시간축(#478 v1) — _catalog.time_axis/freshness 채움(타 도메인 동형)
           product_id: commerce_flow_monthly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           contract_version: v1
           product_question: 개·폐업 흐름 추이(월)
@@ -201,6 +202,7 @@ models:
           serving_tier: d1_rollup
           d1_table: d1_flow_yearly
           d1_rollup: (y,event_type,major,category,gu_code) SUM(cnt) — dataset/dong 드롭, y→varchar
+          event_time: y                       # 시간축(#478 v1) — _catalog.time_axis/freshness(타 도메인 동형)
           product_id: commerce_flow_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           contract_version: v1
           product_question: 개·폐업 흐름 추이(연)
@@ -356,6 +358,7 @@ models:
           serving_tier: d1_rollup
           d1_table: d1_churn_yearly
           d1_rollup: (y,major,category,gu_code) 집계 후 비율 재산출(churn/birth_rate — 합산 불가) — dataset 드롭
+          event_time: y                       # 시간축(#478 v1) — _catalog.time_axis/freshness(타 도메인 동형)
           product_id: commerce_churn_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           contract_version: v1
           product_question: 연별 교체율·신생비는?
