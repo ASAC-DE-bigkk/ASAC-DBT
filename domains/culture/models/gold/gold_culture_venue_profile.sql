@@ -1,4 +1,5 @@
--- gold(Q&A metric): 시설 1행 프로필 — "그 공연장 어떤 곳이야"(#278). facility dim(주소·좌표 100%,
+-- gold(Q&A metric): 시설 1행 프로필 — "그 공연장 어떤 곳이야"(#278). facility dim(주소·좌표는
+-- dong_precise 한정 100% — 신규 시설은 상세 수집 전까지 gu_only·null 로 하루 존재, #364;
 -- seat_scale 63.7% 충전) + KOPIS 공연 집계(facility_id 링크 99.9%, 공연 보유 시설 421).
 -- ⚠ 공연 통계는 KOPIS 공연 기준(전시·축제·행사 미포함). perf_count=0 시설도 위치·규모 프로필로 유효.
 -- meta.external=false — 외부 카탈로그 비공개(Q&A 전용), 대시보드 external 플래그의 소스 오브 트루스(#269).

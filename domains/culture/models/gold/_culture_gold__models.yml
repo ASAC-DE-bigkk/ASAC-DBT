@@ -602,18 +602,32 @@ models:
       - name: facility_name
         description: 시설명
         data_type: varchar
+      # 주소·좌표 not_null 은 dong_precise 한정(#364) — "충전 100%" 는 모든 시설이 상세를
+      # 가진 시점의 스냅샷이었다. 신규 시설은 상세 수집 전까지 gu_only(주소·좌표 null)로
+      # 하루 존재하는 게 정상 경로(#111 quality_status: 숨기지 않고 표시)라, 전 행 not_null
+      # 은 시설이 생길 때마다 나이트런을 깨뜨린다(7/29 FC004980 실측). null 발생 경로는
+      # 단일(상세 미수집 → 좌표 없음 → gu_only)이므로 이 스코프로 기존 보증은 그대로다.
       - name: address
-        description: 주소(충전 100%)
+        description: 주소 — dong_precise 한정 100% (신규 시설은 상세 수집 전까지 gu_only·null)
         data_type: varchar
-        tests: [not_null]
+        tests:
+          - not_null:
+              config:
+                where: "quality_status = 'dong_precise'"
       - name: latitude
-        description: 위도(충전 100%)
+        description: 위도 — dong_precise 한정 100%
         data_type: double
-        tests: [not_null]
+        tests:
+          - not_null:
+              config:
+                where: "quality_status = 'dong_precise'"
       - name: longitude
-        description: 경도(충전 100%)
+        description: 경도 — dong_precise 한정 100%
         data_type: double
-        tests: [not_null]
+        tests:
+          - not_null:
+              config:
+                where: "quality_status = 'dong_precise'"
       - name: seat_scale
         description: 좌석 규모(KOPIS 0/공백→null 정규화, 충전 63.7%)
         data_type: integer
