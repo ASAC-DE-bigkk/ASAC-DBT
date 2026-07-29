@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from serving_contract.cli import _render_json, main
-from serving_contract.model import load_manifest, load_models_from_yaml
+from serving_contract.model import ServingModel, load_manifest, load_models_from_yaml
 from serving_contract.validator import validate
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -92,6 +92,29 @@ def test_model_not_in_manifest_only_with_manifest():
     # With a manifest that lacks the model, it fires.
     result = validate(models, load_manifest(MANIFEST))
     assert "model_not_in_manifest" in _rules(result.findings)
+
+
+def test_upsert_strategy_requires_upsert_publication_mode():
+    model = ServingModel(
+        name="bad_strategy",
+        source="test",
+        meta={},
+        serving={
+            "enabled": True,
+            "external": False,
+            "product_id": "bad_strategy",
+            "product_question": "question",
+            "grain": "one row per id",
+            "primary_key": ["id"],
+            "publication_mode": "snapshot",
+            "upsert_strategy": "exact_set",
+            "zero_policy": "allow",
+            "publication_trigger": {"schedule_cron": "0 * * * *"},
+        },
+        columns={"id": ("not_null", "unique")},
+    )
+
+    assert "upsert_strategy_invalid" in _rules(validate([model]).findings)
 
 
 def test_cli_exit_codes():

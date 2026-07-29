@@ -15,6 +15,7 @@ models:
           grain: link_id마다 한 행 — 링크별 최신 관측과 바로 이전 관측의 비교.
           primary_key: [product_row_id]
           publication_mode: upsert
+          upsert_strategy: exact_set
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: '12 * * * *'
