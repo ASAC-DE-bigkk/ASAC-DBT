@@ -1,0 +1,56 @@
+# citydata 는 Cosmos(LoadMode.DBT_MANIFEST) 를 쓰는 유일한 도메인이라 파싱 시점에
+# manifest 가 유효해야 스케줄러가 DAG 를 로드한다. 그런데 CI 에 citydata dbt 컴파일
+# 검증이 없어(serving-contract / traffic 게이트만 있음), profiles·sources·공유
+# asac_axes 변경이 citydata 를 깨뜨려도 머지 전에 못 잡는다. 이 게이트가 그 공백을 메운다.
+#
+# `dbt parse` 는 오프라인(Trino 연결 없음)이라 CI 에서 안전하게 돌고, 다음을 잡는다:
+#   - 정의 안 된 source/ref 참조 (예: dim_admin_dong 이 axes_bronze.admin_dong_master 못 찾음)
+#   - profiles.yml / dbt_project.yml / sources.yml 문법·해석 오류
+# dev·prod 두 target 모두 파싱해 target 별 카탈로그 해석까지 확인한다.
+name: citydata dbt compile gate
+
+on:
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - 'domains/citydata/**'
+      - 'packages/asac_axes/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-citydata-manifest:
+    name: validate-citydata-manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt (core + trino), 런타임 이미지와 동일 범위
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "dbt-core>=1.10,<1.11" "dbt-trino>=1.10,<1.11"
+
+      - name: Symlink repo → /opt/airflow/dbt
+        # packages.yml 이 asac_axes 를 절대경로(/opt/airflow/dbt/packages/asac_axes)로
+        # 참조하므로, 체크아웃을 그 경로에 심링크해 `dbt deps` 가 로컬 패키지를 찾게 한다.
+        run: |
+          sudo mkdir -p /opt/airflow
+          sudo ln -s "$GITHUB_WORKSPACE" /opt/airflow/dbt
+
+      - name: dbt deps
+        working-directory: /opt/airflow/dbt/domains/citydata
+        run: dbt deps --project-dir . --profiles-dir . --no-use-colors
+
+      - name: dbt parse (dev) — 오프라인, source/ref 해석 검증
+        working-directory: /opt/airflow/dbt/domains/citydata
+        run: dbt parse --project-dir . --profiles-dir . --target dev --no-use-colors
+
+      - name: dbt parse (prod) — target 별 카탈로그 해석까지 검증
+        working-directory: /opt/airflow/dbt/domains/citydata
+        run: dbt parse --project-dir . --profiles-dir . --target prod --no-use-colors
