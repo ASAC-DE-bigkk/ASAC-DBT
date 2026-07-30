@@ -250,6 +250,94 @@ models:
                   AND ym BETWEEN :ym_from AND :ym_to
                 GROUP BY month_of_year
                 ORDER BY opened_total DESC;
+            - pattern_id: "inv_gu_closed_topn"
+              question_ko: "최근 N개월 폐업이 가장 많은 자치구는? (개업 랭킹의 관점 반전)"
+              axes: "자치구 랭킹 — 폐업 절대량 DESC(gu_open_topn 개업 관점의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "실측 1위: gu_code=11680, closed_cnt=19620 (반환 10행)"
+              sql: |
+                -- :ym_from='2024-07', :ym_to='2026-06', :n=10
+                SELECT gu_code, SUM(cnt) AS closed_cnt
+                FROM d1_flow_monthly
+                WHERE event_type='closed' AND ym BETWEEN :ym_from AND :ym_to AND gu_code <> 'UNK'
+                GROUP BY gu_code ORDER BY closed_cnt DESC LIMIT :n
+            - pattern_id: "inv_gu_open_bottom"
+              question_ko: "개업이 가장 적은 자치구는? (개업 랭킹의 정렬 반전)"
+              axes: "자치구 랭킹 — 개업 ASC(gu_open_topn 의 정렬 반전)"
+              verified_rows: 10
+              insight_sample_ko: "실측 1위: gu_code=11320, opened_cnt=3879 (반환 10행)"
+              sql: |
+                -- :ym_from='2024-07', :ym_to='2026-06', :n=10
+                SELECT gu_code, SUM(cnt) AS opened_cnt
+                FROM d1_flow_monthly
+                WHERE event_type='opened' AND ym BETWEEN :ym_from AND :ym_to AND gu_code <> 'UNK'
+                GROUP BY gu_code ORDER BY opened_cnt ASC LIMIT :n
+            - pattern_id: "inv_gu_net_top"
+              question_ko: "순증이 가장 큰 자치구는? (순감 랭킹의 정렬 반전)"
+              axes: "자치구 랭킹 — 순증 DESC(gu_net_bottom 의 정렬 반전)"
+              verified_rows: 10
+              insight_sample_ko: "실측 1위: gu_code=11680, opened=26319, closed=19620 (반환 10행)"
+              sql: |
+                -- :ym_from='2024-07', :ym_to='2026-06', :n=10
+                SELECT gu_code,
+                       SUM(CASE WHEN event_type='opened' THEN cnt ELSE 0 END) AS opened,
+                       SUM(CASE WHEN event_type='closed' THEN cnt ELSE 0 END) AS closed,
+                       SUM(CASE WHEN event_type='opened' THEN cnt ELSE -cnt END) AS net
+                FROM d1_flow_monthly
+                WHERE ym BETWEEN :ym_from AND :ym_to AND gu_code <> 'UNK'
+                GROUP BY gu_code ORDER BY net DESC LIMIT :n
+            - pattern_id: "inv_closed_seasonality"
+              question_ko: "폐업은 몇 월에 몰리나? (개업 계절성의 관점 반전)"
+              axes: "월중(month-of-year) × 폐업 — open_seasonality 의 이벤트 관점 반전"
+              verified_rows: 12
+              insight_sample_ko: "폐업은 12월 58,887건으로 연중 최다 — 개업 피크(1월)와 정반대로 연말에 몰린다."
+              sql: |
+                -- :ym_from='2021-07', :ym_to='2026-06'
+                SELECT substr(ym,6,2) AS month_of_year, SUM(cnt) AS closed_total
+                FROM d1_flow_monthly
+                WHERE event_type='closed' AND ym BETWEEN :ym_from AND :ym_to
+                GROUP BY month_of_year ORDER BY closed_total DESC
+            - pattern_id: "new_worst_net_months"
+              question_ko: "순감이 가장 심했던 달은 언제인가?"
+              axes: "시간(ym) 랭킹 — 순증 ASC(시계열의 정렬 반전)"
+              verified_rows: 10
+              insight_sample_ko: "2024-12 가 순감 -6,554건(개업 6,952 vs 폐업 13,506)으로 최악의 달."
+              sql: |
+                -- :ym_from='2016-01', :n=10
+                SELECT ym,
+                       SUM(CASE WHEN event_type='opened' THEN cnt ELSE 0 END) AS opened,
+                       SUM(CASE WHEN event_type='closed' THEN cnt ELSE 0 END) AS closed,
+                       SUM(CASE WHEN event_type='opened' THEN cnt ELSE -cnt END) AS net
+                FROM d1_flow_monthly WHERE ym >= :ym_from
+                GROUP BY ym ORDER BY net ASC LIMIT :n
+            - pattern_id: "new_category_closed_topn"
+              question_ko: "폐업 절대량이 가장 많은 업종(중분류)은?"
+              axes: "업종 랭킹 — 폐업 절대량 DESC(업종 축의 폐업 관점)"
+              verified_rows: 10
+              insight_sample_ko: "폐업 절대량 1위는 식품(food) 85,230건 — 개업 1위 업종이 폐업도 1위."
+              sql: |
+                -- :ym_from='2024-07', :ym_to='2026-06'
+                SELECT category, SUM(cnt) AS closed_cnt
+                FROM d1_flow_monthly
+                WHERE event_type='closed' AND ym BETWEEN :ym_from AND :ym_to
+                GROUP BY category ORDER BY closed_cnt DESC
+            - pattern_id: "x_inflow_vs_survival"
+              question_ko: "최근 개업이 몰린 업종이 실제로 오래 버티는 업종인가? (유입 열기 × 장기 생존율 교차)"
+              axes: "제품 간 조인 — flow_monthly(유입) × cohort_survival(5년 생존율) 사분면"
+              verified_rows: 11
+              insight_sample_ko: "산업은 최근 개업 103,504건에 5년 생존율 61.5%로 '유입 많고 튼튼한' 조합 — 식품(44.5%)과 대조된다."
+              sql: |
+                -- :ym_from='2024-07', :years_elapsed=5
+                WITH inflow AS (
+                  SELECT category, SUM(cnt) AS opened FROM d1_flow_monthly
+                  WHERE event_type='opened' AND ym >= :ym_from GROUP BY category),
+                surv AS (
+                  SELECT category, ROUND(100.0*SUM(survivors)/SUM(cohort_n),1) AS survival_pct
+                  FROM d1_cohort_survival WHERE years_elapsed = :years_elapsed GROUP BY category)
+                SELECT i.category, i.opened, s.survival_pct,
+                       CASE WHEN s.survival_pct >= 50 THEN 'durable' ELSE 'fragile' END AS durability
+                FROM inflow i JOIN surv s ON s.category = i.category
+                ORDER BY i.opened DESC
           product_id: commerce_flow_monthly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           contract_version: v1
           product_question: 개·폐업 흐름 추이(월)
@@ -477,6 +565,28 @@ models:
                 GROUP BY f.gu_code, g.gu
                 ORDER BY close_per_open DESC
                 LIMIT :n
+            - pattern_id: "inv_closed_yearly_top"
+              question_ko: "연도별 폐업이 가장 많았던 해는? (개업 관점의 반전)"
+              axes: "연도 랭킹 — 폐업 DESC"
+              verified_rows: 10
+              insight_sample_ko: "폐업이 가장 많았던 해는 2024년 99,361건."
+              sql: |
+                -- :n=10
+                SELECT y, SUM(cnt) AS closed_cnt
+                FROM d1_flow_yearly WHERE event_type='closed' AND y >= '2010'
+                GROUP BY y ORDER BY closed_cnt DESC LIMIT :n
+            - pattern_id: "new_yoy_growth"
+              question_ko: "전년 대비 개업 증가율이 가장 높았던 해는? (절대량 대신 증감률)"
+              axes: "연도 시계열 — YoY 증감률(절대량 관점의 파생 반전)"
+              verified_rows: 14
+              insight_sample_ko: "2012년 개업 82,807건이 기준점(직전 연도 없어 증감률 null) — 이후 연도부터 YoY 해석."
+              sql: |
+                -- :y_from='2012'
+                WITH y AS (SELECT y, SUM(cnt) AS opened FROM d1_flow_yearly
+                           WHERE event_type='opened' AND y >= :y_from GROUP BY y)
+                SELECT y, opened, LAG(opened) OVER (ORDER BY y) AS prev,
+                       ROUND(100.0*(opened - LAG(opened) OVER (ORDER BY y))/NULLIF(LAG(opened) OVER (ORDER BY y),0),1) AS yoy_pct
+                FROM y ORDER BY y
           product_id: commerce_flow_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           contract_version: v1
           product_question: 개·폐업 흐름 추이(연)
@@ -700,6 +810,55 @@ models:
                 WHERE months_present = 12 AND annual_total >= :min_total
                 ORDER BY peak_to_trough DESC
                 LIMIT :n;
+            - pattern_id: "inv_flat_seasonality"
+              question_ko: "계절성이 거의 없는(연중 고른) 업종은? (극단 계절성 랭킹의 반전)"
+              axes: "업종 랭킹 — 피크/최저 배율 ASC(dataset_extreme_seasonality 의 정렬 반전)"
+              verified_rows: 10
+              insight_sample_ko: "담배소매업은 피크/최저 배율 1.23으로 사실상 계절성이 없다(연중 고른 개업)."
+              sql: |
+                -- :event_type='opened', :min_total=500, :n=10
+                SELECT dataset_ko, SUM(cnt) AS total, MAX(cnt) AS peak, MIN(cnt) AS trough,
+                       ROUND(1.0*MAX(cnt)/NULLIF(MIN(cnt),0),2) AS peak_over_trough
+                FROM d1_seasonality WHERE event_type = :event_type
+                GROUP BY dataset_ko HAVING SUM(cnt) >= :min_total AND MIN(cnt) > 0
+                ORDER BY peak_over_trough ASC LIMIT :n
+            - pattern_id: "inv_closed_peak_month"
+              question_ko: "폐업이 몰리는 달은? (개업 피크 분석의 관점 반전)"
+              axes: "월중 랭킹 — 폐업 이벤트(개업 관점의 반전)"
+              verified_rows: 12
+              insight_sample_ko: "폐업은 12월 102,440건으로 최다 — 연말 일괄 신고 효과."
+              sql: |
+                SELECT month_of_year, SUM(cnt) AS closed_total
+                FROM d1_seasonality WHERE event_type='closed'
+                GROUP BY month_of_year ORDER BY closed_total DESC
+            - pattern_id: "new_month_fixed_dataset_rank"
+              question_ko: "특정 달에 개업이 가장 많은 업종은? (월 고정 단면)"
+              axes: "월 고정(:month_of_year) → 업종 랭킹 — 시간축을 필터로 세운 반전"
+              verified_rows: 10
+              insight_sample_ko: "1월 개업 1위는 통신판매업 59,646건 — 연초 개업 집중의 실체."
+              sql: |
+                -- :month_of_year=1, :event_type='opened', :n=10
+                SELECT dataset_ko, cnt
+                FROM d1_seasonality
+                WHERE month_of_year = :month_of_year AND event_type = :event_type
+                ORDER BY cnt DESC LIMIT :n
+            - pattern_id: "new_open_close_peak_gap"
+              question_ko: "개업 피크월과 폐업 피크월이 다른 업종은? (두 관점 교차)"
+              axes: "업종별 개업 피크월 vs 폐업 피크월 비교 — 이벤트 관점 교차"
+              verified_rows: 10
+              insight_sample_ko: "건강기능식품일반판매업은 개업 피크 1월 vs 폐업 피크 12월로 정반대 — 연초 진입·연말 정리 사이클."
+              sql: |
+                -- :min_total=1000
+                WITH pk AS (
+                  SELECT dataset_ko, event_type, month_of_year, cnt,
+                         ROW_NUMBER() OVER (PARTITION BY dataset_ko, event_type ORDER BY cnt DESC) rn,
+                         SUM(cnt) OVER (PARTITION BY dataset_ko, event_type) tot
+                  FROM d1_seasonality)
+                SELECT o.dataset_ko, o.month_of_year AS open_peak_m, c.month_of_year AS close_peak_m,
+                       o.tot AS open_total, c.tot AS close_total
+                FROM pk o JOIN pk c ON o.dataset_ko=c.dataset_ko AND o.rn=1 AND c.rn=1
+                WHERE o.event_type='opened' AND c.event_type='closed' AND o.tot >= :min_total
+                ORDER BY ABS(o.month_of_year - c.month_of_year) DESC LIMIT 10
           contract_version: v1
           product_question: 개·폐업이 몰리는 달은 언제인가?
           grain: 이벤트×월×업종3단
@@ -832,6 +991,40 @@ models:
               insight_sample_ko: "2025년 25개 구 중 강남(+3,857)·서초(+1,923)는 낮은 교체율의 growth_stable, 서대문은 유일 순감+최고 교체율(0.1077)의 shrink_high_turnover — 같은 '활발함'도 체질이 다름."
               sql: |
                 SELECT gu_code, SUM(net_change) AS net_change, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, CASE WHEN SUM(net_change)>=0 AND 1.0*SUM(closed)/SUM(stock_start) >= (SELECT 1.0*SUM(closed)/SUM(stock_start) FROM d1_churn_yearly WHERE y='2025') THEN 'growth_high_turnover' WHEN SUM(net_change)>=0 THEN 'growth_stable' WHEN 1.0*SUM(closed)/SUM(stock_start) >= (SELECT 1.0*SUM(closed)/SUM(stock_start) FROM d1_churn_yearly WHERE y='2025') THEN 'shrink_high_turnover' ELSE 'shrink_stable' END AS regime FROM d1_churn_yearly WHERE y='2025' /* :y — 서브쿼리 안 y도 동일 값으로 치환 */ AND gu_code<>'UNK' GROUP BY gu_code ORDER BY net_change DESC
+            - pattern_id: "inv_lowest_churn_gu"
+              question_ko: "폐업률이 가장 낮은(안정적인) 자치구는? (높은 폐업률 랭킹의 반전)"
+              axes: "자치구 랭킹 — churn_rate ASC"
+              verified_rows: 10
+              insight_sample_ko: "2024년 폐업률 최저는 중구(11140) 6.44% — 재고 54,351곳 대비 3,499곳 폐업."
+              sql: |
+                -- :y='2024', :n=10
+                SELECT gu_code, SUM(stock_start) AS stock, SUM(closed) AS closed,
+                       ROUND(100.0*SUM(closed)/NULLIF(SUM(stock_start),0),2) AS churn_pct
+                FROM d1_churn_yearly WHERE y = :y AND gu_code <> 'UNK'
+                GROUP BY gu_code HAVING SUM(stock_start) > 1000
+                ORDER BY churn_pct ASC LIMIT :n
+            - pattern_id: "inv_birth_rate_top"
+              question_ko: "신규 진입률(birth rate)이 가장 높은 업종은? (폐업률 관점의 반전)"
+              axes: "업종 랭킹 — birth_rate 관점(churn 관점의 반전)"
+              verified_rows: 11
+              insight_sample_ko: "2024년 신규 진입률 1위는 식품 16.17%(재고 242,351 대비 개업 39,192)."
+              sql: |
+                -- :y='2024'
+                SELECT category, SUM(opened) AS opened, SUM(stock_start) AS stock,
+                       ROUND(100.0*SUM(opened)/NULLIF(SUM(stock_start),0),2) AS birth_pct
+                FROM d1_churn_yearly WHERE y = :y
+                GROUP BY category HAVING SUM(stock_start) > 500
+                ORDER BY birth_pct DESC
+            - pattern_id: "new_year_fixed_net_asc"
+              question_ko: "특정 연도에 순감이 가장 심했던 업종×구 조합은?"
+              axes: "연도 고정(:y) → 업종×구 교차 랭킹 net ASC"
+              verified_rows: 10
+              insight_sample_ko: "2024년 최악 조합은 강서구(11500) 식품 -1,034곳(개업 1,933 vs 폐업 2,967)."
+              sql: |
+                -- :y='2024', :n=10
+                SELECT gu_code, category, opened, closed, net_change
+                FROM d1_churn_yearly WHERE y = :y AND gu_code <> 'UNK'
+                ORDER BY net_change ASC LIMIT :n
           product_id: commerce_churn_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           contract_version: v1
           product_question: 연별 교체율·신생비는?
@@ -976,6 +1169,60 @@ models:
               insight_sample_ko: "목욕장업은 폐업 업소의 63.2%가 10년 이상 영업 후 폐업(고압가스 59.9%, 유흥주점 55.7%) — '망해도 오래 버틴' 전통 업종군."
               sql: |
                 SELECT dataset, dataset_ko, SUM(n_closed) AS n_closed, SUM(survived_10y_then_closed) AS survived_10y, ROUND(1.0*SUM(survived_10y_then_closed)/SUM(n_closed),4) AS longevity_ratio FROM d1_lifespan GROUP BY dataset, dataset_ko HAVING SUM(n_closed) >= 1000 ORDER BY longevity_ratio DESC LIMIT 10
+            - pattern_id: "inv_shortest_lifespan"
+              question_ko: "평균 수명이 가장 짧은 업종은? (장수 랭킹의 정렬 반전)"
+              axes: "업종 랭킹 — p50 수명 ASC(전 패턴이 DESC 편중이던 것의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "즉석판매제조가공업은 폐업까지 중앙값 17일 — 평균 395일과 23배 차이로 극단 왜도."
+              sql: |
+                -- :min_closed=100, :n=10
+                SELECT dataset_ko, category_ko, n_closed, p50_days, avg_days, ROUND(early_close_ratio*100,1) AS early_pct
+                FROM d1_lifespan WHERE n_closed >= :min_closed
+                GROUP BY dataset_ko, category_ko, n_closed, p50_days, avg_days, early_close_ratio
+                ORDER BY p50_days ASC LIMIT :n
+            - pattern_id: "inv_early_close_lowest"
+              question_ko: "1년 내 폐업률이 가장 낮은(초기 안정성 높은) 업종은?"
+              axes: "업종 랭킹 — early_close_ratio ASC(조기폐업 top 랭킹의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "석유판매업은 1년 내 폐업이 2.1%로 최저 — 초기 안착이 가장 안정적."
+              sql: |
+                -- :min_closed=200, :n=10
+                SELECT dataset_ko, SUM(n_closed) AS n_closed,
+                       ROUND(100.0*SUM(closed_within_1y)/SUM(n_closed),1) AS early_pct
+                FROM d1_lifespan GROUP BY dataset_ko HAVING SUM(n_closed) >= :min_closed
+                ORDER BY early_pct ASC LIMIT :n
+            - pattern_id: "inv_survived10y_lowest"
+              question_ko: "10년 이상 버틴 비중이 가장 낮은 업종은? (장기생존 랭킹의 반전)"
+              axes: "업종 랭킹 — 10년+ 생존 비중 ASC"
+              verified_rows: 10
+              insight_sample_ko: "유원시설업(기타)은 10년 이상 버틴 비중이 0.7%로 최저."
+              sql: |
+                -- :min_closed=200, :n=10
+                SELECT dataset_ko, SUM(n_closed) AS n_closed,
+                       ROUND(100.0*SUM(survived_10y_then_closed)/SUM(n_closed),1) AS survived10y_pct
+                FROM d1_lifespan GROUP BY dataset_ko HAVING SUM(n_closed) >= :min_closed
+                ORDER BY survived10y_pct ASC LIMIT :n
+            - pattern_id: "inv_p90_long_tail"
+              question_ko: "오래 버틴 상위 10%의 수명이 가장 긴 업종은? (평균 대신 p90 꼬리)"
+              axes: "업종 랭킹 — p90_days(지표 반전: avg/p50 → 상위 꼬리)"
+              verified_rows: 10
+              insight_sample_ko: "약국은 상위 10%가 16,252일(약 44년) — 중앙값 2,285일의 7.1배로 장수 꼬리가 가장 길다."
+              sql: |
+                -- :min_closed=100, :n=10
+                SELECT dataset_ko, n_closed, p50_days, p90_days,
+                       ROUND(1.0*p90_days/NULLIF(p50_days,0),1) AS p90_over_p50
+                FROM d1_lifespan WHERE n_closed >= :min_closed AND p50_days > 0
+                ORDER BY p90_days DESC LIMIT :n
+            - pattern_id: "new_gu_fixed_shortest_dataset"
+              question_ko: "이 자치구에서 수명이 가장 짧은 업종은? (구 고정 단면 + 정렬 반전)"
+              axes: "자치구 고정(:gu_code) → 업종 랭킹 ASC"
+              verified_rows: 10
+              insight_sample_ko: "강남구에서 가장 단명한 업종은 즉석판매제조가공업(중앙값 19일·조기폐업 76.4%)."
+              sql: |
+                -- :gu_code='11680', :min_closed=50, :n=10
+                SELECT dataset_ko, n_closed, p50_days, ROUND(early_close_ratio*100,1) AS early_pct
+                FROM d1_lifespan WHERE gu_code = :gu_code AND n_closed >= :min_closed
+                ORDER BY p50_days ASC LIMIT :n
           contract_version: v1
           product_question: 업종별 폐업까지 걸리는 수명은?
           grain: 업종3단×자치구
@@ -1182,6 +1429,41 @@ models:
                 WHERE cohort_y BETWEEN :from_y AND :to_y AND years_elapsed <= :max_k
                 GROUP BY major_ko, years_elapsed
                 ORDER BY major_ko, years_elapsed;
+            - pattern_id: "inv_worst_survival"
+              question_ko: "5년 생존율이 가장 낮은 업종은? (높은 생존율 랭킹의 반전)"
+              axes: "업종 랭킹 — 생존율 ASC(생존 top 관점의 반전)"
+              verified_rows: 11
+              insight_sample_ko: "5년 생존율 최저는 식품 44.5%(코호트 856,241 중 380,708 생존)."
+              sql: |
+                -- :years_elapsed=5, :min_n=500
+                SELECT category_ko, SUM(cohort_n) AS cohort_n, SUM(survivors) AS survivors,
+                       ROUND(100.0*SUM(survivors)/SUM(cohort_n),1) AS survival_pct
+                FROM d1_cohort_survival WHERE years_elapsed = :years_elapsed
+                GROUP BY category_ko HAVING SUM(cohort_n) >= :min_n
+                ORDER BY survival_pct ASC
+            - pattern_id: "new_cohort_fixed_curve"
+              question_ko: "특정 연도에 개업한 업소들의 생존 곡선은? (코호트 고정 단면)"
+              axes: "코호트 고정(:cohort_y) → 경과연수 전개(시계열 성격)"
+              verified_rows: 12
+              insight_sample_ko: "2015년 개업 코호트는 0년차 94%에서 시작해 경과연수별로 곡선이 내려간다."
+              sql: |
+                -- :cohort_y=2015
+                SELECT years_elapsed, SUM(cohort_n) AS cohort_n, SUM(survivors) AS survivors,
+                       ROUND(100.0*SUM(survivors)/SUM(cohort_n),1) AS survival_pct
+                FROM d1_cohort_survival WHERE cohort_y = :cohort_y
+                GROUP BY years_elapsed ORDER BY years_elapsed
+            - pattern_id: "new_cohort_year_compare"
+              question_ko: "개업 연도별로 3년 생존율이 좋아지고 있나 나빠지고 있나? (코호트 간 추이)"
+              axes: "코호트 연도 시계열 — 경과연수 고정(:years_elapsed) 단면"
+              verified_rows: 14
+              insight_sample_ko: "2010년 코호트의 3년 생존율은 63.4% — 코호트 연도별 비교로 개선/악화 추세를 읽는다."
+              sql: |
+                -- :years_elapsed=3, :min_n=1000
+                SELECT cohort_y, SUM(cohort_n) AS cohort_n,
+                       ROUND(100.0*SUM(survivors)/SUM(cohort_n),1) AS survival_pct
+                FROM d1_cohort_survival WHERE years_elapsed = :years_elapsed AND cohort_y >= 2010
+                GROUP BY cohort_y HAVING SUM(cohort_n) >= :min_n
+                ORDER BY cohort_y
           contract_version: v1
           product_question: 창업 후 몇 년을 버티나(코호트 생존율)?
           grain: 업종×창업연도×경과연차
@@ -1345,6 +1627,69 @@ models:
                 WHERE is_ongoing = 1 AND status_code = '03' AND n_segments >= 100
                 ORDER BY p50_days ASC, n_segments DESC
                 LIMIT 10;
+            - pattern_id: "inv_p90_tail_risk"
+              question_ko: "상태가 비정상적으로 길게 지속되는(꼬리 위험) 업종은? (avg/p50 대신 p90 지표)"
+              axes: "업종 랭킹 — 지표 반전(avg/p50 → p90 꼬리)"
+              verified_rows: 10
+              insight_sample_ko: "의원 휴업은 중앙값 79일인데 상위 10%는 226일까지 — 장기 휴업 꼬리가 3배 가까이 길다."
+              sql: |
+                -- :status_code='02', :min_n=30, :n=10
+                SELECT dataset_ko, status_group, n_segments, p50_days, p90_days, max_days
+                FROM d1_status_duration
+                WHERE status_code = :status_code AND n_segments >= :min_n
+                ORDER BY p90_days DESC LIMIT :n
+            - pattern_id: "inv_max_days_extreme"
+              question_ko: "단일 최장 체류 기록이 가장 긴 업종×상태는?"
+              axes: "업종×상태 랭킹 — max_days 극단값(지표 반전)"
+              verified_rows: 10
+              insight_sample_ko: "최장 체류 기록은 226일에서 다수 업종이 동률 — 관측창 상한(수집 시작 이후 경과일)에 걸린 값이라 '실제 최댓값'이 아님."
+              sql: |
+                -- :n=10
+                SELECT dataset_ko, status_group, n_segments, p90_days, max_days
+                FROM d1_status_duration ORDER BY max_days DESC LIMIT :n
+            - pattern_id: "inv_shortest_duration"
+              question_ko: "상태 체류가 가장 짧게 끝나는 업종은? (최장 랭킹의 정렬 반전)"
+              axes: "업종 랭킹 — p50 ASC(정렬 반전)"
+              verified_rows: 10
+              insight_sample_ko: "즉석판매제조가공업은 영업 상태 중앙값이 16일 — 개업 직후 상태가 가장 빨리 바뀌는 업종."
+              sql: |
+                -- :status_code='01', :min_n=30, :n=10
+                SELECT dataset_ko, status_group, n_segments, p50_days, avg_days
+                FROM d1_status_duration
+                WHERE status_code = :status_code AND n_segments >= :min_n
+                ORDER BY p50_days ASC LIMIT :n
+            - pattern_id: "inv_dataset_fixed_status_mix"
+              question_ko: "이 업종은 어떤 상태에 얼마나 머무르나? (상태 고정→업종 랭킹의 차원 교환)"
+              axes: "업종 고정(:dataset) → 상태(status_group) 전개 — status_slice_ranking 의 차원 교환"
+              verified_rows: 4
+              insight_sample_ko: "일반음식점은 폐업 세그먼트 415,202건이 압도적 — 상태 4종 중 폐업 체류가 대부분."
+              sql: |
+                -- :dataset='general_restaurant'
+                SELECT status_group, is_ongoing, n_segments, p50_days, p90_days, max_days
+                FROM d1_status_duration WHERE dataset = :dataset
+                ORDER BY n_segments DESC
+            - pattern_id: "new_duration_skew"
+              question_ko: "체류기간 분포가 가장 비대칭인(소수가 극단적으로 긴) 업종×상태는?"
+              axes: "업종×상태 랭킹 — p90/p50 왜도 파생지표"
+              verified_rows: 10
+              insight_sample_ko: "즉석판매제조가공업 영업 상태는 p50 16일 vs p90 73일로 4.6배 비대칭 — 소수가 극단적으로 길다."
+              sql: |
+                -- :min_n=50, :n=10
+                SELECT dataset_ko, status_group, n_segments, p50_days, p90_days,
+                       ROUND(1.0*p90_days/NULLIF(p50_days,0),1) AS p90_over_p50
+                FROM d1_status_duration
+                WHERE n_segments >= :min_n AND p50_days > 0
+                ORDER BY p90_over_p50 DESC LIMIT :n
+            - pattern_id: "new_status_group_rollup"
+              question_ko: "상태군별 전체 체류기간 프로필은? (상위 축 롤업)"
+              axes: "상태군(status_group) 롤업 — dataset 축을 접은 상위 집계"
+              verified_rows: 6
+              insight_sample_ko: "폐업 세그먼트 156만건·가중평균 141.6일. max 226일은 관측창 상한이라 상태군 간 max 비교는 무의미."
+              sql: |
+                SELECT status_group, COUNT(*) AS dataset_cells, SUM(n_segments) AS segments,
+                       ROUND(SUM(avg_days*n_segments)/SUM(n_segments),1) AS w_avg_days,
+                       MAX(max_days) AS max_days
+                FROM d1_status_duration GROUP BY status_group ORDER BY segments DESC
           contract_version: v1
           product_question: 인허가 상태에 얼마나 머무나?
           grain: dataset×상태×진행중
@@ -1481,6 +1826,23 @@ models:
               insight_sample_ko: "(:dataset='mail_order_sale' 검증) 통신판매업은 제외/전출 515건 > 폐업 511건 > 취소/말소 109건 — 폐업 신고보다 행정적 이탈이 절반 이상. 휴업→폐업 10건 vs 휴업→재개 6건으로 휴업 후에도 폐업 우세. 78개 데이터셋 중 전이 경로가 가장 다양한 업종(10개 경로)."
               sql: |
                 SELECT from_group, to_group, transitions FROM d1_status_transition WHERE dataset = :dataset ORDER BY transitions DESC
+            - pattern_id: "inv_reopen_paths"
+              question_ko: "영업으로 복귀(재개)하는 경로는 어디서 오나? (퇴장 관점의 반전)"
+              axes: "전이 랭킹 — to_status='01'(재개) 관점(폐업 퇴장 관점의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "재개(→영업) 경로는 휴업에서 오는 통신판매업 6건이 최다 — 퇴장 경로(수천 건) 대비 극히 희소."
+              sql: |
+                SELECT from_group, dataset_ko, transitions
+                FROM d1_status_transition WHERE to_status = '01'
+                ORDER BY transitions DESC LIMIT 10
+            - pattern_id: "inv_rarest_paths"
+              question_ko: "가장 드물게 관측되는 전이 경로는? (최다 경로 랭킹의 반전)"
+              axes: "전이경로 랭킹 — 건수 ASC(rank_transition_paths 의 정렬 반전)"
+              verified_rows: 10
+              insight_sample_ko: "가장 희귀한 경로는 취소/말소→폐업 1건 — 행정 말소 후 폐업 신고가 겹친 예외 사례."
+              sql: |
+                SELECT from_group || '→' || to_group AS path, SUM(transitions) AS transitions
+                FROM d1_status_transition GROUP BY path ORDER BY transitions ASC LIMIT 10
           contract_version: v1
           product_question: 영업→폐업 등 상태 전이는 어떤 경로인가?
           grain: 업종3단×상태전이
@@ -1672,6 +2034,45 @@ models:
                       FROM d1_dong_summary)
                 GROUP BY q
                 ORDER BY q; -- quartile 1=규모 최소 … 4=최대
+            - pattern_id: "inv_dataset_count_asc"
+              question_ko: "업종 다양성이 가장 낮은(단조로운) 동은? (다양성 top 랭킹의 반전)"
+              axes: "동 랭킹 — dataset_count ASC(다양성 관점의 정렬 반전)"
+              verified_rows: 10
+              insight_sample_ko: "방화2동은 업소 310곳에 업종 37종뿐 — 규모 대비 업종 다양성 최저."
+              sql: |
+                -- :min_count=300, :n=10
+                SELECT admin_dong, gu, dataset_count, business_count, business_open_count
+                FROM d1_dong_summary WHERE business_count >= :min_count
+                ORDER BY dataset_count ASC LIMIT :n
+            - pattern_id: "new_gu_fixed_closed_share"
+              question_ko: "이 자치구 안에서 물갈이(폐업 비중)가 심한 동은? (구 고정 단면 + 폐업 관점)"
+              axes: "자치구 고정(:gu) → 동 랭킹, 폐업 비중 관점"
+              verified_rows: 21
+              insight_sample_ko: "강남구 내에서는 압구정동이 누적 6,389곳 중 91.1% 폐업으로 물갈이 최심."
+              sql: |
+                -- :gu='강남구'
+                SELECT admin_dong, business_count, business_closed_count,
+                       ROUND(100.0*business_closed_count/business_count,1) AS closed_pct
+                FROM d1_dong_summary WHERE gu = :gu
+                ORDER BY closed_pct DESC
+            - pattern_id: "x_churned_dong_hot_category"
+              question_ko: "물갈이가 심했던 동네에서 지금 신규 유입 1위 업종은? (동 이력 × 동×업종 매트릭스 교차)"
+              axes: "제품 간 조인 — dong_summary(폐업 비중) × dong_category_matrix(신규 유입)"
+              verified_rows: 10
+              insight_sample_ko: "폐업 비중 91.1%인 압구정동에서도 최근 1년 신규 1위는 식품 592곳 — 물갈이와 재유입이 동시에 일어난다."
+              sql: |
+                -- :min_count=500, :n=10
+                WITH churn AS (
+                  SELECT admin_dong_code, admin_dong, gu, business_count,
+                         ROUND(100.0*business_closed_count/business_count,1) AS closed_pct
+                  FROM d1_dong_summary WHERE business_count >= :min_count),
+                hot AS (
+                  SELECT admin_dong_code, category, opened_last_365d,
+                         ROW_NUMBER() OVER (PARTITION BY admin_dong_code ORDER BY opened_last_365d DESC) rn
+                  FROM d1_dong_category_matrix)
+                SELECT c.admin_dong, c.gu, c.closed_pct, h.category AS hot_category, h.opened_last_365d
+                FROM churn c JOIN hot h ON h.admin_dong_code = c.admin_dong_code AND h.rn = 1
+                ORDER BY c.closed_pct DESC LIMIT :n
           contract_version: v1
           product_question: 우리 동네(행정동)에 업소가 몇 개 있고 얼마나 열고 닫혔나?
           grain: 행정동
@@ -1743,7 +2144,7 @@ models:
                 ORDER BY active_cnt DESC;
             - pattern_id: "category-top-dongs"
               question_ko: "이 업종(:category_ko)이 가장 많은 동네는 어디인가? (top-N)"
-              axes: "category→dong (축 반전: dong-category-profile 과 차원 교환 쌍 A) + 랭킹 top-N"
+              axes: "category→dong (축 반전: dong-category-profile 과 차원 교환 쌍 A) + 랭킹 top-N (수정: 파라미터명을 :category_ko 로 명시 — 한글 라벨 컬럼과 비교함을 소비 측에 드러냄)"
               verified_rows: 10
               insight_sample_ko: "식품 영업 업소 1위 동은 역삼1동(4,568곳) — 신림동(3,806)·종로1·2·3·4가동(3,529)·보라매동(3,454) 순. 단 산업(93%)·문화(71%)는 동 미상 비중이 높아 이 패턴은 식품·위생·미용 등 커버리지 높은 업종에 적합."
               sql: |
@@ -1823,7 +2224,7 @@ models:
                 ORDER BY dong_cnt DESC;
             - pattern_id: "gu-category-concentration"
               question_ko: "이 업종(:category_ko)은 어느 자치구에 집중돼 있나? (서울 점유율)"
-              axes: "category→gu 집중도(절대값 + 도시 점유율 비중 병기) — category-top-dongs 의 구 스케일판"
+              axes: "category→gu 집중도(절대값 + 도시 점유율 비중 병기) — category-top-dongs 의 구 스케일판 (수정: 파라미터명을 :category_ko 로 명시 — 한글 라벨 컬럼과 비교함을 소비 측에 드러냄)"
               verified_rows: 10
               insight_sample_ko: "숙박 영업 업소는 중구(469곳, 서울의 17.1%)·종로구(342곳, 12.5%)에 집중 — 상위 2개 구가 서울 숙박의 약 30%를 점유."
               sql: |
@@ -1847,6 +2248,38 @@ models:
                 FROM d1_dong_category_matrix
                 GROUP BY category_ko
                 ORDER BY opened_1y DESC;  -- open_rate_pct DESC 로 바꾸면 '회전이 빠른 업종'
+            - pattern_id: "inv_category_fixed_dong_rank"
+              question_ko: "이 업종이 가장 많은 동은? (동 고정→업종 구성의 차원 교환)"
+              axes: "업종 고정(:category) → 동 랭킹 — dong-category-profile 의 역방향"
+              verified_rows: 10
+              insight_sample_ko: "식품이 가장 많은 동은 역삼1동 4,568곳(누적 19,044) — 동 고정 조회의 역방향."
+              sql: |
+                -- :category='food', :n=10
+                SELECT admin_dong, gu, active_cnt, total_cnt, opened_last_365d
+                FROM d1_dong_category_matrix WHERE category = :category AND admin_dong IS NOT NULL
+                ORDER BY active_cnt DESC LIMIT :n
+            - pattern_id: "new_hot_new_opening_cells"
+              question_ko: "최근 1년 신규 개업이 가장 몰린 동×업종 조합은? (재고 대신 유입 관점)"
+              axes: "동×업종 교차 랭킹 — opened_last_365d(재고 active_cnt 관점의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "최근 1년 신규가 가장 몰린 조합은 목1동 식품 817곳(활성 대비 40.8%)."
+              sql: |
+                -- :n=10
+                SELECT admin_dong, gu, category, opened_last_365d, active_cnt,
+                       ROUND(100.0*opened_last_365d/NULLIF(active_cnt,0),1) AS new_pct
+                FROM d1_dong_category_matrix WHERE admin_dong IS NOT NULL
+                ORDER BY opened_last_365d DESC LIMIT :n
+            - pattern_id: "inv_new_share_asc"
+              question_ko: "신규 유입이 거의 없는(정체된) 동×업종 조합은?"
+              axes: "동×업종 랭킹 — 신규 비중 ASC(유입 관점의 정렬 반전)"
+              verified_rows: 10
+              insight_sample_ko: "장위1동 환경 업종은 활성 115곳에 최근 1년 신규 0건 — 완전 정체 셀."
+              sql: |
+                -- :min_active=100, :n=10
+                SELECT admin_dong, gu, category, active_cnt, opened_last_365d,
+                       ROUND(100.0*opened_last_365d/active_cnt,2) AS new_pct
+                FROM d1_dong_category_matrix WHERE active_cnt >= :min_active
+                ORDER BY new_pct ASC LIMIT :n
           contract_version: v1
           product_question: 이 동네엔 무슨 업종이 많나?
           grain: 행정동×업종
@@ -2207,6 +2640,51 @@ models:
                 FROM d1_geo_grid_detail
                 GROUP BY category
                 ORDER BY grid_cells DESC;
+            - pattern_id: "inv_growth_ratio_top"
+              d1_table: d1_geo_grid_overview
+              question_ko: "기존 규모 대비 신규 개업 비중이 높은(성장 중인) 격자는? (절대 밀도 관점의 반전)"
+              axes: "격자 랭킹 — 신규/재고 비율(active_cnt 절대량 관점의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "격자(37.500, 126.995) 산업은 활성 445곳 중 291곳이 최근 1년 신규 — 성장 최전선."
+              sql: |
+                -- :min_active=200, :n=10
+                SELECT grid_lat, grid_lng, major, active_cnt, opened_last_365d_active,
+                       ROUND(100.0*opened_last_365d_active/active_cnt,1) AS growth_pct
+                FROM d1_geo_grid_overview WHERE active_cnt >= :min_active
+                ORDER BY growth_pct DESC LIMIT :n
+            - pattern_id: "new_major_fixed_grid_rank"
+              d1_table: d1_geo_grid_overview
+              question_ko: "이 대분류가 가장 밀집한 격자는? (대분류 고정 단면)"
+              axes: "대분류 고정(:major) → 격자 랭킹"
+              verified_rows: 10
+              insight_sample_ko: "문화 대분류 최밀집 격자는 (37.565, 126.995) 1,415곳."
+              sql: |
+                -- :major='culture', :n=10
+                SELECT grid_lat, grid_lng, active_cnt, opened_last_365d_active
+                FROM d1_geo_grid_overview WHERE major = :major
+                ORDER BY active_cnt DESC LIMIT :n
+            - pattern_id: "inv_category_fixed_grid_rank"
+              d1_table: d1_geo_grid_detail
+              question_ko: "이 업종이 가장 밀집한 격자 좌표는? (격자 고정→업종 구성의 차원 교환)"
+              axes: "업종 고정(:category) → 격자 랭킹 — point-area-category-mix 의 역방향"
+              verified_rows: 10
+              insight_sample_ko: "숙박 최밀집 격자는 (37.570, 126.990) 58곳 — 업종 고정 시 밀집지가 달라진다."
+              sql: |
+                -- :category='lodging', :n=10
+                SELECT grid_lat, grid_lng, active_cnt, opened_last_365d_active
+                FROM d1_geo_grid_detail WHERE category = :category
+                ORDER BY active_cnt DESC LIMIT :n
+            - pattern_id: "new_grid_diversity"
+              d1_table: d1_geo_grid_detail
+              question_ko: "업종이 가장 다양하게 섞인 격자는? (단일 업종 밀집과 대비되는 시선)"
+              axes: "격자 랭킹 — 업종 종수(밀도 관점의 대안 지표)"
+              verified_rows: 10
+              insight_sample_ko: "격자(37.485, 126.895)는 11개 업종이 모두 섞인 4,488곳 — 밀도가 아닌 다양성 1위."
+              sql: |
+                -- :n=10
+                SELECT grid_lat, grid_lng, COUNT(DISTINCT category) AS category_kinds, SUM(active_cnt) AS active_cnt
+                FROM d1_geo_grid_detail GROUP BY grid_lat, grid_lng
+                ORDER BY category_kinds DESC, active_cnt DESC LIMIT :n
           contract_version: v1
           product_question: 상권이 어디에 밀집해 있나(500m 격자)?
           grain: 500m 격자×업종
@@ -2273,11 +2751,11 @@ models:
                 SELECT category_ko, major_ko, active_cnt, ROUND(share_in_gu*100,1) AS share_pct, lq FROM d1_gu_specialization WHERE gu = :gu ORDER BY lq DESC LIMIT 10
             - pattern_id: "category_top_gus"
               question_ko: "이 업종은 어느 구에 특화돼 있나? (:category 단면, 축 반전)"
-              axes: "업종 고정(:param 단면) → 구 랭킹(LQ 기준). gu_top_specialized 의 축 반전 짝(1쌍째)."
+              axes: "업종 고정(:param 단면) → 구 랭킹(LQ 기준). gu_top_specialized 의 축 반전 짝(1쌍째). (수정: 필터를 영문 코드 컬럼 category 로 — 한글 라벨 비교 시 코드 전달하면 0행)"
               verified_rows: 10
               insight_sample_ko: ":category='축산' 실행 — 1위 성동구(LQ 5.78, 2,487곳), 2위 금천구(2.00, 820곳), 3위 송파(1.42)부터 급락. 마장동 축산시장 클러스터가 데이터로 확인됨."
               sql: |
-                SELECT gu, active_cnt, ROUND(share_in_gu*100,2) AS share_pct, lq FROM d1_gu_specialization WHERE category_ko = :category AND gu_code != 'UNK' ORDER BY lq DESC LIMIT 10
+                SELECT gu, active_cnt, ROUND(share_in_gu*100,2) AS share_pct, lq FROM d1_gu_specialization WHERE category = :category AND gu_code != 'UNK' ORDER BY lq DESC LIMIT 10
             - pattern_id: "seoul_top_lq"
               question_ko: "서울 전체에서 가장 강한 특화(구×업종 조합) top-N은?"
               axes: "전역 랭킹 top-N (구×업종 조합, 소표본 노이즈 컷 active_cnt>=50)."
@@ -2294,11 +2772,11 @@ models:
                 SELECT category_ko, major_ko, active_cnt, ROUND(share_in_gu*100,1) AS share_pct FROM d1_gu_specialization WHERE gu = :gu ORDER BY active_cnt DESC
             - pattern_id: "category_volume_gus"
               question_ko: "이 업종의 절대 규모가 가장 큰 구는? (특화와 규모의 괴리 확인, 축 반전)"
-              axes: "업종 고정(:param 단면) → 구 랭킹(절대 규모 기준). gu_composition 의 축 반전 짝(2쌍째)."
+              axes: "업종 고정(:param 단면) → 구 랭킹(절대 규모 기준). gu_composition 의 축 반전 짝(2쌍째). (수정: 필터를 영문 코드 컬럼 category 로 — 한글 라벨 비교 시 코드 전달하면 0행)"
               verified_rows: 10
               insight_sample_ko: ":category='식품' 실행 — 절대 규모 1위 강남(23,885곳)이지만 LQ 0.911로 비특화. 규모 top10 중 LQ 최고는 종로(1.21) — '많다'와 '특화됐다'가 다름을 보여주는 대표 사례."
               sql: |
-                SELECT gu, active_cnt, lq FROM d1_gu_specialization WHERE category_ko = :category AND gu_code != 'UNK' ORDER BY active_cnt DESC LIMIT 10
+                SELECT gu, active_cnt, lq FROM d1_gu_specialization WHERE category = :category AND gu_code != 'UNK' ORDER BY active_cnt DESC LIMIT 10
             - pattern_id: "niche_vs_anchor"
               question_ko: "특화 업종(LQ>=1.5) 중 대규모 앵커형과 소규모 니치형은 각각 어디인가? (LQ×규모 두 축 교차)"
               axes: "두 축 교차: LQ(특화 강도) × active_cnt(규모) 사분면 분류."
@@ -2327,6 +2805,50 @@ models:
               insight_sample_ko: "지역 편중 1위 축산(LQ 격차 5.42, 성동 쏠림), 2위 숙박(3.42, 도심 쏠림). 최소는 산업(0.36) — 47만 곳이 전 구에 고르게 분포."
               sql: |
                 SELECT category_ko, COUNT(*) AS gu_cnt, MIN(lq) AS lq_min, MAX(lq) AS lq_max, ROUND(MAX(lq)-MIN(lq),3) AS lq_range, SUM(active_cnt) AS seoul_cnt FROM d1_gu_specialization WHERE gu_code != 'UNK' GROUP BY category_ko ORDER BY lq_range DESC
+            - pattern_id: "inv_lq_lowest"
+              question_ko: "이 업종이 상대적으로 가장 결핍된(LQ 최저) 자치구는? (특화 랭킹의 정렬 반전)"
+              axes: "자치구 랭킹 — LQ ASC(특화 top 랭킹의 반전 = 공백 상권 탐색)"
+              verified_rows: 10
+              insight_sample_ko: "식품 LQ 최저는 서초구 0.746 — 절대 규모(12,680곳)는 큰데 상대 특화는 약한 공백 상권."
+              sql: |
+                -- :category='food', :n=10
+                SELECT gu, active_cnt, ROUND(share_in_gu*100,2) AS share_pct, lq
+                FROM d1_gu_specialization WHERE category = :category AND gu_code <> 'UNK'
+                ORDER BY lq ASC LIMIT :n
+            - pattern_id: "new_gu_fixed_lq_asc"
+              question_ko: "이 자치구에서 상대적으로 부족한 업종은? (구의 특화 상위 랭킹의 반전)"
+              axes: "자치구 고정(:gu) → 업종 랭킹 LQ ASC"
+              verified_rows: 10
+              insight_sample_ko: "강남구가 가장 부족한 업종은 숙박(LQ 0.479, 149곳)."
+              sql: |
+                -- :gu='강남구'
+                SELECT category, active_cnt, ROUND(share_in_gu*100,2) AS share_pct, lq
+                FROM d1_gu_specialization WHERE gu = :gu ORDER BY lq ASC LIMIT 10
+            - pattern_id: "new_lq_vs_volume_quadrant"
+              question_ko: "특화도는 높은데 절대 규모는 작은 업종×구 조합은? (두 지표 사분면)"
+              axes: "업종×구 교차 — LQ(상대) × active_cnt(절대) 사분면"
+              verified_rows: 15
+              insight_sample_ko: "성동구 축산은 LQ 5.775·2,487곳으로 규모와 특화를 겸비(big_specialized)."
+              sql: |
+                -- :n=15
+                SELECT gu, category, active_cnt, lq,
+                       CASE WHEN lq >= 1.2 AND active_cnt < 500 THEN 'niche_specialized'
+                            WHEN lq >= 1.2 THEN 'big_specialized'
+                            WHEN active_cnt >= 500 THEN 'big_generic' ELSE 'small_generic' END AS quadrant
+                FROM d1_gu_specialization WHERE gu_code <> 'UNK'
+                ORDER BY lq DESC LIMIT :n
+            - pattern_id: "x_spec_vs_lifespan"
+              question_ko: "특화된 업종은 그 지역에서 더 오래 버티나? (특화도 × 수명 교차)"
+              axes: "제품 간 조인 — gu_specialization(LQ) × lifespan(p50 수명)"
+              verified_rows: 15
+              insight_sample_ko: "서대문구 식품은 LQ 1.337 특화에 수명 중앙값 1,148일 — 특화도와 수명의 동행 여부를 구별로 비교할 수 있다."
+              sql: |
+                -- :category='food', :min_closed=100
+                SELECT s.gu, s.lq, s.active_cnt, l.p50_days, l.n_closed
+                FROM d1_gu_specialization s
+                JOIN d1_lifespan l ON l.gu_code = s.gu_code AND l.category = s.category
+                WHERE s.category = :category AND s.gu_code <> 'UNK' AND l.n_closed >= :min_closed
+                ORDER BY s.lq DESC LIMIT 15
           contract_version: v1
           product_question: 이 자치구는 어떤 업종이 특화됐나(LQ)?
           grain: 자치구×업종
@@ -2504,6 +3026,82 @@ models:
                 WHERE gu_code <> 'UNK'
                 ORDER BY active_cnt DESC
                 LIMIT :top_n;
+            - pattern_id: "inv_gu_fixed_category_age"
+              question_ko: "이 자치구에서는 어떤 업종이 젊고 어떤 업종이 노후했나? (업종 고정→구 랭킹의 역방향)"
+              axes: "자치구 고정(:gu_code) → 업종(category)별 연령 구성 — category_gu_young_rank 의 차원 교환"
+              verified_rows: 11
+              insight_sample_ko: "강남구에서 가장 젊은 업종은 동물(animal) — 3년 이하 36.8% vs 10년 이상 18.7%."
+              sql: |
+                -- :gu_code='11680'
+                SELECT category,
+                       SUM(active_cnt) AS active_cnt,
+                       ROUND(100.0*SUM(CASE WHEN age_band IN ('0_lt1y','1_1to3y') THEN active_cnt ELSE 0 END)/SUM(active_cnt),1) AS young_pct,
+                       ROUND(100.0*SUM(CASE WHEN age_band IN ('4_10to20y','5_ge20y') THEN active_cnt ELSE 0 END)/SUM(active_cnt),1) AS old_pct
+                FROM d1_age_band WHERE gu_code = :gu_code
+                GROUP BY category ORDER BY young_pct DESC
+            - pattern_id: "inv_band_fixed_gu_rank"
+              question_ko: "특정 연령대(예: 20년 이상) 업소가 가장 많은 자치구는?"
+              axes: "연령대 고정(:age_band) → 자치구 랭킹 — 연령축을 필터로 세운 반전"
+              verified_rows: 10
+              insight_sample_ko: "20년 이상 노포가 가장 많은 자치구는 강남구 9,915곳."
+              sql: |
+                -- :age_band='5_ge20y', :n=10
+                SELECT gu_code, SUM(active_cnt) AS band_cnt
+                FROM d1_age_band WHERE age_band = :age_band AND gu_code <> 'UNK'
+                GROUP BY gu_code ORDER BY band_cnt DESC LIMIT :n
+            - pattern_id: "inv_band_fixed_category_rank"
+              question_ko: "특정 연령대 업소가 가장 많은 업종은?"
+              axes: "연령대 고정(:age_band) → 업종 랭킹(위 패턴의 차원 교환)"
+              verified_rows: 11
+              insight_sample_ko: "1년 미만 신규 업소는 산업(industry) 46,501곳으로 최다 — 통신판매 등 진입장벽 낮은 업종."
+              sql: |
+                -- :age_band='0_lt1y'
+                SELECT category, SUM(active_cnt) AS band_cnt
+                FROM d1_age_band WHERE age_band = :age_band
+                GROUP BY category ORDER BY band_cnt DESC
+            - pattern_id: "new_category_age_profile"
+              question_ko: "업종별 연령 분포 전체 모양은? (연령 밴드 피벗)"
+              axes: "업종 × 연령밴드 교차 피벗 — 두 축 동시 전개"
+              verified_rows: 11
+              insight_sample_ko: "산업은 5~10년 구간(151,086곳)이 가장 두껍고 20년 이상은 18,476곳뿐 — 최근 10년에 유입이 집중."
+              sql: |
+                SELECT category,
+                       SUM(CASE WHEN age_band='0_lt1y' THEN active_cnt ELSE 0 END) AS lt1y,
+                       SUM(CASE WHEN age_band='1_1to3y' THEN active_cnt ELSE 0 END) AS y1_3,
+                       SUM(CASE WHEN age_band='2_3to5y' THEN active_cnt ELSE 0 END) AS y3_5,
+                       SUM(CASE WHEN age_band='3_5to10y' THEN active_cnt ELSE 0 END) AS y5_10,
+                       SUM(CASE WHEN age_band='4_10to20y' THEN active_cnt ELSE 0 END) AS y10_20,
+                       SUM(CASE WHEN age_band='5_ge20y' THEN active_cnt ELSE 0 END) AS ge20y,
+                       SUM(active_cnt) AS total
+                FROM d1_age_band GROUP BY category ORDER BY total DESC
+            - pattern_id: "inv_old_share_category_top"
+              question_ko: "20년 이상 노포 비중이 가장 높은 업종은? (신규 비중 랭킹의 관점 반전)"
+              axes: "업종 랭킹 — 노후 비중 DESC(young 관점의 반전)"
+              verified_rows: 11
+              insight_sample_ko: "숙박은 활성 2,740곳 중 63.1%가 20년 이상 — 노포 비중 최고 업종."
+              sql: |
+                -- :min_active=500
+                SELECT category, SUM(active_cnt) AS active_cnt,
+                       ROUND(100.0*SUM(CASE WHEN age_band='5_ge20y' THEN active_cnt ELSE 0 END)/SUM(active_cnt),1) AS ge20y_pct
+                FROM d1_age_band GROUP BY category HAVING SUM(active_cnt) >= :min_active
+                ORDER BY ge20y_pct DESC
+            - pattern_id: "x_age_vs_churn"
+              question_ko: "업소 연령대가 젊은 자치구가 폐업률도 높은가? (연령 구성 × 폐업률 교차)"
+              axes: "제품 간 조인 — age_band(젊은 비중) × churn_yearly(폐업률)"
+              verified_rows: 25
+              insight_sample_ko: "서대문구는 3년 이하 비중 28.7%에 폐업률 13.74% — 25개 구를 젊음×폐업률 좌표로 놓고 볼 수 있다."
+              sql: |
+                -- :y='2024'
+                WITH age AS (
+                  SELECT gu_code,
+                         ROUND(100.0*SUM(CASE WHEN age_band IN ('0_lt1y','1_1to3y') THEN active_cnt ELSE 0 END)/SUM(active_cnt),1) AS young_pct
+                  FROM d1_age_band WHERE gu_code <> 'UNK' GROUP BY gu_code),
+                ch AS (
+                  SELECT gu_code, ROUND(100.0*SUM(closed)/NULLIF(SUM(stock_start),0),2) AS churn_pct
+                  FROM d1_churn_yearly WHERE y = :y AND gu_code <> 'UNK' GROUP BY gu_code)
+                SELECT a.gu_code, a.young_pct, c.churn_pct
+                FROM age a JOIN ch c ON c.gu_code = a.gu_code
+                ORDER BY a.young_pct DESC
           contract_version: v1
           product_question: 신상 가게와 노포의 비중은?
           grain: 업종3단×자치구×업력밴드
@@ -2636,6 +3234,37 @@ models:
               insight_sample_ko: "대형 매장 절대 수 1위 강남구 1,565곳(전체의 5.3%), 2위 중구 711곳 — 다만 비중으로는 중구(5.6%)가 강남을 역전."
               sql: |
                 SELECT gu, SUM(ge_330m2) AS n_large, SUM(n_with_area) AS n_biz, ROUND(100.0*SUM(ge_330m2)/SUM(n_with_area),1) AS pct_large FROM d1_area_profile WHERE gu_code <> 'UNK' GROUP BY gu ORDER BY n_large DESC LIMIT 10
+            - pattern_id: "inv_smallest_area_dataset"
+              question_ko: "매장이 가장 작은 업종은? (대형 랭킹의 정렬 반전)"
+              axes: "업종 랭킹 — 가중 평균 면적 ASC(rank_top_avg_area_by_dataset 의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "가장 작은 업종은 식품자동판매기업 가중평균 10.2㎡ — 최대 업종(병원 약 1만㎡)과 1,000배 차."
+              sql: |
+                -- :min_n=100, :n=10
+                SELECT dataset_ko, SUM(n_with_area) AS n_biz,
+                       ROUND(SUM(avg_m2*n_with_area)/SUM(n_with_area),1) AS w_avg_m2
+                FROM d1_area_profile GROUP BY dataset_ko HAVING SUM(n_with_area) >= :min_n
+                ORDER BY w_avg_m2 ASC LIMIT :n
+            - pattern_id: "inv_gu_fixed_smallest"
+              question_ko: "이 자치구에서 가장 작은 매장 업종은? (구 고정 + 정렬 반전)"
+              axes: "자치구 고정(:gu) → 업종 랭킹 p50 ASC"
+              verified_rows: 10
+              insight_sample_ko: "강남구에서도 식품자동판매기업이 중앙값 3.3㎡·소형 비중 95.4%로 최소."
+              sql: |
+                -- :gu='강남구', :min_n=30, :n=10
+                SELECT dataset_ko, n_with_area, p50_m2, ROUND(100.0*lt_33m2/n_with_area,1) AS pct_small
+                FROM d1_area_profile WHERE gu = :gu AND n_with_area >= :min_n
+                ORDER BY p50_m2 ASC LIMIT :n
+            - pattern_id: "new_large_share_by_category"
+              question_ko: "대형(330㎡+) 매장 비중이 높은 업종군은? (소형 비중 관점의 반전)"
+              axes: "중분류 랭킹 — 대형 비중 DESC(small_share 관점의 반전)"
+              verified_rows: 8
+              insight_sample_ko: "의료는 330㎡ 이상이 95.1%이고 33㎡ 미만은 0% — 소형이 존재하지 않는 업종군."
+              sql: |
+                SELECT category_ko, SUM(n_with_area) AS n_biz,
+                       ROUND(100.0*SUM(ge_330m2)/SUM(n_with_area),1) AS pct_large,
+                       ROUND(100.0*SUM(lt_33m2)/SUM(n_with_area),1) AS pct_small
+                FROM d1_area_profile GROUP BY category_ko ORDER BY pct_large DESC
           contract_version: v1
           product_question: 업종별 매장 면적 분포는?
           grain: 업종3단×자치구
@@ -2775,6 +3404,47 @@ models:
               insight_sample_ko: "'커피' 검색: 커피숍(휴게음식점) 14,664 + 커피숍(일반음식점) 2. 업태명이 7,647종(자유서식 포함)이라 정확 매칭 전에 LIKE로 표기 변형(까페/다방/커피숍)을 먼저 훑는 진입 패턴."
               sql: |
                 SELECT uptaenm, dataset, category, active_cnt, total_cnt, opened_last_365d, ROUND(share,3) AS share FROM d1_uptae_rollup WHERE uptaenm LIKE '%' || :keyword || '%' ORDER BY active_cnt DESC LIMIT 20 -- 예: :keyword = '커피'
+            - pattern_id: "inv_share_asc"
+              question_ko: "같은 업종 안에서 비중이 가장 낮은(희귀) 업태는?"
+              axes: "업태 랭킹 — share ASC(주력 업태 관점의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "일반음식점 안에서 '이동조리' 업태는 누적 101건 중 영업 3곳(비중 0%대)으로 사실상 희귀."
+              sql: |
+                -- :dataset='general_restaurant', :min_total=30, :n=10
+                SELECT uptaenm, active_cnt, total_cnt, ROUND(share*100,2) AS share_pct
+                FROM d1_uptae_rollup WHERE dataset = :dataset AND total_cnt >= :min_total
+                ORDER BY share ASC LIMIT :n
+            - pattern_id: "new_uptae_fixed_dataset_rank"
+              question_ko: "이 업태는 어떤 업종에서 주로 나타나나? (업종 고정→업태 랭킹의 차원 교환)"
+              axes: "업태 고정(:uptae) → 업종(dataset) 랭킹 — 역방향"
+              verified_rows: 3
+              insight_sample_ko: "'푸드트럭' 업태는 휴게음식점(1,229건)에 가장 많이 등록 — 업태를 고정하면 소속 업종이 드러난다."
+              sql: |
+                -- :uptae='푸드트럭'
+                SELECT dataset, category, active_cnt, total_cnt, ROUND(share*100,2) AS share_pct
+                FROM d1_uptae_rollup WHERE uptaenm = :uptae
+                ORDER BY total_cnt DESC
+            - pattern_id: "new_growth_uptae"
+              question_ko: "최근 1년 신규 개업이 활발한 업태는? (재고 비중 대신 유입 관점)"
+              axes: "업태 랭킹 — opened_last_365d / 신규 비중(share 관점의 반전) 주의: 분자는 기간 내 개업 전체, 분모는 현재 영업분이라 100% 초과 가능(회전이 빠른 업태)."
+              verified_rows: 15
+              insight_sample_ko: "'백화점' 업태(휴게음식점)는 신규 비중 112.6% — 분모(현재 영업)보다 기간 내 개업이 많은 초고회전 업태."
+              sql: |
+                -- :min_active=100, :n=15
+                SELECT uptaenm, dataset, active_cnt, opened_last_365d,
+                       ROUND(100.0*opened_last_365d/NULLIF(active_cnt,0),1) AS new_pct
+                FROM d1_uptae_rollup WHERE active_cnt >= :min_active
+                ORDER BY new_pct DESC LIMIT :n
+            - pattern_id: "new_dead_uptae"
+              question_ko: "현재 영업 중이 하나도 없는(사실상 소멸한) 업태는?"
+              axes: "업태 랭킹 — active_cnt=0 & total_cnt 보유(생존 관점의 극단 반전)"
+              verified_rows: 15
+              insight_sample_ko: "'집단급식소' 업태는 누적 2,286건 중 현재 영업 0곳 — 제도 변경으로 소멸한 업태."
+              sql: |
+                -- :n=15
+                SELECT uptaenm, dataset, active_cnt, total_cnt
+                FROM d1_uptae_rollup WHERE active_cnt = 0 AND total_cnt > 0
+                ORDER BY total_cnt DESC LIMIT :n
           contract_version: v1
           product_question: 업태 구성은 어떤가?
           grain: 업종3단×업태×자치구
@@ -2938,6 +3608,47 @@ models:
                        ROUND(100.0*SUM(multi_site_locations)/SUM(sites_with_phone),1) AS overall_multi_site_pct,
                        MAX(max_sites_per_operator) AS max_sites_single_operator
                 FROM d1_multi_site;
+            - pattern_id: "inv_category_fixed_dataset_rank"
+              question_ko: "이 업종군 안에서 다점포 비율이 높은 세부 업종은? (중분류 고정→세부 드릴다운)"
+              axes: "중분류 고정(:category) → dataset 랭킹 — 차원 교환 정방향"
+              verified_rows: 16
+              insight_sample_ko: "식품군 내에서는 건강기능식품유통전문판매업이 다점포 비율 69.7%로 1위."
+              sql: |
+                -- :category='food', :min_sites=100
+                SELECT dataset_ko, sites_with_phone, multi_site_locations, ROUND(multi_site_ratio*100,1) AS multi_pct,
+                       max_sites_per_operator
+                FROM d1_multi_site WHERE category = :category AND sites_with_phone >= :min_sites
+                ORDER BY multi_site_ratio DESC
+            - pattern_id: "inv_dataset_to_category_rollup"
+              question_ko: "중분류 단위로 합치면 다점포 비율은 어떻게 되나? (세부→상위 롤업)"
+              axes: "dataset → category 롤업 — 위 패턴의 역방향(차원 상향)"
+              verified_rows: 10
+              insight_sample_ko: "중분류로 합치면 동물(animal)이 다점포 53.4%로 최상위 — 세부 업종 랭킹과 순서가 달라진다."
+              sql: |
+                SELECT category, SUM(sites_with_phone) AS sites, SUM(multi_site_locations) AS multi_locs,
+                       ROUND(100.0*SUM(multi_site_locations)/SUM(sites_with_phone),1) AS multi_pct,
+                       MAX(max_sites_per_operator) AS max_sites
+                FROM d1_multi_site GROUP BY category ORDER BY multi_pct DESC
+            - pattern_id: "new_max_sites_extreme"
+              question_ko: "한 운영자가 가장 많은 지점을 가진 업종은? (비율 대신 극단값 지표)"
+              axes: "업종 랭킹 — max_sites_per_operator(지표 반전: 비율→극단)"
+              verified_rows: 10
+              insight_sample_ko: "한 운영자의 최대 지점 수는 의료기기판매(임대)업이 1위 — 비율이 아닌 극단값으로 보면 체인 구조가 드러난다."
+              sql: |
+                -- :n=10
+                SELECT dataset_ko, category_ko, multi_site_operators, max_sites_per_operator, sites_with_phone
+                FROM d1_multi_site ORDER BY max_sites_per_operator DESC LIMIT :n
+            - pattern_id: "new_sites_per_operator"
+              question_ko: "운영자당 지점 수(체인 밀도)가 높은 업종은?"
+              axes: "업종 랭킹 — 지점/운영자 파생비율(절대량과 다른 시선)"
+              verified_rows: 10
+              insight_sample_ko: "영화상영관은 운영자당 5.23개 지점으로 체인 밀도 최고(운영자 53명·지점 277개)."
+              sql: |
+                -- :min_ops=20, :n=10
+                SELECT dataset_ko, multi_site_operators, multi_site_locations,
+                       ROUND(1.0*multi_site_locations/NULLIF(multi_site_operators,0),2) AS locs_per_operator
+                FROM d1_multi_site WHERE multi_site_operators >= :min_ops
+                ORDER BY locs_per_operator DESC LIMIT :n
           contract_version: v1
           product_question: 다점포 운영이 흔한 업종은?
           grain: 업종3단
@@ -3120,6 +3831,38 @@ models:
                 FROM d1_change_activity
                 GROUP BY major, major_ko
                 ORDER BY businesses DESC
+            - pattern_id: "inv_rename_ratio_asc"
+              question_ko: "상호 변경이 가장 드문(간판이 안 바뀌는) 업종은?"
+              axes: "업종 랭킹 — rename_ratio ASC(변경 활발 랭킹의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "식품자동판매기업은 68,288곳 전체에서 상호 변경 0% — 간판이 바뀌지 않는 업종."
+              sql: |
+                -- :min_biz=200, :n=10
+                SELECT dataset_ko, businesses, ROUND(rename_ratio*100,1) AS rename_pct,
+                       ROUND(relocation_ratio*100,1) AS reloc_pct
+                FROM d1_change_activity WHERE businesses >= :min_biz
+                ORDER BY rename_ratio ASC, businesses DESC LIMIT :n
+            - pattern_id: "new_reloc_vs_rename_gap"
+              question_ko: "간판만 바꾸는 업종 vs 자리를 옮기는 업종의 차이는? (두 관점 교차)"
+              axes: "업종 랭킹 — 이전율-개명율 격차(두 변경 관점 대비)"
+              verified_rows: 10
+              insight_sample_ko: "동물용의료용구판매업은 이전 0.4% vs 개명 0% — 자리는 옮기지만 이름은 그대로."
+              sql: |
+                -- :min_biz=200, :n=10
+                SELECT dataset_ko, businesses, ROUND(rename_ratio*100,1) AS rename_pct,
+                       ROUND(relocation_ratio*100,1) AS reloc_pct,
+                       ROUND((relocation_ratio - rename_ratio)*100,1) AS reloc_minus_rename
+                FROM d1_change_activity WHERE businesses >= :min_biz
+                ORDER BY reloc_minus_rename DESC LIMIT :n
+            - pattern_id: "new_max_versions_extreme"
+              question_ko: "이력 변경이 가장 많이 쌓인 업종은? (평균 대신 최대값 지표)"
+              axes: "업종 랭킹 — max_versions(avg_versions 관점의 지표 반전)"
+              verified_rows: 10
+              insight_sample_ko: "의원은 최대 9개 버전까지 이력이 쌓였다(평균 1.04) — 평균만 보면 놓치는 극단."
+              sql: |
+                -- :n=10
+                SELECT dataset_ko, businesses, avg_versions, max_versions
+                FROM d1_change_activity ORDER BY max_versions DESC LIMIT :n
           contract_version: v1
           product_question: 업소 정보 변경이 활발한 업종은?
           grain: 업종3단
@@ -3318,6 +4061,42 @@ models:
                 FROM d1_address_succession
                 WHERE closed_category = :closed_category -- 예시 'food'
                   AND opened_category = :opened_category; -- 예시 'hygiene_beauty'
+            - pattern_id: "inv_within90d_rate_asc"
+              question_ko: "같은 자리에 새 업소가 들어오기까지 오래 비는 업종쌍은? (빠른 회전 랭킹의 반전)"
+              axes: "업종쌍 랭킹 — 90일 내 승계 비율 ASC(fast-succession 의 반전)"
+              verified_rows: 10
+              insight_sample_ko: "축산→위생·미용 전환은 90일 내 승계가 20%뿐이고 중앙 공백이 206일 — 자리 전환에 시간이 걸린다."
+              sql: |
+                -- :min_successions=5
+                SELECT closed_category_ko, opened_category_ko, successions, p50_gap_days,
+                       ROUND(100.0*within_90d/successions,1) AS within90d_pct
+                FROM d1_address_succession WHERE successions >= :min_successions
+                ORDER BY within90d_pct ASC LIMIT 10
+            - pattern_id: "new_same_vs_switch_category"
+              question_ko: "같은 업종이 다시 들어오나, 다른 업종으로 바뀌나? (동종/이종 승계 대비)"
+              axes: "동종 승계 vs 업종 전환 집계 — 관점 이분"
+              verified_rows: 2
+              insight_sample_ko: "동종 승계 192,058건의 중앙 공백은 11.8일 — 같은 업종이 곧바로 들어오는 경우가 압도적."
+              sql: |
+                SELECT CASE WHEN closed_category = opened_category THEN 'same_category' ELSE 'switched' END AS kind,
+                       SUM(successions) AS successions,
+                       ROUND(AVG(p50_gap_days),1) AS avg_p50_gap_days
+                FROM d1_address_succession GROUP BY kind
+            - pattern_id: "x_address_vs_phone_gap"
+              question_ko: "자리 회전(주소 승계)은 빠른데 운영자 재도전(연락처 승계)은 느린 업종쌍은? (두 승계 제품 교차)"
+              axes: "제품 간 조인 — address_succession × phone_succession p50 간격 비교"
+              verified_rows: 10
+              insight_sample_ko: "안경·치과→식품은 자리 회전 119일 vs 운영자 재도전 688일로 569일 격차 — 자리는 빨리 채워지나 사람은 늦게 돌아온다."
+              sql: |
+                -- :min_successions=5
+                SELECT a.closed_category_ko, a.opened_category_ko,
+                       a.p50_gap_days AS addr_gap, p.p50_gap_days AS phone_gap,
+                       (p.p50_gap_days - a.p50_gap_days) AS phone_minus_addr
+                FROM d1_address_succession a
+                JOIN d1_phone_succession p
+                  ON p.closed_category = a.closed_category AND p.opened_category = a.opened_category
+                WHERE a.successions >= :min_successions AND p.successions >= :min_successions
+                ORDER BY phone_minus_addr DESC LIMIT 10
           contract_version: v1
           product_question: 폐업 자리에 무슨 업종이 들어서나(자리 대물림)?
           grain: 폐업→개업 업종쌍
@@ -3507,6 +4286,26 @@ models:
                 WHERE successions >= :min_successions -- 예: 30
                 ORDER BY skew_days DESC
                 LIMIT :top_n; -- 예: 5
+            - pattern_id: "inv_within1y_rate_asc"
+              question_ko: "같은 연락처로 재개업까지 가장 오래 걸리는 업종쌍은? (빠른 재도전 랭킹의 반전)"
+              axes: "업종쌍 랭킹 — 1년 내 재개업 비율 ASC"
+              verified_rows: 10
+              insight_sample_ko: "약국→위생·미용 재도전은 1년 내 16.7%뿐, 중앙 654일 — 업종 전환형 재개업은 오래 걸린다."
+              sql: |
+                -- :min_successions=5
+                SELECT closed_category_ko, opened_category_ko, successions, p50_gap_days,
+                       ROUND(100.0*within_1y/successions,1) AS within1y_pct
+                FROM d1_phone_succession WHERE successions >= :min_successions
+                ORDER BY within1y_pct ASC LIMIT 10
+            - pattern_id: "new_same_vs_switch_reentry"
+              question_ko: "재도전 시 같은 업종을 고르나, 업종을 바꾸나?"
+              axes: "동종 재도전 vs 업종 전환 — 관점 이분(주소 승계와 대조 가능)"
+              verified_rows: 2
+              insight_sample_ko: "동종 재도전 37,566건의 중앙 간격은 82.8일 — 주소 승계(11.8일)보다 7배 길다."
+              sql: |
+                SELECT CASE WHEN closed_category = opened_category THEN 'same_category' ELSE 'switched' END AS kind,
+                       SUM(successions) AS successions, ROUND(AVG(p50_gap_days),1) AS avg_p50_gap_days
+                FROM d1_phone_succession GROUP BY kind
           contract_version: v1
           product_question: 전화번호가 승계되는 업종 조합은?
           grain: 폐업→개업 업종쌍
@@ -3686,6 +4485,44 @@ models:
                 WHERE geo_coverage >= :geo_min AND admin_dong_coverage >= :dong_min
                 ORDER BY total_rows DESC
                 LIMIT :n;
+            - pattern_id: "inv_geo_coverage_asc"
+              question_ko: "좌표 커버리지가 가장 낮은 업종은? (양호 랭킹의 반전)"
+              axes: "업종 랭킹 — geo_coverage ASC"
+              verified_rows: 10
+              insight_sample_ko: "방문판매업은 좌표 61.6%·행정동 0% — 지도·동 단위 분석에서 제외해야 하는 업종."
+              sql: |
+                -- :min_rows=1000, :n=10
+                SELECT dataset_ko, total_rows, ROUND(geo_coverage*100,1) AS geo_pct,
+                       ROUND(admin_dong_coverage*100,1) AS dong_pct
+                FROM d1_data_quality WHERE total_rows >= :min_rows
+                ORDER BY geo_coverage ASC LIMIT :n
+            - pattern_id: "new_geo_vs_phone_gap"
+              question_ko: "주소는 있는데 연락처가 비어 있는 업종은? (두 커버리지 지표 교차)"
+              axes: "업종 랭킹 — address_coverage 대비 phone_coverage 격차"
+              verified_rows: 10
+              insight_sample_ko: "숙박업은 주소 100%인데 전화 0% — 연락처 기반 분석(다점포·재도전)에서 통째로 빠진다."
+              sql: |
+                -- :min_rows=1000, :n=10
+                SELECT dataset_ko, total_rows, ROUND(address_coverage*100,1) AS addr_pct,
+                       ROUND(phone_coverage*100,1) AS phone_pct,
+                       ROUND((address_coverage - phone_coverage)*100,1) AS addr_minus_phone
+                FROM d1_data_quality WHERE total_rows >= :min_rows
+                ORDER BY addr_minus_phone DESC LIMIT :n
+            - pattern_id: "x_quality_vs_area"
+              question_ko: "데이터 커버리지가 낮은 업종은 매장 규모도 특이한가? (품질 × 면적 프로필 교차)"
+              axes: "제품 간 조인 — data_quality(geo 커버리지) × area_profile(면적)"
+              verified_rows: 12
+              insight_sample_ko: "축산판매업은 좌표 74.6%로 낮은데 평균 면적 323.3㎡ — 커버리지 낮은 업종이 대형 매장일 수 있다."
+              sql: |
+                -- :min_rows=1000
+                WITH a AS (SELECT dataset, SUM(n_with_area) AS n_area,
+                                  ROUND(SUM(avg_m2*n_with_area)/SUM(n_with_area),1) AS w_avg_m2
+                           FROM d1_area_profile GROUP BY dataset)
+                SELECT q.dataset_ko, q.total_rows, ROUND(q.geo_coverage*100,1) AS geo_pct,
+                       a.n_area, a.w_avg_m2
+                FROM d1_data_quality q JOIN a ON a.dataset = q.dataset
+                WHERE q.total_rows >= :min_rows
+                ORDER BY q.geo_coverage ASC LIMIT 12
           contract_version: v1
           product_question: 이 데이터셋의 품질(연락처·좌표·주소 커버리지)은?
           grain: 업종3단
@@ -3873,6 +4710,29 @@ models:
                        ROUND(SUM(avg_operating_days_per_year*with_operating_days)/NULLIF(SUM(with_operating_days),0),1) AS weighted_avg_days
                 FROM d1_env_facility_operation
                 GROUP BY dataset_ko;
+            - pattern_id: "inv_hours_coverage_asc"
+              question_ko: "가동시간 정보가 가장 부실한 자치구는? (일수 커버리지 관점의 지표 교환)"
+              axes: "자치구 랭킹 — 가동시간 커버리지 ASC(일수 커버리지 관점의 지표 반전)"
+              verified_rows: 10
+              insight_sample_ko: "서초구는 대기배출시설 448건 중 가동시간 기재가 55건(12.3%)뿐으로 최저."
+              sql: |
+                -- :dataset='air_pollution_facility', :n=10
+                SELECT gu, facility_rows, with_operating_hours,
+                       ROUND(100.0*with_operating_hours/facility_rows,1) AS hours_coverage_pct
+                FROM d1_env_facility_operation WHERE dataset = :dataset AND gu_code <> 'UNK'
+                ORDER BY hours_coverage_pct ASC LIMIT :n
+            - pattern_id: "new_days_vs_hours_cross"
+              question_ko: "연간 가동일수와 일 가동시간을 함께 보면 어느 구가 집약적인가?"
+              axes: "자치구 × 두 지표 교차(일수 × 시간 → 연간 가동시간 파생)"
+              verified_rows: 10
+              insight_sample_ko: "강동구는 중앙값 292.5일 × 10.8시간 → 연 3,169시간 추정으로 가동 집약도 최상위."
+              sql: |
+                -- :dataset='air_pollution_facility'  (water 는 가동시간 결측이라 예시는 air)
+                SELECT gu, p50_operating_days, p50_operating_hours,
+                       ROUND(p50_operating_days * p50_operating_hours,0) AS annual_hours_est
+                FROM d1_env_facility_operation
+                WHERE dataset = :dataset AND gu_code <> 'UNK' AND p50_operating_days > 0 AND p50_operating_hours > 0
+                ORDER BY annual_hours_est DESC LIMIT 10
           contract_version: v1
           product_question: 환경시설의 가동 일수·시간은?
           grain: 환경 dataset×자치구
