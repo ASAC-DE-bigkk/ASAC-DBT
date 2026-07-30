@@ -11,6 +11,10 @@ TRAFFIC_SOURCES_PATH = PROJECT_ROOT / "models" / "traffic" / "sources.yml"
 TRAFFIC_EXTERNAL_SNAPSHOT_MACRO_PATH = (
     PROJECT_ROOT / "macros" / "traffic" / "traffic_external_snapshot.sql"
 )
+CITYDATA_SCHEMA = (
+    "{{ env_var('SEOUL_CITYDATA_SCHEMA', "
+    "'citydata' if target.name == 'prod' else 'seoul_citydata') }}"
+)
 WEATHER_MODEL_PATH = GOLD_DIR / "gold_traffic_incident_x_weather_current_hourly.sql"
 CITYDATA_MODEL_PATH = (
     GOLD_DIR / "gold_traffic_incident_x_citydata_crowding_current_hourly.sql"
@@ -135,7 +139,7 @@ def test_citydata_source_contract_lives_in_traffic_sources() -> None:
 
     assert "traffic_citydata_gold" in sources
     citydata = sources["traffic_citydata_gold"]
-    assert citydata["schema"] == "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    assert citydata["schema"] == CITYDATA_SCHEMA
     tables = {table["name"]: table for table in citydata["tables"]}
     table = tables["gold_citydata_ppltn_by_time"]
     assert table["identifier"] == "gold_citydata_ppltn_by_time"

@@ -11,6 +11,10 @@ INCIDENT_HOT = "ask_seoul_traffic_transform_incident_hot_build"
 FLOW_HOT = "ask_seoul_traffic_transform_flow_hot_build"
 GOLD_HOT = "ask_seoul_traffic_transform_gold_hot_build"
 GOLD_INCIDENT_HOT = "ask_seoul_traffic_transform_gold_incident_hot_build"
+GOLD_BOOTSTRAP_HOT = "ask_seoul_traffic_transform_gold_bootstrap_hot_build"
+GOLD_INCIDENT_BOOTSTRAP_HOT = (
+    "ask_seoul_traffic_transform_gold_incident_bootstrap_hot_build"
+)
 DAILY_ASSURANCE = "ask_seoul_traffic_daily_assurance"
 
 INCIDENT_RECEIPT = "assert_traffic_incident_silver_publication_receipt"
@@ -25,6 +29,7 @@ TRAFFIC_D1_MODELS = {
     "gold_traffic_flow_link_time_profile",
     "gold_traffic_flow_anomaly_current",
 }
+TRAFFIC_INCIDENT_ANCHOR = "gold_traffic_incident_current_by_admin_dong_hourly"
 
 
 def _selectors() -> dict[str, dict]:
@@ -56,6 +61,19 @@ def test_hot_path_selectors_define_exact_traffic_models_and_receipts():
         GOLD_RECEIPT
     }
     assert _explicit_fqns(selectors[GOLD_INCIDENT_HOT]) == {
+        "gold_traffic_incident_x_weather_current_hourly",
+        GOLD_RECEIPT,
+    }
+
+
+def test_gold_bootstrap_selectors_add_only_the_missing_incident_anchor():
+    selectors = _selectors()
+
+    assert _explicit_fqns(selectors[GOLD_BOOTSTRAP_HOT]) == (
+        TRAFFIC_D1_MODELS | {TRAFFIC_INCIDENT_ANCHOR, GOLD_RECEIPT}
+    )
+    assert _explicit_fqns(selectors[GOLD_INCIDENT_BOOTSTRAP_HOT]) == {
+        TRAFFIC_INCIDENT_ANCHOR,
         "gold_traffic_incident_x_weather_current_hourly",
         GOLD_RECEIPT,
     }

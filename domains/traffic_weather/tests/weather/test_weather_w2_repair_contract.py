@@ -62,7 +62,7 @@ W2_LATEST_GRID_RECORD_FULL_TEST = Path(
 )
 
 
-def test_repair_inputs_and_shared_dev_guard_fail_closed() -> None:
+def test_repair_inputs_and_canonical_gold_target_guard_fail_closed() -> None:
     raw_macro = read(W2_MACRO)
     macro = compact(raw_macro)
     for token in (
@@ -86,20 +86,30 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed() -> None:
         assert token in macro
     assert "target.name != 'dev'" in macro or "target.name == 'dev'" in macro
     gold_guard = macro[
-        macro.index("macro weather_w2_assert_gold_dev_target") : macro.index(
-            "endmacro", macro.index("macro weather_w2_assert_gold_dev_target")
+        macro.index("macro weather_w2_assert_gold_target") : macro.index(
+            "endmacro", macro.index("macro weather_w2_assert_gold_target")
         )
     ]
-    assert "if execute and (" in gold_guard
     for target_check in (
-        "target.name != 'dev'",
-        "target.database != 'iceberg_dev'",
+        "target.name == 'dev'",
+        "target.database == 'iceberg_dev'",
         "weather_schema_name()",
+        "weather_w1_prod_snapshot_bootstrap_allowed()",
+        "weather_w1_assert_prod_snapshot_bootstrap_evidence()",
+        "not approved_dev_target and not approved_prod_snapshot",
     ):
         assert target_check in gold_guard
-    assert "weather_w2_assert_gold_dev_target" in compact(read(W2_GOLD_MODEL))
+    initial_guard = macro[
+        macro.index("macro weather_w2_gold_initial_build_guard") : macro.index(
+            "endmacro", macro.index("macro weather_w2_gold_initial_build_guard")
+        )
+    ]
+    assert "weather_w1_prod_snapshot_bootstrap_allowed()" in initial_guard
+    assert "not weather_w2_is_repair()" in initial_guard
+    assert "weather_w2_assert_gold_target" in compact(read(W2_GOLD_MODEL))
     strategy = macro[macro.index("macro get_incremental_weather_w2_reconcile_sql") :]
-    assert "weather_w2_assert_gold_dev_target" in strategy
+    assert "weather_w2_assert_gold_target" in strategy
+    assert "weather_w2_assert_gold_dev_target" not in macro
     assert (
         "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}$"
         in raw_macro
@@ -250,8 +260,8 @@ def test_recovery_stage_publish_operation_is_one_target_only_atomic_merge() -> N
     publish = macro[macro.index("macro weather_w2_publish_recovery_stage") :]
     stage_contract = compact(read(W2_RECOVERY_MODELS_YAML))
 
-    assert "macro weather_w2_assert_gold_dev_target(relation=none)" in contract
-    assert "weather_w2_assert_gold_dev_target(gold_relation)" in publish
+    assert "macro weather_w2_assert_gold_target(relation=none)" in contract
+    assert "weather_w2_assert_gold_target(gold_relation)" in publish
     assert (
         "name: weather_w2_observation_recovery_stage"
         " description:" in stage_contract
@@ -477,7 +487,7 @@ def test_repair_lineage_workset_is_parse_safe_and_runtime_fail_closed() -> None:
         "materialized='table'",
         "alias='weather_w2_observation_recovery_lineage_workset'",
         "weather_w2_is_repair",
-        "weather_w2_assert_gold_dev_target",
+        "weather_w2_assert_gold_target",
         "weather_w2_assert_repair_evidence",
         "weather_w2_bridge_version",
         "weather_w2_gold_winner_is_not_older",

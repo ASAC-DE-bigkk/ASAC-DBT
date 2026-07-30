@@ -285,6 +285,27 @@ selectors:
         - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
         - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
 
+  - name: ask_seoul_traffic_transform_gold_bootstrap_hot_build
+    description: First-run Traffic anchor plus the six D1 serving models and compound receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_change_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_time_profile, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_anomaly_current, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_gold_incident_bootstrap_hot_build
+    description: First-run Traffic anchor plus the incident-only D1 model and compound receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
   - name: ask_seoul_traffic_daily_assurance
     description: Full Traffic contracts executed by the 09:00 reliability audit.
     definition:
@@ -314,20 +335,6 @@ selectors:
   - name: ask_seoul_weather_transform_gold
     description: Weather scheduled Gold summary model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_gold, indirect_selection: cautious}
-  - name: ask_seoul_weather_transform_commerce_gold_scope
-    description: Commerce source에 결합된 Weather Gold leaf model과 직결 test 범위다.
-    definition:
-      union:
-        - method: fqn
-          value: gold_weather_x_commerce_business_exposure_daily
-          children: true
-  - name: ask_seoul_weather_transform_gold_without_commerce
-    description: 정규 Weather Gold에서 현재 unavailable인 Commerce 결합 leaf만 제외한다.
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_weather_transform_gold}
-        - exclude:
-            - {method: selector, value: ask_seoul_weather_transform_commerce_gold_scope}
   - name: ask_seoul_weather_transform_place_mart
     description: Weather place mart model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_place_mart, indirect_selection: cautious}

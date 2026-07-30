@@ -17,7 +17,7 @@
 {% endif %}
 
 {% if repair_mode %}
-{{ weather_w2_assert_gold_dev_target() }}
+{{ weather_w2_assert_gold_target() }}
 {{ weather_w2_assert_repair_evidence() }}
 
 {% set canonical_contract = weather_w2_canonical_contract() %}
