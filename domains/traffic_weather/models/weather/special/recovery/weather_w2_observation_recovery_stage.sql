@@ -18,7 +18,7 @@
 {% endif %}
 
 {% if repair_mode %}
-{{ weather_w2_assert_gold_dev_target() }}
+{{ weather_w2_assert_gold_target() }}
 {{ weather_w2_assert_repair_evidence() }}
 
 {% set checkpoint_id = weather_w2_recovery_checkpoint_id() %}

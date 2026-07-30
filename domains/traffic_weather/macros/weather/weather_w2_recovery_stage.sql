@@ -190,7 +190,7 @@ from winning_candidates
 {%- endmacro %}
 
 {% macro get_incremental_weather_w2_recovery_stage_sql(arg_dict) -%}
-{%- do weather_w2_assert_gold_dev_target() -%}
+{%- do weather_w2_assert_gold_target() -%}
 {%- set target_relation = arg_dict['target_relation'] -%}
 {%- set temp_relation = arg_dict['temp_relation'] -%}
 {%- set dest_columns = arg_dict['dest_columns'] -%}
@@ -287,7 +287,7 @@ values (
 {%- set target_admin_dong_code = weather_w2_recovery_target_admin_dong_code() -%}
 {%- set stage_relation = ref('weather_w2_observation_recovery_stage') -%}
 {%- set gold_relation = ref('gold_weather_forecast_by_admin_dong') -%}
-{%- do weather_w2_assert_gold_dev_target(gold_relation) -%}
+{%- do weather_w2_assert_gold_target(gold_relation) -%}
 {%- set gold_columns = [
     'product_row_id',
     'admin_dong_code',
