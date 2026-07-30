@@ -12,6 +12,16 @@ models:
           contract_version: v1
           product_id: weather_place_risk_window
           product_question: 특정 장소에서 방문·이동 주의가 필요할 수 있는 예보 시간과 근거는 무엇입니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: weather.find_risk_windows
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 서울역에서 이동에 주의가 필요할 수 있는 예보 시간은 언제인가요?
+              - 이 장소에 폭염·강풍·호우 후보가 예보된 시간과 근거를 알려주세요.
+              - 내일 여의도공원을 방문할 때 참고할 위험 예보가 있나요?
           grain: place_id와 forecast_at마다 한 행 — 자체 임계값을 만족한 후보 위험 예보.
           primary_key: [product_row_id]
           publication_mode: snapshot

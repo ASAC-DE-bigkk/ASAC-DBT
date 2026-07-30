@@ -19,6 +19,16 @@ models:
           external: true
           product_id: traffic_incident_x_weather_current_hourly
           product_question: 돌발이 있는(또는 없는) 서울 행정동의 같은 평가 시간 KMA 예보 맥락은 무엇입니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: traffic.get_incident_weather_context
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 현재 돌발이 있는 행정동의 같은 시각 날씨 예보는 무엇인가요?
+              - 강남구 행정동의 돌발 현황과 날씨 맥락을 함께 알려주세요.
+              - 날씨 맥락이 결측인 교통 돌발 행정동이 있나요?
           grain: admin_dong_code와 hour_at마다 한 행 — 행정동 현재 돌발·날씨 맥락 스냅샷.
           primary_key: [product_row_id]
           publication_mode: snapshot
