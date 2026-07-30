@@ -54,4 +54,3 @@ dev와 prod를 포함한 모든 dbt target에서 동일한 publishability reconc
 5. prod runtime에서 실패했던 Traffic Silver Asset run을 재실행하고 Gold→D1까지
    수렴하는지 검증한다.
 6. Weather/Traffic 이외 파일 변경이 없는지 diff scope를 확인한다.
-
