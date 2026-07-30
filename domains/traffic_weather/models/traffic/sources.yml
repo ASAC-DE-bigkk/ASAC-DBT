@@ -356,7 +356,7 @@ sources:
   - name: traffic_citydata_gold
     description: Seoul Citydata Gold tables consumed as cross-domain context by Traffic-owned marts.
     database: "{{ target.database }}"
-    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'citydata' if target.name == 'prod' else 'seoul_citydata') }}"
     tables:
       - name: gold_citydata_ppltn_by_time
         identifier: gold_citydata_ppltn_by_time
