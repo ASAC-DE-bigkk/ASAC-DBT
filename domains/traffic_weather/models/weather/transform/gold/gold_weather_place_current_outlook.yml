@@ -13,6 +13,16 @@ models:
           external: true
           product_id: weather_place_current_outlook
           product_question: 지금 이 장소의 가장 가까운 기상 예보는 무엇입니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: weather.get_current_outlook
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 서울역의 현재 예보 기온과 강수 가능성은 무엇인가요?
+              - 여의도공원의 가장 가까운 예보 대상 시각은 언제인가요?
+              - 이 장소에서 지금 참고할 날씨 예보는 무엇인가요?
           grain: place_id마다 한 행 — 장소별 현재 예보 스냅샷.
           primary_key: [product_row_id]
           publication_mode: snapshot

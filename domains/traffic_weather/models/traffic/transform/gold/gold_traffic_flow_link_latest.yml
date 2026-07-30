@@ -13,6 +13,16 @@ models:
           external: true
           product_id: traffic_flow_link_latest
           product_question: 각 도로 링크의 가장 최근 속도와 통행시간은 무엇입니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: traffic.get_link_latest
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 이 도로 링크의 가장 최근 속도와 통행시간은 얼마인가요?
+              - 지금 값이 있는 링크와 결측 링크를 구분해 보여주세요.
+              - 링크별 관측 시각을 함께 확인할 수 있나요?
           grain: link_id마다 한 행 — 링크별 최신 교통 흐름 스냅샷.
           primary_key: [product_row_id]
           publication_mode: upsert

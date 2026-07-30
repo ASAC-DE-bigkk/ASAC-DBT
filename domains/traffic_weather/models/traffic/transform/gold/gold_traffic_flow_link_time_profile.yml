@@ -12,6 +12,16 @@ models:
           contract_version: v1
           product_id: traffic_flow_link_time_profile
           product_question: 이 도로 링크는 같은 요일과 시간대에 보통 어느 정도 속도로 관측됩니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: traffic.get_link_time_profile
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 이 링크는 평일 오후 6시에 보통 어느 정도 속도인가요?
+              - 같은 요일과 시간대의 통행시간 기준선을 알려주세요.
+              - 표본이 부족해 대표성이 낮은 링크 프로파일이 있나요?
           grain: link_id, kst_day_of_week, kst_hour마다 한 행 — 시간대별 이력 기준선.
           primary_key: [product_row_id]
           publication_mode: upsert

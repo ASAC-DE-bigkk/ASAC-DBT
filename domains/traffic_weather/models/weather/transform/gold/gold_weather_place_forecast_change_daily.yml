@@ -12,6 +12,16 @@ models:
           contract_version: v1
           product_id: weather_place_forecast_change_daily
           product_question: 특정 장소의 일별 예보는 직전 KMA 발표보다 어떻게 바뀌었습니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: weather.compare_forecast_change_daily
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 서울역의 내일 예보는 직전 발표와 비교해 어떻게 바뀌었나요?
+              - 이 장소의 강수확률이나 기온 예보 수정 내역을 알려주세요.
+              - 여의도공원의 첫 강수 예상 시각이 이전 예보보다 달라졌나요?
           grain: place_id와 forecast_date마다 한 행 — 최신 발표와 직전 발표의 일별 비교.
           primary_key: [product_row_id]
           publication_mode: snapshot

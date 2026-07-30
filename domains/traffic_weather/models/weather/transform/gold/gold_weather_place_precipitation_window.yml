@@ -12,6 +12,16 @@ models:
           contract_version: v1
           product_id: weather_place_precipitation_window
           product_question: 특정 장소에서 비나 눈이 연속으로 예보된 시간대는 언제입니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: weather.find_precipitation_windows
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 서울역에서 비나 눈이 이어질 것으로 예보된 시간대는 언제인가요?
+              - 오늘 여의도공원에 강수 형태가 예보된 연속 구간이 있나요?
+              - 이 장소의 다음 강수 예보 시작과 종료 시각은 언제인가요?
           grain: place_id와 window_start_at마다 한 행 — 명시적으로 강수 형태가 예보된 연속 시간 구간.
           primary_key: [product_row_id]
           publication_mode: snapshot

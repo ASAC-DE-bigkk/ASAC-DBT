@@ -12,6 +12,16 @@ models:
           contract_version: v1
           product_id: traffic_flow_change_latest
           product_question: 각 도로 링크의 최신 속도와 통행시간은 직전 관측보다 어떻게 바뀌었습니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: traffic.get_flow_change
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 이 링크의 속도는 직전 관측보다 어떻게 변했나요?
+              - 최근 통행시간이 늘어난 링크를 찾아주세요.
+              - 직전 관측이 없어 비교할 수 없는 링크가 있나요?
           grain: link_id마다 한 행 — 링크별 최신 관측과 바로 이전 관측의 비교.
           primary_key: [product_row_id]
           publication_mode: upsert

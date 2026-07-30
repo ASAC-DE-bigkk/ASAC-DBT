@@ -13,6 +13,16 @@ models:
           external: true
           product_id: traffic_flow_congestion_hotspots_hourly
           product_question: 특정 시간에 관측 속도가 가장 낮은 링크는 어디입니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: traffic.list_congestion_hotspots
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 지금 관측된 속도가 가장 낮은 도로 링크는 어디인가요?
+              - 오늘 오후 6시에 저속 링크 상위 목록을 보여주세요.
+              - 특정 시간대의 혼잡 hotspot과 관측 링크 수를 알려주세요.
           grain: hour_at과 link_id마다 한 행 — 시간대별 링크 혼잡 순위 관측.
           primary_key: [product_row_id]
           publication_mode: upsert
