@@ -77,6 +77,11 @@ models:
         data_type: bigint
         description: 해당 grain 개업/폐업 건수.
         tests: [not_null]
+      - name: src_collected_at
+        data_type: timestamp(6)
+        description: >-
+          이 행을 만든 빌드가 반영한 silver 워터마크(silver_license_entity 의 max(collected_at)).
+          다음 증분 빌드는 이 값 이후 변경분이 건드린 기간만 재계산해 교체한다(#603).
       - name: event_type_ko
         data_type: varchar
         description: 이벤트 유형 한글(개업/폐업)
@@ -399,6 +404,11 @@ models:
         data_type: bigint
         description: 월별 개업/폐업 건수.
         tests: [not_null]
+      - name: src_collected_at
+        data_type: timestamp(6)
+        description: >-
+          이 행을 만든 빌드가 반영한 silver 워터마크(silver_license_entity 의 max(collected_at)).
+          다음 증분 빌드는 이 값 이후 변경분이 건드린 기간만 재계산해 교체한다(#603).
       - name: event_type_ko
         data_type: varchar
         description: 이벤트 유형 한글(개업/폐업)
@@ -645,6 +655,11 @@ models:
         data_type: bigint
         description: 연별 개업/폐업 건수.
         tests: [not_null]
+      - name: src_collected_at
+        data_type: timestamp(6)
+        description: >-
+          이 행을 만든 빌드가 반영한 silver 워터마크(silver_license_entity 의 max(collected_at)).
+          다음 증분 빌드는 이 값 이후 변경분이 건드린 기간만 재계산해 교체한다(#603).
       - name: event_type_ko
         data_type: varchar
         description: 이벤트 유형 한글(개업/폐업)
