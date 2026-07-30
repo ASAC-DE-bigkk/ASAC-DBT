@@ -110,6 +110,7 @@ models:
           d1_table: d1_flow_monthly
           d1_rollup: (ym,event_type,major,category,gu_code) SUM(cnt) — dataset/dong/legal 드롭(HOW 정본=export SERVING_SPEC)
           event_time: ym                      # 시간축(#478 v1) — _catalog.time_axis/freshness 채움(타 도메인 동형)
+          freshness_slo_minutes: 89280        # 62일. 완결월 grain: ym='YYYY-MM' 를 월초로 파싱하면 최신 이벤트월이 최대 약 62일 전(당월 제외+월 마감 지연). 게시 지연 감시는 publication_trigger.max_interval_minutes(26h) 담당
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "flow_trend_monthly"
               question_ko: "서울 전체 월별 개업·폐업·순증 추이는? (시계열)"
@@ -431,6 +432,7 @@ models:
           d1_table: d1_flow_yearly
           d1_rollup: (y,event_type,major,category,gu_code) SUM(cnt) — dataset/dong 드롭, y→varchar
           event_time: y                       # 시간축(#478 v1) — _catalog.time_axis/freshness(타 도메인 동형)
+          freshness_slo_minutes: 1051200   # 730일(2년). 완결연 grain: y='YYYY' 를 연초로 파싱하면 최신 이벤트연이 최대 약 730일 전. 게시 지연 감시는 publication_trigger.max_interval_minutes(26h) 담당
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rank_gu_by_event_year"
               question_ko: "특정 연도에 개업(또는 폐업)이 가장 많았던 자치구 top-N은?"
@@ -927,6 +929,7 @@ models:
           d1_table: d1_churn_yearly
           d1_rollup: (y,major,category,gu_code) 집계 후 비율 재산출(churn/birth_rate — 합산 불가) — dataset 드롭
           event_time: y                       # 시간축(#478 v1) — _catalog.time_axis/freshness(타 도메인 동형)
+          freshness_slo_minutes: 1051200   # 730일(2년). 완결연 grain: y='YYYY' 를 연초로 파싱하면 최신 이벤트연이 최대 약 730일 전. 게시 지연 감시는 publication_trigger.max_interval_minutes(26h) 담당
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "gu_churn_rank_topn"
               question_ko: "특정 연도에 교체율(폐업 회전)이 가장 높은 자치구 top-N은? (축반전 쌍 A-1: 연도 고정 → 자치구 랭킹)"
