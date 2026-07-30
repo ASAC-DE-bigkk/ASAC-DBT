@@ -66,26 +66,11 @@ def test_strategy_retracts_only_latest_nonpublishable_target_lineage():
     assert "where not exists" not in stale_keys
 
 
-def test_strategy_guards_dev_iceberg_dev_traffic_schema_before_merge():
+def test_strategy_is_portable_across_deployment_targets():
     assert MACRO.is_file(), f"missing Traffic reconcile macro: {MACRO}"
     sql = compact(MACRO.read_text(encoding="utf-8"))
-    guard = sql[
-        sql.index("macro traffic_publishability_assert_dev_target") : sql.index(
-            "endmacro",
-            sql.index("macro traffic_publishability_assert_dev_target"),
-        )
-    ]
-    strategy = sql[sql.index("macro get_incremental_traffic_publishability_reconcile_sql") :]
 
-    assert "if execute and (" in guard
-    for target_check in (
-        "target.name != 'dev'",
-        "target.database != 'iceberg_dev'",
-        "target_relation.schema != env_var('traffic_schema', 'traffic')",
-        "exceptions.raise_compiler_error",
-    ):
-        assert target_check in guard
-
-    guard_call = "traffic_publishability_assert_dev_target(target_relation)"
-    assert guard_call in strategy
-    assert strategy.index(guard_call) < strategy.index("merge into")
+    assert "traffic_publishability_assert_dev_target" not in sql
+    assert "target.name != 'dev'" not in sql
+    assert "target.database != 'iceberg_dev'" not in sql
+    assert "target_relation.schema != env_var('traffic_schema', 'traffic')" not in sql
