@@ -294,6 +294,7 @@
 - **파이프라인 편입 의도(확정)**: export는 별도 스케줄이 아니라 **gold 빌드와 같은 DAG run** — `commerce_load_gold`(06:00) `dbt_gold → export_d1 → report_gold`, 그리고 `commerce_load_gold_refresh`(full-refresh, 트리거 전용) 말미에도 동일 태스크를 편입한다. **full-refresh는 지연 도착 소급 스윕이라 완료 시 D1이 반드시 낡는다 → 재export까지가 refresh의 완료 조건.** 임의 시점 단독 export는 재빌드 윈도우('Metadata not found'·Trino 메타 캐시 stale)와 경합하므로 금지.
 - **완료 기록**: silver의 R2 상태 레이어(`commerce_silver_state`)와 대칭인 `commerce_serve_state` 마커에 테이블별 snapshot_at·읽은 Iceberg 스냅샷 id·행수를 기록 — 재실행 skip(PROJECT.md §3 재개 표준)·"어느 gold 스냅샷이 서빙 중인가" 추적·D1↔Iceberg 정합 감사의 정본. `d1_meta`는 그 값의 소비자(API) 노출 사본이다.
 - **부분 실패 시맨틱**: 22 대상 중 실패 테이블만 직전 스냅샷 유지(`stale`)·성공분은 전진 — 화면은 테이블별 '데이터 기준일'(snapshot_at)이 어긋날 수 있음을 전제로 위젯 단위 기준일을 노출한다(운영 계약 상세: opus 지시서 §1.4·§6-21~22).
+- **무변경 스킵(ASAC-DAG#601)**: 게시 payload 지문이 직전 게시와 같으면 **행 재기록만 생략**하고 메타(`_catalog`·`d1_meta`·핸드오프 보조 4종)는 그대로 갱신한다 — `snapshot_at`/`exported_at` 이 매일 전진하므로 stale 감지(⑦)와 26h 미게시 감시축은 그대로 유효하고, `build_status` 는 `ready` 를 유지한다(무변경은 정상 상태이므로 경고 배지 대상이 아니다). **실패로 인한 `stale` 과 혼동하지 않는다** — "실제로 언제 썼는지"는 commerce 소유 `d1_publish_state.written_at ↔ checked_at` 로 구분하고, `publication_id` 는 내용이 바뀔 때만 새로 발급된다. 판정축은 집계 그레인이 아니라 지문이다: 연 그레인이어도 전량 재계산 모델은 매일 값이 바뀌고(실측 `churn_yearly` 3.7%), append-only 증분(`flow_monthly`/`flow_yearly`)만 실제로 불변이다.
 
 **⑥ 뷰/파생 축 미승계 및 정합 계약**
 - flow 3모델 완결기간 계약(당일/당월/당해 제외, append 멱등, 지연도착은 --full-refresh 스윕) → 화면 미완결 구간 회색 처리 UI 계약 필요.
