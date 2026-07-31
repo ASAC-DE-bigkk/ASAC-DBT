@@ -670,6 +670,22 @@ models:
       - name: green_disguise_runs
         description: 초록 위장 run 수 — Airflow success 인데 expected=0(전멸) 이라 raw 통과가 무의미한 경우(7/7 실사례)
         data_type: bigint
+      # --- #619 확정안 반영: 재시도 축 + NULL 비율(관측 커버리지). 셋 다 NULL 허용이 규격이다 ---
+      - name: retried_runs
+        description: >
+          재시도로 살아난 run 수(success ∧ retried_tasks>0) — "성공률 100%" 뒤에 숨는 재발(#201, 7일 중 4일).
+          retry_observed_runs 와 짝으로 읽는다: NULL/NULL=그날 dag_run 이력 자체가 없음,
+          0/0=런은 있었지만 재시도 수치 미관측, 0/N=진짜 재시도 없는 날.
+        data_type: bigint
+      - name: retry_observed_runs
+        description: 재시도 수치를 관측할 수 있었던 run 수(분모) — 이게 없으면 retried_runs=0 이 "재시도 0건"인지 "관측 0건"인지 구분되지 않는다
+        data_type: bigint
+      - name: max_try_peak
+        description: 그날 최대 try_number — 1이면 무재시도, NULL 이면 미관측
+        data_type: bigint
+      - name: min_iceberg_measure_pct
+        description: 그날 run 의 적재 관측 커버리지 최저치(%) — 100 미만이면 그날 적재 수치는 부분 관측. 7/31 이전 이력은 NULL(필드 없던 시기)
+        data_type: decimal(38,18)
 
   - name: gold_culture_venue_profile
     description: '시설(facility_id) 1행 프로필 — "그 공연장 어떤 곳이야"(Q&A metric, #278). 주소·좌표 100%, seat_scale 63.7% 충전. 공연 통계는 KOPIS 공연 기준(보유 시설 421) — 전시·축제 미포함. 외부 카탈로그 비공개(meta.external=false, #269).'

@@ -158,6 +158,10 @@ sources:
             description: 종료 시각(KST ISO, running이면 null)
           - name: duration_sec
             description: 소요(초, double)
+          - name: retried_tasks
+            description: 그 run 에서 try_number>1 이었던 태스크 수(#201·#633) — 집계 없으면 NULL(0 아님)
+          - name: max_try
+            description: 그 run 의 최대 try_number — 1이면 무재시도, 집계 없으면 NULL
           - name: load_date
             description: 파티션 일자(KST, start 기준)
 

@@ -348,12 +348,31 @@ models:
 
   # --- SLO 마트 (tag:slo, #110). 관측 메타라 공간축 면제. 도메인 중립(domain 컬럼). ---
   - name: silver_culture_slo_run
-    description: run 그레인 SLO — coverage 4분해 + slo_passed 교정(raw AND expected>0, 초록위장 사후판정)
+    description: >
+      run 그레인 SLO — coverage 4분해 + slo_passed 교정(raw AND expected>0, 초록위장 사후판정).
+      #619 확정안 필드(event_id·record_count·row_count_source·iceberg_rows_measured)는
+      2026-07-31 이전 리포트에 없어 NULL 로 들어온다 — "그때는 안 남겼다"이지 "0건"이 아니라
+      not_null 을 걸지 않는다(NULL≠0).
     columns:
       - name: run_id
         tests: [not_null, unique]
       - name: domain
         tests: [not_null]
+      - name: rows_source
+        description: >
+          이 기록의 정본 행 수(=total_iceberg_rows)의 획득 방식. 공통 계약
+          product-observability/v2 의 어휘를 그대로 쓴다 — 도메인마다 다른 이름을 쓰면
+          조회 DB 합류에 매핑 표가 하나 더 생긴다. 미측정이면 not_observed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [raw_manifest, bronze_run_manifest, iceberg_snapshot, count_query, publication_ledger, not_observed]
+      - name: total_rows_source
+        description: 수집이 센 행 수(total_rows)의 획득 방식 — raw landing manifest. 옛 리포트는 NULL
+        tests:
+          - accepted_values:
+              arguments:
+                values: [raw_manifest, bronze_run_manifest, iceberg_snapshot, count_query, publication_ledger, not_observed]
       - name: slo_passed
         tests: [not_null]
       - name: run_kind
@@ -377,3 +396,7 @@ models:
         tests: [not_null]
       - name: state
         tests: [not_null]
+      - name: retried_tasks
+        description: try_number>1 이었던 태스크 수(#201·#633) — 미관측이면 NULL(0 은 "재시도 없었다"는 주장이라 섞을 수 없다)
+      - name: max_try
+        description: 그 run 의 최대 try_number — 1이면 무재시도, 미관측이면 NULL
