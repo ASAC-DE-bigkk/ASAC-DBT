@@ -134,6 +134,27 @@ models:
           shape: rollup
           event_time: event_date
           freshness_slo_minutes: 1560
+          usage_patterns:
+            - pattern_id: busiest_days_for_place
+              question_ko: 이 장소는 어떤 날 가장 붐볐나?
+              axes: 날짜 랭킹 — average_population DESC (장소 고정)
+              requires: [select_columns, sort]
+              sql: |
+                -- :area=성수동, :n=7
+                SELECT event_date, average_population, max_population
+                FROM gold_citydata_ppltn_daily
+                WHERE area_name = :area
+                ORDER BY average_population DESC LIMIT :n
+            - pattern_id: busiest_places_on_date
+              question_ko: 특정 날 가장 붐빈 장소는?
+              axes: 장소 랭킹 — max_population DESC (날짜 고정)
+              requires: [select_columns, sort]
+              sql: |
+                -- :date=2026-07-30, :n=10
+                SELECT area_name, gu, max_population, busy_ratio_percent
+                FROM gold_citydata_ppltn_daily
+                WHERE event_date = :date
+                ORDER BY max_population DESC LIMIT :n
         display:
           title: 장소별 일 혼잡 요약
           summary: 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
@@ -229,6 +250,27 @@ models:
           event_time: time_bucket
           freshness_slo_minutes: 150
           shape: rollup
+          usage_patterns:
+            - pattern_id: peak_hours_for_place
+              question_ko: 이 장소는 몇 시에 가장 붐비나?
+              axes: 시간대 랭킹 — average_population DESC (장소 고정)
+              requires: [select_columns, sort]
+              sql: |
+                -- :area=강남역, :n=5
+                SELECT time_bucket, average_population, peak_congestion_level
+                FROM gold_citydata_ppltn_hourly
+                WHERE area_nm = :area
+                ORDER BY average_population DESC LIMIT :n
+            - pattern_id: busiest_places_at_time
+              question_ko: 특정 시각에 가장 붐비는 장소는?
+              axes: 장소 랭킹 — average_population DESC (시각 고정)
+              requires: [select_columns, sort]
+              sql: |
+                -- :ts=2026-07-30 18:00:00, :n=10
+                SELECT area_nm, gu, average_population, busy_ratio_percent
+                FROM gold_citydata_ppltn_hourly
+                WHERE time_bucket = :ts
+                ORDER BY average_population DESC LIMIT :n
         display:
           title: 장소별 시간대 혼잡
           summary: 장소마다 시간 단위로 인구·혼잡을 집계했습니다. 몇 시가 붐비고 한산한지 시간대별로 볼 수 있습니다.
@@ -327,6 +369,26 @@ models:
           event_time: ppltn_at
           freshness_slo_minutes: 90
           shape: wide
+          usage_patterns:
+            - pattern_id: crowded_places_now
+              question_ko: 지금 가장 붐비는 장소는?
+              axes: 장소 랭킹 — area_ppltn_max DESC
+              requires: [select_columns, sort]
+              sql: |
+                -- :n=10
+                SELECT area_nm, gu, area_congest_lvl, area_ppltn_max, ppltn_at
+                FROM gold_citydata_place_latest
+                ORDER BY area_ppltn_max DESC LIMIT :n
+            - pattern_id: active_commerce_now
+              question_ko: 지금 상권(결제)이 가장 활발한 장소는?
+              axes: 장소 랭킹 — payment_count DESC
+              requires: [select_columns, sort, filter_null]
+              sql: |
+                -- :n=10
+                SELECT area_nm, gu, cmrcl_lvl, payment_count, cmrcl_at
+                FROM gold_citydata_place_latest
+                WHERE payment_count IS NOT NULL
+                ORDER BY payment_count DESC LIMIT :n
         display:
           title: 실시간 장소 종합 신호
           summary: 서울 주요 장소의 최신 혼잡·대기질·상권·따릉이 신호를 한 행으로 모았습니다. "지금 여기 어때"에 바로 답합니다.
