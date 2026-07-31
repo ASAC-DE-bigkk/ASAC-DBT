@@ -3,3 +3,7 @@ packages:
   # 컨테이너 마운트: transit=/opt/airflow/dbt/domains/transit,
   #                 asac_axes=/opt/airflow/dbt/packages/asac_axes
   - local: ../../packages/asac_axes
+  # 서빙 계약(#478): 복합 primary_key 의 고유성 근거 — serving_contract validator 가
+  # 이름의 unique_combination 으로 인정(culture #346 관례와 동일, dbt_utils 정본).
+  - package: dbt-labs/dbt_utils
+    version: 1.3.1

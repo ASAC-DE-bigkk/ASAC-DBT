@@ -17,24 +17,36 @@ with citydata as (
     where admin_dong_code is not null
 ),
 
-weather_candidates as (
+weather_winners as (
     select
         citydata.area_cd,
         citydata.event_at,
         upper(cast(weather.category as varchar)) as category,
-        cast(weather.issued_at as timestamp(6)) as issued_at,
-        cast(weather.collected_at as timestamp(6)) as collected_at,
-        cast(weather.fcst_value_num as double) as value_num,
-        cast(weather.fcst_value_raw as varchar) as value_raw,
-        row_number() over (
-            partition by citydata.area_cd, citydata.event_at, weather.category
-            order by weather.issued_at desc, weather.collected_at desc, weather.raw_object_key desc, weather.request_id desc
-        ) as weather_row_num
+        max_by(
+            cast(row(
+                cast(weather.issued_at as timestamp(6)),
+                cast(weather.collected_at as timestamp(6)),
+                cast(weather.fcst_value_num as double),
+                cast(weather.fcst_value_raw as varchar)
+            ) as row(
+                issued_at timestamp(6),
+                collected_at timestamp(6),
+                value_num double,
+                value_raw varchar
+            )),
+            row(
+                cast(weather.issued_at as timestamp(6)),
+                cast(weather.collected_at as timestamp(6)),
+                cast(weather.raw_object_key as varchar),
+                cast(weather.request_id as varchar)
+            )
+        ) as winner
     from citydata
     inner join {{ ref('gold_weather_forecast_by_admin_dong') }} as weather
         on citydata.admin_dong_code = weather.admin_dong_code
        and date_trunc('hour', citydata.event_at) = weather.forecast_at
        and weather.issued_at <= citydata.event_at
+    group by citydata.area_cd, citydata.event_at, upper(cast(weather.category as varchar))
 ),
 
 weather_pivot as (
@@ -42,16 +54,15 @@ weather_pivot as (
         area_cd,
         event_at,
         count(distinct category) as weather_category_coverage_count,
-        max(issued_at) as weather_issued_at_max,
-        max(collected_at) as weather_collected_at_max,
-        max(value_num) filter (where category = 'TMP') as temp_c,
-        max(value_num) filter (where category = 'REH') as humidity_pct,
-        max(value_num) filter (where category = 'WSD') as wind_ms,
-        max(value_num) filter (where category = 'POP') as precip_prob_pct,
-        max(value_raw) filter (where category = 'SKY') as sky_code,
-        max(value_raw) filter (where category = 'PTY') as pty_code
-    from weather_candidates
-    where weather_row_num = 1
+        max(winner.issued_at) as weather_issued_at_max,
+        max(winner.collected_at) as weather_collected_at_max,
+        max(winner.value_num) filter (where category = 'TMP') as temp_c,
+        max(winner.value_num) filter (where category = 'REH') as humidity_pct,
+        max(winner.value_num) filter (where category = 'WSD') as wind_ms,
+        max(winner.value_num) filter (where category = 'POP') as precip_prob_pct,
+        max(winner.value_raw) filter (where category = 'SKY') as sky_code,
+        max(winner.value_raw) filter (where category = 'PTY') as pty_code
+    from weather_winners
     group by 1, 2
 )
 

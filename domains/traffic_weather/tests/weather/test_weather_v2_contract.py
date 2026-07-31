@@ -76,6 +76,46 @@ def test_initial_build_guard_and_lookback_fail_closed():
     assert "target.schema" not in sql
 
 
+def test_initial_build_guard_allows_only_pinned_canonical_prod_bootstrap():
+    sql = read("macros/weather_v2_contract.sql")
+    prod_guard = sql[
+        sql.index("macro weather_w1_prod_snapshot_bootstrap_allowed") : sql.index(
+            "macro weather_w1_assert_prod_snapshot_bootstrap_evidence"
+        )
+    ]
+    prod_evidence = sql[
+        sql.index("macro weather_w1_assert_prod_snapshot_bootstrap_evidence") : sql.index(
+            "macro weather_w1_initial_build_guard"
+        )
+    ]
+    guard = sql[
+        sql.index("macro weather_w1_initial_build_guard") : sql.index(
+            "macro weather_w1_candidate_environment_guard"
+        )
+    ]
+
+    assert "target.name == 'prod'" in prod_guard
+    assert "target.database == 'iceberg'" in prod_guard
+    assert "source_schema == 'weather_traffic_bronze'" in prod_guard
+    assert "target_schema == 'weather'" in prod_guard
+    assert "var('weather_snapshot_dag_run_id', '')" in prod_guard
+    assert "latest_manifest_run_state(" in prod_evidence
+    assert "manifest_expected_rows > 0" in prod_evidence
+    assert "manifest_expected_raw_objects > 0" in prod_evidence
+    assert "manifest_status is distinct from 'SUCCESS'" in prod_evidence
+    assert "is_publishable is distinct from true" in prod_evidence
+    assert "manifest_status != 'SUCCESS'" not in prod_evidence
+    assert "or not is_publishable" not in prod_evidence
+    assert "bronze_row_count" in prod_evidence
+    assert "bronze_raw_object_count" in prod_evidence
+    assert "exceptions.raise_compiler_error" in prod_evidence
+    assert "prod_snapshot_bootstrap" in guard
+    assert "weather_w1_prod_snapshot_bootstrap_allowed()" in guard
+    assert "weather_w1_assert_prod_snapshot_bootstrap_evidence()" in guard
+    assert "if not isolated_smoke and not prod_snapshot_bootstrap" in guard
+    assert "flags.FULL_REFRESH" in guard
+
+
 def test_observation_declares_merge_grain_page_and_time_lineage():
     sql = read("models/silver/silver_kma_vilage_fcst_observation.sql")
     assert "materialized='incremental'" in sql
@@ -266,7 +306,7 @@ def test_item_signature_known_vector_data_test_is_independent():
     assert "where actual_hash <> expected_hash" not in normalized
 
 
-def test_bridge_and_seed_require_isolated_candidate_runtime_guard():
+def test_bridge_and_seed_require_guarded_dev_or_prod_candidate_runtime():
     macros = read("macros/weather_v2_contract.sql")
     bridge = read("models/silver/bridge_weather_admin_dong_grid.sql")
     project = read("dbt_project.yml")
@@ -278,6 +318,9 @@ def test_bridge_and_seed_require_isolated_candidate_runtime_guard():
         )
     ]
     assert "flags.FULL_REFRESH" in candidate_guard
+    assert "weather_w1_prod_snapshot_bootstrap_allowed()" in candidate_guard
+    assert "weather_w1_assert_prod_snapshot_bootstrap_evidence()" in candidate_guard
+    assert "if not isolated_smoke and not prod_snapshot_bootstrap" in candidate_guard
     assert (
         "weather_w1_candidate_environment_guard('bridge_weather_admin_dong_grid')"
         in bridge

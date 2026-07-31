@@ -202,9 +202,24 @@ models:
   - name: gold_transit_dong_hourly
     config:
       meta:
-        serving_tier: d1_direct   # 이력·시간별 — D1 append 서빙 (ASAC-DAG#475 1차)
-        refresh: '1시간'
-        external: true            # 외부 카탈로그 공개(1차)
+        # Serving Contract v1 (#478, dags/docs/contracts/serving-contract-v1.md) —
+        # 구 serving_tier·refresh·external 을 meta.serving 으로 대체(계약 §9 마이그레이션).
+        serving:
+          enabled: true
+          external: true
+          product_id: transit_dong_hourly
+          product_question: 이 행정동은 시간대별로 교통 상태가 어떠했습니까?
+          grain: (admin_dong_code, hour_at)마다 한 행 — 동×시간 교통 이력.
+          primary_key: [admin_dong_code, hour_at]
+          publication_mode: append          # 최근 구간 삭제→재삽입 (lookback 2h, runtime 상수)
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "40 * * * *"     # 3-tier hourly 주기 승계 (ASAC-DAG#475)
+          event_time: hour_at
+          # 버킷 완결 대기(60분) + 변환 1시간 주기 + 게시 :40 이 겹치면 건강해도 ~2h 지연 —
+          # dong_now 75분(내재지연 실측 보정, #475)과 같은 논리로 한 사이클 여유를 더해 180분.
+          freshness_slo_minutes: 180
+          shape: rollup
         display:
           title: 행정동별 시간대 교통 이력
           summary: 서울 행정동마다 시간대별 교통 상태를 쌓아 온 이력입니다. 한 시간 동안 버스가 얼마나 붐볐고, 지하철이 몇 번 도착했으며, 주차장이 얼마나 찼는지를 동×시간 한 칸에 담았습니다. 지금 상태가 아니라 과거 흐름을 보는 용도입니다.
@@ -218,6 +233,10 @@ models:
       event_at) KST. silver 3종(버스·지하철·주차)을 동·시간으로 집계해 한 행에 나란히(3원 outer 결합
       — 한 소스만 있는 조합도 행 생성). 지하철은 역 3곳(4개 동)에만 존재해 대부분 행에서 subway_* null.
       정화된 silver(#66)만 소비하므로 추가 시간 필터 없음. incremental merge(-3h lookback).
+    tests:
+      # 서빙 계약 복합 PK 근거 — validator 가 unique_combination 이름으로 인정(#478, culture #346 관례).
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [admin_dong_code, hour_at]
     columns:
       - name: admin_dong_code
         description: 행안부 10자리 행정동 코드(공간축, 그레인 축). null 행은 소스에서 제외.
@@ -356,9 +375,43 @@ models:
   - name: gold_transit_dong_now
     config:
       meta:
-        serving_tier: d1_direct   # 스냅샷 ~410행 — 15분 전량 교체 (ASAC-DAG#475 1차)
-        refresh: '15분'
-        external: true            # 외부 카탈로그 공개(1차)
+        serving:
+          enabled: true
+          external: true
+          product_id: transit_dong_now
+          product_question: 지금 이 행정동의 버스·지하철·주차 상태는 어떻습니까?
+          grain: admin_dong_code마다 한 행 — 동별 현재 교통 스냅샷.
+          primary_key: [admin_dong_code]
+          publication_mode: snapshot        # ~410행 전량 교체 (staging 원자 전환)
+          zero_policy: retain_last_good     # 0행이면 직전 게시본 유지 (프로토타입 export 게이트 승계)
+          publication_trigger:
+            schedule_cron: "10,25,40,55 * * * *"   # 3-tier fast 주기 승계 (ASAC-DAG#475)
+          event_time: bus_last_event_at     # 최다 관측 소스(버스) 기준 신선도 축
+          # 15분 버킷 아카이브 프런티어 설계라 건강해도 ~50분 지연 실측(2026-07-21, silver 신선) —
+          # 30분은 내재지연 오탐, 실측+여유 75분 (프로토타입 STALE_THRESHOLD_MIN 승계).
+          freshness_slo_minutes: 75
+          shape: wide
+          # usage_patterns 파일럿(#384, 규약 ASAC-DAG#600) — 스펙 optional 정의 전이라 최소
+          # 필드만. verified_rows·insight_sample_ko 는 검증 경로 확정 후 별도 이슈에서 채움.
+          usage_patterns:
+            - pattern_id: congested_dongs_now_top
+              question_ko: 지금 버스가 가장 혼잡한 동네는?
+              axes: 동 랭킹 — 버스 혼잡도 평균 DESC
+              sql: |
+                -- :n=10
+                SELECT admin_dong, gu, bus_congestion_avg, bus_congestion_grade, bus_last_event_at
+                FROM gold_transit_dong_now
+                WHERE bus_congestion_avg IS NOT NULL
+                ORDER BY bus_congestion_avg DESC LIMIT :n
+            - pattern_id: parking_avail_dongs_in_gu
+              question_ko: 이 자치구에서 지금 주차 여유 있는 동네는?
+              axes: 구 내 동 랭킹 — 주차 여유 % DESC
+              sql: |
+                -- :gu=강남구, :n=10
+                SELECT admin_dong, parking_avail_pct, parking_lot_cnt, parking_last_event_at
+                FROM gold_transit_dong_now
+                WHERE gu = :gu AND parking_avail_pct IS NOT NULL
+                ORDER BY parking_avail_pct DESC LIMIT :n
         display:
           title: 지금 우리 동네 교통 상태
           summary: 서울 각 행정동의 현재 교통 상태를 한 행으로 보여줍니다. 버스가 얼마나 붐비는지(여유·보통·혼잡), 인근 공영주차장에 자리가 얼마나 남았는지(%), 지하철이 평균 몇 분 뒤 도착하는지를 동 단위로 묶었습니다. 각 값이 몇 분 전 관측인지도 함께 있어 얼마나 최신인지 판단할 수 있습니다.
@@ -374,16 +427,45 @@ models:
       스냅샷(table) — 경과 시간은 조회 시점 기준으로 소비 측이 계산.
     columns:
       - name: admin_dong_code
+        description: 행안부 10자리 행정동 코드(그레인 축).
         tests:
           - not_null
           - unique
+      - name: admin_dong
+        description: 행정동 이름(dim_admin_dong).
+      - name: gu_code
+        description: 자치구 코드.
+      - name: gu
+        description: 자치구 이름.
+      - name: bus_congestion_avg
+        description: 최신 15분 버킷 버스 혼잡도 평균(원천 congestion 값역 3~5, 0='정보없음' 제외).
       - name: bus_congestion_grade
         description: 혼잡 등급(여유<3.5≤보통<4.5≤혼잡). 원천 congestion 값역 3/4/5.
         tests:
           - accepted_values:
               arguments: {values: ['여유', '보통', '혼잡']}
+      - name: bus_full_ratio
+        description: 버스 만차 비율(is_full 평균, 0~1).
+      - name: bus_veh_cnt
+        description: 관측 distinct 차량 수.
+      - name: bus_last_event_at
+        description: 버스 최신 관측 시각(KST) — "N분 전 관측" 표기 근거.
+      - name: subway_wait_min
+        description: 접근 중 열차 평균 잔여 도착시간(분). 실시간 제공 역 주변 동에만 값 — 그 외 null 정상.
+      - name: subway_arrival_cnt
+        description: 지하철 도착정보 관측 행수.
+      - name: subway_last_event_at
+        description: 지하철 최신 관측 시각(KST).
+      - name: parking_occupancy_avg
+        description: 최신 버킷 평균 주차 점유율(0~1).
       - name: parking_avail_pct
         description: 주차 여유 %((1-점유율)×100 반올림).
+      - name: parking_lot_cnt
+        description: 관측 주차 개소 수.
+      - name: parking_full_lot_cnt
+        description: 만차(점유율>=0.95) 개소 수.
+      - name: parking_last_event_at
+        description: 주차 최신 관측 시각(KST).
 
   - name: gold_transit_x_weather_dong_hourly
     config:
@@ -453,9 +535,24 @@ models:
   - name: gold_transit_parking_profile
     config:
       meta:
-        serving_tier: d1_direct   # dow×hh 프로파일 ~864행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
-        refresh: '패턴'
-        external: true            # 외부 카탈로그 공개(1차)
+        serving:
+          enabled: true
+          external: true
+          product_id: transit_parking_profile
+          product_question: 이 주차장은 요일·시간대별로 평소 얼마나 찹니까?
+          grain: (parking_id, dow, hh)마다 한 행 — 주차장 평시 점유 프로파일.
+          primary_key: [parking_id, dow, hh]
+          publication_mode: snapshot        # 일 1회 전량 교체
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "40 8 * * *"     # 3-tier daily 주기 승계 (ASAC-DAG#475)
+          shape: rollup
+          # 표본 판단은 소비 측 배지 몫(#288 원칙)이라 억제하지 않고 그대로 게시한다.
+          # 4주 누적 시 칸당 ~16 도달 — 그 뒤 flag_degraded 전환 검토.
+          reliability:
+            sample_count_field: base_n
+            minimum_sample_count: 16
+            insufficient_sample_policy: allow
         display:
           title: 주차장 요일·시간대 혼잡 패턴
           summary: 공영주차장마다 요일과 시간대별로 평소 얼마나 차는지를 정리했습니다. 예를 들어 '이 주차장은 평일 오후에 만차 확률이 높다' 같은 평시 패턴을 만차 확률과 함께 제공합니다. 지금 상태가 아니라 '보통 이 시간엔 이렇다'는 기준선입니다.
@@ -467,25 +564,66 @@ models:
     description: >
       주차장별 요일×시간 점유 프로파일(#288 G2 프로파일 축). grain (parking_id, dow, hh).
       아카이브(parking_lot_15min) 전량 재집계. full_prob = 버킷 중 occ_max>=0.95 비율.
+    tests:
+      # 서빙 계약 복합 PK 근거 — validator 가 unique_combination 이름으로 인정(#478, culture #346 관례).
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [parking_id, dow, hh]
     columns:
       - name: parking_id
+        description: 주차장 ID(그레인 축).
         tests:
           - not_null
       - name: dow
+        description: 요일(1=월~7=일, Trino day_of_week). 그레인 축.
         tests:
           - not_null
       - name: hh
+        description: 시간대(0~23). 그레인 축.
         tests:
           - not_null
+      - name: base_n
+        description: 기여 15분 버킷 수 — 표본 신뢰도(같은 칸 주 1회×4버킷 → 4주 ~16).
+      - name: occ_avg
+        description: 평시 평균 점유율(0~1).
       - name: full_prob
         description: 만차 확률(0~1). base_n 얇으면(운영 초기) 소비 측 배지 처리.
 
   - name: gold_transit_parking_full_risk
     config:
       meta:
-        serving_tier: d1_direct   # 스냅샷 ~108행 — 15분 전량 교체 (ASAC-DAG#475 1차)
-        refresh: '15분'
-        external: true            # 외부 카탈로그 공개(1차)
+        serving:
+          enabled: true
+          external: true
+          product_id: transit_parking_full_risk
+          product_question: 지금 이 주차장은 얼마나 찼고 만차까지 얼마나 남았습니까?
+          grain: parking_id마다 한 행 — 실시간 제공 주차장의 현재 만차 리스크.
+          primary_key: [parking_id]
+          publication_mode: snapshot        # ~108행 전량 교체
+          zero_policy: retain_last_good     # 0행이면 직전 게시본 유지 (프로토타입 export 게이트 승계)
+          publication_trigger:
+            schedule_cron: "10,25,40,55 * * * *"   # 3-tier fast 주기 승계 (ASAC-DAG#475)
+          event_time: last_event_at
+          freshness_slo_minutes: 75         # dong_now 와 동일 근거 (프로토타입 75분 승계)
+          shape: wide
+          # usage_patterns 파일럿(#384) — 최소 필드 사유는 dong_now 블록 주석과 동일.
+          usage_patterns:
+            - pattern_id: full_soon_lots
+              question_ko: 곧 만차될 것 같은 주차장은 어디인가?
+              axes: 주차장 랭킹 — 만차까지 예상 분 ASC
+              sql: |
+                -- :n=10
+                SELECT parking_name, gu_code, avail_pct, minutes_to_full_est, last_event_at
+                FROM gold_transit_parking_full_risk
+                WHERE minutes_to_full_est > 0  -- 0=이미 만차(비조치 대상) 제외
+                ORDER BY minutes_to_full_est ASC LIMIT :n
+            - pattern_id: best_avail_lots_now
+              question_ko: 지금 자리 여유가 가장 많은 주차장은?
+              axes: 주차장 랭킹 — 잔여 대수 추정 DESC
+              sql: |
+                -- :n=10
+                SELECT parking_name, avail_pct, avail_lot_est, capacity_now, last_event_at
+                FROM gold_transit_parking_full_risk
+                ORDER BY avail_lot_est DESC LIMIT :n
         display:
           title: 지금 주차장 만차 위험
           summary: 공영주차장별 현재 얼마나 찼는지(%)와, 채워지는 속도로 본 '만차까지 남은 예상 시간'을 보여줍니다. 여기에 '이 시간대 평소 만차 확률'을 더해, 지금 출발하면 자리가 있을지 판단하도록 했습니다.
@@ -500,13 +638,42 @@ models:
       (프로파일 조인). 매 변환 재생성 table, 기준은 아카이브 프런티어.
     columns:
       - name: parking_id
+        description: 주차장 ID(그레인 축).
         tests:
           - not_null
           - unique
-      - name: minutes_to_full_est
-        description: 만차(0.95)까지 예상 분. 채워지는 중(rate>0)일 때만, 이미 만차면 0, 그 외 null.
+      - name: parking_name
+        description: 주차장 이름(dim_transit_parking).
+      - name: admin_dong_code
+        description: 행정동 코드.
+      - name: gu_code
+        description: 자치구 코드.
+      - name: latitude
+        description: 위도(지도 표시용, dim 마스터).
+      - name: longitude
+        description: 경도(지도 표시용, dim 마스터).
+      - name: occ_now
+        description: 현재 점유율(0~1, 최신 버킷 occ_last).
+      - name: avail_pct
+        description: 여유 %((1-occ_now)×100 반올림).
+      - name: capacity_now
+        description: 총 면수(최신 관측).
+      - name: avail_lot_est
+        description: 잔여 대수 추정(총면수×여유율 반올림).
       - name: occ_rate_per_min
         description: 분당 점유율 변화(최근 4버킷 처음↔끝). 4버킷 미만 관측이면 null.
+      - name: rate_base_n
+        description: 추세 계산에 쓴 버킷 수(45분 창) — 4 미만이면 추세 미산출.
+      - name: minutes_to_full_est
+        description: 만차(0.95)까지 예상 분. 채워지는 중(rate>0)일 때만, 이미 만차면 0, 그 외 null.
+      - name: full_prob_now_slot
+        description: 이 시간대(요일×시) 평시 만차 확률(프로파일 조인, 그 lot 의 최신 관측 시각 칸). null=프로파일 미보유.
+      - name: profile_base_n
+        description: 조인된 프로파일 칸의 표본 수(base_n) — 소비 측 배지 판단.
+      - name: last_bucket_at
+        description: 최신 15분 버킷 시각 — 프로파일 조인 기준 칸.
+      - name: last_event_at
+        description: 최신 관측 시각(KST) — 신선도 축(event_time).
 
   - name: gold_transit_bus_route_comfort
     config:
@@ -528,9 +695,19 @@ models:
   - name: gold_transit_event_access
     config:
       meta:
-        serving_tier: d1_direct   # 행사 명부 ~1천 행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
-        refresh: '1일'
-        external: true            # 외부 카탈로그 공개(1차)
+        serving:
+          enabled: true
+          external: true
+          product_id: transit_event_access
+          product_question: 이 문화행사에 대중교통이나 자차로 어떻게 갑니까?
+          grain: event_ref마다 한 행 — 진행·예정 행사의 접근 안내 명부.
+          primary_key: [event_ref]
+          publication_mode: snapshot        # ~1천 행 전량 교체
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: "40 8 * * *"     # 3-tier daily 주기 승계 (ASAC-DAG#475)
+          # event_time 없음 — 명부성 제품(신선도를 잴 시간축 없음, 계약 v1.1 면제 사유 그대로).
+          shape: wide
         display:
           title: 행사장 가는 길 안내
           summary: 진행·예정 문화행사마다 가장 가까운 지하철역과 공영주차장을 거리와 함께 정리했습니다. 도보 몇 분 거리에 어떤 역이 있는지, 주차장은 얼마나 가까운지, 그 시간대 주차가 붐비는지까지 한 행에 담아 '이 행사 어떻게 갈까'를 바로 답합니다.
@@ -546,15 +723,56 @@ models:
       전 요일 평균). 매 변환 재생성 table.
     columns:
       - name: event_ref
+        description: 행사 식별자(그레인 축, culture 원천 승계).
         tests:
           - not_null
           - unique
+      - name: event_type
+        description: 행사 유형(culture 원천 분류).
+      - name: title
+        description: 행사명.
+      - name: venue_name
+        description: 행사 장소명.
+      - name: event_start_date
+        description: 행사 시작일.
+      - name: event_end_date
+        description: 행사 종료일.
+      - name: event_at
+        description: 행사 대표 시각.
+      - name: evt_hh
+        description: 행사 시간대(0~23). 미상은 19시 근사.
+      - name: is_evt_hh_imputed
+        description: evt_hh 근사 여부(true=19시 대체) — 만차 확률 해석 주의 신호.
+      - name: admin_dong_code
+        description: 행사장 행정동 코드.
+      - name: gu
+        description: 자치구 이름.
+      - name: latitude
+        description: 행사장 위도.
+      - name: longitude
+        description: 행사장 경도.
+      - name: nearest_station_name
+        description: 최근접 지하철역 이름(수도권 전 노선 대상 — 서울 밖 역 가능).
+      - name: nearest_station_route
+        description: 최근접 역 노선명.
       - name: nearest_station_dist_m
         description: 최근접 역 직선거리 m(도보 환산은 소비 측 — 80m/분 관례).
+      - name: stations_within_800m
+        description: 800m 내 지하철역 수.
+      - name: nearest_parking_id
+        description: 최근접 공영주차장 ID.
+      - name: nearest_parking_name
+        description: 최근접 공영주차장 이름.
+      - name: nearest_parking_dist_m
+        description: 최근접 주차장 직선거리 m.
+      - name: parkings_within_500m
+        description: 500m 내 공영주차장 수.
       - name: nearest_parking_full_prob
         description: >
           최근접 주차장의 행사 시간대(evt_hh) 평시 만차 확률(전 요일 평균).
           null = 실시간 미제공 lot(정보 없음).
+      - name: nearest_parking_profile_base_n
+        description: 만차 확률 프로파일 표본 수 합 — 소비 측 배지 판단.
 
   - name: gold_transit_supply_x_demand_hourly
     config:
@@ -583,9 +801,22 @@ models:
   - name: gold_transit_forecast_card
     config:
       meta:
-        serving_tier: d1_direct   # 예보 카드 ~7.7천 행 — 일 1회 전량 교체 (ASAC-DAG#475 1차)
-        refresh: '1일'
-        external: true            # 외부 카탈로그 공개(1차)
+        serving:
+          enabled: true
+          external: true
+          product_id: transit_forecast_card
+          product_question: 내일 이 시간 이 지역 교통은 어떨 것 같습니까?
+          grain: (area_cd, target_hour_at)마다 한 행 — 미래 시각 전망 카드.
+          primary_key: [area_cd, target_hour_at]
+          publication_mode: snapshot        # ~7.7천 행 전량 교체
+          zero_policy: retain_last_good     # 입력(예보·리듬) 결손으로 0행 재빌드 시 직전본 보호
+          publication_trigger:
+            schedule_cron: "40 8 * * *"     # 3-tier daily 주기 승계 (ASAC-DAG#475)
+          event_time: target_hour_at        # 미래 축 — Worker from/to 필터축
+          # 미래 축이라 '지연'이 아니라 '지평 소진'을 감시한다: 일 1회 재빌드가 3일(+3일
+          # 단기예보 상한, #292) 멈추면 max(target_hour_at) 이 현재를 지나며 위반된다.
+          freshness_slo_minutes: 4320
+          shape: wide
         display:
           title: 내일 이 시간 교통 예측 카드
           summary: 서울 주요 지역의 앞으로 며칠간 시간대별 예상을 담았습니다. 기대 인구(붐빌지), 날씨 예보(비/기온), 그 지역의 평시 교통 패턴을 합쳐 '내일 이 시간에 여기 가면 어떨지'를 미리 보여줍니다. 대중교통이 나은지 여부도 함께 표시합니다.
@@ -600,14 +831,54 @@ models:
       (citydata 프로파일) + 날씨 예보(G6 미래 행 재사용) + 평시 교통(G4 리듬, 버스 tier1)
       3원 결합. 추천은 해석 가능한 불리언 3개(v1 단순 규칙 — 합성 점수 없음).
       매 변환 재생성 table(과거 검증은 G6 아카이브 몫).
+    tests:
+      # 서빙 계약 복합 PK 근거(#478). G6 행 부활 오염(dedup 전)엔 red 가 정상 — 오염 게시 게이트.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [area_cd, target_hour_at]
     columns:
       - name: area_cd
+        description: citydata 핫스팟 지역 코드(그레인 축).
         tests:
           - not_null
+      - name: area_nm
+        description: 핫스팟 지역 이름.
+      - name: admin_dong_code
+        description: 지역 대표 행정동 코드.
+      - name: gu_code
+        description: 자치구 코드.
       - name: target_hour_at
+        description: 전망 대상 시각(미래, KST). 그레인 축 — Worker from/to 필터축.
         tests:
           - not_null
-      - name: transit_recommended
-        description: 주차 혼잡 예상(평시 점유>=0.8, 표본>=4) 또는 강수 예보 시 true.
+      - name: target_dow
+        description: 대상 요일(1=월~7=일, Trino day_of_week).
+      - name: is_weekend
+        description: 주말 여부(토·일).
+      - name: expected_ppltn
+        description: 그 시각 기대 인구(citydata 프로파일).
+      - name: peak_ppltn
+        description: 프로파일 최대 인구.
+      - name: ppltn_std
+        description: 인구 표준편차(변동성).
+      - name: ppltn_base_n
+        description: 인구 프로파일 표본 수.
+      - name: temp_c
+        description: 예보 기온(℃, 그 시각 대상 최신 발표).
+      - name: precip_prob
+        description: 강수 확률(%).
+      - name: precip_type
+        description: 강수 형태(예보 코드).
+      - name: is_precip_expected
+        description: 강수 예상 여부.
+      - name: rhythm_parking_occupancy
+        description: 평시 주차 점유율 기준선(G4 리듬).
       - name: rhythm_parking_base_n
         description: 리듬 기준선 표본 수(G4 승계) — 운영 초기 얇음, 소비 측 배지 판단.
+      - name: rhythm_bus_congestion_t1
+        description: 평시 버스 혼잡 기준선(tier1 간선·광역 한정).
+      - name: rhythm_bus_base_n
+        description: 버스 기준선 표본 수.
+      - name: parking_busy_expected
+        description: 주차 혼잡 예상(평시 점유>=0.8, 표본>=4). 결측은 false 로 접음(계약 — 헤더 주석).
+      - name: transit_recommended
+        description: parking_busy_expected 또는 강수 예보 시 true.

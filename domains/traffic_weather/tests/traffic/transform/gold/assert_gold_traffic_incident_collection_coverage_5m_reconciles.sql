@@ -1,8 +1,16 @@
 {{ config(tags=['traffic_gold_gate']) }}
 -- depends_on: {{ ref('gold_traffic_incident_collection_coverage_5m') }}
 
-with latest_manifest_state as (
-    {{ latest_manifest_run_state('traffic_bronze', 'collection_run_manifest', 'seoul_traffic_incident') }}
+with pinned_manifest_horizon as (
+    {{ traffic_incident_snapshot_horizon() }}
+),
+
+manifest_state_at_horizon as (
+    {{ traffic_incident_manifest_run_state_at_snapshot() }}
+),
+
+manifest_run_history as (
+    {{ traffic_incident_manifest_run_history() }}
 ),
 
 windowed_audit as (
@@ -38,9 +46,17 @@ audit_with_manifest as (
         manifest.is_publishable,
         manifest.manifest_failure_reason
     from windowed_audit as audit
-    left join latest_manifest_state as manifest
+    left join manifest_state_at_horizon as manifest
         on audit.source_id = manifest.source_id
        and audit.dag_run_id = manifest.dag_run_id
+    left join manifest_run_history as history
+        on audit.dag_run_id = history.dag_run_id
+    cross join pinned_manifest_horizon as horizon
+    where manifest.dag_run_id is not null
+       or (
+           history.dag_run_id is null
+           and audit.collected_at <= horizon.snapshot_horizon_at_utc
+       )
 ),
 
 evidence as (

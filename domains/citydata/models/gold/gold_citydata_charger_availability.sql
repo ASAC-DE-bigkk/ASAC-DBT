@@ -5,7 +5,7 @@
 -- 전량 교체 스냅샷으로 D1 서빙에 적합. table+replace(프로젝트 기본) 상속 — 매 run 재빌드(멱등).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with latest as (

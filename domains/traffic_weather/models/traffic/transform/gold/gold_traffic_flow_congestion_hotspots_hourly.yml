@@ -1,0 +1,299 @@
+version: 2
+
+models:
+  - name: gold_traffic_flow_congestion_hotspots_hourly
+    description: KST 시간대 안에서 가장 느린 관측 링크를 순위화해 제공하는 공개 Gold 모델입니다.
+    access: public
+    config:
+      contract:
+        enforced: true
+      meta:
+        serving:
+          enabled: true
+          external: true
+          product_id: traffic_flow_congestion_hotspots_hourly
+          product_question: 특정 시간에 관측 속도가 가장 낮은 링크는 어디입니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: traffic.list_congestion_hotspots
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 지금 관측된 속도가 가장 낮은 도로 링크는 어디인가요?
+              - 오늘 오후 6시에 저속 링크 상위 목록을 보여주세요.
+              - 특정 시간대의 혼잡 hotspot과 관측 링크 수를 알려주세요.
+          grain: hour_at과 link_id마다 한 행 — 시간대별 링크 혼잡 순위 관측.
+          primary_key: [product_row_id]
+          publication_mode: upsert
+          upsert_strategy: exact_set
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '12 * * * *'
+          event_time: hour_at
+          freshness_slo_minutes: 90
+          retention_or_horizon: 무기한 누적 Gold이며 D1 exporter 적재 전 보존·purge 정책을 별도 승인합니다.
+          shape: event
+        public_gold:
+          contract_version: "1.0"
+          documentation_language: ko-KR
+          owner: Traffic 데이터 제품 운영팀
+          maturity: low
+          visibility: published_producer
+          contract_status: dev_pending
+          exposure_status: none_no_live_consumer
+          intended_consumer_types:
+            - analyst
+            - ai_catalog
+            - cross_domain_dbt
+            - rapidapi_serving
+          cross_domain_usage_examples:
+            - 특정 시간대 서울에서 가장 느린 도로 링크를 외부 API로 조회할 때 사용합니다.
+            - 혼잡 경보 대시보드에서 시간대별 저속 링크 상위 목록을 보여줄 때 사용합니다.
+          product_question: 특정 시간에 관측 속도가 가장 낮은 링크는 어디입니까?
+          row_meaning: 관측된 hour_at 시간대 한 곳과 link_id 한 곳의 순위화된 관측 속도·통행시간 한 행입니다.
+          grain: hour_at과 link_id 조합마다 정확히 한 행입니다.
+          anchor_universe: silver_seoul_traffic_flow에서 해당 hour_at에 실제로 관측이 있었던 link_id만 포함하며, 전체 링크 universe가 아닙니다.
+          usage_guidance: congestion_rank는 그 시간대에 실제로 관측된 링크 집합 안에서의 상대순위이며, hotspot_state가 lowest_speed_top_10인 행만 저속 후보로 사용합니다.
+          do_not_use_for: 도로등급 보정이 필요한 공식 혼잡등급 판정이나 링크 간 절대 속도 비교, 실시간 긴급 경보에 사용하지 않습니다.
+          semantic_caveats: congestion_rank는 observed_link_count(그 시간대 관측된 링크 수)를 분모로 하는 상대순위이며, 시간대마다 observed_link_count가 달라 순위의 절대적 의미가 달라질 수 있습니다. flow_speed가 null이면 congestion_rank 계산에서 nulls last로 처리됩니다.
+          primary_key:
+            - product_row_id
+          column_order:
+            - product_row_id
+            - link_id
+            - hour_at
+            - flow_speed
+            - flow_travel_time
+            - flow_value_quality
+            - observed_at_kst
+            - congestion_rank
+            - observed_link_count
+            - hotspot_state
+            - raw_object_key
+            - payload_hash
+            - dag_run_id
+          time:
+            canonical_timezone: Asia/Seoul
+            freshness_slo: pinned Flow run이 터치한 hour_at만 incremental merge로 재계산하는 것을 목표로 합니다.
+            as_of_meaning: hour_at은 observed_at_kst를 시간 단위로 절삭한 평가 시간 bucket이며, 그 시간대 안에서 링크별 최신 관측만 순위에 반영합니다.
+            late_repair_policy: incremental merge로 해당 hour_at의 링크 순위만 전체 재계산하며 과거 시간대 순위는 보존합니다.
+            roles:
+              hour_at:
+                time_role: evaluation_bucket
+                timezone: Asia/Seoul
+              observed_at_kst:
+                time_role: event
+                timezone: Asia/Seoul
+          space:
+            enabled: false
+          metrics: {}
+          joins: {}
+          quality:
+            completeness_explanation: flow_value_quality로 원천 응답에서 속도·통행시간 값이 실제로 존재했는지 확인하고, hotspot_state로 순위 계산 가능 여부를 구분합니다.
+            freshness_explanation: observed_at_kst(원천 관측)를 hour_at(평가 시간 bucket)과 분리해 원천 지연을 해석합니다.
+            coverage_explanation: 그 hour_at에 실제로 관측된 link_id만 포함하므로 시간대마다 observed_link_count가 다르며 전체 링크 universe가 아닙니다.
+            state_fields:
+              flow_value_quality:
+                allowed_values:
+                  - available
+                  - missing_value
+                state_explanations:
+                  available: flow_speed 또는 flow_travel_time 중 하나 이상이 원천에 존재하는 상태입니다.
+                  missing_value: flow_speed와 flow_travel_time이 모두 원천에 없는 상태입니다.
+              hotspot_state:
+                allowed_values:
+                  - missing_speed
+                  - lowest_speed_top_10
+                  - observed
+                state_explanations:
+                  missing_speed: flow_speed가 없어 저속 여부를 판정할 수 없는 상태입니다.
+                  lowest_speed_top_10: 그 hour_at 관측 링크 중 congestion_rank가 10 이하인 저속 후보 상태입니다.
+                  observed: 정상 관측되었으나 저속 상위 10위 안에 들지 않은 상태입니다.
+          lineage:
+            source_relations:
+              - model.asac_seoul.silver_seoul_traffic_flow
+            identifiers:
+              as_of:
+                columns:
+                  - hour_at
+              publication:
+                relation_level_only: true
+                columns: []
+              raw:
+                columns:
+                  - raw_object_key
+              request:
+                relation_level_only: true
+                columns: []
+              run:
+                columns:
+                  - dag_run_id
+          lifecycle:
+            status: active
+    columns:
+      - name: product_row_id
+        description: link_id와 hour_at을 '|' 구분자로 직렬화한 결정적 제품 행 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+          - unique:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: primary_key
+            nullable: false
+            null_meaning: 공개 제품 기본 키이므로 null을 허용하지 않습니다.
+      - name: link_id
+        description: TOPIS 도로 링크 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: false
+            null_meaning: natural grain의 일부이므로 null을 허용하지 않습니다.
+      - name: hour_at
+        description: observed_at_kst를 시간 단위로 절삭한 서울 기준 평가 시간입니다.
+        data_type: timestamp(6)
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: natural grain의 일부이므로 null을 허용하지 않습니다.
+            time_role: evaluation_bucket
+            timezone: Asia/Seoul
+      - name: flow_speed
+        description: 이 링크·시간대의 최신 관측 속도입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: flow_value_quality가 missing_value인 경우이며 hotspot_state가 missing_speed로 표시됩니다.
+      - name: flow_travel_time
+        description: 이 링크·시간대의 최신 관측 통행시간입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: flow_value_quality가 missing_value인 경우입니다.
+      - name: flow_value_quality
+        description: flow_speed·flow_travel_time 값이 원천에 실제로 존재했는지 구분한 상태입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+          - accepted_values:
+              arguments:
+                values: ['available', 'missing_value']
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: false
+            null_meaning: 품질 상태를 분류하지 못한 행은 공개하지 않습니다.
+      - name: observed_at_kst
+        description: 관측 시각을 서울 기준으로 변환한 timestamp(6)이며 hour_at의 근거입니다.
+        data_type: timestamp(6)
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 관측 시각이 없는 행은 hour_at을 만들 수 없습니다.
+            time_role: event
+            timezone: Asia/Seoul
+      - name: congestion_rank
+        description: 같은 hour_at 안에서 flow_speed 오름차순(느릴수록 낮은 순위)으로 매긴 순위입니다.
+        data_type: bigint
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: derived_value
+            nullable: false
+            null_meaning: rank() window 함수는 그 hour_at의 모든 관측 행에 순위를 부여하므로 null이 없습니다.
+      - name: observed_link_count
+        description: 같은 hour_at에 관측된 link_id 총 수이며 congestion_rank의 분모 맥락입니다.
+        data_type: bigint
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: derived_value
+            nullable: false
+            null_meaning: count() window 함수는 그 hour_at의 모든 관측 행에 값을 부여하므로 null이 없습니다.
+      - name: hotspot_state
+        description: flow_speed 존재 여부와 congestion_rank를 기준으로 구분한 저속 후보 상태입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+          - accepted_values:
+              arguments:
+                values: ['missing_speed', 'lowest_speed_top_10', 'observed']
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: false
+            null_meaning: case 표현식이 모든 행에 세 상태 중 하나를 부여하므로 null이 없습니다.
+      - name: raw_object_key
+        description: 선택된 관측 행의 원본 객체를 추적하는 안정 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: 원본 객체로 역추적할 수 없는 행은 공개하지 않습니다.
+      - name: payload_hash
+        description: 선택된 관측 행의 payload hash입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: payload hash가 없는 행은 공개하지 않습니다.
+      - name: dag_run_id
+        description: 선택된 관측 행을 만든 수집 DAG 실행 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: 수집 실행으로 역추적할 수 없는 행은 공개하지 않습니다.

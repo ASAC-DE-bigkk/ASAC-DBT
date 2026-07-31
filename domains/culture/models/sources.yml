@@ -162,11 +162,14 @@ sources:
             description: 파티션 일자(KST, start 기준)
 
   # 크로스도메인 read(#276) — citydata published gold. ref 불가라 source 로 배선(citydata/traffic 선례).
-  #   read-only. culture 는 자기 스키마에만 write. dev=iceberg_dev.seoul_citydata / prod=iceberg.seoul_citydata.
+  #   read-only. culture 는 자기 스키마에만 write.
+  #   **스키마 이름이 target 마다 다르다** — dev=iceberg_dev.seoul_citydata / prod=iceberg.citydata
+  #   (2026-07-28 prod 카탈로그 실측). 기본값을 target 으로 갈라 두지 않으면 prod 빌드가 "소스 없음"으로
+  #   죽는다. env_var 는 그대로 남겨 두 이름 다 아닌 경우를 오너가 덮어쓸 수 있게 한다.
   - name: citydata_gold
     description: citydata 도메인 published gold (ASAC-DBT domains/citydata) — 크로스도메인 read 전용
     database: "{{ target.database }}"
-    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'citydata' if target.name == 'prod' else 'seoul_citydata') }}"
     tables:
       - name: gold_citydata_ppltn_by_time
         description: 장소×시간(event_at) 인구혼잡도 시계열 — area_congest_lvl·area_ppltn_min/max·gu_code

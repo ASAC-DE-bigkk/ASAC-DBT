@@ -6,7 +6,7 @@
 -- 룩백은 collected_at, dedup post-hook(order collected_at)로 R2 이중삽입 방지(다른 silver 동일).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     materialized='incremental',
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'stat_id', 'charger_id', 'observed_at'],

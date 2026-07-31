@@ -1,10 +1,19 @@
 -- Traffic canonical current-hourly rows enriched with eligible KMA forecast context.
 -- Grain: one row per Traffic product_row_id / admin_dong_code / hour_at.
 -- Weather is context only; missing Weather evidence never removes or rewrites Traffic rows.
+-- canonical_admin_dong: anchor가 이미 확정한 stamp를 재검증하는 방어적 join(신규 컬럼 없음,
+-- public_gold space.enabled 계약의 "모델 직접 dim_admin_dong dependency" 요구사항 충족용).
+-- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}
 
 {{ config(materialized='table') }}
 
-with traffic as (
+with canonical_admin_dong as (
+    select distinct cast(admin_dong_code as varchar) as admin_dong_code
+    from {{ ref('asac_axes', 'dim_admin_dong') }}
+    where admin_dong_code is not null
+),
+
+traffic as (
     select
         product_row_id,
         cast(admin_dong_code as varchar) as admin_dong_code,
@@ -115,5 +124,7 @@ select
     weather_hourly.pty_qualitative_code,
     weather_hourly.is_precipitating
 from traffic
+inner join canonical_admin_dong
+    on traffic.admin_dong_code = canonical_admin_dong.admin_dong_code
 left join weather_hourly
     on traffic.product_row_id = weather_hourly.traffic_product_row_id

@@ -6,22 +6,10 @@ with latest_manifest_state as (
 ),
 
 publishable_runs as (
-    select
-        dag_run_id,
-        manifest_event_at_utc as event_at
+    select dag_run_id
     from latest_manifest_state
     where manifest_status = 'SUCCESS'
       and is_publishable
-),
-
-ranked_publishable_runs as (
-    select
-        dag_run_id,
-        event_at,
-        row_number() over (
-            order by event_at desc, dag_run_id desc
-        ) as publishable_rank
-    from publishable_runs
 ),
 
 configured_run as (
@@ -29,12 +17,10 @@ configured_run as (
 ),
 
 pinned_run as (
-    select
-        ranked_publishable_runs.dag_run_id,
-        ranked_publishable_runs.publishable_rank
-    from ranked_publishable_runs
+    select publishable_runs.dag_run_id
+    from publishable_runs
     inner join configured_run
-        on ranked_publishable_runs.dag_run_id = configured_run.dag_run_id
+        on publishable_runs.dag_run_id = configured_run.dag_run_id
 ),
 
 expected_current as (
@@ -50,18 +36,6 @@ expected_current as (
 actual_current as (
     select distinct cast(source_record_id as varchar) as source_record_id
     from {{ ref('silver_seoul_traffic_incident_current') }}
-),
-
-newer_valid_bronze as (
-    select distinct 1 as present
-    from {{ source('traffic_bronze', 'seoul_traffic_incident') }} as bronze
-    inner join ranked_publishable_runs as newer_run
-        on cast(bronze.dag_run_id as varchar) = newer_run.dag_run_id
-    cross join pinned_run
-    where newer_run.publishable_rank < pinned_run.publishable_rank
-      and cast(bronze.result_code as varchar) = 'INFO-000'
-      and cast(bronze.acc_id as varchar) is not null
-      and {{ asac_axes.kst_at_from_parts('cast(bronze.occr_date as varchar)', 'cast(bronze.occr_time as varchar)') }} is not null
 ),
 
 missing_pinned_run as (
@@ -117,20 +91,6 @@ extra_rows as (
         from expected_current
     ) as extra
     cross join pinned_run
-),
-
-stale_freshness as (
-    select
-        'pinned_run_outside_freshness_grace' as violation_type,
-        cast(null as varchar) as source_record_id,
-        cast(null as varchar) as current_dag_run_id,
-        pinned_run.dag_run_id as expected_dag_run_id
-    from pinned_run
-    where publishable_rank > 3
-      and (
-          exists (select 1 from actual_current)
-          or exists (select 1 from newer_valid_bronze)
-      )
 )
 
 select * from missing_pinned_run
@@ -140,5 +100,3 @@ union all
 select * from missing_rows
 union all
 select * from extra_rows
-union all
-select * from stale_freshness

@@ -15,7 +15,7 @@
 -- ⚠ 새 컬럼 추가 시 기존 테이블은 --full-refresh 로 재생성해야 한다.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     materialized='incremental',
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'event_at'],

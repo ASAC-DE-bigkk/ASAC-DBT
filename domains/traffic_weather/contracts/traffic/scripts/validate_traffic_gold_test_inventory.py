@@ -41,23 +41,23 @@ EXPECTED_PORTFOLIO_COUNTS = {
     "availability": 1,
     "bronze_source": 70,
     "silver": 43,
-    "gold_gate": 123,
+    "gold_gate": 162,
     "gold_hourly_extension": 20,
     "gold_daily_extension": 30,
     "full_static": 10,
 }
 EXPECTED_SELECTOR_COUNTS = {
-    "ask_seoul_traffic_transform_gold_gate_tests": 123,
-    "ask_seoul_traffic_transform_gold_hourly_tests": 143,
-    "ask_seoul_traffic_transform_gold_full_tests": 173,
+    "ask_seoul_traffic_transform_gold_gate_tests": 162,
+    "ask_seoul_traffic_transform_gold_hourly_tests": 182,
+    "ask_seoul_traffic_transform_gold_full_tests": 212,
 }
 EXPECTED_CADENCE_COUNTS = {
-    "traffic_gate": 237,
-    "traffic_hourly": 257,
-    "traffic_full": 297,
+    "traffic_gate": 276,
+    "traffic_hourly": 296,
+    "traffic_full": 336,
 }
 EXPECTED_TIER_COUNTS = {
-    "gate": 123,
+    "gate": 162,
     "hourly_extension": 20,
     "daily_extension": 30,
     "full_static": 10,
@@ -565,9 +565,9 @@ def generate_candidate(manifest: object) -> dict[str, object]:
             for tier, count in EXPECTED_TIER_COUNTS.items()
         },
         "total_expected": {
-            "gold_gate": 123,
-            "gold_hourly": 143,
-            "gold_full": 173,
+            "gold_gate": 162,
+            "gold_hourly": 182,
+            "gold_full": 212,
             **EXPECTED_CADENCE_COUNTS,
         },
         "portfolio_expected": EXPECTED_PORTFOLIO_COUNTS,
@@ -603,7 +603,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(
                 f"PASS: generated {len(candidate['tests'])} candidate records "
-                "(123/20/30/10)"
+                f"({EXPECTED_TIER_COUNTS['gate']}/{EXPECTED_TIER_COUNTS['hourly_extension']}/"
+                f"{EXPECTED_TIER_COUNTS['daily_extension']}/{EXPECTED_TIER_COUNTS['full_static']})"
             )
             return 0
         inventory = yaml.load(
@@ -621,7 +622,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     ) as error:
         print(f"ERROR: {error}")
         return 1
-    print("PASS: traffic Gold test cadence inventory is valid (237/257/297)")
+    print(
+        "PASS: traffic Gold test cadence inventory is valid "
+        f"({EXPECTED_CADENCE_COUNTS['traffic_gate']}/"
+        f"{EXPECTED_CADENCE_COUNTS['traffic_hourly']}/"
+        f"{EXPECTED_CADENCE_COUNTS['traffic_full']})"
+    )
     return 0
 
 

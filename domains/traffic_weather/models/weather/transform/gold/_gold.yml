@@ -34,6 +34,21 @@ models:
     description: 동당 1행 = 현재 예보시각의 최신 KMA 예보 WIDE 서빙(★full). 정본 gold_weather_forecast_by_admin_dong(425동)만 소비하며 LONG→WIDE로 8지표를 나란히 제공한다.
     config:
       meta:
+        serving:
+          enabled: false
+          external: false
+          contract_version: v1
+          product_id: weather_current_by_admin_dong
+          product_question: "서울 행정동별 현재 최신 KMA 예보는 무엇인가?"
+          grain: "행정동(admin_dong_code)마다 한 행"
+          primary_key: [admin_dong_code]
+          event_time: forecast_at
+          freshness_slo_minutes: 240
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          shape: wide
+          publication_trigger:
+            schedule_cron: "50 2,5,8,11,14,17,20,23 * * *"
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR

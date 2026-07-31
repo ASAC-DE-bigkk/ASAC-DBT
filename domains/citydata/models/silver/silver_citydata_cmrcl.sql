@@ -6,7 +6,7 @@
 -- 배치 내 dedup(최신 collected_at) + merge 가 이를 흡수한다(멱등).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     materialized='incremental',
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'event_at'],

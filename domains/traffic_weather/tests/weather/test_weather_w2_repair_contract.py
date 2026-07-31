@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from tests.weather.w2_contract_fixtures import (
     BRIDGE_VERSION,
     CANONICAL_DATA_TESTS,
@@ -25,8 +27,42 @@ from tests.weather.w2_contract_fixtures import (
     read,
 )
 
+W2_RECOVERY_STAGE_MACRO = Path(
+    "macros/weather/weather_w2_recovery_stage.sql"
+)
+W2_RECOVERY_STAGE_MODEL = Path(
+    "models/weather/special/recovery/weather_w2_observation_recovery_stage.sql"
+)
+W2_RECOVERY_MODELS_YAML = Path(
+    "models/weather/special/recovery/_recovery.yml"
+)
+W2_RECOVERY_STAGE_WINDOW_TEST = Path(
+    "tests/weather/special/recovery/stage/"
+    "assert_weather_w2_recovery_stage_window.sql"
+)
+W2_RECOVERY_STAGE_FINAL_TEST = Path(
+    "tests/weather/special/recovery/stage/"
+    "assert_weather_w2_recovery_stage_final_reconciles.sql"
+)
+W2_RECOVERY_STAGE_WINNER_TEST = Path(
+    "tests/weather/special/recovery/stage/"
+    "assert_weather_w2_recovery_stage_no_downgrade.sql"
+)
+W2_RECOVERY_STAGE_LINEAGE_TEST = Path(
+    "tests/weather/special/recovery/stage/"
+    "assert_weather_w2_recovery_stage_lineage.sql"
+)
+W2_LATEST_GRID_RECORD_TEST = Path(
+    "tests/weather/special/"
+    "assert_gold_weather_forecast_by_admin_dong_latest_grid_record.sql"
+)
+W2_LATEST_GRID_RECORD_FULL_TEST = Path(
+    "tests/weather/special/"
+    "assert_gold_weather_forecast_by_admin_dong_latest_grid_record_full.sql"
+)
 
-def test_repair_inputs_and_shared_dev_guard_fail_closed() -> None:
+
+def test_repair_inputs_and_canonical_gold_target_guard_fail_closed() -> None:
     raw_macro = read(W2_MACRO)
     macro = compact(raw_macro)
     for token in (
@@ -50,20 +86,30 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed() -> None:
         assert token in macro
     assert "target.name != 'dev'" in macro or "target.name == 'dev'" in macro
     gold_guard = macro[
-        macro.index("macro weather_w2_assert_gold_dev_target") : macro.index(
-            "endmacro", macro.index("macro weather_w2_assert_gold_dev_target")
+        macro.index("macro weather_w2_assert_gold_target") : macro.index(
+            "endmacro", macro.index("macro weather_w2_assert_gold_target")
         )
     ]
-    assert "if execute and (" in gold_guard
     for target_check in (
-        "target.name != 'dev'",
-        "target.database != 'iceberg_dev'",
+        "target.name == 'dev'",
+        "target.database == 'iceberg_dev'",
         "weather_schema_name()",
+        "weather_w1_prod_snapshot_bootstrap_allowed()",
+        "weather_w1_assert_prod_snapshot_bootstrap_evidence()",
+        "not approved_dev_target and not approved_prod_snapshot",
     ):
         assert target_check in gold_guard
-    assert "weather_w2_assert_gold_dev_target" in compact(read(W2_GOLD_MODEL))
+    initial_guard = macro[
+        macro.index("macro weather_w2_gold_initial_build_guard") : macro.index(
+            "endmacro", macro.index("macro weather_w2_gold_initial_build_guard")
+        )
+    ]
+    assert "weather_w1_prod_snapshot_bootstrap_allowed()" in initial_guard
+    assert "not weather_w2_is_repair()" in initial_guard
+    assert "weather_w2_assert_gold_target" in compact(read(W2_GOLD_MODEL))
     strategy = macro[macro.index("macro get_incremental_weather_w2_reconcile_sql") :]
-    assert "weather_w2_assert_gold_dev_target" in strategy
+    assert "weather_w2_assert_gold_target" in strategy
+    assert "weather_w2_assert_gold_dev_target" not in macro
     assert (
         "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}$"
         in raw_macro
@@ -97,6 +143,139 @@ def test_repair_inputs_and_shared_dev_guard_fail_closed() -> None:
     assert "weather_w2_shared_dev_build_allowed" in w1_macro
     assert "weather_w2_assert_repair_evidence" in w1_macro
     assert "flags.full_refresh" in w1_macro
+
+
+def test_recovery_stage_is_snapshot_pinned_target_only_and_downgrade_safe() -> None:
+    model = compact(read(W2_RECOVERY_STAGE_MODEL))
+    macro = compact(read(W2_RECOVERY_STAGE_MACRO))
+
+    assert "modules.re.fullmatch" in macro
+    assert "^[a-za-z0-9][a-za-z0-9_.-]{0,79}$" in macro
+
+    for token in (
+        "materialized='incremental'",
+        "incremental_strategy='weather_w2_recovery_stage'",
+        "weather_w2_recovery_checkpoint_id()",
+        "weather_w2_recovery_target_admin_dong_code()",
+        "weather_w2_silver_grid_at_snapshot()",
+        "weather_w2_bridge_at_snapshot()",
+        "source_admin_code",
+        "1123053600",
+        "nx = 61",
+        "ny = 127",
+        "weather_w2_repair_start_at()",
+        "weather_w2_publishable_cutoff_at()",
+    ):
+        assert token in model
+
+    strategy_start = macro.index(
+        "macro get_incremental_weather_w2_recovery_stage_sql"
+    )
+    strategy = macro[
+        strategy_start : macro.index("endmacro", strategy_start)
+    ]
+    assert strategy.count("merge into") == 1
+    assert "delete from" not in strategy
+    assert "then delete" not in strategy
+    assert "dbt_internal_source.checkpoint_id = dbt_internal_dest.checkpoint_id" in strategy
+    for key in ("admin_dong_code", "forecast_at", "category"):
+        assert f"dbt_internal_source.{key} = dbt_internal_dest.{key}" in strategy
+    assert "weather_w2_gold_winner_is_not_older" in strategy
+    assert "when not matched then insert" in strategy
+
+
+def test_recovery_stage_is_parse_safe_and_runtime_fail_closed() -> None:
+    raw_model = read(W2_RECOVERY_STAGE_MODEL)
+    model = compact(raw_model)
+
+    assert "{% set repair_mode = weather_w2_is_repair() %}" in raw_model
+    assert "{% if execute and not repair_mode %}" in raw_model
+    assert "{% if repair_mode %}" in raw_model
+    assert "{% else %}" in raw_model
+    assert "where false" in model
+
+
+def test_recovery_stage_singular_tests_are_normal_mode_parse_safe() -> None:
+    for test_path in (
+        W2_RECOVERY_STAGE_WINDOW_TEST,
+        W2_RECOVERY_STAGE_FINAL_TEST,
+        W2_RECOVERY_STAGE_WINNER_TEST,
+        W2_RECOVERY_STAGE_LINEAGE_TEST,
+    ):
+        raw_contract = read(test_path)
+        assert "{% set repair_mode = weather_w2_is_repair() %}" in raw_contract
+        assert "{% if repair_mode %}" in raw_contract
+        assert "{% else %}" in raw_contract
+        assert "where false" in compact(raw_contract)
+
+
+def test_recovery_stage_window_contract_combines_all_lightweight_failures() -> None:
+    contract = compact(read(W2_RECOVERY_STAGE_WINDOW_TEST))
+
+    for token in (
+        "weather_w2_recovery_checkpoint_id()",
+        "weather_w2_recovery_target_admin_dong_code()",
+        "weather_w2_silver_grid_at_snapshot()",
+        "weather_w2_bridge_at_snapshot()",
+        "wrong_checkpoint_id",
+        "wrong_target_admin_dong",
+        "wrong_target_grid",
+        "null_grain_or_lineage",
+        "duplicate_stage_grain",
+        "missing_expected_stage_row",
+        "stage_payload_differs_from_pinned_winner",
+        "unexpected_stage_window_row",
+    ):
+        assert token in contract
+    assert "union all" in contract
+    assert "winner.*" not in contract
+    assert "weather_w2_gold_candidate_row('actual')" in contract
+    assert "is distinct from expected.expected_payload" in contract
+
+
+def test_recovery_stage_final_contracts_are_checkpoint_scoped_and_bucketed() -> None:
+    final_contract = compact(read(W2_RECOVERY_STAGE_FINAL_TEST))
+    winner_contract = compact(read(W2_RECOVERY_STAGE_WINNER_TEST))
+    lineage_contract = compact(read(W2_RECOVERY_STAGE_LINEAGE_TEST))
+
+    for contract in (final_contract, winner_contract, lineage_contract):
+        assert "weather_w2_recovery_checkpoint_id()" in contract
+        assert "weather_w2_observation_recovery_stage" in contract
+        assert "checkpoint_id = '{{ checkpoint_id }}'" in contract
+        assert "1123053600" in contract
+
+    assert "missing_expected_stage_row" in final_contract
+    assert "unexpected_stage_row" in final_contract
+    assert "weather_w2_winner_bucket_count" in winner_contract
+    assert "weather_w2_winner_bucket_index" in winner_contract
+    assert "weather_w2_gold_winner_is_not_older" in winner_contract
+    assert "weather_w2_lineage_run_bucket_count" in lineage_contract
+    assert "weather_w2_lineage_run_bucket_index" in lineage_contract
+    assert "forecast_lineage_not_backed_by_pinned_grid_row" in lineage_contract
+
+
+def test_recovery_stage_publish_operation_is_one_target_only_atomic_merge() -> None:
+    contract = compact(read(W2_MACRO))
+    macro = compact(read(W2_RECOVERY_STAGE_MACRO))
+    publish = macro[macro.index("macro weather_w2_publish_recovery_stage") :]
+    stage_contract = compact(read(W2_RECOVERY_MODELS_YAML))
+
+    assert "macro weather_w2_assert_gold_target(relation=none)" in contract
+    assert "weather_w2_assert_gold_target(gold_relation)" in publish
+    assert (
+        "name: weather_w2_observation_recovery_stage"
+        " description:" in stage_contract
+    )
+    assert "access: protected" in stage_contract
+    assert publish.count("merge into") == 1
+    assert "ref('gold_weather_forecast_by_admin_dong')" in publish
+    assert "ref('weather_w2_observation_recovery_stage')" in publish
+    assert "checkpoint_id = '{{ checkpoint_id }}'" in publish
+    assert "admin_dong_code = '1123053600'" in publish
+    assert "weather_w2_gold_winner_is_not_older" in publish
+    assert "when not matched then insert" in publish
+    assert "then delete" not in publish
+    assert "delete from" not in publish
 
 
 def test_gold_repair_reconciliation_uses_grouped_winner_without_topn_or_join_back() -> (
@@ -170,6 +349,51 @@ def test_gold_repair_reconciliation_uses_grouped_winner_without_topn_or_join_bac
     ]
     assert "from selected_workset as actual" in lineage_failure_query
     assert "left join lineage_backed_products" in lineage_failure_query
+
+
+def test_latest_grid_record_contract_reuses_grouped_gold_winner_without_topn() -> None:
+    raw = read(W2_LATEST_GRID_RECORD_TEST)
+    compacted = compact(raw)
+    assert "winning_candidates as" in raw
+    winner = raw[raw.index("winning_candidates as") : raw.index("expected as")]
+
+    assert "max_by(" in winner
+    assert "weather_w2_gold_candidate_row('joined_candidates')" in winner
+    assert "weather_w2_grid_winner_order_key('joined_candidates')" in winner
+    assert "group by admin_dong_code, forecast_at, category" in winner
+    assert "row_number() over" not in compacted
+
+
+def test_latest_grid_record_contract_excludes_retracted_manifest_runs() -> None:
+    raw = read(W2_LATEST_GRID_RECORD_TEST)
+    compacted = compact(raw)
+
+    assert "latest_manifest_run_state(" in raw
+    assert "eligible_manifest_anchors as" in compacted
+    assert "manifest_status = 'success'" in compacted
+    assert "is_publishable" in compacted
+    assert "inner join eligible_manifest_anchors as anchor" in compacted
+    assert "grid.selected_dag_run_id" in compacted
+    assert "anchor.anchor_dag_run_id" in compacted
+
+
+def test_latest_grid_record_routine_contract_scopes_to_snapshot_affected_keys() -> None:
+    compacted = compact(read(W2_LATEST_GRID_RECORD_TEST))
+
+    assert "var('weather_snapshot_dag_run_id'" in compacted
+    assert "affected_product_keys as" in compacted
+    assert "inner join affected_product_keys" in compacted
+
+
+def test_latest_grid_record_full_contract_keeps_global_publishable_winner() -> None:
+    raw = read(W2_LATEST_GRID_RECORD_FULL_TEST)
+    compacted = compact(raw)
+
+    assert "weather_snapshot_dag_run_id" not in compacted
+    assert "affected_product_keys as" not in compacted
+    assert "latest_manifest_run_state(" in compacted
+    assert "inner join eligible_manifest_anchors as anchor" in compacted
+    assert "weather_w2_grid_winner_order_key('joined_candidates')" in compacted
 
 
 def test_repair_no_downgrade_is_bucketed_before_narrow_winner_aggregation() -> None:
@@ -263,7 +487,7 @@ def test_repair_lineage_workset_is_parse_safe_and_runtime_fail_closed() -> None:
         "materialized='table'",
         "alias='weather_w2_observation_recovery_lineage_workset'",
         "weather_w2_is_repair",
-        "weather_w2_assert_gold_dev_target",
+        "weather_w2_assert_gold_target",
         "weather_w2_assert_repair_evidence",
         "weather_w2_bridge_version",
         "weather_w2_gold_winner_is_not_older",

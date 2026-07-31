@@ -1,0 +1,61 @@
+version: 2
+
+models:
+  - name: gold_traffic_flow_change_latest
+    description: 도로 링크별 최신 관측과 직전 관측의 속도·통행시간 차이 및 실제 관측 간격을 제공하는 공개 Gold 제품입니다.
+    access: public
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: true
+          contract_version: v1
+          product_id: traffic_flow_change_latest
+          product_question: 각 도로 링크의 최신 속도와 통행시간은 직전 관측보다 어떻게 바뀌었습니까?
+          mcp_projection:
+            schema_version: mcp-product-projection/v1
+            operation:
+              id: traffic.get_flow_change
+              approval_status: approved
+              execution_mode: catalog_only
+            question_examples:
+              - 이 링크의 속도는 직전 관측보다 어떻게 변했나요?
+              - 최근 통행시간이 늘어난 링크를 찾아주세요.
+              - 직전 관측이 없어 비교할 수 없는 링크가 있나요?
+          grain: link_id마다 한 행 — 링크별 최신 관측과 바로 이전 관측의 비교.
+          primary_key: [product_row_id]
+          publication_mode: upsert
+          upsert_strategy: exact_set
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: '12 * * * *'
+          event_time: observed_at_kst
+          freshness_slo_minutes: 90
+          shape: wide
+    columns:
+      - name: product_row_id
+        description: link_id와 같은 제품 행 식별자입니다.
+        tests:
+          - not_null:
+              config: {tags: [traffic_gold_gate]}
+          - unique:
+              config: {tags: [traffic_gold_gate]}
+      - name: link_id
+        description: TOPIS 도로 링크 식별자입니다.
+        tests:
+          - not_null:
+              config: {tags: [traffic_gold_gate]}
+      - name: observed_at_kst
+        description: 최신 교통 흐름 관측 KST 시각입니다.
+        tests:
+          - not_null:
+              config: {tags: [traffic_gold_gate]}
+      - name: speed_change_state
+        description: 직전 관측 없음, 속도 비교 불가, 감소, 증가, 동일을 구분합니다.
+        tests:
+          - not_null:
+              config: {tags: [traffic_gold_gate]}
+          - accepted_values:
+              arguments:
+                values: [no_prior_observation, speed_unavailable, speed_decreased, speed_increased, speed_unchanged]
+              config: {tags: [traffic_gold_gate]}

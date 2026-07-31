@@ -6,7 +6,7 @@
 -- by_time 파생 table (조회 시 최신). area_cd 로 1행 읽어 상승/하락·변화율 답변.
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
 ) }}
 
 with ranked as (

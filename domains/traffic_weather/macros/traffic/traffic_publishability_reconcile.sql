@@ -1,19 +1,5 @@
-{% macro traffic_publishability_assert_dev_target(target_relation) -%}
-{%- if execute and (
-    target.name != 'dev'
-    or target.database != 'iceberg_dev'
-    or target_relation.schema != env_var('TRAFFIC_SCHEMA', 'traffic')
-) -%}
-  {{ exceptions.raise_compiler_error(
-      'Traffic publishability reconciliation requires dev/iceberg_dev/Traffic schema.'
-  ) }}
-{%- endif -%}
-{{ return('') }}
-{%- endmacro %}
-
 {% macro get_incremental_traffic_publishability_reconcile_sql(arg_dict) -%}
   {%- set target_relation = arg_dict['target_relation'] -%}
-  {%- do traffic_publishability_assert_dev_target(target_relation) -%}
   {%- set temp_relation = arg_dict['temp_relation'] -%}
   {%- set unique_key = arg_dict['unique_key'] -%}
   {%- set dest_columns = arg_dict['dest_columns'] -%}

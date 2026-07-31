@@ -419,23 +419,41 @@ cross join params
 )
 {%- endmacro %}
 
-{% macro weather_w2_assert_gold_dev_target() -%}
-{%- if execute and (
-    target.name != 'dev'
-    or target.database != 'iceberg_dev'
-    or this.schema != weather_schema_name()
+{% macro weather_w2_assert_gold_target(relation=none) -%}
+{%- if relation is none -%}
+    {%- set relation = this -%}
+{%- endif -%}
+{%- set approved_dev_target = (
+    target.name == 'dev'
+    and target.database == 'iceberg_dev'
+    and relation.schema == weather_schema_name()
 ) -%}
+{%- set approved_prod_snapshot = (
+    relation.schema == weather_schema_name()
+    and weather_w1_prod_snapshot_bootstrap_allowed()
+) -%}
+{%- if execute and not approved_dev_target and not approved_prod_snapshot -%}
     {{ exceptions.raise_compiler_error(
-        'Weather W2 public Gold는 승인된 dev/iceberg_dev/weather에서만 실행할 수 있습니다.'
+        'Weather W2 public Gold는 승인된 dev/iceberg_dev/weather 또는 '
+        ~ 'pinned canonical prod snapshot에서만 실행할 수 있습니다.'
     ) }}
+{%- endif -%}
+{%- if execute and approved_prod_snapshot -%}
+    {%- do weather_w1_assert_prod_snapshot_bootstrap_evidence() -%}
 {%- endif -%}
 {{ return('') }}
 {%- endmacro %}
 
 {% macro weather_w2_gold_initial_build_guard() -%}
-{%- if execute and not is_incremental() and not weather_w2_is_repair() -%}
+{%- if (
+    execute
+    and not is_incremental()
+    and not weather_w2_is_repair()
+    and not weather_w1_prod_snapshot_bootstrap_allowed()
+) -%}
     {{ exceptions.raise_compiler_error(
-        'Weather W2 shared Gold 최초 빌드는 검증된 bounded_reconcile에서만 허용됩니다.'
+        'Weather W2 shared Gold 최초 빌드는 검증된 bounded_reconcile 또는 '
+        ~ 'pinned canonical prod snapshot에서만 허용됩니다.'
     ) }}
 {%- endif -%}
 {{ return('') }}
@@ -857,7 +875,7 @@ cast(row(
 {%- endmacro %}
 
 {% macro get_incremental_weather_w2_reconcile_sql(arg_dict) -%}
-{%- do weather_w2_assert_gold_dev_target() -%}
+{%- do weather_w2_assert_gold_target() -%}
 {%- set canonical_contract = weather_w2_canonical_contract() -%}
 {%- set target_relation = arg_dict['target_relation'] -%}
 {%- set temp_relation = arg_dict['temp_relation'] -%}

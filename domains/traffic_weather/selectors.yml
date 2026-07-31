@@ -124,6 +124,8 @@ selectors:
         - {method: fqn, value: gold_traffic_flow_change_latest, children: true}
         - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, children: true}
         - {method: fqn, value: gold_traffic_flow_link_time_profile, children: true}
+        - {method: fqn, value: gold_traffic_flow_anomaly_current, children: true}
+
 
   - name: ask_seoul_traffic_transform_gold_incident_models
     description: Traffic Gold model nodes excluding Flow Gold scope for incident-only trigger runs.
@@ -242,6 +244,79 @@ selectors:
         - method: test_type
           value: generic
 
+  - name: ask_seoul_traffic_transform_incident_preflight_contracts
+    description: Traffic Incident availability와 Bronze generic contract를 한 번에 검증한다.
+    definition:
+      union:
+        - {method: selector, value: ask_seoul_traffic_transform_availability}
+        - {method: selector, value: traffic_transform_contract_gate}
+
+  - name: ask_seoul_traffic_transform_incident_hot_build
+    description: Pinned Incident Silver models and one compound publication receipt.
+    definition:
+      union:
+        - {method: fqn, value: silver_seoul_traffic_incident, indirect_selection: empty}
+        - {method: fqn, value: silver_seoul_traffic_incident_current, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_incident_silver_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_flow_hot_build
+    description: Pinned Flow Silver model and one compound publication receipt.
+    definition:
+      union:
+        - {method: fqn, value: silver_seoul_traffic_flow, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_flow_silver_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_gold_hot_build
+    description: Six Traffic D1 serving models and their compound publication receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_change_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_time_profile, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_anomaly_current, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_gold_incident_hot_build
+    description: Incident-only Traffic D1 model and compound receipt without Flow branches.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_gold_bootstrap_hot_build
+    description: First-run Traffic anchor plus the six D1 serving models and compound receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_change_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_time_profile, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_anomaly_current, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_gold_incident_bootstrap_hot_build
+    description: First-run Traffic anchor plus the incident-only D1 model and compound receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_daily_assurance
+    description: Full Traffic contracts executed by the 09:00 reliability audit.
+    definition:
+      union:
+        - {method: selector, value: ask_seoul_traffic_transform_incident_preflight_contracts}
+        - {method: selector, value: ask_seoul_traffic_transform_silver}
+        - {method: selector, value: ask_seoul_traffic_transform_flow_silver_tests}
+        - {method: selector, value: ask_seoul_traffic_transform_common_admin}
+        - {method: selector, value: ask_seoul_traffic_transform_asac_axes_contract}
+        - {method: selector, value: ask_seoul_traffic_transform_gold_full_tests_without_commerce}
+
   - name: ask_seoul_weather_transform_source
     description: Weather Bronze source와 해당 source 계약 리소스를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_source, indirect_selection: cautious}
@@ -260,20 +335,6 @@ selectors:
   - name: ask_seoul_weather_transform_gold
     description: Weather scheduled Gold summary model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_gold, indirect_selection: cautious}
-  - name: ask_seoul_weather_transform_commerce_gold_scope
-    description: Commerce source에 결합된 Weather Gold leaf model과 직결 test 범위다.
-    definition:
-      union:
-        - method: fqn
-          value: gold_weather_x_commerce_business_exposure_daily
-          children: true
-  - name: ask_seoul_weather_transform_gold_without_commerce
-    description: 정규 Weather Gold에서 현재 unavailable인 Commerce 결합 leaf만 제외한다.
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_weather_transform_gold}
-        - exclude:
-            - {method: selector, value: ask_seoul_weather_transform_commerce_gold_scope}
   - name: ask_seoul_weather_transform_place_mart
     description: Weather place mart model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_place_mart, indirect_selection: cautious}
@@ -309,6 +370,40 @@ selectors:
     description: Weather W2 bounded recovery final publishability contract phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_w2_recovery_final_contract, indirect_selection: cautious}
 
+  - name: ask_seoul_weather_w2_recovery_stage_window_contract
+    description: 용신동 경량 recovery stage의 현재 6시간 창 계약 하나만 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/recovery/stage/assert_weather_w2_recovery_stage_window.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_stage_model
+    description: 용신동 경량 recovery의 project-internal protected staging model만 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_w2_recovery_stage_model, indirect_selection: cautious}
+
+  - name: ask_seoul_weather_w2_recovery_post_publish_bridge_contract
+    description: 경량 recovery publish 직후 전 동 missing·extra·invalid bridge를 검증하는 FULL reconcile 하나만 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_bridge_exclusions_reconcile.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_stage_final
+    description: 용신동 경량 recovery stage 전체 reconciliation 계약을 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/recovery/stage/assert_weather_w2_recovery_stage_final_reconciles.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_stage_winner
+    description: 용신동 경량 recovery stage winner bucket 계약을 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/recovery/stage/assert_weather_w2_recovery_stage_no_downgrade.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_recovery_stage_lineage
+    description: 용신동 경량 recovery stage lineage bucket 계약을 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/recovery/stage/assert_weather_w2_recovery_stage_lineage.sql, indirect_selection: empty}
+
   - name: ask_seoul_weather_w2_canonical_models
     description: Weather canonical W2 observation, native grid, public Gold model만 선택한다.
     definition:
@@ -318,7 +413,7 @@ selectors:
         - {method: path, value: models/weather/special/gold/gold_weather_forecast_by_admin_dong.sql, indirect_selection: empty}
 
   - name: ask_seoul_weather_w2_canonical_contracts
-    description: Weather canonical W2 public Gold의 필수 계약 test만 선택한다.
+    description: Weather canonical W2 public Gold의 매 snapshot 영향 grain 계약 test만 선택한다.
     definition:
       union:
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_join_reconciles.sql, indirect_selection: empty}
@@ -328,6 +423,21 @@ selectors:
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_canonical_source_contract.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_grain_unique.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_latest_grid_record.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_product_row_id_reproducible.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/recovery/winner/assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/recovery/reconciliation/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql, indirect_selection: empty}
+
+  - name: ask_seoul_weather_w2_canonical_full_contracts
+    description: Weather canonical W2 public Gold의 일일 전체 이력 계약 test만 선택한다.
+    definition:
+      union:
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_join_reconciles.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_revision_exact.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_admin_stamp_exact.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_bridge_exclusions_reconcile.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_canonical_source_contract.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_grain_unique.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_latest_grid_record_full.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/assert_gold_weather_forecast_by_admin_dong_product_row_id_reproducible.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/recovery/winner/assert_gold_weather_forecast_by_admin_dong_repair_no_downgrade.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/special/recovery/reconciliation/assert_gold_weather_forecast_by_admin_dong_repair_reconciles.sql, indirect_selection: empty}

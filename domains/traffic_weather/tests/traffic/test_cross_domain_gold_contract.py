@@ -11,6 +11,10 @@ TRAFFIC_SOURCES_PATH = PROJECT_ROOT / "models" / "traffic" / "sources.yml"
 TRAFFIC_EXTERNAL_SNAPSHOT_MACRO_PATH = (
     PROJECT_ROOT / "macros" / "traffic" / "traffic_external_snapshot.sql"
 )
+CITYDATA_SCHEMA = (
+    "{{ env_var('SEOUL_CITYDATA_SCHEMA', "
+    "'citydata' if target.name == 'prod' else 'seoul_citydata') }}"
+)
 WEATHER_MODEL_PATH = GOLD_DIR / "gold_traffic_incident_x_weather_current_hourly.sql"
 CITYDATA_MODEL_PATH = (
     GOLD_DIR / "gold_traffic_incident_x_citydata_crowding_current_hourly.sql"
@@ -31,8 +35,12 @@ def _compact(text: str) -> str:
 
 
 def _gold_models() -> dict[str, dict]:
-    document = yaml.safe_load(GOLD_METADATA_PATH.read_text(encoding="utf-8")) or {}
-    return {model["name"]: model for model in document.get("models", [])}
+    models: dict[str, dict] = {}
+    for yml_path in sorted(GOLD_DIR.glob("*.yml")):
+        document = yaml.safe_load(yml_path.read_text(encoding="utf-8")) or {}
+        for model in document.get("models", []):
+            models[model["name"]] = model
+    return models
 
 
 def test_design_and_implementation_plan_exist_for_issue_234() -> None:
@@ -131,7 +139,7 @@ def test_citydata_source_contract_lives_in_traffic_sources() -> None:
 
     assert "traffic_citydata_gold" in sources
     citydata = sources["traffic_citydata_gold"]
-    assert citydata["schema"] == "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+    assert citydata["schema"] == CITYDATA_SCHEMA
     tables = {table["name"]: table for table in citydata["tables"]}
     table = tables["gold_citydata_ppltn_by_time"]
     assert table["identifier"] == "gold_citydata_ppltn_by_time"

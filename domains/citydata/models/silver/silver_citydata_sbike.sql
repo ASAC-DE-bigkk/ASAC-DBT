@@ -4,7 +4,7 @@
 -- 없어 observed_at = collected_at(KST). 대여소 좌표는 원소의 X(경도)/Y(위도).
 
 {{ config(
-    schema=env_var("SEOUL_CITYDATA_SCHEMA", "seoul_citydata"),
+    schema=env_var("SEOUL_CITYDATA_SCHEMA", target.schema),
     materialized='incremental',
     incremental_strategy='delete+insert',
     unique_key=['area_cd', 'spot_id', 'observed_at'],

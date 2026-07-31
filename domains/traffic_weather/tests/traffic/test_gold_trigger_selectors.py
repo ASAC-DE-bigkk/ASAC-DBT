@@ -16,12 +16,19 @@ FLOW_SCOPE = "ask_seoul_traffic_transform_flow_gold_scope"
 COMMERCE_SCOPE = "ask_seoul_traffic_transform_commerce_gold_scope"
 SILVER_EXECUTION_TAG = "ask_seoul_traffic_transform_silver"
 INCIDENT_SILVER = "ask_seoul_traffic_transform_incident_silver"
+INCIDENT_PREFLIGHT = "ask_seoul_traffic_transform_incident_preflight_contracts"
 FLOW_SILVER_MODEL = "ask_seoul_traffic_transform_flow_silver_model"
 FLOW_SILVER_TESTS = "ask_seoul_traffic_transform_flow_silver_tests"
 INCIDENT_MODELS = "ask_seoul_traffic_transform_gold_incident_models"
 INCIDENT_GATE_TESTS = "ask_seoul_traffic_transform_gold_incident_gate_tests"
 INCIDENT_HOURLY_TESTS = "ask_seoul_traffic_transform_gold_incident_hourly_tests"
 INCIDENT_FULL_TESTS = "ask_seoul_traffic_transform_gold_incident_full_tests"
+INCIDENT_HOT_BUILD = "ask_seoul_traffic_transform_incident_hot_build"
+FLOW_HOT_BUILD = "ask_seoul_traffic_transform_flow_hot_build"
+GOLD_HOT_BUILD = "ask_seoul_traffic_transform_gold_hot_build"
+GOLD_INCIDENT_HOT_BUILD = (
+    "ask_seoul_traffic_transform_gold_incident_hot_build"
+)
 
 FULL_GOLD_MODELS = "ask_seoul_traffic_transform_gold_models"
 FULL_GATE_TESTS = "ask_seoul_traffic_transform_gold_gate_tests"
@@ -55,6 +62,7 @@ EXPECTED_FLOW_MODELS = {
     "gold_traffic_flow_change_latest",
     "gold_traffic_flow_congestion_hotspots_hourly",
     "gold_traffic_flow_link_time_profile",
+    "gold_traffic_flow_anomaly_current",
 }
 EXPECTED_FLOW_SILVER_TESTS = {
     "accepted_values_silver_seoul_traffic_flow_flow_value_quality__available__missing_value",
@@ -71,6 +79,10 @@ EXPECTED_FLOW_SILVER_TESTS = {
 EXPECTED_INCIDENT_SILVER_MODELS = {
     "silver_seoul_traffic_incident",
     "silver_seoul_traffic_incident_current",
+}
+EXPECTED_D1_HOT_MODELS = {
+    "gold_traffic_incident_x_weather_current_hourly",
+    *EXPECTED_FLOW_MODELS,
 }
 EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_active_latest",
@@ -91,11 +103,11 @@ EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_x_transit_hourly",
     "gold_traffic_incident_x_weather_current_hourly",
 }
-EXPECTED_GOLD_MODEL_COUNT = 21
+EXPECTED_GOLD_MODEL_COUNT = 22
 EXPECTED_INCIDENT_TEST_COUNTS = {
-    INCIDENT_GATE_TESTS: 115,
-    INCIDENT_HOURLY_TESTS: 135,
-    INCIDENT_FULL_TESTS: 165,
+    INCIDENT_GATE_TESTS: 117,
+    INCIDENT_HOURLY_TESTS: 137,
+    INCIDENT_FULL_TESTS: 167,
 }
 SELECTOR_PARSE_VARS = {
     "traffic_snapshot_dag_run_id": "ci__traffic_gold_trigger_selectors",
@@ -257,6 +269,7 @@ def test_incident_gold_selectors_reuse_full_contract_and_exclude_flow_scope():
                 "children": True,
             },
             {"method": "fqn", "value": "gold_traffic_flow_link_time_profile", "children": True},
+            {"method": "fqn", "value": "gold_traffic_flow_anomaly_current", "children": True},
         ]
     }
 
@@ -378,6 +391,53 @@ def test_incident_silver_resolves_only_incident_owned_models_and_tests(
     assert incident_tests.isdisjoint(flow_tests)
     assert "assert_silver_seoul_traffic_flow_pinned_rows" not in incident_tests
     assert "assert_traffic_current_pinned_publishable_run" in incident_tests
+
+
+def test_incident_preflight_combines_availability_and_bronze_contracts(
+    resolved_selector_project: tuple[Path, dict[str, str]],
+):
+    combined = _resolved_names(resolved_selector_project, INCIDENT_PREFLIGHT, "test")
+    availability = _resolved_names(
+        resolved_selector_project,
+        "ask_seoul_traffic_transform_availability",
+        "test",
+    )
+    bronze_contracts = _resolved_names(
+        resolved_selector_project,
+        "traffic_transform_contract_gate",
+        "test",
+    )
+
+    assert combined == availability | bronze_contracts
+
+
+def test_hot_build_selectors_resolve_exact_models_and_compound_receipts(
+    resolved_selector_project: tuple[Path, dict[str, str]],
+):
+    assert _resolved_names(
+        resolved_selector_project, INCIDENT_HOT_BUILD, "model"
+    ) == EXPECTED_INCIDENT_SILVER_MODELS
+    assert _resolved_names(
+        resolved_selector_project, INCIDENT_HOT_BUILD, "test"
+    ) == {"assert_traffic_incident_silver_publication_receipt"}
+    assert _resolved_names(
+        resolved_selector_project, FLOW_HOT_BUILD, "model"
+    ) == {"silver_seoul_traffic_flow"}
+    assert _resolved_names(
+        resolved_selector_project, FLOW_HOT_BUILD, "test"
+    ) == {"assert_traffic_flow_silver_publication_receipt"}
+    assert _resolved_names(
+        resolved_selector_project, GOLD_HOT_BUILD, "model"
+    ) == EXPECTED_D1_HOT_MODELS
+    assert _resolved_names(
+        resolved_selector_project, GOLD_HOT_BUILD, "test"
+    ) == {"assert_traffic_gold_serving_publication_receipt"}
+    assert _resolved_names(
+        resolved_selector_project, GOLD_INCIDENT_HOT_BUILD, "model"
+    ) == {"gold_traffic_incident_x_weather_current_hourly"}
+    assert _resolved_names(
+        resolved_selector_project, GOLD_INCIDENT_HOT_BUILD, "test"
+    ) == {"assert_traffic_gold_serving_publication_receipt"}
 
 
 def test_scheduled_gold_without_commerce_reuses_existing_contracts():

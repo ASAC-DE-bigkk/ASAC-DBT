@@ -1,6 +1,31 @@
 version: 2
 
 models:
+  - name: weather_w2_observation_recovery_stage
+    description: 용신동 W2 경량 복구를 checkpoint별로 누적하고 최종 검증 전 Canonical Gold와 격리하는 dev 전용 staging relation이다.
+    access: protected
+    config:
+      tags: ["ask_seoul_weather_w2_recovery_stage_model"]
+      meta:
+        grain:
+          - checkpoint_id
+          - admin_dong_code
+          - forecast_at
+          - category
+        lifecycle: recovery_staging
+        operating_mode: staged_gold_only_dev
+    columns:
+      - name: checkpoint_id
+        description: 독립적인 staged recovery 실행 식별자다.
+      - name: product_row_id
+        description: 행정동·예보시각·항목으로 구성한 Canonical Gold 제품 키다.
+      - name: admin_dong_code
+        description: 용신동 공식 행정동 코드 1123053600이다.
+      - name: forecast_at
+        description: Asia/Seoul 기준 예보 대상 시각이다.
+      - name: category
+        description: KMA 단기예보 항목 코드다.
+
   - name: weather_w2_observation_recovery_lineage_workset
     description: W2 bounded recovery 창의 현재 Gold 행과 exact lineage payload를 materialize해 2GB Trino 한도 안에서 bucket별 검증을 가능하게 하는 dev 전용 내부 workset이다.
     access: private
