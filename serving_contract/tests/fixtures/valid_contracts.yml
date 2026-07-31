@@ -26,6 +26,23 @@ models:
           event_time: forecast_at
           freshness_slo_minutes: 90   # v1.1: event_time 선언 시 필수
           shape: wide
+          # v1.3 (#600/#638): 검증 질의 예시 — 전 필드 정상 선언(모두 optional 허용 범위)
+          usage_patterns:
+            - pattern_id: hottest_places_now
+              question_ko: 지금 가장 더운 장소는?
+              axes: 장소 랭킹 — 기온 DESC
+              requires: [select_columns, sort]
+              verified_rows: 10
+              verified_at: "2026-07-30T09:00:00Z"
+              verified_publication_id: fixture-pub-1
+              allow_empty: false
+              insight_sample_ko: 여의도한강공원이 33.1도로 1위.
+              sql: |
+                -- :n=10
+                SELECT place_id FROM gold_weather_place_current_outlook
+                ORDER BY temperature DESC LIMIT :n
+            - pattern_id: minimal_pilot_shape
+              sql: "SELECT 1"   # transit 파일럿 최소형(#638 점진 적용) — 필수 2필드만으로 유효
 
   # Internal-only (enabled true / external false), append, composite PK, rollup reliability, asset trigger.
   - name: gold_citydata_ppltn_dow_hour

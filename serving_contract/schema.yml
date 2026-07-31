@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.2
+schema_version: v1.3
 supported_contract_versions: [v1]
 
 # v1.1 (#478 보강 결정): 조건부 필수 — `if_present` 필드를 선언한 모델은
@@ -39,6 +39,7 @@ optional:
   shape:                  {type: enum, allowed: [wide, rollup, event]}
   reliability:            {type: object}
   upsert_strategy:        {type: enum, allowed: [merge, exact_set]}
+  usage_patterns:         {type: list}   # v1.3 (#600/#638): 검증 질의 예시 — 항목 규칙은 usage_pattern_fields
 
 # Defaults the Publisher applies when the field is absent (documentation of intent;
 # the validator does not require them but forbids illegal explicit values).
@@ -79,3 +80,13 @@ publication_trigger_shapes:
     forbidden_keys: [schedule_cron]
     field_values:
       trigger_type: asset
+
+# v1.3 (#600/#638 확정): usage_patterns 항목 규칙. sql 은 참조 구현(클라이언트 실행 대상 아님),
+# 전역 식별자는 (product_id, pattern_id) 쌍 — pattern_id 는 모델 안에서만 유일하면 된다.
+# requires 어휘는 11개 고정(#638 §1.1) — 오타가 그냥 통과되지 않게 하는 것이 이 블록의 목적.
+usage_pattern_fields:
+  required: [pattern_id, sql]
+  optional: [question_ko, axes, requires, verified_rows, verified_at,
+             verified_publication_id, allow_empty, insight_sample_ko, d1_table]
+  requires_allowed: [select_columns, sort, aggregate, group_by, having,
+                     join, subquery, window, filter_range, filter_set, filter_null]

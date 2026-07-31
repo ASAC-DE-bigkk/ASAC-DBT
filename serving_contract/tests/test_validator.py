@@ -57,6 +57,11 @@ def test_invalid_contracts_fail_with_expected_rules():
         "reliability_invalid",
         "product_id_duplicate",
         "conditional_required_missing",
+        "usage_pattern_required_missing",
+        "usage_pattern_unknown_field",
+        "usage_pattern_requires_unknown",
+        "usage_pattern_duplicate",
+        "usage_pattern_invalid",
     }
     missing = expected - rules
     assert not missing, f"expected rules not raised: {missing}"
@@ -76,6 +81,11 @@ def test_invalid_contracts_fail_with_expected_rules():
         ("bad_partial", "partial_policy_invalid"),
         ("bad_reliability", "reliability_invalid"),
         ("bad_missing_freshness_slo", "conditional_required_missing"),
+        ("bad_usage_patterns", "usage_pattern_required_missing"),
+        ("bad_usage_patterns", "usage_pattern_unknown_field"),
+        ("bad_usage_patterns", "usage_pattern_requires_unknown"),
+        ("bad_usage_patterns", "usage_pattern_duplicate"),
+        ("bad_usage_patterns", "usage_pattern_invalid"),
     ],
 )
 def test_specific_rule_attaches_to_model(model_name, rule):

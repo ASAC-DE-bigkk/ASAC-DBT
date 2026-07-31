@@ -125,6 +125,65 @@ def _check_structural(model: ServingModel, schema: dict[str, Any]) -> list[Findi
         if trigger and needed and trigger in serving and needed not in serving:
             add("conditional_required_missing", f"'{trigger}' 선언 제품은 '{needed}' 필수 (v1.1)")
 
+    # v1.3 (#600/#638): usage_patterns 항목 검증 — 스펙 밖 필드·requires 오타가 통과되지 않게.
+    findings.extend(_check_usage_patterns(model, schema))
+
+    return findings
+
+
+def _check_usage_patterns(model: ServingModel, schema: dict[str, Any]) -> list[Finding]:
+    """usage_patterns(optional, v1.3) 항목 규칙 — 형은 optional 루프가, 내용은 여기가 본다.
+
+    전역 식별자는 (product_id, pattern_id) 쌍(#638 §1)이므로 pattern_id 는 모델 안 유일성만
+    강제한다. requires 어휘는 schema.yml `usage_pattern_fields.requires_allowed` 11개 고정.
+    """
+    findings: list[Finding] = []
+    patterns = model.serving.get("usage_patterns")
+    spec = schema.get("usage_pattern_fields") or {}
+    if not isinstance(patterns, list) or not spec:
+        return findings  # 타입 위반은 optional 루프(optional_field_invalid)가 이미 보고한다
+
+    def add(rule: str, message: str) -> None:
+        findings.append(Finding(rule, model.name, message, model.source))
+
+    required = list(spec.get("required", []))
+    known = set(required) | set(spec.get("optional", []))
+    requires_allowed = set(spec.get("requires_allowed", []))
+    seen_ids: set[str] = set()
+
+    for index, pattern in enumerate(patterns):
+        label = f"usage_patterns[{index}]"
+        if not isinstance(pattern, dict):
+            add("usage_pattern_invalid", f"{label} 은 매핑이어야 하는데 {type(pattern).__name__}")
+            continue
+        pattern_id = pattern.get("pattern_id")
+        if isinstance(pattern_id, str) and pattern_id.strip():
+            label = f"usage_patterns[{index}] '{pattern_id}'"
+            if pattern_id in seen_ids:
+                add("usage_pattern_duplicate", f"{label} — pattern_id 가 모델 안에서 중복")
+            seen_ids.add(pattern_id)
+        for field in required:
+            value = pattern.get(field)
+            if not isinstance(value, str) or not value.strip():
+                add("usage_pattern_required_missing", f"{label} — 필수 '{field}' 누락/비문자열")
+        for field in sorted(set(pattern) - known):
+            add("usage_pattern_unknown_field", f"{label} — 스펙 밖 필드 '{field}' (오타 확인)")
+        requires = pattern.get("requires")
+        if requires is not None:
+            if not isinstance(requires, list):
+                add("usage_pattern_invalid", f"{label} — 'requires' 는 리스트여야 한다")
+            else:
+                for entry in requires:
+                    if entry not in requires_allowed:
+                        add("usage_pattern_requires_unknown",
+                            f"{label} — requires 값 {entry!r} 은 어휘 11개(#638 §1.1)에 없다")
+        if "verified_rows" in pattern and (
+            isinstance(pattern["verified_rows"], bool) or not isinstance(pattern["verified_rows"], int)
+        ):
+            add("usage_pattern_invalid", f"{label} — 'verified_rows' 는 정수여야 한다")
+        if "allow_empty" in pattern and not isinstance(pattern["allow_empty"], bool):
+            add("usage_pattern_invalid", f"{label} — 'allow_empty' 는 불리언이어야 한다")
+
     return findings
 
 
