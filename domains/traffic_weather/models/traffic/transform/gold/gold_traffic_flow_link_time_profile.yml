@@ -33,6 +33,21 @@ models:
           freshness_slo_minutes: 90
           retention_or_horizon: 보존된 전체 Traffic Flow Silver 이력을 affected profile key 단위로 재집계합니다.
           shape: rollup
+          public_projection:
+            schema_version: "1.0.0"
+            columns:
+              - product_row_id
+              - link_id
+              - kst_day_of_week
+              - kst_hour
+              - observation_count
+              - speed_observation_count
+              - avg_flow_speed
+              - min_flow_speed
+              - max_flow_speed
+              - avg_flow_travel_time
+              - first_observed_at_kst
+              - last_observed_at_kst
           reliability:
             sample_count_field: observation_count
             minimum_sample_count: 12
@@ -40,23 +55,123 @@ models:
     columns:
       - name: product_row_id
         description: link_id, 요일, 시간을 직렬화한 제품 행 식별자입니다.
+        data_type: varchar
         tests:
           - not_null:
               config: {tags: [traffic_gold_gate]}
           - unique:
               config: {tags: [traffic_gold_gate]}
+        config:
+          meta:
+            semantic_role: primary_key
+            nullable: false
+            null_meaning: product_row_id 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
       - name: link_id
         description: TOPIS 도로 링크 식별자입니다.
+        data_type: varchar
         tests:
           - not_null:
               config: {tags: [traffic_gold_gate]}
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: false
+            null_meaning: link_id 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
       - name: observation_count
         description: 해당 링크·요일·시간대에 포함된 전체 관측 수입니다. 서로 다른 관측일 수는 아니므로 대표성 판단에 주의합니다.
+        data_type: bigint
         tests:
           - not_null:
               config: {tags: [traffic_gold_gate]}
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: false
+            null_meaning: observation_count 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: count
       - name: last_observed_at_kst
         description: 기준선에 포함된 가장 최근 KST 관측 시각입니다.
+        data_type: timestamp(6)
         tests:
           - not_null:
               config: {tags: [traffic_gold_gate]}
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: last_observed_at_kst 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: not_applicable
+      - name: kst_day_of_week
+        description: 서울 기준 요일 번호입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: temporal_attribute
+            nullable: false
+            null_meaning: kst_day_of_week 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: day_of_week
+      - name: kst_hour
+        description: 서울 기준 시각의 시(hour) 값입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: temporal_attribute
+            nullable: false
+            null_meaning: kst_hour 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: hour_of_day
+      - name: speed_observation_count
+        description: 속도 값이 존재하는 관측 수입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: false
+            null_meaning: speed_observation_count 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: count
+      - name: avg_flow_speed
+        description: 프로필 평균 교통 흐름 속도입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: avg_flow_speed 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: kilometer_per_hour
+      - name: min_flow_speed
+        description: 프로필 최소 교통 흐름 속도입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: min_flow_speed 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: kilometer_per_hour
+      - name: max_flow_speed
+        description: 프로필 최대 교통 흐름 속도입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: max_flow_speed 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: kilometer_per_hour
+      - name: avg_flow_travel_time
+        description: 프로필 평균 교통 흐름 통행시간입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: avg_flow_travel_time 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: second
+      - name: first_observed_at_kst
+        description: 프로필 첫 관측 서울 기준 시각입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: first_observed_at_kst 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: not_applicable

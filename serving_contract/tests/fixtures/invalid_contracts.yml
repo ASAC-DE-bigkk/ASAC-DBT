@@ -265,3 +265,30 @@ models:
             - pattern_id: typo_fields             # 모델 안 중복 → usage_pattern_duplicate
               sql: "SELECT 2"
               verified_rows: ten                  # 정수 아님 → usage_pattern_invalid
+
+  # public_projection_* — malformed shape, missing required projection fields,
+  # unknown physical columns, and internal/secret column exposure.
+  - name: bad_public_projection
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: event_at
+      - name: request_id
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_public_projection
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+          event_time: event_at
+          freshness_slo_minutes: 60
+          public_projection:
+            schema_version: "1.0"
+            columns: [request_id, ghost_column]
+            aliases: {}

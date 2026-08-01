@@ -33,16 +33,51 @@ models:
           freshness_slo_minutes: 240
           retention_or_horizon: 최신 KMA 예보가 제공하는 미래 구간만 매 게시 시점에 교체합니다.
           shape: event
+          public_projection:
+            schema_version: "1.0.0"
+            columns:
+              - product_row_id
+              - place_id
+              - forecast_at
+              - risk_labels
     columns:
       - name: product_row_id
         description: place_id와 예보시각을 직렬화한 식별자입니다.
+        data_type: varchar
         tests: [not_null, unique]
+        config:
+          meta:
+            semantic_role: primary_key
+            nullable: false
+            null_meaning: product_row_id 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
       - name: place_id
         description: 장소 식별자입니다.
+        data_type: varchar
         tests: [not_null]
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: false
+            null_meaning: place_id 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
       - name: forecast_at
         description: 후보 위험이 적용되는 KST 예보 시각입니다.
+        data_type: timestamp(6)
         tests: [not_null]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: forecast_at 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
       - name: risk_labels
         description: 자체 임계값을 만족한 설명용 후보 목록이며 공식 특보가 아닙니다.
+        data_type: varchar
         tests: [not_null]
+        config:
+          meta:
+            semantic_role: descriptive_attribute
+            nullable: true
+            null_meaning: risk_labels 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: not_applicable

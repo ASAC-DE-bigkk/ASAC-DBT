@@ -25,6 +25,39 @@ def _rules(findings) -> set[str]:
     return {f.rule for f in findings}
 
 
+def _serving_model(
+    *,
+    name: str = "gold_projection_fixture",
+    serving_overrides: dict | None = None,
+    columns: dict | None = None,
+) -> ServingModel:
+    serving = {
+        "enabled": True,
+        "external": True,
+        "product_id": name.removeprefix("gold_"),
+        "product_question": "projection test question",
+        "grain": "one row per id",
+        "primary_key": ["product_row_id"],
+        "publication_mode": "snapshot",
+        "zero_policy": "fail",
+        "publication_trigger": {"schedule_cron": "0 * * * *"},
+    }
+    serving.update(serving_overrides or {})
+    return ServingModel(
+        name=name,
+        source="fixture.yml",
+        meta={},
+        serving=serving,
+        columns=columns
+        or {
+            "product_row_id": ("not_null", "unique"),
+            "event_at": (),
+            "sample_count": (),
+            "public_value": (),
+        },
+    )
+
+
 def test_valid_contracts_pass_with_manifest():
     models = load_models_from_yaml([VALID])
     result = validate(models, load_manifest(MANIFEST))
@@ -62,6 +95,10 @@ def test_invalid_contracts_fail_with_expected_rules():
         "usage_pattern_requires_unknown",
         "usage_pattern_duplicate",
         "usage_pattern_invalid",
+        "public_projection_invalid",
+        "public_projection_required_field_missing",
+        "public_projection_unknown_column",
+        "public_projection_internal_field",
     }
     missing = expected - rules
     assert not missing, f"expected rules not raised: {missing}"
@@ -140,3 +177,129 @@ def test_json_report_is_deterministic_utf8():
     assert first == second  # sorted keys + sorted findings => byte-stable
     assert first.encode("utf-8")  # Korean messages encode cleanly
     assert "product_id_duplicate" in first
+
+
+@pytest.mark.parametrize(
+    "projection",
+    [
+        {"schema_version": "1.0", "columns": ["product_row_id"]},
+        {"schema_version": "1.0.0", "columns": []},
+        {"schema_version": "1.0.0", "columns": ["product_row_id", "product_row_id"]},
+        {"schema_version": "1.0.0", "columns": ["product_row_id"], "rename_map": {}},
+        {"schema_version": "1.0.0", "columns": ["product_row_id as id"]},
+    ],
+)
+def test_public_projection_rejects_malformed_contracts(projection):
+    model = _serving_model(serving_overrides={"public_projection": projection})
+
+    result = validate([model])
+
+    assert "public_projection_invalid" in _rules(result.findings)
+
+
+def test_public_projection_requires_primary_event_and_reliability_columns():
+    model = _serving_model(
+        serving_overrides={
+            "event_time": "event_at",
+            "freshness_slo_minutes": 60,
+            "reliability": {
+                "sample_count_field": "sample_count",
+                "minimum_sample_count": 3,
+                "insufficient_sample_policy": "flag_degraded",
+            },
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["public_value"],
+            },
+        }
+    )
+
+    result = validate([model])
+
+    assert "public_projection_required_field_missing" in _rules(result.findings)
+
+
+def test_public_projection_rejects_unknown_columns_with_or_without_manifest():
+    model = _serving_model(
+        serving_overrides={
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["product_row_id", "ghost_column"],
+            },
+        }
+    )
+
+    result = validate([model])
+
+    assert "public_projection_unknown_column" in _rules(result.findings)
+
+
+def test_public_projection_rejects_internal_or_secret_columns():
+    model = _serving_model(
+        serving_overrides={
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["product_row_id", "representative_dag_run_id", "api_token"],
+            },
+        },
+        columns={
+            "product_row_id": ("not_null", "unique"),
+            "representative_dag_run_id": (),
+            "api_token": (),
+        },
+    )
+
+    result = validate([model])
+
+    assert "public_projection_internal_field" in _rules(result.findings)
+
+
+def test_projection_identity_hash_preserves_order_and_ignores_descriptions():
+    from serving_contract.projection_identity import canonical_projection_bytes, projection_schema_hash
+
+    projection = {
+        "schema_version": "1.0.0",
+        "columns": ["product_row_id", "value"],
+    }
+    columns = {
+        "product_row_id": {
+            "description": "first wording",
+            "data_type": "VARCHAR",
+            "config": {
+                "meta": {
+                    "nullable": False,
+                    "unit": "not_applicable",
+                    "semantic_role": "primary_key",
+                }
+            },
+        },
+        "value": {
+            "description": "measurement wording",
+            "data_type": "DOUBLE",
+            "config": {
+                "meta": {
+                    "nullable": True,
+                    "unit": "km/h",
+                    "semantic_role": "metric",
+                }
+            },
+        },
+    }
+
+    first_bytes = canonical_projection_bytes(projection, columns)
+    second_bytes = canonical_projection_bytes(projection, {**columns, "value": {**columns["value"], "description": "changed"}})
+    reordered = {**projection, "columns": ["value", "product_row_id"]}
+
+    assert first_bytes == second_bytes
+    assert projection_schema_hash(projection, columns) == projection_schema_hash(projection, columns)
+    assert projection_schema_hash(projection, columns) != projection_schema_hash(reordered, columns)
+    assert projection_schema_hash(projection, columns) != projection_schema_hash(
+        projection,
+        {
+            **columns,
+            "value": {
+                **columns["value"],
+                "data_type": "DECIMAL(10,2)",
+            },
+        },
+    )

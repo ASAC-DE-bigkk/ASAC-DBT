@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.3
+schema_version: v1.4
 supported_contract_versions: [v1]
 
 # v1.1 (#478 보강 결정): 조건부 필수 — `if_present` 필드를 선언한 모델은
@@ -40,6 +40,7 @@ optional:
   reliability:            {type: object}
   upsert_strategy:        {type: enum, allowed: [merge, exact_set]}
   usage_patterns:         {type: list}   # v1.3 (#600/#638): 검증 질의 예시 — 항목 규칙은 usage_pattern_fields
+  public_projection:      {type: object} # v1.4: 물리 D1/public projection allowlist
 
 # Defaults the Publisher applies when the field is absent (documentation of intent;
 # the validator does not require them but forbids illegal explicit values).

@@ -38,6 +38,33 @@ models:
           event_time: hour_at
           freshness_slo_minutes: 90
           shape: wide
+          public_projection:
+            schema_version: "1.0.0"
+            columns:
+              - product_row_id
+              - admin_dong_code
+              - hour_at
+              - admin_dong
+              - gu_code
+              - gu
+              - admin_dong_revision_date
+              - incident_count
+              - has_incident
+              - quality_state
+              - snapshot_as_of_at
+              - status_observed_at
+              - published_at
+              - weather_category_coverage_count
+              - weather_latest_issued_at
+              - weather_latest_collected_at
+              - weather_latest_published_at
+              - tmp_value_num
+              - pop_value_num
+              - reh_value_num
+              - wsd_value_num
+              - sky_qualitative_code
+              - pty_qualitative_code
+              - is_precipitating
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
@@ -221,6 +248,7 @@ models:
             semantic_role: primary_key
             nullable: false
             null_meaning: 제품 기본 키이므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: admin_dong_code
         description: anchor에서 승계한 행안부 10자리 정본 행정동 코드입니다.
         data_type: varchar
@@ -233,6 +261,7 @@ models:
             semantic_role: join_key
             nullable: false
             null_meaning: natural grain과 정본 공간 조인에 필수이므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: hour_at
         description: anchor에서 승계한 서울 기준 snapshot 평가 시간입니다.
         data_type: timestamp(6)
@@ -247,6 +276,7 @@ models:
             null_meaning: 모든 행정동 cell이 공유하는 평가 시간 grain이므로 null을 허용하지 않습니다.
             time_role: evaluation_bucket
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: admin_dong
         description: anchor에서 승계한 정본 행정동명입니다.
         data_type: varchar
@@ -259,6 +289,7 @@ models:
             semantic_role: spatial_stamp
             nullable: false
             null_meaning: 정본 행정동명이 없는 후보는 공개하지 않습니다.
+            unit: not_applicable
       - name: gu_code
         description: anchor에서 승계한 행안부 자치구 5자리 코드입니다.
         data_type: varchar
@@ -271,6 +302,7 @@ models:
             semantic_role: spatial_stamp
             nullable: false
             null_meaning: 정본 자치구 코드가 없는 후보는 공개하지 않습니다.
+            unit: not_applicable
       - name: gu
         description: anchor에서 승계한 자치구명입니다.
         data_type: varchar
@@ -283,6 +315,7 @@ models:
             semantic_role: spatial_stamp
             nullable: false
             null_meaning: 정본 자치구명이 없는 후보는 공개하지 않습니다.
+            unit: not_applicable
       - name: admin_dong_revision_date
         description: anchor에서 승계한 승인 공통 행정동 revision입니다.
         data_type: date
@@ -295,6 +328,7 @@ models:
             semantic_role: spatial_stamp
             nullable: false
             null_meaning: 정본 개정일이 없는 후보는 공개하지 않습니다.
+            unit: not_applicable
       - name: incident_count
         description: anchor에서 그대로 승계한 현재 돌발 건수입니다. null은 anchor의 quality가 건수를 지지하지 못했다는 뜻이며 날씨 결합으로 재작성되지 않습니다.
         data_type: bigint
@@ -314,6 +348,7 @@ models:
             semantic_role: derived_flag
             nullable: true
             null_meaning: anchor의 quality가 boolean을 지지하지 못한 상태입니다.
+            unit: not_applicable
       - name: quality_state
         description: anchor에서 그대로 승계한 Traffic snapshot 품질 상태입니다.
         data_type: varchar
@@ -326,6 +361,7 @@ models:
             semantic_role: quality_state
             nullable: false
             null_meaning: 공개 제품은 quality_state 없는 행을 게시하지 않습니다.
+            unit: not_applicable
       - name: snapshot_as_of_at
         description: anchor에서 승계한 complete publishable run의 최신 request audit 수집 시각입니다.
         data_type: timestamp(6)
@@ -336,6 +372,7 @@ models:
             null_meaning: complete publishable 근거가 없는 상태입니다.
             time_role: as_of
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: status_observed_at
         description: anchor에서 승계한 상태 관측 시각이며 날씨 no-hindsight cutoff로도 사용됩니다.
         data_type: timestamp(6)
@@ -350,6 +387,7 @@ models:
             null_meaning: 관측 시각이 없으면 날씨 no-hindsight cutoff를 정할 수 없습니다.
             time_role: observation
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: published_at
         description: anchor에서 승계한 게시 시각입니다.
         data_type: timestamp(6)
@@ -364,6 +402,7 @@ models:
             null_meaning: 게시 시각이 없는 행은 공개하지 않습니다.
             time_role: publication
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: snapshot_dag_run_id
         description: anchor에서 승계한 snapshot DAG 실행 식별자입니다.
         data_type: varchar
@@ -396,6 +435,7 @@ models:
             semantic_role: derived_value
             nullable: true
             null_meaning: 해당 행정동·시간에 no-hindsight 조건을 만족하는 날씨 카테고리가 전혀 없는 경우입니다.
+            unit: count
       - name: weather_latest_issued_at
         description: status_observed_at 이전에 발표된 날씨 카테고리 중 가장 늦은 KMA 발표 시각입니다.
         data_type: timestamp(6)
@@ -406,6 +446,7 @@ models:
             null_meaning: 날씨 맥락이 전혀 결합되지 않은 경우입니다.
             time_role: context_issue
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: weather_latest_collected_at
         description: 결합된 날씨 카테고리 중 가장 늦은 수집 시각입니다.
         data_type: timestamp(6)
@@ -416,6 +457,7 @@ models:
             null_meaning: 날씨 맥락이 전혀 결합되지 않은 경우입니다.
             time_role: context_collection
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: weather_latest_published_at
         description: 결합된 날씨 카테고리 중 가장 늦은 공개 Weather Gold 게시 시각입니다.
         data_type: timestamp(6)
@@ -426,6 +468,7 @@ models:
             null_meaning: 날씨 맥락이 전혀 결합되지 않은 경우입니다.
             time_role: context_publication
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: tmp_value_num
         description: 결합된 TMP(기온) 수치입니다.
         data_type: double
@@ -434,6 +477,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: TMP 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: celsius
       - name: pop_value_num
         description: 결합된 POP(강수확률) 수치입니다.
         data_type: double
@@ -442,6 +486,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: POP 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: percent
       - name: reh_value_num
         description: 결합된 REH(습도) 수치입니다.
         data_type: double
@@ -450,6 +495,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: REH 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: percent
       - name: wsd_value_num
         description: 결합된 WSD(풍속) 수치입니다.
         data_type: double
@@ -458,6 +504,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: WSD 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: meter_per_second
       - name: sky_qualitative_code
         description: 결합된 SKY 하늘상태 정성 코드입니다.
         data_type: varchar
@@ -466,6 +513,7 @@ models:
             semantic_role: categorical_value
             nullable: true
             null_meaning: SKY 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: not_applicable
       - name: pty_qualitative_code
         description: 결합된 PTY 강수형태 정성 코드입니다.
         data_type: varchar
@@ -474,6 +522,7 @@ models:
             semantic_role: categorical_value
             nullable: true
             null_meaning: PTY 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: not_applicable
       - name: is_precipitating
         description: PTY 코드에서 파생한 강수 여부 플래그이며 0은 false, 1~7은 true, 결측·미인식은 null입니다.
         data_type: boolean
@@ -482,3 +531,4 @@ models:
             semantic_role: derived_flag
             nullable: true
             null_meaning: PTY 카테고리가 결측이거나 인식되지 않는 코드인 경우입니다.
+            unit: not_applicable
