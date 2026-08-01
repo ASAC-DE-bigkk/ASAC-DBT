@@ -11,5 +11,7 @@ __pycache__/
 
 # dbt 빌드 산출물 (도메인 공통 — 도메인별 개별 나열 대체)
 domains/*/target/
+# transit heavy DAG 의 격리 artifact 경로 (--target-path target_heavy)
+domains/*/target_heavy/
 domains/*/dbt_packages/
 domains/*/logs/
