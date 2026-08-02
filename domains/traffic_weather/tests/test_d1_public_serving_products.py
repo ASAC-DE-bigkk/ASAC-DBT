@@ -43,6 +43,13 @@ EXPECTED_PUBLIC_PROJECTIONS = {
     ],
     "weather_place_forecast_change_daily": [
         "product_row_id", "place_id", "forecast_date", "latest_issued_at", "change_state",
+        "place_name", "admin_dong_code", "admin_dong", "gu_code", "gu", "previous_issued_at", "issue_gap_hours",
+        "latest_category_count", "previous_category_count", "latest_forecast_hour_count",
+        "previous_forecast_hour_count", "latest_min_temp_c", "previous_min_temp_c",
+        "min_temp_change_c", "latest_max_temp_c", "previous_max_temp_c", "max_temp_change_c",
+        "latest_max_precip_prob_pct", "previous_max_precip_prob_pct", "max_precip_prob_change_pct",
+        "latest_first_precipitation_at", "previous_first_precipitation_at", "latest_collected_at_max",
+        "previous_collected_at_max",
     ],
     "traffic_incident_x_weather_current_hourly": [
         "product_row_id", "admin_dong_code", "hour_at", "admin_dong", "gu_code", "gu",
@@ -81,6 +88,12 @@ EXPECTED_PUBLIC_PROJECTIONS = {
     ],
 }
 
+EXPECTED_PUBLIC_PROJECTION_VERSIONS = {
+    product_id: "1.0.0"
+    for product_id in EXPECTED_PRODUCTS
+}
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_forecast_change_daily"] = "1.1.0"
+
 EXPECTED_PUBLIC_PROJECTION_HASHES = {
     "traffic_flow_anomaly_current": "5973ee5d82abc24c34f3854976a0814bdbf94945233e2b9d790c038b74d509ef",
     "traffic_flow_change_latest": "528a6fbefa3bf4776cf7f0f6f68b102359154389fe13b0c89ff413d3d5c47c9a",
@@ -89,7 +102,7 @@ EXPECTED_PUBLIC_PROJECTION_HASHES = {
     "traffic_flow_link_time_profile": "3481b492166efc5ae85240441b67a6e4fdd0f0d4eaf198b031f64ae5cef9fd35",
     "traffic_incident_x_weather_current_hourly": "79e6a5ebaa7df4629292c71e32b3b47e3d5d41510b45a9abc6cab401d2693c23",
     "weather_place_current_outlook": "62db82904ff1b66450676f3b64adc4d42c8729849f9e0ae83a9f8ec41ddef07b",
-    "weather_place_forecast_change_daily": "568069724825e1a4bfae52f42b071bde610f763de777a69acca2313190a7474d",
+    "weather_place_forecast_change_daily": "75ae5336e3b826cf9352ce474b61c247915d921aad481da4f589b3e63ceb23cd",
     "weather_place_precipitation_window": "dc72be1fb400b38fd6389527b5e322fea374f043a54810690b13d685be5a8818",
     "weather_place_risk_window": "607ea68ba39584686ec2c13d321c4e55ec6e32b207a425f24cd72b928666a37a",
 }
@@ -210,7 +223,7 @@ def test_public_d1_products_declare_exact_ordered_public_projection() -> None:
         serving = model["config"]["meta"]["serving"]
 
         assert serving["public_projection"] == {
-            "schema_version": "1.0.0",
+            "schema_version": EXPECTED_PUBLIC_PROJECTION_VERSIONS[product_id],
             "columns": expected_columns,
         }
 

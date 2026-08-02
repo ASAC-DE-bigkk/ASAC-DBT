@@ -14,10 +14,14 @@ DBT_PROJECT_PATH = PROJECT_DIR / "dbt_project.yml"
 CURRENT_MODEL = GOLD_DIR / "gold_weather_place_current_outlook.yml"
 CURRENT_SQL = GOLD_DIR / "gold_weather_place_current_outlook.sql"
 PRECIP_MODEL = GOLD_DIR / "gold_weather_place_precipitation_window.yml"
+FORECAST_CHANGE_MODEL = GOLD_DIR / "gold_weather_place_forecast_change_daily.yml"
 
 CURRENT_READINESS_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_current_outlook_readiness.sql"
 PRECIP_VALID_EMPTY_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_precipitation_window_valid_empty.sql"
 PRECIP_NON_OVERLAPPING_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_precipitation_window_non_overlapping.sql"
+FORECAST_CHANGE_CONSISTENCY_TEST = (
+    GOLD_TEST_DIR / "assert_gold_weather_place_forecast_change_daily_consistent.sql"
+)
 
 CURRENT_PUBLIC_PROJECTION = [
     "product_row_id", "place_id", "place_name", "alias_names", "admin_dong_code", "admin_dong",
@@ -28,6 +32,19 @@ CURRENT_PUBLIC_PROJECTION = [
     "forecast_lead_hours",
 ]
 PRECIP_PUBLIC_PROJECTION = ["product_row_id", "place_id", "window_start_at", "window_end_at"]
+FORECAST_CHANGE_V1_PUBLIC_PROJECTION = [
+    "product_row_id", "place_id", "forecast_date", "latest_issued_at", "change_state",
+]
+FORECAST_CHANGE_PUBLIC_PROJECTION = [
+    "product_row_id", "place_id", "forecast_date", "latest_issued_at", "change_state",
+    "place_name", "admin_dong_code", "admin_dong", "gu_code", "gu", "previous_issued_at", "issue_gap_hours",
+    "latest_category_count", "previous_category_count", "latest_forecast_hour_count",
+    "previous_forecast_hour_count", "latest_min_temp_c", "previous_min_temp_c",
+    "min_temp_change_c", "latest_max_temp_c", "previous_max_temp_c", "max_temp_change_c",
+    "latest_max_precip_prob_pct", "previous_max_precip_prob_pct", "max_precip_prob_change_pct",
+    "latest_first_precipitation_at", "previous_first_precipitation_at", "latest_collected_at_max",
+    "previous_collected_at_max",
+]
 
 
 def _model(path: Path) -> dict:
@@ -93,6 +110,26 @@ def test_current_outlook_declares_internal_snapshot_anchor_without_public_projec
     assert "current_hour_at as snapshot_as_of_hour" in sql
 
 
+def test_forecast_change_projection_exposes_the_comparison_evidence() -> None:
+    model = _model(FORECAST_CHANGE_MODEL)
+    serving = model["config"]["meta"]["serving"]
+
+    assert serving["public_projection"] == {
+        "schema_version": "1.1.0",
+        "columns": FORECAST_CHANGE_PUBLIC_PROJECTION,
+    }
+    assert serving["public_projection"]["columns"][:5] == FORECAST_CHANGE_V1_PUBLIC_PROJECTION
+    assert "직전" in serving["product_question"]
+    assert {
+        "previous_issued_at",
+        "min_temp_change_c",
+        "max_temp_change_c",
+        "max_precip_prob_change_pct",
+        "latest_first_precipitation_at",
+        "previous_first_precipitation_at",
+    } <= set(serving["public_projection"]["columns"])
+
+
 def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() -> None:
     selectors = yaml.safe_load(SELECTORS_PATH.read_text(encoding="utf-8"))["selectors"]
     selector_names = {selector["name"] for selector in selectors}
@@ -119,6 +156,14 @@ def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() ->
             "ref('gold_weather_place_precipitation_window')",
             "precipitation_hour_count",
             "date_diff('hour', window_start_at, window_end_at) + 1",
+        ],
+        FORECAST_CHANGE_CONSISTENCY_TEST: [
+            "ref('gold_weather_place_forecast_change_daily')",
+            "previous_issued_at is null",
+            "min_temp_change_c is distinct from",
+            "max_temp_change_c is distinct from",
+            "max_precip_prob_change_pct is distinct from",
+            "expected_change_state is distinct from change_state",
         ],
     }
     for path, required_fragments in expected.items():

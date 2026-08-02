@@ -34,13 +34,19 @@ models:
           retention_or_horizon: 게시 시점 기준 오늘 이후의 최신 예보 일자만 유지합니다.
           shape: wide
           public_projection:
-            schema_version: "1.0.0"
-            columns:
-              - product_row_id
-              - place_id
-              - forecast_date
-              - latest_issued_at
-              - change_state
+            schema_version: "1.1.0"
+            columns: [
+              product_row_id, place_id, forecast_date, latest_issued_at, change_state,
+              place_name, admin_dong_code, admin_dong, gu_code, gu,
+              previous_issued_at, issue_gap_hours, latest_category_count, previous_category_count,
+              latest_forecast_hour_count, previous_forecast_hour_count,
+              latest_min_temp_c, previous_min_temp_c, min_temp_change_c,
+              latest_max_temp_c, previous_max_temp_c, max_temp_change_c,
+              latest_max_precip_prob_pct, previous_max_precip_prob_pct,
+              max_precip_prob_change_pct, latest_first_precipitation_at,
+              previous_first_precipitation_at, latest_collected_at_max,
+              previous_collected_at_max,
+            ]
     columns:
       - name: product_row_id
         description: place_id와 forecast_date를 직렬화한 식별자입니다.
@@ -62,6 +68,56 @@ models:
             nullable: false
             null_meaning: place_id 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
             unit: not_applicable
+      - name: place_name
+        description: 사용자에게 표시하는 장소명입니다.
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: descriptive_attribute
+            nullable: false
+            null_meaning: 매핑된 장소의 표시 이름이 없으면 공개 제품 행으로 허용하지 않습니다.
+            unit: not_applicable
+      - name: admin_dong_code
+        description: 장소가 속한 legacy mapping 기준 행정동 10자리 코드입니다.
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_reference
+            nullable: false
+            null_meaning: 장소 mapping에 행정동 코드가 없으면 공개 제품 행으로 허용하지 않습니다.
+            unit: not_applicable
+      - name: admin_dong
+        description: 장소가 속한 행정동명입니다.
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_reference
+            nullable: false
+            null_meaning: 장소 mapping에 행정동명이 없으면 공개 제품 행으로 허용하지 않습니다.
+            unit: not_applicable
+      - name: gu_code
+        description: 장소가 속한 자치구 5자리 코드입니다.
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_reference
+            nullable: false
+            null_meaning: 장소 mapping에 자치구 코드가 없으면 공개 제품 행으로 허용하지 않습니다.
+            unit: not_applicable
+      - name: gu
+        description: 장소가 속한 자치구명입니다.
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_reference
+            nullable: false
+            null_meaning: 장소 mapping에 자치구명이 없으면 공개 제품 행으로 허용하지 않습니다.
+            unit: not_applicable
       - name: forecast_date
         description: 비교 대상 KST 예보일입니다.
         data_type: date
@@ -81,6 +137,169 @@ models:
             semantic_role: timestamp
             nullable: false
             null_meaning: latest_issued_at 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            time_role: latest_issue
+            timezone: Asia/Seoul
+            unit: not_applicable
+      - name: previous_issued_at
+        description: 비교에 사용한 직전 KMA 발표 시각입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: 비교 가능한 직전 발표가 없어 change_state가 no_previous_issue인 경우입니다.
+            time_role: previous_issue
+            timezone: Asia/Seoul
+            unit: not_applicable
+      - name: issue_gap_hours
+        description: 직전 발표부터 최신 발표까지의 시간 차이입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 비교 가능한 직전 발표가 없어 발표 간격을 계산할 수 없는 경우입니다.
+            unit: hour
+      - name: latest_category_count
+        description: 최신 발표에서 해당 장소·예보일에 확인된 KMA 카테고리 수입니다.
+        data_type: bigint
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: false
+            null_meaning: 집계 값이므로 null을 허용하지 않습니다.
+            unit: count
+      - name: previous_category_count
+        description: 직전 발표에서 해당 장소·예보일에 확인된 KMA 카테고리 수입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 비교 가능한 직전 발표가 없는 경우입니다.
+            unit: count
+      - name: latest_forecast_hour_count
+        description: 최신 발표에서 해당 장소·예보일에 포함된 서로 다른 예보 대상 시각 수입니다.
+        data_type: bigint
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: false
+            null_meaning: 집계 값이므로 null을 허용하지 않습니다.
+            unit: count
+      - name: previous_forecast_hour_count
+        description: 직전 발표에서 해당 장소·예보일에 포함된 서로 다른 예보 대상 시각 수입니다.
+        data_type: bigint
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 비교 가능한 직전 발표가 없는 경우입니다.
+            unit: count
+      - name: latest_min_temp_c
+        description: 최신 발표가 예보한 해당 날짜의 최저기온이며 TMN이 없으면 시간별 TMP 최솟값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 최신 발표에 TMN과 수치형 TMP가 모두 없어 최저기온을 계산할 수 없는 경우입니다.
+            unit: celsius
+      - name: previous_min_temp_c
+        description: 직전 발표가 예보한 해당 날짜의 최저기온이며 TMN이 없으면 시간별 TMP 최솟값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 직전 발표가 없거나 직전 발표에 TMN과 수치형 TMP가 모두 없는 경우입니다.
+            unit: celsius
+      - name: min_temp_change_c
+        description: 최신 최저기온에서 직전 최저기온을 뺀 변화량입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 최신 또는 직전 최저기온 중 하나가 없어 변화량을 계산할 수 없는 경우입니다.
+            unit: celsius
+      - name: latest_max_temp_c
+        description: 최신 발표가 예보한 해당 날짜의 최고기온이며 TMX가 없으면 시간별 TMP 최댓값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 최신 발표에 TMX와 수치형 TMP가 모두 없어 최고기온을 계산할 수 없는 경우입니다.
+            unit: celsius
+      - name: previous_max_temp_c
+        description: 직전 발표가 예보한 해당 날짜의 최고기온이며 TMX가 없으면 시간별 TMP 최댓값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 직전 발표가 없거나 직전 발표에 TMX와 수치형 TMP가 모두 없는 경우입니다.
+            unit: celsius
+      - name: max_temp_change_c
+        description: 최신 최고기온에서 직전 최고기온을 뺀 변화량입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 최신 또는 직전 최고기온 중 하나가 없어 변화량을 계산할 수 없는 경우입니다.
+            unit: celsius
+      - name: latest_max_precip_prob_pct
+        description: 최신 발표에서 해당 날짜의 시간별 강수확률 중 최댓값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 최신 발표에 수치형 POP가 없어 최대 강수확률을 계산할 수 없는 경우입니다.
+            unit: percent
+      - name: previous_max_precip_prob_pct
+        description: 직전 발표에서 해당 날짜의 시간별 강수확률 중 최댓값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 직전 발표가 없거나 직전 발표에 수치형 POP가 없는 경우입니다.
+            unit: percent
+      - name: max_precip_prob_change_pct
+        description: 최신 최대 강수확률에서 직전 최대 강수확률을 뺀 퍼센트포인트 변화량입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 최신 또는 직전 최대 강수확률 중 하나가 없어 변화량을 계산할 수 없는 경우입니다.
+            unit: percentage_point
+      - name: latest_first_precipitation_at
+        description: 최신 발표에서 PTY가 0이 아닌 첫 KST 예보 대상 시각입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: 해당 예보일에 비나 눈 형태가 예보되지 않은 경우입니다.
+            time_role: latest_first_precipitation_forecast
+            timezone: Asia/Seoul
+            unit: not_applicable
+      - name: previous_first_precipitation_at
+        description: 직전 발표에서 PTY가 0이 아닌 첫 KST 예보 대상 시각입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: 직전 발표가 없거나 해당 예보일에 비나 눈 형태가 예보되지 않은 경우입니다.
+            time_role: previous_first_precipitation_forecast
+            timezone: Asia/Seoul
             unit: not_applicable
       - name: change_state
         description: 이전 발표 없음, 부분 비교, 변경, 동일을 구분한 상태입니다.
@@ -95,4 +314,27 @@ models:
             semantic_role: quality_state
             nullable: false
             null_meaning: change_state 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
+      - name: latest_collected_at_max
+        description: 최신 발표 비교행을 구성한 원천 예보 중 가장 늦은 수집 시각입니다.
+        data_type: timestamp(6)
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 최신 발표의 수집 시각이 없으면 freshness를 판정할 수 없어 허용하지 않습니다.
+            time_role: latest_collection
+            timezone: Asia/Seoul
+            unit: not_applicable
+      - name: previous_collected_at_max
+        description: 직전 발표 비교행을 구성한 원천 예보 중 가장 늦은 수집 시각입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: 비교 가능한 직전 발표가 없는 경우입니다.
+            time_role: previous_collection
+            timezone: Asia/Seoul
             unit: not_applicable
