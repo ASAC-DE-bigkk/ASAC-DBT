@@ -679,12 +679,12 @@ models:
           product_question: 이 동네는 언제 교통이 막히고 돌발이 잦습니까?
           grain: (time_bucket, admin_dong_code) 마다 한 행 — 동·시간 교통×돌발.
           primary_key: [time_bucket, admin_dong_code]
-          publication_mode: snapshot
+          publication_mode: append   # 성장형 시계열 — 새 time_bucket 만 게시(전량 snapshot 아님)
           zero_policy: retain_last_good
           publication_trigger:
-            schedule_cron: 15 * * * *
+            schedule_cron: 30 0 * * *
           event_time: time_bucket
-          freshness_slo_minutes: 150
+          freshness_slo_minutes: 1560   # daily 게시(전일 시각들) — 최신 데이터 ~26h 이내
           shape: rollup
           usage_patterns:
             - pattern_id: incident_prone_dongs_at_time
@@ -770,12 +770,12 @@ models:
           product_question: 날씨가 이 동네 붐빔에 어떻게 영향을 줍니까?
           grain: (time_bucket, admin_dong_code) 마다 한 행 — 동·시간 인구×기상.
           primary_key: [time_bucket, admin_dong_code]
-          publication_mode: snapshot
+          publication_mode: append   # 성장형 시계열 — 새 time_bucket 만 게시(전량 snapshot 아님)
           zero_policy: retain_last_good
           publication_trigger:
-            schedule_cron: 15 * * * *
+            schedule_cron: 30 0 * * *
           event_time: time_bucket
-          freshness_slo_minutes: 150
+          freshness_slo_minutes: 1560   # daily 게시(전일 시각들) — 최신 데이터 ~26h 이내
           shape: rollup
           usage_patterns:
             - pattern_id: crowded_dongs_when_raining
