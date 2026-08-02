@@ -1248,6 +1248,10 @@ models:
       - name: reliable
         data_type: boolean
         description: 표본 충분 여부 (base_n>=30) — false 셀은 참고용
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, dow, hr]
 
   - name: gold_citydata_air_daily
     config:
@@ -1263,9 +1267,10 @@ models:
           publication_mode: append
           zero_policy: retain_last_good
           event_time: event_date
+          freshness_slo_minutes: 1560
           publication_trigger:
             schedule_cron: 30 0 * * *
-          shape: timeseries
+          shape: rollup
           usage_patterns:
             - pattern_id: air_trend_for_place
               question_ko: 이 장소 최근 며칠 미세먼지 추이는?
@@ -1334,6 +1339,10 @@ models:
       - name: base_n
         data_type: bigint
         description: 이 (장소·일자) 셀의 관측 표본 수
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, event_date]
 
   - name: gold_citydata_charger_dow_hour
     config:
@@ -1418,3 +1427,7 @@ models:
       - name: reliable
         data_type: boolean
         description: 표본 충분 여부 (base_n>=30) — false 셀은 참고용
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, dow, hr]
