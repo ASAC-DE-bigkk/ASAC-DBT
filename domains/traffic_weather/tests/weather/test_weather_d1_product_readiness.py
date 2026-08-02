@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import yaml
+
+
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+GOLD_DIR = PROJECT_DIR / "models" / "weather" / "transform" / "gold"
+GOLD_TEST_DIR = PROJECT_DIR / "tests" / "weather" / "transform" / "gold"
+SELECTORS_PATH = PROJECT_DIR / "selectors.yml"
+DBT_PROJECT_PATH = PROJECT_DIR / "dbt_project.yml"
+
+CURRENT_MODEL = GOLD_DIR / "gold_weather_place_current_outlook.yml"
+CURRENT_SQL = GOLD_DIR / "gold_weather_place_current_outlook.sql"
+PRECIP_MODEL = GOLD_DIR / "gold_weather_place_precipitation_window.yml"
+
+CURRENT_READINESS_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_current_outlook_readiness.sql"
+PRECIP_VALID_EMPTY_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_precipitation_window_valid_empty.sql"
+PRECIP_NON_OVERLAPPING_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_precipitation_window_non_overlapping.sql"
+
+CURRENT_PUBLIC_PROJECTION = [
+    "product_row_id", "place_id", "place_name", "alias_names", "admin_dong_code", "admin_dong",
+    "gu_code", "gu", "latitude", "longitude", "forecast_at", "forecast_category_count",
+    "forecast_issued_at_min", "forecast_issued_at_max", "forecast_collected_at_max", "temp_c",
+    "humidity_pct", "wind_ms", "wind_dir_deg", "precip_prob_pct", "sky_code", "sky_label",
+    "pty_code", "pty_label", "is_precipitating", "pcp_raw", "pcp_mm", "sno_raw", "sno_cm",
+    "forecast_lead_hours",
+]
+PRECIP_PUBLIC_PROJECTION = ["product_row_id", "place_id", "window_start_at", "window_end_at"]
+
+
+def _model(path: Path) -> dict:
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return payload["models"][0]
+
+
+def _columns(model: dict) -> dict[str, dict]:
+    return {column["name"]: column for column in model["columns"]}
+
+
+def _test_names(column: dict) -> set[str]:
+    names: set[str] = set()
+    for test in column.get("tests", []):
+        if isinstance(test, str):
+            names.add(test)
+        elif isinstance(test, dict):
+            names.update(test)
+    return names
+
+
+def test_weather_wave_a_serving_contracts_keep_truth_labels() -> None:
+    current = _model(CURRENT_MODEL)
+    precipitation = _model(PRECIP_MODEL)
+
+    current_serving = current["config"]["meta"]["serving"]
+    precip_serving = precipitation["config"]["meta"]["serving"]
+
+    assert current_serving["zero_policy"] == "fail"
+    assert precip_serving["zero_policy"] == "allow"
+    assert current_serving["public_projection"]["columns"] == CURRENT_PUBLIC_PROJECTION
+    assert precip_serving["public_projection"]["columns"] == PRECIP_PUBLIC_PROJECTION
+    assert "snapshot_as_of_hour" not in current_serving["public_projection"]["columns"]
+
+    assert "예보" in current["description"]
+    assert "실측" in current["config"]["meta"]["public_gold"]["semantic_caveats"]
+    assert "예보" in precipitation["description"]
+    assert "관측" in precipitation["description"]
+    assert "보장" in precipitation["description"]
+
+
+def test_current_outlook_declares_internal_snapshot_anchor_without_public_projection() -> None:
+    model = _model(CURRENT_MODEL)
+    columns = _columns(model)
+    public_gold = model["config"]["meta"]["public_gold"]
+    public_projection = model["config"]["meta"]["serving"]["public_projection"]["columns"]
+
+    assert "snapshot_as_of_hour" in columns
+    assert list(columns) == public_gold["column_order"]
+    assert "snapshot_as_of_hour" not in public_projection
+    anchor = columns["snapshot_as_of_hour"]
+    meta = anchor["config"]["meta"]
+
+    assert anchor["data_type"] == "timestamp(6)"
+    assert "not_null" in _test_names(anchor)
+    assert meta["semantic_role"] == "internal_build_anchor"
+    assert meta["visibility"] == "internal"
+    assert meta["nullable"] is False
+    assert meta["unit"] == "not_applicable"
+
+    sql = CURRENT_SQL.read_text(encoding="utf-8")
+    assert "snapshot_as_of_hour" in sql
+    assert "current_hour_at as snapshot_as_of_hour" in sql
+
+
+def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() -> None:
+    selectors = yaml.safe_load(SELECTORS_PATH.read_text(encoding="utf-8"))["selectors"]
+    selector_names = {selector["name"] for selector in selectors}
+    dbt_project = yaml.safe_load(DBT_PROJECT_PATH.read_text(encoding="utf-8"))
+
+    assert "ask_seoul_weather_transform_gold" in selector_names
+    assert dbt_project["data_tests"]["asac_seoul"]["weather"]["transform"]["gold"]["+tags"] == [
+        "ask_seoul_weather_transform_gold"
+    ]
+
+    expected = {
+        CURRENT_READINESS_TEST: [
+            "ref('gold_weather_place_current_outlook')",
+            "ref('gold_weather_place_hourly_outlook')",
+            "snapshot_as_of_hour",
+        ],
+        PRECIP_VALID_EMPTY_TEST: [
+            "ref('gold_weather_place_precipitation_window')",
+            "ref('gold_weather_place_hourly_outlook')",
+            "precipitation_hour_count",
+            "pty_code is null",
+        ],
+        PRECIP_NON_OVERLAPPING_TEST: [
+            "ref('gold_weather_place_precipitation_window')",
+            "precipitation_hour_count",
+            "date_diff('hour', window_start_at, window_end_at) + 1",
+        ],
+    }
+    for path, required_fragments in expected.items():
+        assert path.exists(), f"missing readiness singular test: {path.name}"
+        sql = path.read_text(encoding="utf-8")
+        for fragment in required_fragments:
+            assert fragment in sql, f"{path.name} missing {fragment}"

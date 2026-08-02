@@ -107,6 +107,7 @@ models:
             - forecast_issued_at_min
             - forecast_issued_at_max
             - forecast_collected_at_max
+            - snapshot_as_of_hour
             - temp_c
             - humidity_pct
             - wind_ms
@@ -330,6 +331,19 @@ models:
             nullable: false
             null_meaning: 수집시각이 없으면 적재 지연을 검증할 수 없습니다.
             time_role: collection
+            timezone: Asia/Seoul
+            unit: not_applicable
+      - name: snapshot_as_of_hour
+        description: 이 모델 빌드가 현재 예보를 선택할 때 사용한 서울 기준 시간 단위 내부 anchor입니다.
+        data_type: timestamp(6)
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: internal_build_anchor
+            visibility: internal
+            nullable: false
+            null_meaning: 내부 build anchor가 없으면 현재 예보 선택을 재현할 수 없습니다.
+            time_role: build_anchor
             timezone: Asia/Seoul
             unit: not_applicable
       - name: temp_c

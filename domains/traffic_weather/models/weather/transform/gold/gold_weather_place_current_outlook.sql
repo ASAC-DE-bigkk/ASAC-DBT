@@ -11,6 +11,7 @@ with kst_now as (
 ranked as (
     select
         hourly.*,
+        kst_now.current_hour_at as snapshot_as_of_hour,
         row_number() over (
             partition by hourly.place_id
             order by hourly.forecast_at asc, hourly.forecast_issued_at_max desc
@@ -36,6 +37,7 @@ select
     forecast_issued_at_min,
     forecast_issued_at_max,
     forecast_collected_at_max,
+    snapshot_as_of_hour,
     temp_c,
     humidity_pct,
     wind_ms,
