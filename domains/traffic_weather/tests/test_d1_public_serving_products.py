@@ -4,6 +4,8 @@ from pathlib import Path
 
 import yaml
 
+from serving_contract.projection_identity import projection_schema_hash
+
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 GOLD_DIRS = (
@@ -77,6 +79,19 @@ EXPECTED_PUBLIC_PROJECTIONS = {
         "profile_last_observed_at_kst", "baseline_state", "speed_delta_from_median",
         "speed_ratio_to_median", "anomaly_direction",
     ],
+}
+
+EXPECTED_PUBLIC_PROJECTION_HASHES = {
+    "traffic_flow_anomaly_current": "5973ee5d82abc24c34f3854976a0814bdbf94945233e2b9d790c038b74d509ef",
+    "traffic_flow_change_latest": "528a6fbefa3bf4776cf7f0f6f68b102359154389fe13b0c89ff413d3d5c47c9a",
+    "traffic_flow_congestion_hotspots_hourly": "65d41e4848057702d9a7ae4a7317a7a5f2641b82f33610c2ac6fa8e5f26ce6bd",
+    "traffic_flow_link_latest": "c42d19c3ca3981577f0415bd80adac76c7d8fb102024a0bd17c2f348a43420c0",
+    "traffic_flow_link_time_profile": "3481b492166efc5ae85240441b67a6e4fdd0f0d4eaf198b031f64ae5cef9fd35",
+    "traffic_incident_x_weather_current_hourly": "79e6a5ebaa7df4629292c71e32b3b47e3d5d41510b45a9abc6cab401d2693c23",
+    "weather_place_current_outlook": "62db82904ff1b66450676f3b64adc4d42c8729849f9e0ae83a9f8ec41ddef07b",
+    "weather_place_forecast_change_daily": "568069724825e1a4bfae52f42b071bde610f763de777a69acca2313190a7474d",
+    "weather_place_precipitation_window": "dc72be1fb400b38fd6389527b5e322fea374f043a54810690b13d685be5a8818",
+    "weather_place_risk_window": "607ea68ba39584686ec2c13d321c4e55ec6e32b207a425f24cd72b928666a37a",
 }
 
 INTERNAL_PUBLIC_FIELD_FRAGMENTS = {
@@ -198,6 +213,19 @@ def test_public_d1_products_declare_exact_ordered_public_projection() -> None:
             "schema_version": "1.0.0",
             "columns": expected_columns,
         }
+
+
+def test_public_d1_projection_identity_hashes_are_pinned() -> None:
+    models = _models()
+
+    assert set(EXPECTED_PUBLIC_PROJECTION_HASHES) == EXPECTED_PRODUCTS
+    for product_id, expected_hash in EXPECTED_PUBLIC_PROJECTION_HASHES.items():
+        model = models[f"gold_{product_id}"]
+        serving = model["config"]["meta"]["serving"]
+        columns = {column["name"]: column for column in model.get("columns", [])}
+
+        actual_hash = projection_schema_hash(serving["public_projection"], columns)
+        assert actual_hash == expected_hash, f"{product_id} projection identity drifted"
 
 
 def test_public_d1_projection_columns_are_declared_and_public_safe() -> None:
