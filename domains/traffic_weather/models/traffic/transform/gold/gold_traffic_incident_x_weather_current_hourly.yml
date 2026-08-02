@@ -40,31 +40,14 @@ models:
           shape: wide
           public_projection:
             schema_version: "1.0.0"
-            columns:
-              - product_row_id
-              - admin_dong_code
-              - hour_at
-              - admin_dong
-              - gu_code
-              - gu
-              - admin_dong_revision_date
-              - incident_count
-              - has_incident
-              - quality_state
-              - snapshot_as_of_at
-              - status_observed_at
-              - published_at
-              - weather_category_coverage_count
-              - weather_latest_issued_at
-              - weather_latest_collected_at
-              - weather_latest_published_at
-              - tmp_value_num
-              - pop_value_num
-              - reh_value_num
-              - wsd_value_num
-              - sky_qualitative_code
-              - pty_qualitative_code
-              - is_precipitating
+            columns: [
+              product_row_id, admin_dong_code, hour_at, admin_dong, gu_code, gu,
+              admin_dong_revision_date, incident_count, has_incident, quality_state,
+              snapshot_as_of_at, status_observed_at, published_at, weather_category_coverage_count,
+              weather_latest_issued_at, weather_latest_collected_at, weather_latest_published_at,
+              tmp_value_num, pop_value_num, reh_value_num, wsd_value_num, sky_qualitative_code,
+              pty_qualitative_code, is_precipitating,
+            ]
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
@@ -244,11 +227,7 @@ models:
               config:
                 tags: [traffic_gold_gate]
         config:
-          meta:
-            semantic_role: primary_key
-            nullable: false
-            null_meaning: 제품 기본 키이므로 null을 허용하지 않습니다.
-            unit: not_applicable
+          meta: {semantic_role: primary_key, nullable: false, null_meaning: '제품 기본 키이므로 null을 허용하지 않습니다.', unit: not_applicable}
       - name: admin_dong_code
         description: anchor에서 승계한 행안부 10자리 정본 행정동 코드입니다.
         data_type: varchar
@@ -257,11 +236,7 @@ models:
               config:
                 tags: [traffic_gold_gate]
         config:
-          meta:
-            semantic_role: join_key
-            nullable: false
-            null_meaning: natural grain과 정본 공간 조인에 필수이므로 null을 허용하지 않습니다.
-            unit: not_applicable
+          meta: {semantic_role: join_key, nullable: false, null_meaning: 'natural grain과 정본 공간 조인에 필수이므로 null을 허용하지 않습니다.', unit: not_applicable}
       - name: hour_at
         description: anchor에서 승계한 서울 기준 snapshot 평가 시간입니다.
         data_type: timestamp(6)
@@ -270,13 +245,7 @@ models:
               config:
                 tags: [traffic_gold_gate]
         config:
-          meta:
-            semantic_role: timestamp
-            nullable: false
-            null_meaning: 모든 행정동 cell이 공유하는 평가 시간 grain이므로 null을 허용하지 않습니다.
-            time_role: evaluation_bucket
-            timezone: Asia/Seoul
-            unit: not_applicable
+          meta: {semantic_role: timestamp, nullable: false, null_meaning: '모든 행정동 cell이 공유하는 평가 시간 grain이므로 null을 허용하지 않습니다.', time_role: evaluation_bucket, timezone: Asia/Seoul, unit: not_applicable}
       - name: admin_dong
         description: anchor에서 승계한 정본 행정동명입니다.
         data_type: varchar
@@ -285,11 +254,7 @@ models:
               config:
                 tags: [traffic_gold_gate]
         config:
-          meta:
-            semantic_role: spatial_stamp
-            nullable: false
-            null_meaning: 정본 행정동명이 없는 후보는 공개하지 않습니다.
-            unit: not_applicable
+          meta: {semantic_role: spatial_stamp, nullable: false, null_meaning: '정본 행정동명이 없는 후보는 공개하지 않습니다.', unit: not_applicable}
       - name: gu_code
         description: anchor에서 승계한 행안부 자치구 5자리 코드입니다.
         data_type: varchar

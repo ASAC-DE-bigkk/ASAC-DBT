@@ -35,37 +35,14 @@ models:
           shape: wide
           public_projection:
             schema_version: "1.0.0"
-            columns:
-              - product_row_id
-              - place_id
-              - place_name
-              - alias_names
-              - admin_dong_code
-              - admin_dong
-              - gu_code
-              - gu
-              - latitude
-              - longitude
-              - forecast_at
-              - forecast_category_count
-              - forecast_issued_at_min
-              - forecast_issued_at_max
-              - forecast_collected_at_max
-              - temp_c
-              - humidity_pct
-              - wind_ms
-              - wind_dir_deg
-              - precip_prob_pct
-              - sky_code
-              - sky_label
-              - pty_code
-              - pty_label
-              - is_precipitating
-              - pcp_raw
-              - pcp_mm
-              - sno_raw
-              - sno_cm
-              - forecast_lead_hours
+            columns: [
+              product_row_id, place_id, place_name, alias_names, admin_dong_code,
+              admin_dong, gu_code, gu, latitude, longitude, forecast_at,
+              forecast_category_count, forecast_issued_at_min, forecast_issued_at_max,
+              forecast_collected_at_max, temp_c, humidity_pct, wind_ms, wind_dir_deg,
+              precip_prob_pct, sky_code, sky_label, pty_code, pty_label,
+              is_precipitating, pcp_raw, pcp_mm, sno_raw, sno_cm, forecast_lead_hours,
+            ]
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
