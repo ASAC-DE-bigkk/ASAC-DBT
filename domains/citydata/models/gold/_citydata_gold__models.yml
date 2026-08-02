@@ -1334,3 +1334,87 @@ models:
       - name: base_n
         data_type: bigint
         description: 이 (장소·일자) 셀의 관측 표본 수
+
+  - name: gold_citydata_charger_dow_hour
+    config:
+      tags: ['daily']
+      meta:
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_charger_dow_hour
+          product_question: 이 장소는 무슨 요일 몇 시에 EV 충전소가 잘 빕니까?
+          grain: (area_cd, dow, hr) 마다 한 행 — 영역 요일×시간 충전소 가용 패턴.
+          primary_key: [area_cd, dow, hr]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
+          usage_patterns:
+            - pattern_id: charger_free_dow_hour_for_place
+              question_ko: 이 장소는 무슨 요일 몇 시에 충전소가 가장 잘 비나?
+              axes: 요일×시간 랭킹 — avg_available_pct DESC (장소 고정)
+              requires: [select_columns, sort]
+              sql: |
+                -- :area=강남역, :n=10
+                SELECT dow, hr, avg_available_pct, n_chargers
+                FROM gold_citydata_charger_dow_hour
+                WHERE area_nm = :area
+                ORDER BY avg_available_pct DESC LIMIT :n
+        display:
+          title: 요일·시간 충전소 가용 패턴
+          summary: 장소마다 무슨 요일 몇 시에 EV 충전소가 잘 비는지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
+          caveat: 상태변경 로그를 시간 as-of 리샘플링해 산출한 평균입니다. base_n·reliable 동봉 — reliable=false 셀은 참고용.
+          use_cases:
+            - 충전 잘 되는 요일·시간
+            - EV 충전 계획
+      contract: {enforced: true}
+    description: >
+      gold_citydata_charger_dow_hour — 장소×요일×시간 EV 충전소 가용 롤업. silver_citydata_charger
+      파생. 실시간 "지금 쓸 수 있나"(구 charger_availability, PlayMCP 커버·ASAC-DBT#401 제거) 대신
+      요일×시간 전형 패턴. ⚠ silver 가 상태변경 로그라 naive 평균은 편향 → 최근 3주 시간 as-of
+      리샘플링(각 시각 충전기 상태를 구간으로 판정)으로 평균. grain (area_cd, dow, hr) · table+replace.
+    columns:
+      - name: area_cd
+        data_type: varchar
+        description: 장소 코드 (POI###, grain 축)
+        tests: [not_null]
+      - name: area_nm
+        data_type: varchar
+        description: 장소명
+      - name: gu
+        data_type: varchar
+        description: 자치구명
+      - name: gu_code
+        data_type: varchar
+        description: 자치구 코드 (#48 공간축)
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명
+      - name: admin_dong_code
+        data_type: varchar
+        description: 행정동 코드 (행안부 canonical)
+      - name: area_category
+        data_type: varchar
+        description: 장소 카테고리
+      - name: dow
+        data_type: bigint
+        description: 요일 (1=월 … 7=일, Trino day_of_week, grain 축)
+        tests: [not_null]
+      - name: hr
+        data_type: bigint
+        description: 시간 (0~23, grain 축)
+        tests: [not_null]
+      - name: avg_available_pct
+        data_type: double
+        description: 그 요일·시간대 평균 충전기 가용률(%) = 사용가능 충전기-시간 / 전체 충전기-시간
+      - name: n_chargers
+        data_type: bigint
+        description: 이 장소의 충전기 수 (stat_id|charger_id 고유)
+      - name: base_n
+        data_type: bigint
+        description: 이 (장소·요일·시간) 셀의 표본 수 (충전기-시간 개수)
+      - name: reliable
+        data_type: boolean
+        description: 표본 충분 여부 (base_n>=30) — false 셀은 참고용
