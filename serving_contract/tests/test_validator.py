@@ -30,6 +30,7 @@ def _serving_model(
     name: str = "gold_projection_fixture",
     serving_overrides: dict | None = None,
     columns: dict | None = None,
+    column_contracts: dict | None = None,
 ) -> ServingModel:
     serving = {
         "enabled": True,
@@ -55,6 +56,7 @@ def _serving_model(
             "sample_count": (),
             "public_value": (),
         },
+        column_contracts=column_contracts or {},
     )
 
 
@@ -252,6 +254,37 @@ def test_public_projection_rejects_internal_or_secret_columns():
     result = validate([model])
 
     assert "public_projection_internal_field" in _rules(result.findings)
+
+
+def test_public_projection_rejects_not_null_column_declared_nullable():
+    model = _serving_model(
+        serving_overrides={
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["product_row_id"],
+            },
+        },
+        columns={"product_row_id": ("not_null", "unique")},
+        column_contracts={
+            "product_row_id": {
+                "name": "product_row_id",
+                "description": "public row identifier",
+                "data_type": "varchar",
+                "config": {
+                    "meta": {
+                        "semantic_role": "primary_key",
+                        "nullable": True,
+                        "null_meaning": "null means the identifier is unavailable",
+                        "unit": "not_applicable",
+                    }
+                },
+            }
+        },
+    )
+
+    result = validate([model])
+
+    assert "public_projection_nullability_conflict" in _rules(result.findings)
 
 
 def test_projection_identity_hash_preserves_order_and_ignores_descriptions():

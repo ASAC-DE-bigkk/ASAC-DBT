@@ -360,6 +360,11 @@ def _check_projected_column_metadata(model: ServingModel, column: str, add) -> N
     missing = [field for field, value in required_fields.items() if value in (None, "")]
     if missing:
         add("public_projection_column_metadata_missing", f"public_projection column '{column}' 메타데이터 누락: {missing}")
+    if "not_null" in model.columns.get(column, ()) and meta.get("nullable") is True:
+        add(
+            "public_projection_nullability_conflict",
+            f"public_projection column '{column}' 은 not_null 테스트와 nullable=true 를 함께 선언할 수 없다",
+        )
 
 
 def _check_global(models: list[ServingModel]) -> list[Finding]:

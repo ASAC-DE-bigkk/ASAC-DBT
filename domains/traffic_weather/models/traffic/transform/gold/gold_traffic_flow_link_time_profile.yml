@@ -100,8 +100,8 @@ models:
         config:
           meta:
             semantic_role: timestamp
-            nullable: true
-            null_meaning: last_observed_at_kst 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            nullable: false
+            null_meaning: last_observed_at_kst 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
             unit: not_applicable
       - name: kst_day_of_week
         description: 서울 기준 요일 번호입니다.

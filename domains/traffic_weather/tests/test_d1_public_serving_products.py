@@ -221,3 +221,22 @@ def test_public_d1_projection_columns_are_declared_and_public_safe() -> None:
             assert isinstance(meta.get("nullable"), bool), f"{product_id}.{column_name} missing nullable boolean"
             assert meta.get("null_meaning"), f"{product_id}.{column_name} missing null_meaning"
             assert meta.get("unit"), f"{product_id}.{column_name} missing unit"
+
+
+def test_public_d1_not_null_projection_columns_are_non_nullable() -> None:
+    models = _models()
+    conflicts: list[str] = []
+
+    for product_id, projected_columns in EXPECTED_PUBLIC_PROJECTIONS.items():
+        model = models[f"gold_{product_id}"]
+        columns = {column["name"]: column for column in model.get("columns", [])}
+
+        for column_name in projected_columns:
+            column = columns[column_name]
+            if "not_null" not in _test_names(column):
+                continue
+            nullable = column.get("config", {}).get("meta", {}).get("nullable")
+            if nullable is not False:
+                conflicts.append(f"{product_id}.{column_name}")
+
+    assert not conflicts, f"not_null projection columns declared nullable: {conflicts}"
