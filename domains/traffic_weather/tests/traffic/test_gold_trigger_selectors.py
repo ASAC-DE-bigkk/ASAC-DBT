@@ -81,6 +81,7 @@ EXPECTED_INCIDENT_SILVER_MODELS = {
     "silver_seoul_traffic_incident_current",
 }
 EXPECTED_D1_HOT_MODELS = {
+    "gold_traffic_incident_current_by_admin_dong_hourly",
     "gold_traffic_incident_x_weather_current_hourly",
     *EXPECTED_FLOW_MODELS,
 }
@@ -434,7 +435,10 @@ def test_hot_build_selectors_resolve_exact_models_and_compound_receipts(
     ) == {"assert_traffic_gold_serving_publication_receipt"}
     assert _resolved_names(
         resolved_selector_project, GOLD_INCIDENT_HOT_BUILD, "model"
-    ) == {"gold_traffic_incident_x_weather_current_hourly"}
+    ) == {
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+        "gold_traffic_incident_x_weather_current_hourly",
+    }
     assert _resolved_names(
         resolved_selector_project, GOLD_INCIDENT_HOT_BUILD, "test"
     ) == {"assert_traffic_gold_serving_publication_receipt"}

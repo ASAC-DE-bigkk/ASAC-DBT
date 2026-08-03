@@ -267,9 +267,10 @@ selectors:
         - {method: fqn, value: assert_traffic_flow_silver_publication_receipt, indirect_selection: empty}
 
   - name: ask_seoul_traffic_transform_gold_hot_build
-    description: Six Traffic D1 serving models and their compound publication receipt.
+    description: Pinned Incident anchor, six Traffic D1 serving models, and their compound receipt.
     definition:
       union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_flow_link_latest, indirect_selection: empty}
@@ -279,9 +280,10 @@ selectors:
         - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
 
   - name: ask_seoul_traffic_transform_gold_incident_hot_build
-    description: Incident-only Traffic D1 model and compound receipt without Flow branches.
+    description: Pinned Incident anchor, incident-only D1 model, and receipt without Flow branches.
     definition:
       union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
         - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
 
