@@ -7,12 +7,16 @@
 -- 활동 원천·기간 전개는 int_culture_activity_days 공유. kcisa 는 activity_type 별도 유지(kcisa_count).
 -- free/edu 카운트(#280): free_access(티어링 #19) 흡수 — event 소스만 유무료·카테고리 보유.
 --   해석적 이름(family_friendly) 대신 기술적 카운트만 — "가족적합" 해석은 Q&A 레이어 몫(governed).
--- 🔑 카운트 두 갈래(#406) — 더해도 되는 열과 안 되는 열이 섞여 있다:
---   원천 유형 5종  performances·events·exhibitions·sejong·kcisa → 이 합이 activities_count
---   부분집합 지표 4종  festivals(공연 중 KOPIS 축제) · free_events·edu_experience_events·
---                     festival_events(모두 행사 중 일부) → 위 5종에 이미 포함, 더하면 중복
---   festivals_count 를 원천 유형처럼 6번째로 세면 KOPIS 축제(301건)가 공연과 이중계상된다
---   — mt20id 를 공연목록·축제목록이 공유하기 때문이고, 실측으로 합이 1,106 만큼 어긋났다.
+-- 🔑 유형 열은 합산용이 아니다(#406) — activities_count 가 총계의 정본이다:
+--   원천 유형 5종  performances·events·exhibitions·sejong·kcisa
+--   부분집합 지표 4종  festivals(KOPIS 축제) · free_events·edu_experience_events·
+--                     festival_events(행사 중 일부) → 위 5종과 겹친다, 더하면 중복
+--   festivals_count 를 원천 유형처럼 6번째로 세면 KOPIS 축제가 공연과 이중계상된다
+--   — mt20id 를 공연목록·축제목록이 공유하기 때문이고, 실측으로 합이 1,106 어긋났다.
+--   ⚠ 반대로 "5종 합 == activities_count" 도 불변식이 아니다: 축제목록에만 잡히는 날이
+--   있으면(두 API 의 기간 정보가 다를 수 있다) 어느 유형 열에도 안 잡힌다. 이 그레인의
+--   현재 데이터에선 0건이지만, 같은 원천을 쓰는 location_daily 는 gu 축에서 522 활동-일이
+--   그 경우다. 그래서 총계는 언제나 activities_count 를 쓰게 계약에 못 박았다.
 
 with dim as (
     select admin_dong_code, admin_dong, gu_code, gu, stat_region_cd
