@@ -11,7 +11,7 @@ version: 2
 models:
   # ═══ 화면 1: 상권 흐름(market-flow) ═══
   - name: gold_license_flow_daily
-    description: 개업/폐업 흐름 일 grain × 업종3단 × 지역3축 — '언제·어디서·무슨 업종이 생기고 닫혔나' 추이 정본. 완결일만(append, 재실행 0건).
+    description: 개업/폐업 흐름 일 grain × 업종3단 × 지역3축 — '언제·어디서·무슨 업종이 생기고 닫혔나' 추이 정본. 완결일만(당일 제외). 소급 신고가 건드린 날은 다음 증분이 그 날만 재계산해 교체(#603, src_collected_at 워터마크).
     config:
       contract: {enforced: true}
       meta:
@@ -56,11 +56,11 @@ models:
         tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
-        description: 행정동코드 10자리. 결측 'UNK'(이벤트 가중 약 42% — 동 축 절대량 비교 부적합).
+        description: 행정동코드 10자리. 결측 'UNK'(마스킹 주소 등 — 비율은 시점에 따라 변해 품질 실측으로 관측. 동 축 절대량 비교는 부적합).
         tests: [not_null]
       - name: legal_code
         data_type: varchar
-        description: 법정동코드 10자리. 결측 'UNK'(약 42%).
+        description: 법정동코드 10자리. 결측 'UNK'(비율은 품질 실측으로 관측).
         tests: [not_null]
       - name: major
         data_type: varchar
@@ -104,7 +104,7 @@ models:
         data_type: varchar
         description: 중분류 한글
   - name: gold_license_flow_monthly
-    description: 개업/폐업 흐름 월 grain × 업종3단 × 지역3축 — 월별 상권 증감 추이(화면 기본 해상도). 완결월만(append, 재실행 0건).
+    description: 개업/폐업 흐름 월 grain × 업종3단 × 지역3축 — 월별 상권 증감 추이(화면 기본 해상도). 완결월만(당월 제외). 소급 신고가 건드린 달은 다음 증분이 그 달만 재계산해 교체(#603, src_collected_at 워터마크).
     config:
       contract: {enforced: true}
       meta:
@@ -435,7 +435,7 @@ models:
         tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
-        description: 행정동코드 10자리. 결측 'UNK'(약 42%).
+        description: 행정동코드 10자리. 결측 'UNK'(비율은 품질 실측으로 관측).
         tests: [not_null]
       - name: legal_code
         data_type: varchar
@@ -479,7 +479,7 @@ models:
         data_type: varchar
         description: 중분류 한글
   - name: gold_license_flow_yearly
-    description: 개업/폐업 흐름 연 grain × 업종3단 × 지역3축 — 장기(수십 년) 상권 추세. 완결연만(append, 재실행 0건).
+    description: 개업/폐업 흐름 연 grain × 업종3단 × 지역3축 — 장기(수십 년) 상권 추세. 완결연만(당년 제외). 소급 신고가 건드린 연도는 다음 증분이 그 연도만 재계산해 교체(#603, src_collected_at 워터마크).
     config:
       contract: {enforced: true}
       meta:
