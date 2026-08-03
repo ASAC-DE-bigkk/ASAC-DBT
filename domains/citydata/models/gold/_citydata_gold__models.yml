@@ -861,17 +861,43 @@ models:
       tags: ['daily']
       meta:
         serving:
-          enabled: false
-          external: false
+          enabled: true
+          external: true
           product_id: citydata_ppltn_demographics
           product_question: 이 장소는 어떤 성별·나이대가 언제 몰립니까?
           grain: (area_cd, dow, hour, segment_type, segment) 마다 한 행 — 방문객 구성 패턴.
           primary_key: [area_cd, dow, hour, segment_type, segment]
-          publication_mode: snapshot
+          # 전이력 평균이라 골드는 매 run 전량 재계산(table)하되, D1 은 바뀐 버킷만 증분 upsert 한다.
+          # reader 가 D1 max(last_event_at) 이후 그레인만 읽어 그 PK 만 INSERT OR REPLACE(나머지 보존).
+          publication_mode: upsert
+          upsert_strategy: incremental
+          event_time: last_event_at        # 증분 워터마크 컬럼
+          freshness_slo_minutes: 1560       # event_time 선언 시 필수(v1.1). 일 재빌드라 ppltn_daily 와 동일값
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: 30 0 * * *
           shape: rollup
+          usage_patterns:
+            - pattern_id: top_places_for_segment_at_time
+              question_ko: 토요일 14시 20대가 가장 많은 지역은?
+              axes: 장소 랭킹 — avg_est_headcount DESC (요일·시간·세그먼트 고정)
+              requires: [select_columns, filter_set, sort]
+              sql: |
+                -- :dow=6, :hour=14, :segment=20, :n=10
+                SELECT area_nm, area_category, avg_est_headcount, avg_rate_pct
+                FROM gold_citydata_ppltn_demographics
+                WHERE dow = :dow AND hour = :hour AND segment_type = 'age' AND segment = :segment
+                ORDER BY avg_est_headcount DESC LIMIT :n
+            - pattern_id: segment_mix_for_place_at_time
+              question_ko: 이 장소 이 요일·시간의 주 연령대는?
+              axes: 세그먼트 랭킹 — avg_est_headcount DESC (장소·요일·시간 고정)
+              requires: [select_columns, filter_set, sort]
+              sql: |
+                -- :area=홍대 관광특구, :dow=6, :hour=20
+                SELECT segment, avg_rate_pct, avg_est_headcount
+                FROM gold_citydata_ppltn_demographics
+                WHERE area_nm = :area AND dow = :dow AND hour = :hour AND segment_type = 'age'
+                ORDER BY avg_est_headcount DESC
         display:
           title: 방문객 인구통계 패턴
           summary: 장소·요일·시간대별로 방문객의 성별·나이대 비율 패턴을 제공합니다. "20대는 언제 몰리나"에 답합니다.
@@ -886,7 +912,8 @@ models:
       silver_ppltn 의 wide 비율을 long 으로 언피벗해 요일×시간대 평균 집계
       (avg_rate_pct·avg_est_headcount). 해결 질문: "토요일 14시 20대가 많은 지역은",
       "이 장소 주중 저녁의 주 연령대는" — segment 필터 + avg_est_headcount 정렬.
-      grain (area_cd, dow, hour, segment_type, segment) · 갱신 slow · 적재 table+replace(통째 재빌드).
+      grain (area_cd, dow, hour, segment_type, segment) · 갱신 slow · 골드 table+replace(통째 재빌드).
+      D1 서빙은 incremental upsert — last_event_at 워터마크로 바뀐 버킷만 그 PK 만 갱신(쓰기 절약).
       ⚠ 성별×나이대 교차는 원본에 없어 미포함 — age headcount × gender rate 근사(독립가정) ·
       avg_est_headcount 는 인구범위 중간값 기반 추정치.
     columns:
@@ -943,6 +970,10 @@ models:
       - name: sample_count
         data_type: bigint
         description: 집계된 5분 실측 스냅샷 수 (신뢰도 지표)
+      - name: last_event_at
+        data_type: timestamp(6)
+        description: 이 버킷에 기여한 가장 최근 event_at — 증분 서빙 워터마크(표시용 아님, 신선도 참고)
+        tests: [not_null]
 
     tests:
       - dbt_utils.unique_combination_of_columns:
