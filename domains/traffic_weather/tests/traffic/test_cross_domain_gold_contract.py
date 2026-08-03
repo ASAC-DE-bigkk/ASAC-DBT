@@ -16,6 +16,10 @@ CITYDATA_SCHEMA = (
     "'citydata' if target.name == 'prod' else 'seoul_citydata') }}"
 )
 WEATHER_MODEL_PATH = GOLD_DIR / "gold_traffic_incident_x_weather_current_hourly.sql"
+WEATHER_NO_HINDSIGHT_TEST_PATH = (
+    GOLD_TEST_DIR
+    / "assert_gold_traffic_incident_x_weather_current_hourly_no_hindsight.sql"
+)
 CITYDATA_MODEL_PATH = (
     GOLD_DIR / "gold_traffic_incident_x_citydata_crowding_current_hourly.sql"
 )
@@ -107,13 +111,19 @@ def test_weather_cross_domain_gold_contract() -> None:
     compact_sql = _compact(sql)
 
     assert "ref('gold_traffic_incident_current_by_admin_dong_hourly')" in sql
-    assert "ref('asac_seoul', 'gold_weather_forecast_by_admin_dong')" in sql
-    assert "traffic.admin_dong_code = weather.admin_dong_code" in compact_sql
+    assert "ref('bridge_weather_admin_dong_grid')" in sql
+    assert "ref('silver_kma_vilage_fcst_grid')" in sql
+    assert "ref('asac_seoul', 'gold_weather_forecast_by_admin_dong')" not in sql
+    assert "cast(bridge_version as varchar) = 'weather_admin_dong_grid_bridge_v1'" in compact_sql
+    assert "traffic.admin_dong_code = weather_bridge.admin_dong_code" in compact_sql
+    assert "weather_bridge.nx = weather.nx" in compact_sql
+    assert "weather_bridge.ny = weather.ny" in compact_sql
     assert (
         "cast(date_trunc('hour', weather.forecast_at) as timestamp(6)) = traffic.hour_at"
         in compact_sql
     )
     assert "weather.issued_at <= traffic.status_observed_at" in compact_sql
+    assert "weather_w2_grid_winner_order_key('weather')" in sql
     assert "lower(weather.category) in ('tmp', 'pop', 'reh', 'wsd', 'sky', 'pty')" in compact_sql
     assert "cast(weather.value_num as double) as value_num" in compact_sql
     assert "cast(weather.qualitative_code as varchar) as qualitative_code" in compact_sql
@@ -131,6 +141,20 @@ def test_weather_cross_domain_gold_contract() -> None:
     assert "traffic.incident_count" in compact_sql
     assert "traffic.has_incident" in compact_sql
     assert "traffic.quality_state" in compact_sql
+
+
+def test_weather_no_hindsight_guard_detects_missing_expected_categories() -> None:
+    sql = _compact(WEATHER_NO_HINDSIGHT_TEST_PATH.read_text(encoding="utf-8"))
+
+    assert "count(distinct lower(cast(weather.category as varchar)))" in sql
+    assert "expected_category_coverage_count" in sql
+    assert "weather_category_coverage_count" in sql
+    assert "full outer join eligible_weather" in sql
+    assert (
+        "gold.weather_category_coverage_count is distinct from "
+        "eligible_weather.expected_category_coverage_count"
+        in sql
+    )
 
 
 def test_citydata_source_contract_lives_in_traffic_sources() -> None:

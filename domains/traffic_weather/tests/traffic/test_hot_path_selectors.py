@@ -58,15 +58,17 @@ def test_hot_path_selectors_define_exact_traffic_models_and_receipts():
         FLOW_RECEIPT,
     }
     assert _explicit_fqns(selectors[GOLD_HOT]) == TRAFFIC_D1_MODELS | {
-        GOLD_RECEIPT
+        TRAFFIC_INCIDENT_ANCHOR,
+        GOLD_RECEIPT,
     }
     assert _explicit_fqns(selectors[GOLD_INCIDENT_HOT]) == {
+        TRAFFIC_INCIDENT_ANCHOR,
         "gold_traffic_incident_x_weather_current_hourly",
         GOLD_RECEIPT,
     }
 
 
-def test_gold_bootstrap_selectors_add_only_the_missing_incident_anchor():
+def test_gold_bootstrap_selectors_preserve_the_always_rebuilt_incident_anchor():
     selectors = _selectors()
 
     assert _explicit_fqns(selectors[GOLD_BOOTSTRAP_HOT]) == (
@@ -116,6 +118,10 @@ def test_compound_receipts_are_fail_closed_for_pinned_identity_and_critical_keys
     assert "duplicate_link_id" in flow
 
     assert "var('traffic_flow_snapshot_dag_run_id', '')" in gold
+    assert "var('traffic_snapshot_dag_run_id', '')" in gold
+    assert "missing_pinned_incident_run" in gold
+    assert "stale_incident_snapshot" in gold
+    assert TRAFFIC_INCIDENT_ANCHOR in gold
     assert "invalid_product_row_id" in gold
     assert "duplicate_product_row_id" in gold
     assert "ref(model_name)" in gold

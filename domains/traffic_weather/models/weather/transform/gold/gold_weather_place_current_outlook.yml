@@ -33,6 +33,16 @@ models:
           event_time: forecast_at
           freshness_slo_minutes: 240
           shape: wide
+          public_projection:
+            schema_version: "1.0.0"
+            columns: [
+              product_row_id, place_id, place_name, alias_names, admin_dong_code,
+              admin_dong, gu_code, gu, latitude, longitude, forecast_at,
+              forecast_category_count, forecast_issued_at_min, forecast_issued_at_max,
+              forecast_collected_at_max, temp_c, humidity_pct, wind_ms, wind_dir_deg,
+              precip_prob_pct, sky_code, sky_label, pty_code, pty_label,
+              is_precipitating, pcp_raw, pcp_mm, sno_raw, sno_cm, forecast_lead_hours,
+            ]
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
@@ -74,6 +84,7 @@ models:
             - forecast_issued_at_min
             - forecast_issued_at_max
             - forecast_collected_at_max
+            - snapshot_as_of_hour
             - temp_c
             - humidity_pct
             - wind_ms
@@ -150,6 +161,7 @@ models:
             semantic_role: primary_key
             nullable: false
             null_meaning: 공개 제품 기본 키이므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: place_id
         description: 매핑된 장소의 안정 식별자입니다.
         data_type: varchar
@@ -159,6 +171,7 @@ models:
             semantic_role: join_key
             nullable: false
             null_meaning: natural grain이므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: place_name
         description: 장소명입니다.
         data_type: varchar
@@ -168,6 +181,7 @@ models:
             semantic_role: descriptive_attribute
             nullable: false
             null_meaning: 매핑된 장소는 이름을 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: alias_names
         description: 장소의 별칭 목록입니다.
         data_type: varchar
@@ -177,6 +191,7 @@ models:
             semantic_role: descriptive_attribute
             nullable: false
             null_meaning: 장소 매핑 seed가 별칭 필드를 항상 채우므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: admin_dong_code
         description: 이 장소가 속한 행정동 10자리 코드입니다(장소 매핑에서 승계, 별도 공간 계약 없음).
         data_type: varchar
@@ -186,6 +201,7 @@ models:
             semantic_role: spatial_reference
             nullable: false
             null_meaning: 매핑된 장소는 행정동 코드를 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: admin_dong
         description: 행정동명입니다(장소 매핑에서 승계).
         data_type: varchar
@@ -195,6 +211,7 @@ models:
             semantic_role: spatial_reference
             nullable: false
             null_meaning: 매핑된 장소는 행정동명을 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: gu_code
         description: 자치구 5자리 코드입니다(장소 매핑에서 승계).
         data_type: varchar
@@ -204,6 +221,7 @@ models:
             semantic_role: spatial_reference
             nullable: false
             null_meaning: 매핑된 장소는 자치구 코드를 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: gu
         description: 자치구명입니다(장소 매핑에서 승계).
         data_type: varchar
@@ -213,6 +231,7 @@ models:
             semantic_role: spatial_reference
             nullable: false
             null_meaning: 매핑된 장소는 자치구명을 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: latitude
         description: 장소의 위도입니다.
         data_type: double
@@ -222,6 +241,7 @@ models:
             semantic_role: spatial_coordinate
             nullable: false
             null_meaning: 매핑된 장소는 좌표를 보존하므로 null을 허용하지 않습니다.
+            unit: degree
       - name: longitude
         description: 장소의 경도입니다.
         data_type: double
@@ -231,6 +251,7 @@ models:
             semantic_role: spatial_coordinate
             nullable: false
             null_meaning: 매핑된 장소는 좌표를 보존하므로 null을 허용하지 않습니다.
+            unit: degree
       - name: forecast_at
         description: 예보 대상 서울 기준 시각(빌드 시점 현재 시 이상 중 가장 이른 것)입니다.
         data_type: timestamp(6)
@@ -242,6 +263,7 @@ models:
             null_meaning: 예보 대상 시각이 없는 행은 제품 grain을 만들 수 없습니다.
             time_role: event
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: forecast_category_count
         description: 이 예보시각에 실제로 확인된 KMA 카테고리 수입니다.
         data_type: bigint
@@ -251,6 +273,7 @@ models:
             semantic_role: analytical_value
             nullable: false
             null_meaning: 집계 값이므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: forecast_issued_at_min
         description: 이 예보시각을 구성하는 카테고리들의 KMA 발표시각 중 가장 이른 값입니다.
         data_type: timestamp(6)
@@ -262,6 +285,7 @@ models:
             null_meaning: 발표시각이 없는 행은 최신 예보를 결정할 수 없습니다.
             time_role: issue_min
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: forecast_issued_at_max
         description: 이 예보시각을 구성하는 카테고리들의 KMA 발표시각 중 가장 늦은 값입니다.
         data_type: timestamp(6)
@@ -273,6 +297,7 @@ models:
             null_meaning: 발표시각이 없는 행은 최신 예보를 결정할 수 없습니다.
             time_role: issue_max
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: forecast_collected_at_max
         description: 이 예보시각을 구성하는 카테고리들의 수집시각 중 가장 늦은 값입니다.
         data_type: timestamp(6)
@@ -284,6 +309,20 @@ models:
             null_meaning: 수집시각이 없으면 적재 지연을 검증할 수 없습니다.
             time_role: collection
             timezone: Asia/Seoul
+            unit: not_applicable
+      - name: snapshot_as_of_hour
+        description: 이 모델 빌드가 현재 예보를 선택할 때 사용한 서울 기준 시간 단위 내부 anchor입니다.
+        data_type: timestamp(6)
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: internal_build_anchor
+            visibility: internal
+            nullable: false
+            null_meaning: 내부 build anchor가 없으면 현재 예보 선택을 재현할 수 없습니다.
+            time_role: build_anchor
+            timezone: Asia/Seoul
+            unit: not_applicable
       - name: temp_c
         description: 이 예보시각의 기온입니다.
         data_type: double
@@ -292,6 +331,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: 해당 장소·예보시각에 TMP 카테고리가 없어 결측된 경우입니다.
+            unit: celsius
       - name: humidity_pct
         description: 이 예보시각의 상대습도입니다.
         data_type: double
@@ -300,6 +340,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: 해당 장소·예보시각에 REH 카테고리가 없어 결측된 경우입니다.
+            unit: percent
       - name: wind_ms
         description: 이 예보시각의 풍속입니다.
         data_type: double
@@ -308,6 +349,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: 해당 장소·예보시각에 WSD 카테고리가 없어 결측된 경우입니다.
+            unit: meter_per_second
       - name: wind_dir_deg
         description: 이 예보시각의 풍향입니다.
         data_type: double
@@ -316,6 +358,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: 해당 장소·예보시각에 VEC 카테고리가 없어 결측된 경우입니다.
+            unit: degree
       - name: precip_prob_pct
         description: 이 예보시각의 강수확률입니다.
         data_type: double
@@ -324,6 +367,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: 해당 장소·예보시각에 POP 카테고리가 없어 결측된 경우입니다.
+            unit: percent
       - name: sky_code
         description: KMA 하늘상태 코드입니다.
         data_type: varchar
@@ -336,6 +380,7 @@ models:
             semantic_role: categorical_value
             nullable: true
             null_meaning: 해당 장소·예보시각에 SKY 카테고리가 없어 결측된 경우입니다.
+            unit: not_applicable
       - name: sky_label
         description: sky_code를 사람이 읽는 한국어로 표현한 서빙 라벨입니다.
         data_type: varchar
@@ -344,6 +389,7 @@ models:
             semantic_role: derived_label
             nullable: true
             null_meaning: sky_code가 없거나 알려진 값(1/3/4)에 해당하지 않는 경우입니다.
+            unit: not_applicable
       - name: pty_code
         description: KMA 강수형태 코드입니다.
         data_type: varchar
@@ -356,6 +402,7 @@ models:
             semantic_role: categorical_value
             nullable: true
             null_meaning: 해당 장소·예보시각에 PTY 카테고리가 없어 결측된 경우입니다.
+            unit: not_applicable
       - name: pty_label
         description: pty_code를 사람이 읽는 한국어로 표현한 서빙 라벨입니다.
         data_type: varchar
@@ -364,6 +411,7 @@ models:
             semantic_role: derived_label
             nullable: true
             null_meaning: pty_code가 없거나 알려진 값(0~7)에 해당하지 않는 경우입니다.
+            unit: not_applicable
       - name: is_precipitating
         description: pty_code가 결측이 아니면서 '0'(없음)이 아닌지를 나타내는 파생 불리언입니다.
         data_type: boolean
@@ -373,6 +421,7 @@ models:
             semantic_role: derived_flag
             nullable: false
             null_meaning: pty_code null 여부를 이미 판정에 포함하므로 이 컬럼 자체는 null이 없습니다.
+            unit: not_applicable
       - name: pcp_raw
         description: PCP(강수량) 예보 값의 원문입니다.
         data_type: varchar
@@ -381,6 +430,7 @@ models:
             semantic_role: source_value
             nullable: true
             null_meaning: PCP 카테고리가 없어 결측된 경우입니다.
+            unit: not_applicable
       - name: pcp_mm
         description: PCP 원문에서 숫자로 파싱 가능했던 강수량(mm)입니다.
         data_type: double
@@ -389,6 +439,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: PCP 카테고리가 없거나 원문이 숫자로 파싱되지 않는 표현(범위·없음 등)인 경우입니다.
+            unit: millimeter
       - name: sno_raw
         description: SNO(적설) 예보 값의 원문입니다.
         data_type: varchar
@@ -397,6 +448,7 @@ models:
             semantic_role: source_value
             nullable: true
             null_meaning: SNO 카테고리가 없어 결측된 경우입니다.
+            unit: not_applicable
       - name: sno_cm
         description: SNO 원문에서 숫자로 파싱 가능했던 적설량(cm)입니다.
         data_type: double
@@ -405,6 +457,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: SNO 카테고리가 없거나 원문이 숫자로 파싱되지 않는 표현(범위·없음 등)인 경우입니다.
+            unit: centimeter
       - name: forecast_lead_hours
         description: 발표 시각부터 예보 대상 시각까지의 시간 차이입니다.
         data_type: bigint
@@ -414,6 +467,7 @@ models:
             semantic_role: derived_value
             nullable: false
             null_meaning: 발표와 예보 시각이 모두 있어야 하므로 null을 허용하지 않습니다.
+            unit: hour
       - name: representative_raw_object_key
         description: 이 행을 구성한 대표 원본 객체를 추적하는 안정 식별자입니다.
         data_type: varchar

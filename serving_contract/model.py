@@ -24,6 +24,7 @@ class ServingModel:
     meta: dict[str, Any]  # full config.meta (merged) — to detect legacy keys
     serving: dict[str, Any]  # config.meta.serving
     columns: dict[str, tuple[str, ...]]  # column name -> declared test names
+    column_contracts: dict[str, dict[str, Any]] = field(default_factory=dict)
     model_tests: tuple[str, ...] = ()  # model-level test names (composite-key evidence)
 
 
@@ -85,9 +86,12 @@ def load_models_from_yaml(paths: Iterable[str | Path]) -> list[ServingModel]:
             if not isinstance(serving, dict) or not serving:
                 continue
             columns: dict[str, tuple[str, ...]] = {}
+            column_contracts: dict[str, dict[str, Any]] = {}
             for column in node.get("columns") or []:
                 if isinstance(column, dict) and column.get("name"):
-                    columns[str(column["name"])] = _normalize_test_names(column.get("tests"))
+                    name = str(column["name"])
+                    columns[name] = _normalize_test_names(column.get("tests"))
+                    column_contracts[name] = column
             models.append(
                 ServingModel(
                     name=str(node.get("name", "")),
@@ -95,6 +99,7 @@ def load_models_from_yaml(paths: Iterable[str | Path]) -> list[ServingModel]:
                     meta=meta,
                     serving=serving,
                     columns=columns,
+                    column_contracts=column_contracts,
                     model_tests=_normalize_test_names(node.get("tests")),
                 )
             )

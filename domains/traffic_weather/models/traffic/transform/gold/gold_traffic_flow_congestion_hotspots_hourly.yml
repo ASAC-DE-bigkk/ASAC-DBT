@@ -34,6 +34,19 @@ models:
           freshness_slo_minutes: 90
           retention_or_horizon: 무기한 누적 Gold이며 D1 exporter 적재 전 보존·purge 정책을 별도 승인합니다.
           shape: event
+          public_projection:
+            schema_version: "1.0.0"
+            columns:
+              - product_row_id
+              - link_id
+              - hour_at
+              - flow_speed
+              - flow_travel_time
+              - flow_value_quality
+              - observed_at_kst
+              - congestion_rank
+              - observed_link_count
+              - hotspot_state
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
@@ -147,6 +160,7 @@ models:
             semantic_role: primary_key
             nullable: false
             null_meaning: 공개 제품 기본 키이므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: link_id
         description: TOPIS 도로 링크 식별자입니다.
         data_type: varchar
@@ -159,6 +173,7 @@ models:
             semantic_role: join_key
             nullable: false
             null_meaning: natural grain의 일부이므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: hour_at
         description: observed_at_kst를 시간 단위로 절삭한 서울 기준 평가 시간입니다.
         data_type: timestamp(6)
@@ -173,6 +188,7 @@ models:
             null_meaning: natural grain의 일부이므로 null을 허용하지 않습니다.
             time_role: evaluation_bucket
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: flow_speed
         description: 이 링크·시간대의 최신 관측 속도입니다.
         data_type: double
@@ -181,6 +197,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: flow_value_quality가 missing_value인 경우이며 hotspot_state가 missing_speed로 표시됩니다.
+            unit: kilometer_per_hour
       - name: flow_travel_time
         description: 이 링크·시간대의 최신 관측 통행시간입니다.
         data_type: double
@@ -189,6 +206,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: flow_value_quality가 missing_value인 경우입니다.
+            unit: second
       - name: flow_value_quality
         description: flow_speed·flow_travel_time 값이 원천에 실제로 존재했는지 구분한 상태입니다.
         data_type: varchar
@@ -206,6 +224,7 @@ models:
             semantic_role: quality_state
             nullable: false
             null_meaning: 품질 상태를 분류하지 못한 행은 공개하지 않습니다.
+            unit: not_applicable
       - name: observed_at_kst
         description: 관측 시각을 서울 기준으로 변환한 timestamp(6)이며 hour_at의 근거입니다.
         data_type: timestamp(6)
@@ -220,6 +239,7 @@ models:
             null_meaning: 관측 시각이 없는 행은 hour_at을 만들 수 없습니다.
             time_role: event
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: congestion_rank
         description: 같은 hour_at 안에서 flow_speed 오름차순(느릴수록 낮은 순위)으로 매긴 순위입니다.
         data_type: bigint
@@ -232,6 +252,7 @@ models:
             semantic_role: derived_value
             nullable: false
             null_meaning: rank() window 함수는 그 hour_at의 모든 관측 행에 순위를 부여하므로 null이 없습니다.
+            unit: rank
       - name: observed_link_count
         description: 같은 hour_at에 관측된 link_id 총 수이며 congestion_rank의 분모 맥락입니다.
         data_type: bigint
@@ -244,6 +265,7 @@ models:
             semantic_role: derived_value
             nullable: false
             null_meaning: count() window 함수는 그 hour_at의 모든 관측 행에 값을 부여하므로 null이 없습니다.
+            unit: count
       - name: hotspot_state
         description: flow_speed 존재 여부와 congestion_rank를 기준으로 구분한 저속 후보 상태입니다.
         data_type: varchar
@@ -261,6 +283,7 @@ models:
             semantic_role: quality_state
             nullable: false
             null_meaning: case 표현식이 모든 행에 세 상태 중 하나를 부여하므로 null이 없습니다.
+            unit: not_applicable
       - name: raw_object_key
         description: 선택된 관측 행의 원본 객체를 추적하는 안정 식별자입니다.
         data_type: varchar

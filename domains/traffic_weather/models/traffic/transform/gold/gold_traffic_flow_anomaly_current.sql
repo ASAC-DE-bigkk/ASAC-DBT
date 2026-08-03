@@ -27,6 +27,8 @@ baseline_history as (
         on latest.link_id = cast(flow.link_id as varchar)
        and latest.kst_day_of_week = day_of_week(cast({{ asac_axes.utc_to_kst('flow.observed_at') }} as timestamp(6)))
        and latest.kst_hour = hour(cast({{ asac_axes.utc_to_kst('flow.observed_at') }} as timestamp(6)))
+       -- Silver observed_at is UTC; normalize it to the latest row's KST axis before comparison.
+       and cast({{ asac_axes.utc_to_kst('flow.observed_at') }} as timestamp(6)) < latest.observed_at_kst
     group by latest.link_id
 ),
 

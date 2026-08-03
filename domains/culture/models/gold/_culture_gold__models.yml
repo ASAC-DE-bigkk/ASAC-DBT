@@ -25,10 +25,45 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # usage_patterns — ASAC-DAG#638 v1 규격. requires 는 고정 어휘 11개에서, basic
+          # 프로파일(등호 필터·시간축 from/to·limit·전체 컬럼) 위의 추가분만 적는다.
+          # sql 은 참조 구현(D1/SQLite 방언)이다 — 클라이언트가 보내 실행하는 값이 아니다.
+          # verified_* 는 2026-07-31 팀 D1 라이브 게시본 실측(ASAC-DAG#600 Phase 0 산출)을
+          # 옮긴 값 — 검증 스크립트가 생기면 그 산출로 대체한다(#638 §1).
+          usage_patterns:
+            - pattern_id: free_edu_dongs
+              question_ko: 무료·교육체험 행사가 많은 동네(행정동)는 어디인가?
+              axes: 동 랭킹 — 기간 합산 free+edu DESC
+              requires: [select_columns, aggregate, group_by, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: d45c9031b04b460ab6a946b6fefa15fb
+              insight_sample_ko: 사직동이 7월 무료 1,024·교육체험 671건으로 1위.
+              sql: |
+                -- :from, :n=10
+                SELECT admin_dong, gu, SUM(free_events_count) AS free_cnt,
+                       SUM(edu_experience_events_count) AS edu_cnt
+                FROM gold_culture_activity_by_dong
+                WHERE event_date >= :from
+                GROUP BY admin_dong, gu ORDER BY free_cnt + edu_cnt DESC LIMIT :n
+            - pattern_id: exhibition_dongs
+              question_ko: 전시 많이 하는 동네는 어디인가?
+              axes: 동 랭킹 — 기간 합산 exhibitions DESC
+              requires: [select_columns, aggregate, group_by, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: d45c9031b04b460ab6a946b6fefa15fb
+              insight_sample_ko: 하계2동 691건 — 서울시립 북서울미술관 효과.
+              sql: |
+                -- :from, :n=10
+                SELECT admin_dong, gu, SUM(exhibitions_count) AS ex_cnt
+                FROM gold_culture_activity_by_dong
+                WHERE event_date >= :from
+                GROUP BY admin_dong, gu ORDER BY ex_cnt DESC LIMIT :n
         display:
           title: 행정동별 일자 문화활동량
-          summary: 서울 426개 행정동에 대해 하루 단위로 문화활동이 몇 건 열리는지 집계했습니다. 공연·행사·축제·전시 등 유형별 건수와 함께 무료 행사, 교육·체험 행사 건수를 따로 제공합니다.
-          caveat: 행사가 없는 동도 0으로 채워져 있어 지도나 시계열에 그대로 얹을 수 있습니다. 무료 여부는 서울시 문화행사 출처에만 있어 그 범위의 건수입니다.
+          summary: 서울 426개 행정동에 대해 하루 단위로 문화활동이 몇 건 열리는지 집계했습니다. 공연·행사·전시·세종문화회관·국립문화기관 5개 출처별 건수와 함께, 축제·무료·교육체험 행사 건수를 따로 제공합니다.
+          caveat: 전체 건수는 중복을 제거한 값이라 유형별 건수를 더한 값과 다를 수 있습니다 — 축제는 공연과 같은 출처(KOPIS)의 같은 공연이고, 무료·교육체험·축제 행사는 행사 건수 안에 포함됩니다. 총계가 필요하면 전체 건수를 그대로 쓰십시오. 행사가 없는 동도 0으로 채워져 있어 지도나 시계열에 그대로 얹을 수 있습니다. 좌표가 없어 행정동을 확정하지 못한 활동은 빠집니다(전체의 2.3%, 전시는 17.5%·국립문화기관은 12.8%로 편차가 큽니다 — 구 단위 집계가 필요하면 별도 제품을 쓰십시오). 날짜는 최근 90일부터 향후 1년까지만 담습니다.
           use_cases:
             - 생활권 문화 인프라 격차 분석
             - 부동산·상권 리포트의 생활편의 지표
@@ -60,16 +95,16 @@ models:
         data_type: date
         tests: [not_null]
       - name: activities_count
-        description: 그날 그 동에서 열린 전체 문화활동 수 — 아래 유형별 건수의 합
+        description: 그날 그 동에서 열린 전체 문화활동 수 — 활동 ID 기준 중복을 제거한 값이며 총계는 언제나 이 열을 쓴다. 유형별 열을 더해서 총계를 만들지 말 것(KOPIS 가 같은 공연을 공연목록·축제목록에 함께 실어 festivals_count 가 performances_count 와 겹치고, 무료·교육체험·축제 행사 수도 events_count 의 부분집합이다)
         data_type: bigint
       - name: performances_count
-        description: KOPIS 공연 수
+        description: KOPIS 공연 수 (festivals_count 를 포함한다)
         data_type: bigint
       - name: events_count
-        description: 서울시 문화행사 수
+        description: 서울시 문화행사 수 (free_events_count·edu_experience_events_count·festival_events_count 를 포함한다)
         data_type: bigint
       - name: festivals_count
-        description: 서울시 축제 수
+        description: KOPIS 공연 중 축제로 분류된 수 — performances_count 의 부분집합이다(KOPIS 가 같은 공연 ID를 공연목록과 축제목록에 함께 싣는다). 서울시가 여는 축제는 festival_events_count 를 볼 것
         data_type: bigint
       - name: exhibitions_count
         description: SeMA 전시 수
@@ -84,7 +119,10 @@ models:
         description: 그날 그 동의 무료 문화행사 수. 유·무료 표기는 서울시 문화행사 출처에만 있어 그 범위의 건수
         data_type: bigint
       - name: edu_experience_events_count
-        description: 그날 그 동의 교육·체험 분류 행사 수
+        description: 그날 그 동의 교육·체험 분류 행사 수 — events_count 의 부분집합
+        data_type: bigint
+      - name: festival_events_count
+        description: 그날 그 동의 축제 분류 행사 수 — 서울시 문화행사의 축제 6분류(문화/예술·기타·전통/역사·자연/경관·시민화합·관광/체육)를 합친 것으로 events_count 의 부분집합. KOPIS 축제(festivals_count)와 다른 출처다
         data_type: bigint
 
   - name: gold_culture_booking_curve
@@ -105,6 +143,22 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조
+          usage_patterns:
+            - pattern_id: steady_sellers
+              question_ko: 오래 랭킹에 머무는 스테디셀러 공연은?
+              axes: 랭킹 — days_on_chart DESC
+              requires: [select_columns, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: 29988004f0674314a067d4c40652208f
+              insight_sample_ko: DAY6 서울 공연이 31일 최장 체류.
+              # KOPIS 는 순위만 제공(예매율·좌석 없음) — '순위 궤적' 해석만 가능(제품 caveat)
+              sql: |
+                -- :n=10
+                SELECT performance_name, genre, venue_name, days_on_chart, best_rank, last_rank
+                FROM gold_culture_booking_curve
+                ORDER BY days_on_chart DESC LIMIT :n
         display:
           title: 공연별 인기 궤적 요약
           summary: 공연 한 편이 예매 순위에 언제 진입해 며칠 머물렀고 최고 몇 위까지 올랐는지를 한 행으로 요약했습니다. 진입 순위와 마지막 순위가 함께 있어 상승세인지 하락세인지 바로 판단할 수 있습니다.
@@ -178,6 +232,59 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
+          # 3건 모두 "최신 스냅샷" 스칼라 서브쿼리를 쓴다 → requires 에 subquery.
+          usage_patterns:
+            - pattern_id: rising_now
+              question_ko: 요즘 예매 순위가 오르는 공연은?
+              axes: 최신 스냅샷 필터(momentum_status) — rank_no ASC
+              requires: [select_columns, subquery, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: f7f793bca4d44edfa388848ec04a1560
+              allow_empty: true
+              insight_sample_ko: 최신 스냅샷 rising 10건 — 1위 드라큘라.
+              sql: |
+                -- :status(momentum_status), :n=10
+                SELECT rank_no, performance_name, genre, venue_name, rank_delta_3d
+                FROM gold_culture_boxoffice_daily
+                WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM gold_culture_boxoffice_daily)
+                  AND momentum_status = :status
+                ORDER BY rank_no LIMIT :n
+            - pattern_id: genre_top
+              question_ko: 특정 장르(국악·클래식 등)에서 지금 인기 공연은?
+              axes: 최신 스냅샷 필터(genre) — rank_no ASC
+              requires: [select_columns, subquery, sort]
+              verified_rows: 2
+              verified_at: "2026-07-31"
+              verified_publication_id: f7f793bca4d44edfa388848ec04a1560
+              allow_empty: true
+              insight_sample_ko: 클래식은 랭킹 내 2건 — 장르별 결과 수 편차가 큼을 명시할 것.
+              # genre 값은 KOPIS 원문 한글('뮤지컬'·'서양음악(클래식)' 등 7종) — glossary 불필요,
+              # 단 값 목록이 d1_catalog_columns description 에 실려야 AI 가 정확히 필터한다
+              sql: |
+                -- :genre, :n=10
+                SELECT rank_no, performance_name, venue_name, days_on_chart
+                FROM gold_culture_boxoffice_daily
+                WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM gold_culture_boxoffice_daily)
+                  AND genre = :genre
+                ORDER BY rank_no LIMIT :n
+            - pattern_id: new_entries
+              question_ko: 랭킹에 새로 들어온 공연은?
+              axes: 최신 스냅샷 필터(is_new_entry=1) — rank_no ASC
+              requires: [select_columns, subquery, sort]
+              verified_rows: 2
+              verified_at: "2026-07-31"
+              verified_publication_id: f7f793bca4d44edfa388848ec04a1560
+              allow_empty: true
+              insight_sample_ko: 신규 진입 2건 — 9위 대중음악 공연 포함.
+              sql: |
+                -- :n=10
+                SELECT rank_no, performance_name, genre, venue_name
+                FROM gold_culture_boxoffice_daily
+                WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM gold_culture_boxoffice_daily)
+                  AND is_new_entry = 1
+                ORDER BY rank_no LIMIT :n
         display:
           title: 공연 예매 랭킹 (일별)
           summary: 공연 예매 순위를 매일 한 번 찍어 쌓은 데이터입니다. 3일 전 순위와의 변동폭, 차트 체류 일수, 신규 진입 여부까지 계산돼 있어 "요즘 뜨는 공연"을 바로 뽑을 수 있습니다.
@@ -265,6 +372,37 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조
+          usage_patterns:
+            - pattern_id: calm_days
+              question_ko: 행사가 적어서 한산하게 다닐 만한 날이 언제인가?
+              axes: 랭킹 — total_events ASC (기간 내)
+              requires: [select_columns, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: 7ed8eddecfac4ba283ce075c26b2d45d
+              insight_sample_ko: 상한 없는 검증에선 2027-05-10(1건)이 1위로 떴다 — :to 필수.
+              # ⚠️ :to 를 안 걸면 1년 뒤 스카폴드 날짜가 "한산한 날"로 뜬다(실측). 상한 필수 —
+              # 이 관례를 실어 나르는 것이 참조 구현의 값어치다
+              sql: |
+                -- :gu, :from, :to, :n=10
+                SELECT event_date, total_events, busiest_type
+                FROM gold_culture_calendar_density
+                WHERE gu = :gu AND event_date BETWEEN :from AND :to
+                ORDER BY total_events ASC, event_date LIMIT :n
+            - pattern_id: crowded_days
+              question_ko: 행사가 몰리는 날(피해야 할 날)이 언제인가?
+              axes: 랭킹 — total_events DESC
+              requires: [select_columns, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: 7ed8eddecfac4ba283ce075c26b2d45d
+              insight_sample_ko: 7/31 중구 235건 · concentration 0.47 이 최다.
+              sql: |
+                -- :from, :to, :n=10
+                SELECT event_date, gu, total_events, concentration, busiest_type
+                FROM gold_culture_calendar_density
+                WHERE event_date >= :from ORDER BY total_events DESC LIMIT :n
         display:
           title: 자치구 일자별 문화행사 밀도
           summary: 자치구마다 하루에 행사가 몇 건 열리고 그중 한 유형에 얼마나 몰리는지를 요약했습니다. 볼거리가 많은 날을 찾는 쪽과, 행사를 새로 열 때 경쟁을 피할 날을 고르는 쪽 모두가 같은 표를 씁니다.
@@ -322,6 +460,35 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
+          # ⚠️ 두 패턴 모두 평시 베이스라인(핫스팟 ~120곳 한정) — 특정 행사일 실측이 아니다(제품 caveat)
+          usage_patterns:
+            - pattern_id: quiet_hours_in_gu
+              question_ko: 이 구는 언제(요일×시간) 제일 한산한가?
+              axes: 랭킹 — avg_congest_score ASC
+              requires: [select_columns, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: 2ba3ce94ac734d0487dfd93fa4999f55
+              insight_sample_ko: 종로구 최한산 = 일(7) 02시, 혼잡점수 1(여유).
+              sql: |
+                -- :gu, :n=10
+                SELECT day_of_week, hour_of_day, typical_congest, avg_congest_score
+                FROM gold_culture_event_crowd
+                WHERE gu = :gu ORDER BY avg_congest_score ASC LIMIT :n
+            - pattern_id: gu_day_profile
+              question_ko: 이 구의 특정 요일은 시간대별로 얼마나 붐비나?
+              axes: 프로파일 — hour_of_day ASC (요일 고정)
+              requires: [select_columns, sort]
+              verified_rows: 24
+              verified_at: "2026-07-31"
+              verified_publication_id: 2ba3ce94ac734d0487dfd93fa4999f55
+              insight_sample_ko: 송파구 토요일 24시간 프로파일 — 00시 avg_ppltn 8,236(여유).
+              sql: |
+                -- :gu, :dow(1=월..7=일), :n=24
+                SELECT hour_of_day, avg_ppltn, typical_congest
+                FROM gold_culture_event_crowd
+                WHERE gu = :gu AND day_of_week = :dow ORDER BY hour_of_day LIMIT :n
         display:
           title: 행사 지역 요일·시간대 혼잡도
           summary: 문화행사가 열리는 자치구가 요일과 시간대별로 평소 얼마나 붐비는지에 대한 기준선입니다. 서울시 실시간 도시데이터의 인구·혼잡 관측을 요일×시간 칸으로 모아 평균 인구와 대표 혼잡 등급을 계산했습니다.
@@ -383,6 +550,73 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
+          # 기간 질의는 반드시 겹침(start<=:to AND end>=:from)으로 — 시작일만 걸면 진행 중
+          # 장기 행사를 놓친다(제품 caveat). 시간축(event_start_date) 밖의 event_end_date
+          # 범위 조건이라 basic from/to 가 아닌 filter_range 로 선언한다.
+          usage_patterns:
+            - pattern_id: gu_window
+              question_ko: 이번 주(기간)에 이 구에서 무슨 문화행사가 하나?
+              axes: 기간 겹침 필터(gu) — event_start_date ASC
+              requires: [select_columns, filter_range, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: fd823392eac44937946e5481921223e2
+              insight_sample_ko: 종로구에서 해당 주간 진행·개막 10건 — 뮤지컬 '스폿라이트' 등.
+              sql: |
+                -- :gu, :from, :to, :n=10
+                SELECT title, category, venue_name, is_free, event_start_date, event_end_date
+                FROM gold_culture_event_schedule
+                WHERE gu = :gu AND event_start_date <= :to AND event_end_date >= :from
+                ORDER BY event_start_date LIMIT :n
+            - pattern_id: free_in_gu
+              question_ko: 이 구에서 하는 무료 행사가 있나?
+              axes: 필터(gu, is_free='무료') — event_start_date ASC
+              requires: [select_columns, filter_range, sort]
+              verified_rows: 1
+              verified_at: "2026-07-31"
+              verified_publication_id: fd823392eac44937946e5481921223e2
+              allow_empty: true
+              insight_sample_ko: 양천구 무료 1건 — 서울문화예술교육센터 상설 체험(교육/체험, ~10/8).
+              # 🔑 is_free 는 불리언이 아니라 varchar('무료'/'유료'/NULL)이고 NULL 이 53%
+              # (원천이 무료 여부를 안 주는 KOPIS 계열). is_free=1 로 짜면 조용히 0행이다 —
+              # 이 함정이 곧 d1_catalog_columns 가 필요한 이유
+              sql: |
+                -- :gu, :from, :n=10
+                SELECT title, category, venue_name, event_start_date, event_end_date
+                FROM gold_culture_event_schedule
+                WHERE gu = :gu AND is_free = '무료' AND event_end_date >= :from
+                ORDER BY event_start_date LIMIT :n
+            - pattern_id: category_upcoming
+              question_ko: 특정 장르(국악·전시 등) 행사가 어디서 하나?
+              axes: 필터(category) — event_start_date ASC
+              requires: [select_columns, filter_range, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: fd823392eac44937946e5481921223e2
+              insight_sample_ko: 국악 진행·예정 10건 — 삼청각 수요 상설 공연 등.
+              # category 값은 이미 한글('클래식' 12,579 · '교육/체험' 6,337 …) — glossary 불필요
+              sql: |
+                -- :category, :from, :n=10
+                SELECT title, gu, venue_name, event_start_date, event_end_date
+                FROM gold_culture_event_schedule
+                WHERE category = :category AND event_end_date >= :from
+                ORDER BY event_start_date LIMIT :n
+            - pattern_id: today_in_gu
+              question_ko: 오늘 당장 이 구(또는 근처)에서 하는 행사는?
+              axes: 필터(gu, 오늘이 기간 안) — event_start_date DESC
+              requires: [select_columns, filter_range, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: fd823392eac44937946e5481921223e2
+              allow_empty: true
+              insight_sample_ko: gu_window 의 :from=:to=오늘 특수형.
+              sql: |
+                -- :gu, :today, :n=10
+                SELECT title, category, venue_name, event_start_date, event_end_date
+                FROM gold_culture_event_schedule
+                WHERE gu = :gu AND event_start_date <= :today AND event_end_date >= :today
+                ORDER BY event_start_date DESC LIMIT :n
         display:
           title: 서울 문화행사 통합 일정
           summary: 서울에서 열리는 공연·전시·축제·체험 행사를 한 행에 하나씩 모은 통합 일정표입니다. 시작일과 종료일, 장소 이름과 좌표, 자치구·행정동, 유·무료 표기가 함께 들어 있어 "이번 주말 성동구 행사" 같은 조회를 이 데이터셋 하나로 끝낼 수 있습니다.
@@ -474,7 +708,7 @@ models:
         data_type: date
         tests: [not_null]
       - name: activities_count
-        description: 그날 그 구의 전체 문화활동 수(소스별 count 의 합)
+        description: 그날 그 구의 전체 문화활동 수 — 활동 ID 기준 중복을 제거한 값이며 총계는 언제나 이 열을 쓴다. 유형별 열의 합과 다르다(#406 실측 — 정본 620,342 · 유형 합 621,477). KOPIS 가 같은 공연을 공연목록·축제목록에 함께 실어 festivals_count 가 performances_count 와 겹치기 때문이다
         data_type: bigint
       - name: performances_count
         description: KOPIS 공연 수
@@ -483,7 +717,7 @@ models:
         description: 서울시 문화행사 수
         data_type: bigint
       - name: festivals_count
-        description: 서울시 축제 수
+        description: KOPIS 공연 중 축제로 분류된 수 — performances_count 와 같은 공연을 세므로(KOPIS 가 mt20id 를 공연목록·축제목록에 함께 싣는다) 유형별 합에 더하면 이중계상된다. 서울시가 여는 축제가 필요하면 gold_culture_activity_by_dong 의 festival_events_count 를 볼 것
         data_type: bigint
       - name: exhibitions_count
         description: SeMA 전시 수
@@ -670,6 +904,22 @@ models:
       - name: green_disguise_runs
         description: 초록 위장 run 수 — Airflow success 인데 expected=0(전멸) 이라 raw 통과가 무의미한 경우(7/7 실사례)
         data_type: bigint
+      # --- #619 확정안 반영: 재시도 축 + NULL 비율(관측 커버리지). 셋 다 NULL 허용이 규격이다 ---
+      - name: retried_runs
+        description: >
+          재시도로 살아난 run 수(success ∧ retried_tasks>0) — "성공률 100%" 뒤에 숨는 재발(#201, 7일 중 4일).
+          retry_observed_runs 와 짝으로 읽는다: NULL/NULL=그날 dag_run 이력 자체가 없음,
+          0/0=런은 있었지만 재시도 수치 미관측, 0/N=진짜 재시도 없는 날.
+        data_type: bigint
+      - name: retry_observed_runs
+        description: 재시도 수치를 관측할 수 있었던 run 수(분모) — 이게 없으면 retried_runs=0 이 "재시도 0건"인지 "관측 0건"인지 구분되지 않는다
+        data_type: bigint
+      - name: max_try_peak
+        description: 그날 최대 try_number — 1이면 무재시도, NULL 이면 미관측
+        data_type: bigint
+      - name: min_iceberg_measure_pct
+        description: 그날 run 의 적재 관측 커버리지 최저치(%) — 100 미만이면 그날 적재 수치는 부분 관측. 7/31 이전 이력은 NULL(필드 없던 시기)
+        data_type: decimal(38,18)
 
   - name: gold_culture_venue_profile
     description: '시설(facility_id) 1행 프로필 — "그 공연장 어떤 곳이야"(Q&A metric, #278). 주소·좌표 100%, seat_scale 63.7% 충전. 공연 통계는 KOPIS 공연 기준(보유 시설 421) — 전시·축제 미포함. 외부 카탈로그 비공개(meta.external=false, #269).'
@@ -820,6 +1070,25 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
+          # qa_eval 의 '개별 점포 추천' 4문항은 이 제품이 답하지 않는다(원천 부재 = 제품 경계) —
+          # 이 1건은 qa_eval 무대응이라 product_question 에서 파생했다
+          usage_patterns:
+            - pattern_id: hotspots
+              question_ko: 행사 많은 동네 주변 외식 상권은 어디인가?
+              axes: 동 랭킹 — dine_around_score DESC
+              requires: [select_columns, sort]
+              verified_rows: 10
+              verified_at: "2026-07-31"
+              verified_publication_id: 8a03a1e6d2ec48eeb02cf5bf2b5e5c35
+              insight_sample_ko: 종로1·2·3·4가동 — 90일 내 행사 240건·요식업 3,529곳.
+              # has_dining_data=1 필터 필수 — 요식업 데이터 없는 동은 score 가 NULL(제품 caveat)
+              sql: |
+                -- :n=10
+                SELECT admin_dong, gu, events_upcoming_90d, dining_active_cnt, dine_around_score
+                FROM gold_culture_dine_around
+                WHERE has_dining_data = 1
+                ORDER BY dine_around_score DESC LIMIT :n
         display:
           title: 문화·미식 동반 추천 지수
           summary: 동네마다 앞으로 90일간 예정된 문화행사량과 영업 중인 음식점 규모를 나란히 점수화했습니다. 두 값이 모두 높은 동네일수록 점수가 높아 "공연 보고 밥 먹기 좋은 동네" 정렬에 그대로 쓸 수 있습니다.

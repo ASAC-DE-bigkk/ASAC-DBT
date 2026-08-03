@@ -162,13 +162,13 @@ def test_project_pytest_config_owns_suites_and_ignores_generated_trees() -> None
     loaded = config.read(PROJECT_ROOT / "pytest.ini", encoding="utf-8")
 
     assert loaded
+    assert config["pytest"]["pythonpath"].split() == ["../.."]
     testpaths = set(config["pytest"]["testpaths"].split())
     assert testpaths == {
         "workflows/tests",
         "contracts/engine/tests",
         "contracts/traffic/tests",
-        "tests/traffic",
-        "tests/weather",
+        "tests/traffic", "tests/weather", "tests/test_d1_public_serving_products.py",
     }
     ignored = set(config["pytest"]["norecursedirs"].split())
     assert {".git", "dbt_packages", "target", "logs"} <= ignored
