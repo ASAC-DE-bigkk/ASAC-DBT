@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
@@ -147,6 +149,8 @@ def _check_structural(model: ServingModel, schema: dict[str, Any]) -> list[Findi
 
     # v1.3 (#600/#638): usage_patterns 항목 검증 — 스펙 밖 필드·requires 오타가 통과되지 않게.
     findings.extend(_check_usage_patterns(model, schema))
+    findings.extend(_check_source_evidence(model, schema))
+    findings.extend(_check_quality_coverage(model, schema))
 
     return findings
 
@@ -203,6 +207,120 @@ def _check_usage_patterns(model: ServingModel, schema: dict[str, Any]) -> list[F
             add("usage_pattern_invalid", f"{label} — 'verified_rows' 는 정수여야 한다")
         if "allow_empty" in pattern and not isinstance(pattern["allow_empty"], bool):
             add("usage_pattern_invalid", f"{label} — 'allow_empty' 는 불리언이어야 한다")
+
+    return findings
+
+
+def _is_public_https_url(value: Any) -> bool:
+    """Source/licence URLs must be public HTTPS references, never credentials in disguise."""
+    if not isinstance(value, str) or not value.strip():
+        return False
+    parsed = urlparse(value)
+    return parsed.scheme == "https" and bool(parsed.netloc) and not parsed.username and not parsed.password
+
+
+def _check_source_evidence(model: ServingModel, schema: dict[str, Any]) -> list[Finding]:
+    """Validate #678 source/right declarations before a Publisher can make them visible."""
+    findings: list[Finding] = []
+    sources = model.serving.get("source_evidence")
+    spec = schema.get("source_evidence_fields") or {}
+    if sources is None or not spec:
+        return findings
+    if not isinstance(sources, list):
+        return findings  # optional type violation is already emitted by the structural loop
+
+    def add(rule: str, message: str) -> None:
+        findings.append(Finding(rule, model.name, message, model.source))
+
+    required = tuple(spec.get("required") or ())
+    known = set(required)
+    allowed_redistribution = set(spec.get("redistribution_allowed") or ())
+    seen_source_ids: set[str] = set()
+    if not sources:
+        add("source_evidence_invalid", "source_evidence 를 선언하면 최소 한 source record가 필요하다")
+        return findings
+
+    for index, source in enumerate(sources):
+        label = f"source_evidence[{index}]"
+        if not isinstance(source, dict):
+            add("source_evidence_invalid", f"{label} 은 매핑이어야 하는데 {type(source).__name__}")
+            continue
+        for field in sorted(set(source) - known):
+            add("source_evidence_unknown_field", f"{label} — 스펙 밖 필드 '{field}' (오타 확인)")
+        missing = [field for field in required if field not in source]
+        if missing:
+            add("source_evidence_invalid", f"{label} — 필수 필드 누락: {missing}")
+
+        source_id = source.get("source_id")
+        if not isinstance(source_id, str) or not IDENTIFIER_RE.fullmatch(source_id):
+            add("source_evidence_invalid", f"{label}.source_id 는 식별자여야 한다")
+        elif source_id in seen_source_ids:
+            add("source_evidence_duplicate", f"{label}.source_id '{source_id}' 가 모델 안에서 중복")
+        else:
+            seen_source_ids.add(source_id)
+
+        for field in ("source_url", "license_url"):
+            if not _is_public_https_url(source.get(field)):
+                add("source_evidence_invalid", f"{label}.{field} 는 인증정보 없는 public HTTPS URL이어야 한다")
+        for field in ("license", "attribution"):
+            if not isinstance(source.get(field), str) or not source[field].strip():
+                add("source_evidence_invalid", f"{label}.{field} 는 비어 있지 않은 문자열이어야 한다")
+        if source.get("redistribution") not in allowed_redistribution:
+            add(
+                "source_evidence_invalid",
+                f"{label}.redistribution={source.get('redistribution')!r} 은 허용값 {sorted(allowed_redistribution)} 이 아니다",
+            )
+        checked_at = source.get("rights_checked_at")
+        try:
+            if not isinstance(checked_at, str):
+                raise ValueError("not a string")
+            date.fromisoformat(checked_at)
+        except ValueError:
+            add("source_evidence_invalid", f"{label}.rights_checked_at 은 YYYY-MM-DD ISO 날짜여야 한다")
+
+    return findings
+
+
+def _check_quality_coverage(model: ServingModel, schema: dict[str, Any]) -> list[Finding]:
+    """Validate a reproducible distinct-coverage declaration; runtime values remain Publisher-owned."""
+    findings: list[Finding] = []
+    coverage = model.serving.get("quality_coverage")
+    spec = schema.get("quality_coverage_fields") or {}
+    if coverage is None or not spec:
+        return findings
+    if not isinstance(coverage, dict):
+        return findings  # optional type violation is already emitted by the structural loop
+
+    def add(rule: str, message: str) -> None:
+        findings.append(Finding(rule, model.name, message, model.source))
+
+    required = set(spec.get("required") or ())
+    for field in sorted(set(coverage) - required):
+        add("quality_coverage_unknown_field", f"quality_coverage — 스펙 밖 필드 '{field}' (오타 확인)")
+    missing = sorted(required - set(coverage))
+    if missing:
+        add("quality_coverage_invalid", f"quality_coverage — 필수 필드 누락: {missing}")
+
+    field = coverage.get("field")
+    if not isinstance(field, str) or not IDENTIFIER_RE.fullmatch(field):
+        add("quality_coverage_invalid", "quality_coverage.field 는 물리 컬럼 식별자여야 한다")
+    elif field not in model.columns:
+        add("quality_coverage_invalid", f"quality_coverage.field '{field}' 이 YAML columns 계약에 없다")
+    else:
+        projection = model.serving.get("public_projection")
+        if isinstance(projection, dict) and field not in (projection.get("columns") or []):
+            add("quality_coverage_invalid", f"quality_coverage.field '{field}' 은 public_projection에 포함돼야 한다")
+
+    expected = coverage.get("expected_distinct_count")
+    if isinstance(expected, bool) or not isinstance(expected, int) or expected < 1:
+        add("quality_coverage_invalid", "quality_coverage.expected_distinct_count 는 1 이상 정수여야 한다")
+    minimum_ratio = coverage.get("minimum_ratio")
+    if (
+        isinstance(minimum_ratio, bool)
+        or not isinstance(minimum_ratio, (int, float))
+        or not 0 < float(minimum_ratio) <= 1
+    ):
+        add("quality_coverage_invalid", "quality_coverage.minimum_ratio 는 0 초과 1 이하여야 한다")
 
     return findings
 
