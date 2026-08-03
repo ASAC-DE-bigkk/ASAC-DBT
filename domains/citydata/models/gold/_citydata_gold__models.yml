@@ -351,162 +351,6 @@ models:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [time_bucket, area_cd]
-  - name: gold_citydata_place_latest
-    config:
-      tags: ['fast']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_place_latest
-          product_question: 지금 이 장소는 어떤 상태입니까? (혼잡·대기질·상권·따릉이)
-          grain: area_cd 마다 한 행 — 장소별 최신 크로스 신호 스냅샷.
-          primary_key: [area_cd]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: '*/5 * * * *'
-          event_time: ppltn_at
-          freshness_slo_minutes: 90
-          shape: wide
-          usage_patterns:
-            - pattern_id: crowded_places_now
-              question_ko: 지금 가장 붐비는 장소는?
-              axes: 장소 랭킹 — area_ppltn_max DESC
-              requires: [select_columns, sort]
-              sql: |
-                -- :n=10
-                SELECT area_nm, gu, area_congest_lvl, area_ppltn_max, ppltn_at
-                FROM gold_citydata_place_latest
-                ORDER BY area_ppltn_max DESC LIMIT :n
-            - pattern_id: active_commerce_now
-              question_ko: 지금 상권(결제)이 가장 활발한 장소는?
-              axes: 장소 랭킹 — payment_count DESC
-              requires: [select_columns, sort, filter_null]
-              sql: |
-                -- :n=10
-                SELECT area_nm, gu, cmrcl_lvl, payment_count, cmrcl_at
-                FROM gold_citydata_place_latest
-                WHERE payment_count IS NOT NULL
-                ORDER BY payment_count DESC LIMIT :n
-        display:
-          title: 실시간 장소 종합 신호
-          summary: 서울 주요 장소의 최신 혼잡·대기질·상권·따릉이 신호를 한 행으로 모았습니다. "지금 여기 어때"에 바로 답합니다.
-          caveat: 서울시 API의 ~30분 발표 지연이 반영됩니다(신호별 관측시각 동봉).
-          use_cases:
-            - 실시간 현황 조회
-            - 챗봇 현재 상태 응답
-            - 대시보드 현재 카드
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_place_latest — 장소별 최신 크로스 신호 스냅샷(장소당 1행).
-      혼잡도 × 소비(신한카드) × 지하철·버스 승하차 × 따릉이 × 대기질·기온의 최신값 통합.
-      해결 질문: "지금 강남 붐비고 공기는 괜찮나", "전 장소 현재 상태를 지도/현황판에".
-      grain area_cd(장소 ~121곳) · 갱신 fast · 적재 table+replace(통째 재빌드).
-      ⚠ 최신 스냅샷만 — 과거 이력은 ppltn_daily 등 이력 골드 사용.
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [unique, not_null]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: area_category
-        data_type: varchar
-        description: 장소 분류
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리
-      - name: longitude
-        data_type: double
-        description: 장소 중심점 경도 (WGS84)
-      - name: latitude
-        data_type: double
-        description: 장소 중심점 위도 (WGS84)
-      - name: area_congest_lvl
-        data_type: varchar
-        description: 최신 혼잡도 수준
-      - name: area_ppltn_min
-        data_type: integer
-        description: 최신 추정 최소 인구
-      - name: area_ppltn_max
-        data_type: integer
-        description: 최신 추정 최대 인구
-      - name: ppltn_at
-        data_type: timestamp(6)
-        description: 혼잡/인구 신호의 최신 시각 (KST)
-      - name: cmrcl_lvl
-        data_type: varchar
-        description: 최신 상권 활성 수준
-      - name: payment_count
-        data_type: integer
-        description: 최신 결제 건수 (신한카드)
-      - name: payment_amt_min
-        data_type: bigint
-        description: 최신 결제금액 하한
-      - name: payment_amt_max
-        data_type: bigint
-        description: 최신 결제금액 상한
-      - name: cmrcl_at
-        data_type: timestamp(6)
-        description: 상권 신호의 최신 시각 (KST)
-      - name: subway_gton_30min
-        data_type: integer
-        description: 최근 30분 지하철 승차 인원
-      - name: bus_gton_30min
-        data_type: integer
-        description: 최근 30분 버스 승차 인원
-      - name: transit_at
-        data_type: timestamp(6)
-        description: 승하차 신호의 최신 시각 (KST)
-      - name: sbike_parking_total
-        data_type: bigint
-        description: 따릉이 주차 대수 합
-      - name: sbike_rack_total
-        data_type: bigint
-        description: 따릉이 거치대 수 합
-      - name: sbike_spot_count
-        data_type: bigint
-        description: 따릉이 대여소 수
-      - name: sbike_at
-        data_type: timestamp(6)
-        description: 따릉이 신호의 최신 시각 (KST)
-      - name: temperature
-        data_type: decimal(4,1)
-        description: 최신 기온 (°C)
-      - name: pm25
-        data_type: integer
-        description: 초미세먼지 농도
-      - name: pm25_index
-        data_type: varchar
-        description: 초미세먼지 지수 (좋음/보통/나쁨…)
-      - name: pm10
-        data_type: integer
-        description: 미세먼지 농도
-      - name: pm10_index
-        data_type: varchar
-        description: 미세먼지 지수
-      - name: air_idx
-        data_type: varchar
-        description: 통합대기환경지수
-      - name: air_at
-        data_type: timestamp(6)
-        description: 대기질 신호의 최신 시각 (KST)
-      - name: refreshed_at
-        data_type: timestamp(6)
-        description: 이 행에 반영된 신호들의 최신 시각
-        tests: [not_null]
-
   - name: gold_citydata_cmrcl_daily
     config:
       tags: ['slow']
@@ -631,7 +475,7 @@ models:
           freshness_slo_minutes: 1560
           usage_patterns:
             - pattern_id: top_purchasing_power_on_date
-              question_ko: 특정 날 1인당 소비(구매력)가 가장 높았던 장소는?
+              question_ko: 특정 날 붐빔 대비 소비(구매력 지수)가 가장 높았던 장소는?
               axes: 장소 랭킹 — spend_per_crowd_idx DESC (날짜 고정)
               requires: [select_columns, sort]
               sql: |
@@ -835,12 +679,12 @@ models:
           product_question: 이 동네는 언제 교통이 막히고 돌발이 잦습니까?
           grain: (time_bucket, admin_dong_code) 마다 한 행 — 동·시간 교통×돌발.
           primary_key: [time_bucket, admin_dong_code]
-          publication_mode: snapshot
+          publication_mode: append   # 성장형 시계열 — 새 time_bucket 만 게시(전량 snapshot 아님)
           zero_policy: retain_last_good
           publication_trigger:
-            schedule_cron: 15 * * * *
+            schedule_cron: 30 0 * * *
           event_time: time_bucket
-          freshness_slo_minutes: 150
+          freshness_slo_minutes: 1560   # daily 게시(전일 시각들) — 최신 데이터 ~26h 이내
           shape: rollup
           usage_patterns:
             - pattern_id: incident_prone_dongs_at_time
@@ -926,12 +770,12 @@ models:
           product_question: 날씨가 이 동네 붐빔에 어떻게 영향을 줍니까?
           grain: (time_bucket, admin_dong_code) 마다 한 행 — 동·시간 인구×기상.
           primary_key: [time_bucket, admin_dong_code]
-          publication_mode: snapshot
+          publication_mode: append   # 성장형 시계열 — 새 time_bucket 만 게시(전량 snapshot 아님)
           zero_policy: retain_last_good
           publication_trigger:
-            schedule_cron: 15 * * * *
+            schedule_cron: 30 0 * * *
           event_time: time_bucket
-          freshness_slo_minutes: 150
+          freshness_slo_minutes: 1560   # daily 게시(전일 시각들) — 최신 데이터 ~26h 이내
           shape: rollup
           usage_patterns:
             - pattern_id: crowded_dongs_when_raining
@@ -1012,765 +856,6 @@ models:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [time_bucket, admin_dong_code]
-  - name: gold_citydata_ppltn_x_commerce_dong
-    config:
-      # commerce silver_license_current 복구 확인(2026-07-21, 2.79M행) → fast 태그 원복(#296 해소)
-      tags: ['fast']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_ppltn_x_commerce_dong
-          product_question: 이 동네는 유동 대비 상가 공급이 어떻습니까?
-          grain: admin_dong_code 마다 한 행 — 동별 인구×상가밀도.
-          primary_key: [admin_dong_code]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: '*/5 * * * *'
-          shape: wide
-          usage_patterns:
-            - pattern_id: commerce_dense_dongs
-              question_ko: 영업 중 상가가 가장 많은 동네는?
-              axes: 동 랭킹 — license_active DESC
-              requires: [select_columns, sort]
-              sql: |
-                -- :n=10
-                SELECT admin_dong, gu, license_active, restaurant_active, ppltn_avg
-                FROM gold_citydata_ppltn_x_commerce_dong
-                ORDER BY license_active DESC LIMIT :n
-        display:
-          title: 동네 혼잡 × 상가밀도
-          summary: 행정동 단위로 인구 혼잡과 상가 밀도를 함께 봅니다. 유동 대비 상가 공급을 봅니다.
-          caveat: 상가 밀도는 인허가 스톡 기준이라 개별 점포 인기는 아닙니다.
-          use_cases:
-            - 유동 대비 상가 공급
-            - 창업 입지
-            - 상권 포화도
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_ppltn_x_commerce_dong — 행정동 단위 인구혼잡 × 상가 밀도
-      (크로스도메인 commerce 인허가 명부 — 영업중 개수, 음식점·미용실 등). 동 평균 붐빔과
-      상가 밀도 결합. 해결 질문: "붐비는데 가게는 적은 동네는(기회 상권)",
-      "상가 밀도 대비 유동인구 비교". grain admin_dong_code(동 단위) · 갱신 fast ·
-      적재 table+replace(통째 재빌드). ⚠ 명부는 시계열 아닌 현재 상태 — 밀도로만 해석.
-    columns:
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리 (grain 축·동 조인 키)
-        tests: [unique, not_null]
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: hotspot_count
-        data_type: bigint
-        description: 그 동에 속한 우리 핫플 장소 수
-      - name: ppltn_avg
-        data_type: decimal(18,6)
-        description: 그 동 핫플들의 평균 붐빔 (전 기간)
-      - name: ppltn_peak
-        data_type: decimal(18,6)
-        description: 그 동 핫플 최대 붐빔
-      - name: license_total
-        data_type: bigint
-        description: 그 동의 전체 인허가 수 (영업+폐업 등)
-      - name: license_active
-        data_type: bigint
-        description: 그 동의 영업중 인허가 수 (상가 밀도)
-      - name: restaurant_active
-        data_type: bigint
-        description: 그중 음식점(일반/휴게) 영업중 수
-      - name: beauty_active
-        data_type: bigint
-        description: 그중 미용실 영업중 수
-
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns: [admin_dong_code]
-  - name: gold_citydata_ppltn_anomaly
-    config:
-      tags: ['fast']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_ppltn_anomaly
-          product_question: 지금 이 장소가 평소보다 유난히 붐빕니까?
-          grain: area_cd 마다 한 행 — 장소별 평소 대비 현재 혼잡.
-          primary_key: [area_cd]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: '*/5 * * * *'
-          event_time: event_at
-          freshness_slo_minutes: 90
-          shape: rollup
-          usage_patterns:
-            - pattern_id: unusually_crowded_now
-              question_ko: 지금 평소보다 유난히 붐비는 장소는?
-              axes: 장소 랭킹 — z_score DESC
-              requires: [select_columns, sort]
-              sql: |
-                -- :n=10
-                SELECT area_nm, gu, cur_ppltn, pct_vs_normal, z_score
-                FROM gold_citydata_ppltn_anomaly
-                ORDER BY z_score DESC LIMIT :n
-        display:
-          title: 혼잡 이상 감지
-          summary: 평소(요일×시간) 대비 지금 유난히 붐비는 장소를 z-score로 탐지합니다.
-          caveat: 과거 baseline이 얇은 초기엔 오탐이 있을 수 있습니다.
-          use_cases:
-            - 이벤트·돌발 혼잡 감지
-            - 실시간 알림
-            - 이상 상황 모니터링
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_ppltn_anomaly — 장소별 인구혼잡 이상탐지 스냅샷(장소당 현재 1행).
-      (장소×주말여부×시간) 과거 baseline 평균±표준편차 대비 현재 편차 —
-      z_score·pct_vs_normal·deviation. 해결 질문: "지금 여의도 평소보다 붐비나",
-      "오늘 이례적으로 붐비는 장소 톱10". grain area_cd · 갱신 fast ·
-      적재 table+replace(통째 재빌드, by_time 파생). ⚠ base_n 작으면 신뢰도 낮음.
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [unique, not_null]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리
-      - name: event_at
-        data_type: timestamp(6)
-        description: 현재(최신) 측정 시각 (KST)
-      - name: is_weekend
-        data_type: boolean
-        description: 주말 여부 — baseline 분할 기준 (토·일 = true)
-      - name: hr
-        data_type: bigint
-        description: 현재 시각의 시(0~23) — baseline 매칭 기준
-      - name: cur_ppltn
-        data_type: integer
-        description: 현재 붐빔 (최신 avg_ppltn)
-      - name: area_congest_lvl
-        data_type: varchar
-        description: 현재 혼잡도 수준
-      - name: base_mean
-        data_type: double
-        description: 평소값 — 같은 (장소·주말여부·시간) 과거 평균 붐빔
-      - name: deviation
-        data_type: double
-        description: 현재 − 평소 (절대 편차, 명)
-      - name: pct_vs_normal
-        data_type: double
-        description: 현재 붐빔 ÷ 평소 − 1 (예 +0.4 = 평소보다 40% 더)
-      - name: z_score
-        data_type: double
-        description: (현재−평소)/표준편차 — 이례성 (|z|>2 강한 이례)
-      - name: base_n
-        data_type: bigint
-        description: baseline 표본 수 (작으면 신뢰도 낮음)
-
-  - name: gold_citydata_air_anomaly
-    config:
-      tags: ['hourly']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_air_anomaly
-          product_question: 오늘 이 동네 미세먼지가 평소보다 심합니까?
-          grain: area_cd 마다 한 행 — 장소별 '평소(같은 시간대) 대비 지금'.
-          primary_key: [area_cd]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: "15 * * * *"
-          event_time: event_at
-          freshness_slo_minutes: 150
-          shape: rollup
-          reliability:
-            sample_count_field: base_n
-            minimum_sample_count: 30
-            insufficient_sample_policy: flag_degraded
-          usage_patterns:
-            - pattern_id: unusually_bad_air_now
-              question_ko: 지금 평소보다 미세먼지가 심한 동네는?
-              axes: 장소 랭킹 — z_score DESC
-              requires: [select_columns, sort]
-              sql: |
-                -- :n=10
-                SELECT area_nm, gu, pm25, pct_vs_normal, z_score
-                FROM gold_citydata_air_anomaly
-                ORDER BY z_score DESC LIMIT :n
-        display:
-          title: 미세먼지 평소 대비 이상
-          summary: 장소별로 지금 통합대기지수가 평소(같은 요일·시간) 대비 얼마나 나쁜지/좋은지를 z-score로 봅니다. "오늘 미세먼지 평소보다 심해?"에 답합니다.
-          caveat: 통합대기지수가 높을수록 나쁨 → 양의 편차 = 평소보다 나쁨. 3주 데이터라 base_n 작은 셀은 신뢰도 낮습니다.
-          use_cases:
-            - 오늘 유독 뿌연지 판단
-            - 평소 대비 대기질 악화 감지
-            - 실시간이 못 하는 기준선 비교
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_air_anomaly — 장소별 대기질(미세먼지) 이상탐지 스냅샷(장소당 1행).
-      (장소×주말여부×시간) 과거 baseline 통합대기지수 평균±표준편차 대비 현재 편차 —
-      z_score·pct_vs_normal·vs_normal. 통합대기지수↑=나쁨 → 양의 편차=평소보다 나쁨.
-      해결 질문: "오늘 강남 미세먼지 평소보다 심해", "지금 평소 대비 공기 나쁜 동네 톱".
-      find_anomalies(붐빔)의 대기질 버전. grain area_cd · 갱신 hourly · silver_air 파생.
-      ⚠ base_n 작으면 신뢰도 낮음.
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [not_null, unique]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리
-      - name: event_at
-        data_type: timestamp(6)
-        description: 현재(최신) 측정 시각 (KST)
-      - name: hr
-        data_type: bigint
-        description: 현재 시각의 시(0~23) — baseline 매칭 기준
-      - name: pm25
-        data_type: integer
-        description: 현재 초미세먼지 농도
-      - name: pm25_index
-        data_type: varchar
-        description: 현재 초미세먼지 지수
-      - name: pm10
-        data_type: integer
-        description: 현재 미세먼지 농도
-      - name: pm10_index
-        data_type: varchar
-        description: 현재 미세먼지 지수
-      - name: air_idx
-        data_type: varchar
-        description: 현재 통합대기환경지수 등급
-      - name: cur_air_idx
-        data_type: decimal(7,1)
-        description: 현재 통합대기지수 수치 (높을수록 나쁨)
-      - name: base_mean
-        data_type: decimal(7,1)
-        description: 평소값 — 같은 (장소·시간) 과거 평균 통합대기지수
-      - name: deviation
-        data_type: decimal(8,1)
-        description: 현재 − 평소 (양수면 평소보다 나쁨)
-      - name: z_score
-        data_type: double
-        description: (현재−평소)/표준편차 — 이례성 (|z|>2 강한 이례)
-      - name: pct_vs_normal
-        data_type: decimal(20,8)
-        description: 현재 ÷ 평소 − 1 (예 +0.3 = 평소보다 30% 나쁨)
-      - name: vs_normal
-        data_type: varchar
-        description: 평소보다 나쁨/좋음/평소 수준 (±5% 기준)
-      - name: base_n
-        data_type: bigint
-        description: baseline 표본 수 (작으면 신뢰도 낮음)
-
-  - name: gold_citydata_ppltn_trend
-    config:
-      tags: ['fast']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_ppltn_trend
-          product_question: 지금 이 장소의 붐빔이 늘고 있습니까 줄고 있습니까?
-          grain: area_cd 마다 한 행 — 장소별 현재 혼잡 추세.
-          primary_key: [area_cd]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: '*/5 * * * *'
-          event_time: event_at
-          freshness_slo_minutes: 90
-          shape: rollup
-          usage_patterns:
-            - pattern_id: rising_crowd_places
-              question_ko: 지금 붐빔이 가장 빠르게 늘고 있는 장소는?
-              axes: 장소 랭킹 — change_pct DESC
-              requires: [select_columns, sort]
-              sql: |
-                -- :n=10
-                SELECT area_nm, gu, cur_ppltn, change_pct, trend
-                FROM gold_citydata_ppltn_trend
-                ORDER BY change_pct DESC LIMIT :n
-        display:
-          title: 실시간 붐빔 추세
-          summary: 장소별로 지금 붐빔이 늘고 있는지 줄고 있는지 추세를 봅니다.
-          caveat: 최근 구간 변화율 기준이라 단기 노이즈가 섞일 수 있습니다.
-          use_cases:
-            - 몰리기 전 선제 대응
-            - 혼잡 증가 감지
-            - 실시간 대시보드
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_ppltn_trend — 장소별 실시간 붐빔 추세 스냅샷(장소당 1행).
-      최근 30분 vs 이전 30분 평균 붐빔 변화율(change_pct)과 증가/감소/유지 판정.
-      해결 질문: "지금 뜨는(사람 몰리는) 곳 어디", "한강공원 사람 빠지는 중인가".
-      grain area_cd · 갱신 fast · 적재 table+replace(통째 재빌드, by_time 최근 12버킷 파생).
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [unique, not_null]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리
-      - name: event_at
-        data_type: timestamp(6)
-        description: 현재(최신) 측정 시각 (KST)
-      - name: cur_ppltn
-        data_type: integer
-        description: 현재 붐빔 (최신 avg_ppltn)
-      - name: area_congest_lvl
-        data_type: varchar
-        description: 현재 혼잡도 수준
-      - name: last_30min
-        data_type: double
-        description: 최근 30분(6버킷) 평균 붐빔
-      - name: prev_30min
-        data_type: double
-        description: 그 이전 30분(6버킷) 평균 붐빔
-      - name: change_pct
-        data_type: double
-        description: 최근30분 ÷ 이전30분 − 1 (붐빔 변화율)
-      - name: trend
-        data_type: varchar
-        description: 증가/감소/유지 (±5% 기준)
-
-  - name: gold_citydata_air_trend
-    config:
-      tags: ['hourly']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_air_trend
-          product_question: 지금 이 장소의 미세먼지가 좋아지는 중입니까 나빠지는 중입니까?
-          grain: area_cd 마다 한 행 — 장소별 현재 대기질 추세.
-          primary_key: [area_cd]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: "15 * * * *"
-          event_time: event_at
-          freshness_slo_minutes: 150
-          shape: wide
-          usage_patterns:
-            - pattern_id: worsening_air_places
-              question_ko: 지금 미세먼지가 가장 빠르게 나빠지는 장소는?
-              axes: 장소 랭킹 — change_pct DESC
-              requires: [select_columns, sort]
-              sql: |
-                -- :n=10
-                SELECT area_nm, gu, pm25, change_pct, trend
-                FROM gold_citydata_air_trend
-                ORDER BY change_pct DESC LIMIT :n
-        display:
-          title: 실시간 미세먼지 추세
-          summary: 장소별로 지금 대기질(미세먼지)이 나아지고 있는지 나빠지고 있는지 추세를 봅니다. 실시간 스냅샷만으론 못 답하는 "좋아지는 중이야?"에 답합니다.
-          caveat: 최근 1시간 vs 이전 1시간 평균 변화라 단기 변동이 섞일 수 있고, 대기질은 서울시 API의 ~10분 주기 발표입니다.
-          use_cases:
-            - 외출·환기 타이밍 판단
-            - 대기질 악화 선제 감지
-            - 실시간 대시보드
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_air_trend — 장소별 실시간 대기질(미세먼지) 추세 스냅샷(장소당 1행).
-      최근 1시간 vs 이전 1시간 평균 통합대기지수(air_idx_value) 변화율(change_pct)과
-      개선/악화/유지 판정. 통합대기지수는 높을수록 나쁨 → 상승 = 악화. 해결 질문:
-      "지금 강남 미세먼지 좋아지는 중이야", "여의도 공기 나빠지고 있나". place_latest(실시간
-      스냅샷)와 달리 시계열이 있어야만 답하는 차별 질문. grain area_cd · 갱신 hourly ·
-      적재 table+replace(통째 재빌드, silver_air 최근 12버킷 파생).
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [not_null, unique]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: area_category
-        data_type: varchar
-        description: 장소 분류
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리
-      - name: event_at
-        data_type: timestamp(6)
-        description: 현재(최신) 측정 시각 (KST)
-      - name: pm25
-        data_type: integer
-        description: 현재 초미세먼지 농도 (㎍/㎥)
-      - name: pm25_index
-        data_type: varchar
-        description: 현재 초미세먼지 지수 (좋음/보통/나쁨…)
-      - name: pm10
-        data_type: integer
-        description: 현재 미세먼지 농도 (㎍/㎥)
-      - name: pm10_index
-        data_type: varchar
-        description: 현재 미세먼지 지수
-      - name: air_idx
-        data_type: varchar
-        description: 현재 통합대기환경지수 등급
-      - name: air_idx_value
-        data_type: decimal(6,1)
-        description: 현재 통합대기지수 수치 (높을수록 나쁨)
-      - name: air_idx_last_1h
-        data_type: decimal(7,1)
-        description: 최근 1시간(6버킷) 평균 통합대기지수
-      - name: air_idx_prev_1h
-        data_type: decimal(7,1)
-        description: 그 이전 1시간(6버킷) 평균 통합대기지수
-      - name: pm25_last_1h
-        data_type: double
-        description: 최근 1시간 평균 초미세먼지
-      - name: pm25_prev_1h
-        data_type: double
-        description: 그 이전 1시간 평균 초미세먼지
-      - name: change_pct
-        data_type: decimal(20,8)
-        description: 최근1h ÷ 이전1h − 1 (통합대기지수 변화율, +면 악화)
-      - name: trend
-        data_type: varchar
-        description: 개선/악화/유지 (±5% 기준, 지수 상승=악화)
-
-  - name: gold_citydata_place_scorecard
-    config:
-      tags: ['fast']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_place_scorecard
-          product_question: 지금 이 장소의 종합 상태 점수는 몇 점입니까?
-          grain: area_cd 마다 한 행 — 장소별 종합 스코어.
-          primary_key: [area_cd]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: '*/5 * * * *'
-          shape: rollup
-          usage_patterns:
-            - pattern_id: top_places_by_crowd_now
-              question_ko: 지금 가장 붐비는 장소는? (종합 스냅샷)
-              axes: 장소 랭킹 — area_ppltn_max DESC
-              requires: [select_columns, sort]
-              sql: |
-                -- :n=10
-                SELECT area_nm, gu, area_congest_lvl, area_ppltn_max, cmrcl_lvl
-                FROM gold_citydata_place_scorecard
-                ORDER BY area_ppltn_max DESC LIMIT :n
-        display:
-          title: 장소 종합 스코어카드
-          summary: 장소마다 혼잡·상권·신호를 종합한 현재 점수를 한 행으로 제공합니다.
-          caveat: 종합 스냅샷이라 세부는 개별 골드를 보세요.
-          use_cases:
-            - 장소 한눈 요약
-            - 챗봇 종합 응답
-            - 대시보드 카드
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_place_scorecard — 장소 종합 스코어카드 스냅샷(장소당 1행).
-      현재 혼잡·상권·교통·날씨·따릉이(place_latest) + 이상탐지(anomaly) + 추세(trend) +
-      구매력(purchasing_power)을 한 행에 통합. 해결 질문: "강남 어때?" 류 종합 질의 —
-      단일 조회로 장소의 지금을 요약하는 대표 테이블. grain area_cd · 갱신 fast ·
-      적재 table+replace(통째 재빌드).
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [unique, not_null]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: area_category
-        data_type: varchar
-        description: 장소 분류
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: area_congest_lvl
-        data_type: varchar
-        description: 현재 혼잡도 수준 (여유/보통/약간붐빔/붐빔)
-      - name: area_ppltn_min
-        data_type: integer
-        description: 현재 추정 최소 인구
-      - name: area_ppltn_max
-        data_type: integer
-        description: 현재 추정 최대 인구
-      - name: cmrcl_lvl
-        data_type: varchar
-        description: 현재 상권 활성 수준
-      - name: payment_count
-        data_type: integer
-        description: 현재 결제 건수 (신한카드)
-      - name: subway_gton_30min
-        data_type: integer
-        description: 최근 30분 지하철 승차 인원
-      - name: bus_gton_30min
-        data_type: integer
-        description: 최근 30분 버스 승차 인원
-      - name: sbike_parking_total
-        data_type: bigint
-        description: 따릉이 주차 대수 합
-      - name: sbike_rack_total
-        data_type: bigint
-        description: 따릉이 거치대 수 합
-      - name: temperature
-        data_type: decimal(4,1)
-        description: 현재 기온 (°C)
-      - name: pm25
-        data_type: integer
-        description: 초미세먼지 농도
-      - name: pm25_index
-        data_type: varchar
-        description: 초미세먼지 지수 (좋음/보통/나쁨…)
-      - name: base_mean
-        data_type: double
-        description: 평소값 — 같은 시간대 과거 평균 붐빔 (anomaly)
-      - name: pct_vs_normal
-        data_type: double
-        description: 평소 대비 붐빔 변화율 (anomaly)
-      - name: z_score
-        data_type: double
-        description: 이례성 z-score (anomaly)
-      - name: change_pct
-        data_type: double
-        description: 최근 30분 붐빔 변화율 (trend)
-      - name: trend
-        data_type: varchar
-        description: 증가/감소/유지 (trend)
-      - name: spend_per_crowd_idx
-        data_type: decimal(38,13)
-        description: 붐빔 대비 결제 지수 = 구매력 (purchasing_power, 최근일)
-      - name: rank_spend
-        data_type: bigint
-        description: 구매력 지수 순위 (최근일)
-      - name: refreshed_at
-        data_type: timestamp(6)
-        description: place_latest 스냅샷 기준 시각
-
-  - name: gold_citydata_hot_commerce
-    config:
-      tags: ['fast']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_hot_commerce
-          product_question: 요즘 뜨는 상권은 어디입니까?
-          grain: area_cd 마다 한 행 — 장소별 상권 상승 지수.
-          primary_key: [area_cd]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: '*/5 * * * *'
-          shape: rollup
-          usage_patterns:
-            - pattern_id: hottest_commerce_now
-              question_ko: 요즘 가장 뜨는 상권은 어디?
-              axes: 장소 랭킹 — hot_index DESC
-              requires: [select_columns, sort]
-              sql: |
-                -- :n=10
-                SELECT area_nm, gu, hot_index, change_pct, spend_idx
-                FROM gold_citydata_hot_commerce
-                ORDER BY hot_index DESC LIMIT :n
-        display:
-          title: 뜨는 상권 지수
-          summary: 붐빔 변화율과 구매력으로 요즘 뜨는 상권을 지수화했습니다.
-          caveat: 붐빔·소비 기반 상대 지수라 인허가 인기와는 다릅니다.
-          use_cases:
-            - 뜨는 상권 발굴
-            - 투자·입점 타이밍
-            - 트렌드 리포트
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_hot_commerce — 뜨는 상권 지수 스냅샷(장소당 1행). 붐빔 변화율·구매력·
-      결제량 3축을 백분위 정규화 평균한 hot_index(0~1, 높을수록 핫). 해결 질문:
-      "요즘 뜨는 상권 어디", "지금 몰리면서 소비도 도는 곳 랭킹". grain area_cd ·
-      갱신 fast · 적재 table+replace(통째 재빌드, trend+purchasing_power 파생).
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [unique, not_null]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: cur_ppltn
-        data_type: integer
-        description: 현재 붐빔 (최신 avg_ppltn)
-      - name: change_pct
-        data_type: double
-        description: 최근 30분 붐빔 변화율 (trend)
-      - name: trend
-        data_type: varchar
-        description: 증가/감소/유지 (trend)
-      - name: spend_idx
-        data_type: decimal(38,13)
-        description: 붐빔 대비 결제 지수 = 구매력 (purchasing_power)
-      - name: payment_total
-        data_type: bigint
-        description: 결제 건수 합 (purchasing_power)
-      - name: hot_index
-        data_type: double
-        description: 세 축(변화율·구매력·결제) 백분위 평균 (0~1, 높을수록 핫)
-
-  - name: gold_citydata_ppltn_forecast
-    config:
-      tags: ['daily']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_ppltn_forecast
-          product_question: 이번 주말 이 장소는 몇 시가 붐빌까요?
-          grain: (area_cd, is_weekend, hr) 마다 한 행 — 과거 평균 붐빔 예보.
-          primary_key: [area_cd, is_weekend, hr]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: 30 0 * * *
-          shape: rollup
-          usage_patterns:
-            - pattern_id: weekend_peak_hours_for_place
-              question_ko: 이 장소는 주말 몇 시가 붐빌까요?
-              axes: 시간대 랭킹 — expected_ppltn DESC (장소 고정, 주말)
-              requires: [select_columns, sort]
-              sql: |
-                -- :area=강남역, :n=5
-                SELECT hr, expected_ppltn, peak_ppltn
-                FROM gold_citydata_ppltn_forecast
-                WHERE area_nm = :area AND is_weekend = 1
-                ORDER BY expected_ppltn DESC LIMIT :n
-        display:
-          title: 장소 혼잡 예보 (주말·시간대)
-          summary: 장소×주말여부×시간대의 과거 평균 붐빔으로 "이번 주말 몇 시가 붐빌까"를 예보합니다.
-          caveat: 2주 데이터라 요일 대신 주말/평일로 나눕니다.
-          use_cases:
-            - 방문 시간 계획
-            - 한산한 때 추천
-            - 혼잡 회피
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_ppltn_forecast — 장소×주말여부×시간대 인구혼잡 예보(패턴 기반).
-      과거 평균 붐빔(expected_ppltn)±표준편차·과거 최대. 해결 질문: "이번 주말 홍대
-      몇 시가 제일 붐비나", "평일 밤에 한적한 공원은". grain (area_cd, is_weekend, hr) ·
-      갱신 fast · 적재 table+replace(통째 재빌드, by_time 파생).
-      ⚠ 과거 패턴 기대값(기상 등 반영한 실측 예보 아님) · base_n 작으면 신뢰도 낮음.
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [not_null]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리
-      - name: is_weekend
-        data_type: boolean
-        description: 주말 여부 — 예보 분할 축 (토·일 = true)
-        tests: [not_null]
-      - name: hr
-        data_type: bigint
-        description: 시(0~23) — 예보 분할 축
-        tests: [not_null]
-      - name: expected_ppltn
-        data_type: double
-        description: 그 장소·주말여부·시간대 과거 평균 붐빔 (= 예상값)
-      - name: ppltn_std
-        data_type: double
-        description: 그 셀의 붐빔 표준편차 (변동성)
-      - name: peak_ppltn
-        data_type: integer
-        description: 그 셀의 과거 최대 붐빔
-      - name: base_n
-        data_type: bigint
-        description: 표본 수 (작으면 신뢰도 낮음)
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns: [area_cd, is_weekend, hr]
   - name: gold_citydata_ppltn_demographics
     config:
       tags: ['daily']
@@ -1863,217 +948,6 @@ models:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [area_cd, dow, hour, segment_type, segment]
-  - name: gold_citydata_charger_availability
-    config:
-      tags: ['fast']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_charger_availability
-          product_question: 지금 이 장소의 EV 충전소를 쓸 수 있습니까?
-          grain: (area_cd, stat_id) 마다 한 행 — 충전소별 현재 가용.
-          primary_key: [area_cd, stat_id]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: '*/5 * * * *'
-          event_time: observed_at
-          freshness_slo_minutes: 60
-          shape: wide
-          usage_patterns:
-            - pattern_id: available_chargers_here
-              question_ko: 이 장소에서 지금 쓸 수 있는 EV 충전소는?
-              axes: 충전소 랭킹 — available_count DESC (장소 고정)
-              requires: [select_columns, sort]
-              sql: |
-                -- :area=강남역, :n=10
-                SELECT stat_nm, available_count, fast_available, availability_pct
-                FROM gold_citydata_charger_availability
-                WHERE area_nm = :area
-                ORDER BY available_count DESC LIMIT :n
-        display:
-          title: 전기차 충전 실시간 가용
-          summary: 장소별 EV 충전소의 현재 이용 가능 현황을 제공합니다.
-          caveat: 현재 상태 스냅샷이라 과거 이력은 없습니다.
-          use_cases:
-            - EV 충전 계획
-            - 충전 인프라 혼잡
-            - 경로 계획
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_charger_availability — 장소×충전소 현재 EV 충전 가용 현황 스냅샷.
-      silver_charger 에서 충전기별 최신 상태만 골라 충전소 단위 집계(가용/전체 대수).
-      해결 질문: "지금 강남 근처 충전 가능한 곳은" — available_count>0 필터.
-      grain (area_cd, stat_id) · 갱신 fast · 적재 table+replace(통째 재빌드).
-      ⚠ 최신 스냅샷만(이력 없음).
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [not_null]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: area_category
-        data_type: varchar
-        description: 장소 분류 (관광특구/발달상권 등)
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: longitude
-        data_type: double
-        description: 장소 중심점 경도 (WGS84)
-      - name: latitude
-        data_type: double
-        description: 장소 중심점 위도 (WGS84)
-      - name: stat_id
-        data_type: varchar
-        description: 충전소 ID (grain 축)
-        tests: [not_null]
-      - name: stat_nm
-        data_type: varchar
-        description: 충전소명
-      - name: stat_addr
-        data_type: varchar
-        description: 충전소 주소
-      - name: stat_longitude
-        data_type: double
-        description: 충전소 경도
-      - name: stat_latitude
-        data_type: double
-        description: 충전소 위도
-      - name: place_kind
-        data_type: varchar
-        description: 충전소 장소 구분 (마트(쇼핑몰) 등)
-      - name: total_chargers
-        data_type: bigint
-        description: 충전소 내 총 충전기 수
-      - name: available_count
-        data_type: bigint
-        description: 사용가능 충전기 수 (★ "지금 충전 가능" 판단)
-      - name: charging_count
-        data_type: bigint
-        description: 충전중 충전기 수
-      - name: unavailable_count
-        data_type: bigint
-        description: 이용 불가 충전기 수 (점검/통신이상/운영중지/상태미확인)
-      - name: fast_available
-        data_type: bigint
-        description: 급속(DC) 사용가능 충전기 수
-      - name: slow_available
-        data_type: bigint
-        description: 완속(AC) 사용가능 충전기 수
-      - name: availability_pct
-        data_type: double
-        description: 가용률 (available/total × 100, %)
-      - name: max_output_kw
-        data_type: integer
-        description: 충전소 최대 충전 출력 (kW)
-      - name: observed_at
-        data_type: timestamp(6)
-        description: 최신 상태 갱신 시각 (KST, 데이터 기준일)
-
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns: [area_cd, stat_id]
-  - name: gold_citydata_sbike_availability
-    config:
-      tags: ['fast']
-      meta:
-        serving:
-          enabled: true
-          external: true
-          product_id: citydata_sbike_availability
-          product_question: 지금 여기 따릉이가 몇 대 남아 있습니까?
-          grain: (area_cd, spot_id) 마다 한 행 — 대여소별 현재 가용.
-          primary_key: [area_cd, spot_id]
-          publication_mode: snapshot
-          zero_policy: retain_last_good
-          publication_trigger:
-            schedule_cron: "*/5 * * * *"
-          event_time: observed_at
-          freshness_slo_minutes: 60
-          shape: wide
-          partial_policy:
-            min_publish_ratio: 0.8
-          usage_patterns:
-            - pattern_id: available_bikes_here
-              question_ko: 여기 지금 따릉이가 많이 남은 대여소는?
-              axes: 대여소 랭킹 — parking_count DESC (장소 고정)
-              requires: [select_columns, sort]
-              sql: |
-                -- :area=강남역, :n=10
-                SELECT spot_nm, parking_count, shared_rate_percent
-                FROM gold_citydata_sbike_availability
-                WHERE area_nm = :area
-                ORDER BY parking_count DESC LIMIT :n
-        display:
-          title: 따릉이 대여소별 실시간 가용
-          summary: 장소별 따릉이 대여소마다 지금 남은 자전거 수(parking_count)와 거치율을 제공합니다. "여기 지금 따릉이 남았어?"에 대여소 단위로 답합니다.
-          caveat: 현재 상태 스냅샷이라 과거 이력은 없습니다. place_latest는 장소 합계만 주지만 이 골드는 대여소 단위입니다.
-          use_cases:
-            - 대여소별 잔여 자전거 확인
-            - 근처 빌릴 수 있는 대여소 탐색
-            - 반납 가능 거치대 확인
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    description: >
-      gold_citydata_sbike_availability — 장소×대여소 현재 따릉이 가용 현황 스냅샷.
-      silver_citydata_sbike 에서 대여소별 최신 관측만 골라 서빙. 해결 질문:
-      "지금 여의도한강공원 따릉이 남아 있어", "근처 빌릴 수 있는 대여소는" — parking_count>0 필터.
-      grain (area_cd, spot_id) · 갱신 fast · 적재 table+replace(통째 재빌드). ⚠ 최신 스냅샷만(이력 없음).
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [area_cd, spot_id]
-    columns:
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-        tests: [not_null]
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: area_category
-        data_type: varchar
-        description: 장소 분류
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: spot_id
-        data_type: varchar
-        description: 대여소 ID (grain 축)
-        tests: [not_null]
-      - name: spot_nm
-        data_type: varchar
-        description: 대여소명
-      - name: spot_longitude
-        data_type: double
-        description: 대여소 경도
-      - name: spot_latitude
-        data_type: double
-        description: 대여소 위도
-      - name: parking_count
-        data_type: integer
-        description: 대여 가능 자전거 수 (★ "지금 남았어?" 판단)
-      - name: rack_count
-        data_type: integer
-        description: 거치대 수
-      - name: shared_rate_percent
-        data_type: integer
-        description: 거치율(%) = 자전거/거치대
-      - name: has_bikes
-        data_type: boolean
-        description: 대여 가능 자전거 존재 여부 (parking_count>0)
-      - name: observed_at
-        data_type: timestamp(6)
-        description: 최신 관측 시각 (KST)
 
   - name: gold_citydata_ppltn_dow_hour
     config:
@@ -2166,6 +1040,346 @@ models:
       - name: reliable
         data_type: boolean
         description: 표본 충분 여부 (base_n>=30). 초기엔 false 많음 — 소비측 캐비앳용
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, dow, hr]
+
+  - name: gold_citydata_sbike_dow_hour
+    config:
+      tags: ['daily']
+      meta:
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_sbike_dow_hour
+          product_question: 이 장소는 무슨 요일 몇 시에 따릉이가 많습니까?
+          grain: (area_cd, dow, hr) 마다 한 행 — 영역 요일×시간 따릉이 가용 패턴.
+          primary_key: [area_cd, dow, hr]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
+          usage_patterns:
+            - pattern_id: "bike_rich_dow_hour_for_place"
+              question_ko: 이 장소는 무슨 요일 몇 시에 따릉이가 가장 많나?
+              axes: 요일×시간 랭킹 — avg_bikes_available DESC (장소 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 여의도는 토요일 오후 2시대 대여가능 대수가 가장 많다.
+              sql: |
+                -- :area=여의도, :n=10
+                SELECT dow, hr, avg_bikes_available, avg_availability_pct
+                FROM gold_citydata_sbike_dow_hour
+                WHERE area_nm = :area
+                ORDER BY avg_bikes_available DESC LIMIT :n
+            - pattern_id: "bike_hourly_profile_for_place_dow"
+              question_ko: 이 장소, 이 요일의 시간대별 따릉이 프로파일은?
+              axes: 시간 시계열 — hr ASC (장소·요일 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 여의도 토요일은 새벽에 대여가능 대수가 낮고 오후에 회복된다.
+              sql: |
+                -- :area=여의도, :dow=6
+                SELECT hr, avg_bikes_available, avg_availability_pct
+                FROM gold_citydata_sbike_dow_hour
+                WHERE area_nm = :area AND dow = :dow
+                ORDER BY hr ASC
+            - pattern_id: "bike_best_places_at_dow_hour"
+              question_ko: 이 요일·시간에 따릉이가 잘 잡히는 장소 top N은?
+              axes: 장소 랭킹 — avg_bikes_available DESC (요일·시간 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 월요일 오전 8시엔 도심 업무지구보다 주거지 인접 장소에서 잘 잡힌다.
+              sql: |
+                -- :dow=1, :hr=8, :n=10
+                SELECT area_nm, gu, avg_bikes_available, avg_availability_pct
+                FROM gold_citydata_sbike_dow_hour
+                WHERE dow = :dow AND hr = :hr
+                ORDER BY avg_bikes_available DESC LIMIT :n
+        display:
+          title: 요일·시간 따릉이 가용 패턴
+          summary: 장소마다 무슨 요일 몇 시에 따릉이가 많고 적은지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
+          caveat: 초기 데이터라 셀당 표본이 얇습니다(base_n·reliable 동봉). reliable=false 셀은 참고용입니다.
+          use_cases:
+            - 따릉이 잘 잡히는 요일·시간
+            - 자전거 이동 계획
+      contract: {enforced: true}
+    description: >
+      gold_citydata_sbike_dow_hour — 장소×요일×시간 따릉이 가용 롤업. silver_citydata_sbike 파생.
+      수집 시점마다 영역 내 대여소를 합산(영역 총 가용/거치대) 후 요일×시간 평균.
+      실시간 "지금 몇 대"(구 sbike_availability, PlayMCP 커버) 대신 요일×시간 전형 패턴.
+      grain (area_cd, dow, hr) · table+replace. ⚠ 초기 표본 얇음 — base_n·reliable 동봉.
+    columns:
+      - name: area_cd
+        data_type: varchar
+        description: 장소 코드 (POI###, grain 축)
+        tests: [not_null]
+      - name: area_nm
+        data_type: varchar
+        description: 장소명
+      - name: gu
+        data_type: varchar
+        description: 자치구명
+      - name: gu_code
+        data_type: varchar
+        description: 자치구 코드 (#48 공간축)
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명
+      - name: admin_dong_code
+        data_type: varchar
+        description: 행정동 코드 (행안부 canonical)
+      - name: area_category
+        data_type: varchar
+        description: 장소 카테고리
+      - name: dow
+        data_type: bigint
+        description: 요일 (1=월 … 7=일, Trino day_of_week, grain 축)
+        tests: [not_null]
+      - name: hr
+        data_type: bigint
+        description: 시간 (0~23, grain 축)
+        tests: [not_null]
+      - name: avg_bikes_available
+        data_type: integer
+        description: 그 요일·시간대 영역 평균 대여가능 자전거 수 (대여소 합산의 평균)
+      - name: avg_racks
+        data_type: integer
+        description: 그 요일·시간대 영역 평균 거치대 수
+      - name: avg_availability_pct
+        data_type: double
+        description: 그 요일·시간대 평균 거치율(%) = 가용/거치대
+      - name: base_n
+        data_type: bigint
+        description: 이 (장소·요일·시간) 셀의 표본 수 (수집 시점 개수)
+      - name: reliable
+        data_type: boolean
+        description: 표본 충분 여부 (base_n>=30) — false 셀은 참고용
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, dow, hr]
+
+  - name: gold_citydata_air_daily
+    config:
+      tags: ['daily']
+      meta:
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_air_daily
+          product_question: 이 동네 미세먼지가 요즘 며칠간 어떤 추이입니까?
+          grain: (area_cd, event_date) 마다 한 행 — 장소·일 대기질 집계.
+          primary_key: [area_cd, event_date]
+          publication_mode: append
+          zero_policy: retain_last_good
+          event_time: event_date
+          freshness_slo_minutes: 1560
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
+          usage_patterns:
+            - pattern_id: "air_trend_for_place"
+              question_ko: 이 장소 최근 며칠 미세먼지 추이는?
+              axes: 날짜 시계열 — event_date ASC (장소 고정)
+              requires: [select_columns, filter_set, filter_range, sort]
+              insight_sample_ko: 강남구 PM2.5는 최근 2주 완만히 하락하는 추세다.
+              sql: |
+                -- :area=강남구, :from=2026-07-20, :to=2026-08-03
+                SELECT event_date, avg_pm10, avg_pm25, avg_air_idx_value
+                FROM gold_citydata_air_daily
+                WHERE area_nm = :area AND event_date BETWEEN :from AND :to
+                ORDER BY event_date ASC
+            - pattern_id: "air_worst_days_for_place"
+              question_ko: 이 장소 최근 N일 중 미세먼지가 가장 나빴던 날은?
+              axes: 날짜 랭킹 — avg_pm10 DESC (장소·기간 고정)
+              requires: [select_columns, filter_set, filter_range, sort]
+              insight_sample_ko: 강남구 최근 2주 중 PM10 최악일은 7/28이었다.
+              sql: |
+                -- :area=강남구, :from=2026-07-20, :to=2026-08-03, :n=5
+                SELECT event_date, avg_pm10, avg_pm25, avg_air_idx_value
+                FROM gold_citydata_air_daily
+                WHERE area_nm = :area AND event_date BETWEEN :from AND :to
+                ORDER BY avg_pm10 DESC LIMIT :n
+            - pattern_id: "air_compare_places_on_date"
+              question_ko: 특정 날짜에 어느 자치구·장소 대기질이 더 나빴나?
+              axes: 장소 랭킹 — avg_pm10 DESC (날짜 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 8/1엔 서남권 장소들의 PM10이 도심보다 높았다.
+              sql: |
+                -- :date=2026-08-01, :n=25
+                SELECT area_nm, gu, avg_pm10, avg_pm25, avg_air_idx_value
+                FROM gold_citydata_air_daily
+                WHERE event_date = :date
+                ORDER BY avg_pm10 DESC LIMIT :n
+        display:
+          title: 일별 대기질 추이
+          summary: 장소마다 날짜별 평균 미세먼지(PM10/PM2.5)와 통합대기지수를 요약했습니다. 실시간 대신 며칠 추세를 봅니다.
+          caveat: 통합대기지수(air_idx_value)는 높을수록 나쁨입니다.
+          use_cases:
+            - 미세먼지 며칠 추이
+            - 요즘 대기질 좋아졌나 나빠졌나
+      contract: {enforced: true}
+    description: >
+      gold_citydata_air_daily — 장소×일자 대기질 집계. silver_citydata_air 파생(air 는 by_time 없음).
+      일 평균 PM10/PM2.5·통합대기지수 + 일 최대. 실시간 대기질(PlayMCP 커버) 대신 일별 시계열 추이.
+      대기질은 날씨·계절이 좌우 → 요일×시간 평균보다 일별 실측이 의미. grain (area_cd, event_date) · append.
+    columns:
+      - name: area_cd
+        data_type: varchar
+        description: 장소 코드 (POI###, grain 축)
+        tests: [not_null]
+      - name: area_nm
+        data_type: varchar
+        description: 장소명
+      - name: gu
+        data_type: varchar
+        description: 자치구명
+      - name: gu_code
+        data_type: varchar
+        description: 자치구 코드 (#48 공간축)
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명
+      - name: admin_dong_code
+        data_type: varchar
+        description: 행정동 코드 (행안부 canonical)
+      - name: area_category
+        data_type: varchar
+        description: 장소 카테고리
+      - name: event_date
+        data_type: date
+        description: 관측 일자 (KST, grain 축)
+        tests: [not_null]
+      - name: avg_pm10
+        data_type: integer
+        description: 일 평균 PM10 (㎍/㎥)
+      - name: avg_pm25
+        data_type: integer
+        description: 일 평균 PM2.5 (㎍/㎥)
+      - name: max_pm10
+        data_type: integer
+        description: 일 최대 PM10
+      - name: max_pm25
+        data_type: integer
+        description: 일 최대 PM2.5
+      - name: avg_air_idx_value
+        data_type: double
+        description: 일 평균 통합대기지수 (높을수록 나쁨)
+      - name: base_n
+        data_type: bigint
+        description: 이 (장소·일자) 셀의 관측 표본 수
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [area_cd, event_date]
+
+  - name: gold_citydata_charger_dow_hour
+    config:
+      tags: ['daily']
+      meta:
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_charger_dow_hour
+          product_question: 이 장소는 무슨 요일 몇 시에 EV 충전소가 잘 빕니까?
+          grain: (area_cd, dow, hr) 마다 한 행 — 영역 요일×시간 충전소 가용 패턴.
+          primary_key: [area_cd, dow, hr]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
+          usage_patterns:
+            - pattern_id: "charger_free_dow_hour_for_place"
+              question_ko: 이 장소는 무슨 요일 몇 시에 충전소가 가장 잘 비나?
+              axes: 요일×시간 랭킹 — avg_available_pct DESC (장소 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 강남역은 평일 새벽 2~5시 가용률 90%+, 저녁 7~9시 40%대다.
+              sql: |
+                -- :area=강남역, :n=10
+                SELECT dow, hr, avg_available_pct, n_chargers
+                FROM gold_citydata_charger_dow_hour
+                WHERE area_nm = :area
+                ORDER BY avg_available_pct DESC LIMIT :n
+            - pattern_id: "charger_hourly_profile_for_place_dow"
+              question_ko: 이 장소, 이 요일의 시간대별 충전소 가용 프로파일은?
+              axes: 시간 시계열 — hr ASC (장소·요일 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 강남역 월요일은 새벽에 잘 비고 퇴근시간에 혼잡해진다.
+              sql: |
+                -- :area=강남역, :dow=1
+                SELECT hr, avg_available_pct, n_chargers
+                FROM gold_citydata_charger_dow_hour
+                WHERE area_nm = :area AND dow = :dow
+                ORDER BY hr ASC
+            - pattern_id: "charger_reliable_free_slots"
+              question_ko: 표본이 충분한 셀 중 이 장소에서 가장 잘 비는 요일·시간은?
+              axes: 요일×시간 랭킹 — avg_available_pct DESC (장소 고정, reliable=true 만)
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              insight_sample_ko: 표본 충분 셀만 보면 강남역은 평일 새벽대가 신뢰도 높게 잘 빈다.
+              sql: |
+                -- :area=강남역, :n=10
+                SELECT dow, hr, avg_available_pct, base_n
+                FROM gold_citydata_charger_dow_hour
+                WHERE area_nm = :area AND reliable = true
+                ORDER BY avg_available_pct DESC LIMIT :n
+        display:
+          title: 요일·시간 충전소 가용 패턴
+          summary: 장소마다 무슨 요일 몇 시에 EV 충전소가 잘 비는지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
+          caveat: 상태변경 로그를 시간 as-of 리샘플링해 산출한 평균입니다. base_n·reliable 동봉 — reliable=false 셀은 참고용.
+          use_cases:
+            - 충전 잘 되는 요일·시간
+            - EV 충전 계획
+      contract: {enforced: true}
+    description: >
+      gold_citydata_charger_dow_hour — 장소×요일×시간 EV 충전소 가용 롤업. silver_citydata_charger
+      파생. 실시간 "지금 쓸 수 있나"(구 charger_availability, PlayMCP 커버·ASAC-DBT#401 제거) 대신
+      요일×시간 전형 패턴. ⚠ silver 가 상태변경 로그라 naive 평균은 편향 → 최근 3주 시간 as-of
+      리샘플링(각 시각 충전기 상태를 구간으로 판정)으로 평균. grain (area_cd, dow, hr) · table+replace.
+    columns:
+      - name: area_cd
+        data_type: varchar
+        description: 장소 코드 (POI###, grain 축)
+        tests: [not_null]
+      - name: area_nm
+        data_type: varchar
+        description: 장소명
+      - name: gu
+        data_type: varchar
+        description: 자치구명
+      - name: gu_code
+        data_type: varchar
+        description: 자치구 코드 (#48 공간축)
+      - name: admin_dong
+        data_type: varchar
+        description: 행정동명
+      - name: admin_dong_code
+        data_type: varchar
+        description: 행정동 코드 (행안부 canonical)
+      - name: area_category
+        data_type: varchar
+        description: 장소 카테고리
+      - name: dow
+        data_type: bigint
+        description: 요일 (1=월 … 7=일, Trino day_of_week, grain 축)
+        tests: [not_null]
+      - name: hr
+        data_type: bigint
+        description: 시간 (0~23, grain 축)
+        tests: [not_null]
+      - name: avg_available_pct
+        data_type: double
+        description: 그 요일·시간대 평균 충전기 가용률(%) = 사용가능 충전기-시간 / 전체 충전기-시간
+      - name: n_chargers
+        data_type: bigint
+        description: 이 장소의 충전기 수 (stat_id|charger_id 고유)
+      - name: base_n
+        data_type: bigint
+        description: 이 (장소·요일·시간) 셀의 표본 수 (충전기-시간 개수)
+      - name: reliable
+        data_type: boolean
+        description: 표본 충분 여부 (base_n>=30) — false 셀은 참고용
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

@@ -74,6 +74,18 @@ sources:
       - name: park_info_master
         identifier: bronze_park_info_master
         description: 서울 주차장 정보 마스터(pklt_cd·pklt_nm·addr·lat·lot 등 39필드 + 계보). #162 적재.
+        # 원천 권리(#406 C4). manifest→D1 전달 형식은 공통 표준화 확정 시 이관(#406 공통 결손).
+        meta:
+          source_rights:
+            source_name: 서울시 공영주차장 안내 정보
+            dataset_id: OA-13122
+            source_url: https://data.seoul.go.kr/dataList/OA-13122/S/1/datasetView.do
+            api_service: GetParkInfo
+            license: 공공누리 제1유형(출처표시)
+            attribution: 서울특별시
+            commercial_use: true
+            redistribution: true
+            verified_at: "2026-08-03"
         loaded_at_field: collected_at
         freshness: null  # 주1회(@weekly) 참조 마스터 — 분 단위 신선도 게이트 비대상(소스 공통 기준 상속 차단)
         columns:
@@ -112,6 +124,18 @@ sources:
         description: >
           주차장 실시간(GetParkingInfo). 1행 = 주차장 스냅샷 1건, 페이로드는 raw(JSON).
           키 PKLT_CD, 갱신시각 NOW_PRK_VHCL_UPDT_TM, 현재주차 NOW_PRK_VHCL_CNT.
+        # 원천 권리(#406 C4). manifest→D1 전달 형식은 공통 표준화 확정 시 이관(#406 공통 결손).
+        meta:
+          source_rights:
+            source_name: 서울시 시영주차장 실시간 주차대수 정보
+            dataset_id: OA-21709
+            source_url: https://data.seoul.go.kr/dataList/OA-21709/A/1/datasetView.do
+            api_service: GetParkingInfo
+            license: 공공누리 제1유형(출처표시)
+            attribution: 서울특별시
+            commercial_use: true
+            redistribution: true
+            verified_at: "2026-08-03"
         columns:
           - name: raw
             tests:

@@ -626,16 +626,21 @@ models:
                 ORDER BY avail_lot_est DESC LIMIT :n
         display:
           title: 지금 주차장 만차 위험
-          summary: 공영주차장별 현재 얼마나 찼는지(%)와, 채워지는 속도로 본 '만차까지 남은 예상 시간'을 보여줍니다. 여기에 '이 시간대 평소 만차 확률'을 더해, 지금 출발하면 자리가 있을지 판단하도록 했습니다.
-          caveat: 만차까지 예상 시간은 최근 관측 추세로 계산해 급격한 변동(행사 등)은 빗나갈 수 있습니다. 실시간 정보를 제공하는 주차장만 포함됩니다.
+          summary: 공영주차장별로 ① 지금 얼마나 찼는지(최신 관측값), ② 채워지는 속도로 본 '만차까지 남은 예상 시간'(최근 1시간 추세 추정), ③ '이 시간대 평소 만차 확률'(과거 관측 통계)을 한 행에 담아, 지금 출발하면 자리가 있을지 판단하도록 했습니다. 세 값은 계산 근거가 서로 다릅니다(관측·추정·통계) — 구분은 각 컬럼 설명을 따르세요.
+          caveat: 만차까지 예상 시간은 최근 관측 추세의 추정값이라 급격한 변동(행사 등)은 빗나갈 수 있고, 만차 확률은 과거 통계라 오늘의 실제 상황과 다를 수 있습니다. 모든 값의 기준 시각은 조회 시점이 아니라 그 주차장의 마지막 관측 시각(last_event_at)입니다 — 수집이 지연되면 값이 오래됐을 수 있으니 last_event_at 을 함께 확인하세요. 실시간 정보를 제공하는 시영주차장만 포함됩니다.
           use_cases:
             - 목적지 주차 가능 여부 안내
             - 만차 임박 알림
             - 주차장 실시간 지도
     description: >
-      주차장별 현재 만차 리스크 스냅샷(#288 G2). grain parking_id — 현재 점유·잔여 추정
-      + 최근 1시간(4버킷) occ_last 추세의 만차까지 예상 분 + 이 시간대 평시 만차 확률
-      (프로파일 조인). 매 변환 재생성 table, 기준은 아카이브 프런티어.
+      주차장별 현재 만차 리스크 스냅샷(#288 G2). grain parking_id — 시간 의미가 다른
+      세 축을 한 행에 분리 노출(#406): ① 현재 관측(occ_now·avail_pct·capacity_now,
+      최신 15분 버킷 실측) ② 추세 추정(occ_rate_per_min·minutes_to_full_est, 최근 45분
+      연속 4버킷 선형 외삽 — 만차선 0.95) ③ 과거 통계(full_prob_now_slot·profile_base_n,
+      아카이브 전량 요일×시 프로파일). 기준 시각은 벽시계가 아니라 아카이브 프런티어
+      (last_bucket_at·last_event_at). canonical mapping: 원천 PKLT_CD(GetParkingInfo,
+      OA-21709) → parking_id → silver_transit_parking → gold_transit_parking_lot_15min
+      (15분 아카이브) → profile·full_risk. 매 변환 재생성 table.
     columns:
       - name: parking_id
         description: 주차장 ID(그레인 축).
@@ -653,27 +658,45 @@ models:
       - name: longitude
         description: 경도(지도 표시용, dim 마스터).
       - name: occ_now
-        description: 현재 점유율(0~1, 최신 버킷 occ_last).
+        description: >
+          [현재 관측] 현재 점유율(최신 버킷 occ_last — 점유대수·총면수 둘 다 유효하고
+          총면수>0 인 관측만 산출). 만차 초과 주차 시 1 초과 가능(#231) — 범위 규칙은
+          range 테스트가 단언. 24h 내 유효 관측 없는 lot 은 스냅샷에서 제외(품질 규칙).
+        tests:
+          - not_null
       - name: avail_pct
-        description: 여유 %((1-occ_now)×100 반올림).
+        description: "[현재 관측] 여유 %((1-occ_now)×100 반올림)."
       - name: capacity_now
-        description: 총 면수(최신 관측).
+        description: "[현재 관측] 총 면수(최신 관측 TPKCT — 운영상 증감 가능)."
       - name: avail_lot_est
-        description: 잔여 대수 추정(총면수×여유율 반올림).
+        description: "[현재 관측 파생] 잔여 대수 추정(총면수×여유율 반올림)."
       - name: occ_rate_per_min
-        description: 분당 점유율 변화(최근 4버킷 처음↔끝). 4버킷 미만 관측이면 null.
+        description: >
+          [추세 추정] 분당 점유율 변화 — 최근 45분 연속 4버킷의 처음↔끝 차이.
+          4버킷 미만 관측(신규·결측 lot)이면 null(추세 미산출 가드).
       - name: rate_base_n
-        description: 추세 계산에 쓴 버킷 수(45분 창) — 4 미만이면 추세 미산출.
+        description: "[추세 추정 근거] 추세 계산에 쓴 버킷 수(45분 창) — 4 미만이면 추세 미산출."
       - name: minutes_to_full_est
-        description: 만차(0.95)까지 예상 분. 채워지는 중(rate>0)일 때만, 이미 만차면 0, 그 외 null.
+        description: >
+          [추세 추정] 만차(점유 0.95)까지 예상 분 — 최근 추세의 선형 외삽.
+          채워지는 중(rate>0)일 때만, 이미 만차면 0, 그 외 null.
       - name: full_prob_now_slot
-        description: 이 시간대(요일×시) 평시 만차 확률(프로파일 조인, 그 lot 의 최신 관측 시각 칸). null=프로파일 미보유.
+        description: >
+          [과거 통계] 이 시간대(요일×시) 평시 만차 확률 — 아카이브 전량 프로파일
+          (occ_max>=0.95 터치 비율)에서 그 lot 의 최신 관측 시각 칸을 조인.
+          null=프로파일 미보유.
       - name: profile_base_n
-        description: 조인된 프로파일 칸의 표본 수(base_n) — 소비 측 배지 판단.
+        description: "[과거 통계 근거] 조인된 프로파일 칸의 표본 수(base_n) — 소비 측 배지 판단."
       - name: last_bucket_at
-        description: 최신 15분 버킷 시각 — 프로파일 조인 기준 칸.
+        description: "[기준 시각] 최신 15분 버킷 시각 — 프로파일 조인 기준 칸."
+        tests:
+          - not_null
       - name: last_event_at
-        description: 최신 관측 시각(KST) — 신선도 축(event_time).
+        description: >
+          [기준 시각] 최신 관측 시각(KST) — 신선도 축(event_time). 현재 관측·추세·통계
+          모두 이 시각 기준이며, 조회 시점까지의 경과분 계산은 소비 측 몫.
+        tests:
+          - not_null
 
   - name: gold_transit_bus_route_comfort
     config:
