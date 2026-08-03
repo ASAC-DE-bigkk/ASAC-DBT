@@ -37,6 +37,19 @@ models:
           event_time: hour_at
           freshness_slo_minutes: 90
           shape: wide
+          # D1/클라이언트 참조 구현이며 재게시 전 verified_* 실측·인사이트는 선언하지 않습니다.
+          usage_patterns:
+            - pattern_id: incident_weather_for_dong_hour
+              question_ko: 특정 행정동·평가 시각의 교통 돌발 현황과 날씨 맥락은 무엇입니까?
+              axes: 행정동·평가 시각 필터 — 돌발 현황과 no-hindsight 날씨 맥락
+              requires: [select_columns]
+              allow_empty: true
+              sql: |
+                -- :admin_dong_code, :hour_at
+                SELECT admin_dong, gu, hour_at, incident_count, has_incident, quality_state, weather_category_coverage_count, tmp_value_num, pop_value_num, reh_value_num, wsd_value_num,
+                       sky_qualitative_code, pty_qualitative_code, is_precipitating, status_observed_at, weather_latest_issued_at
+                FROM gold_traffic_incident_x_weather_current_hourly
+                WHERE admin_dong_code = :admin_dong_code AND hour_at = :hour_at
           public_projection:
             schema_version: "1.0.0"
             columns: [product_row_id, admin_dong_code, hour_at, admin_dong, gu_code, gu, admin_dong_revision_date, incident_count, has_incident, quality_state, snapshot_as_of_at, status_observed_at, published_at, weather_category_coverage_count, weather_latest_issued_at, weather_latest_collected_at, weather_latest_published_at, tmp_value_num, pop_value_num, reh_value_num, wsd_value_num, sky_qualitative_code, pty_qualitative_code, is_precipitating]

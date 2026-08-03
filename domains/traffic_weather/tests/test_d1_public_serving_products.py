@@ -138,6 +138,35 @@ REQUIRED_SERVING_FIELDS = {
     "publication_trigger",
 }
 
+V1_USAGE_PATTERN_EXPECTATIONS = {
+    "weather_place_forecast_change_daily": {
+        "pattern_id": "forecast_change_for_place_date",
+        "question_fragment": "장소",
+        "axes": "장소·예보일 필터 — 최신·직전 발표 변화 비교",
+        "requires": ["select_columns"],
+        "sql_fragments": [
+            "FROM gold_weather_place_forecast_change_daily",
+            "WHERE place_id = :place_id",
+            "forecast_date = :forecast_date",
+            "change_state",
+            "max_precip_prob_change_pct",
+        ],
+    },
+    "traffic_incident_x_weather_current_hourly": {
+        "pattern_id": "incident_weather_for_dong_hour",
+        "question_fragment": "행정동",
+        "axes": "행정동·평가 시각 필터 — 돌발 현황과 no-hindsight 날씨 맥락",
+        "requires": ["select_columns"],
+        "sql_fragments": [
+            "FROM gold_traffic_incident_x_weather_current_hourly",
+            "WHERE admin_dong_code = :admin_dong_code",
+            "hour_at = :hour_at",
+            "quality_state",
+            "weather_category_coverage_count",
+        ],
+    },
+}
+
 LEGACY_SERVING_FIELDS = {
     "serving_tier",
     "serving_gold_candidate",
@@ -262,6 +291,32 @@ def test_public_d1_projection_columns_are_declared_and_public_safe() -> None:
             assert isinstance(meta.get("nullable"), bool), f"{product_id}.{column_name} missing nullable boolean"
             assert meta.get("null_meaning"), f"{product_id}.{column_name} missing null_meaning"
             assert meta.get("unit"), f"{product_id}.{column_name} missing unit"
+
+
+def test_v1_skill_products_declare_unverified_reference_usage_patterns() -> None:
+    models = _models()
+
+    for product_id, expected in V1_USAGE_PATTERN_EXPECTATIONS.items():
+        serving = models[f"gold_{product_id}"]["config"]["meta"]["serving"]
+        patterns = serving.get("usage_patterns")
+
+        assert isinstance(patterns, list) and patterns, f"{product_id} missing usage_patterns"
+        by_id = {pattern.get("pattern_id"): pattern for pattern in patterns}
+        assert expected["pattern_id"] in by_id, f"{product_id} missing V1 usage pattern"
+
+        pattern = by_id[expected["pattern_id"]]
+        assert expected["question_fragment"] in pattern["question_ko"]
+        assert pattern["axes"] == expected["axes"]
+        assert pattern["requires"] == expected["requires"]
+        assert pattern["allow_empty"] is True
+        assert not {
+            "verified_rows",
+            "verified_at",
+            "verified_publication_id",
+            "insight_sample_ko",
+        } & pattern.keys(), f"{product_id} declares unverified D1 result evidence"
+        for fragment in expected["sql_fragments"]:
+            assert fragment in pattern["sql"]
 
 
 def test_public_d1_not_null_projection_columns_are_non_nullable() -> None:
