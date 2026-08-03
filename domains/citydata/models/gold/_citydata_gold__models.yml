@@ -475,7 +475,7 @@ models:
           freshness_slo_minutes: 1560
           usage_patterns:
             - pattern_id: top_purchasing_power_on_date
-              question_ko: 특정 날 1인당 소비(구매력)가 가장 높았던 장소는?
+              question_ko: 특정 날 붐빔 대비 소비(구매력 지수)가 가장 높았던 장소는?
               axes: 장소 랭킹 — spend_per_crowd_idx DESC (날짜 고정)
               requires: [select_columns, sort]
               sql: |
