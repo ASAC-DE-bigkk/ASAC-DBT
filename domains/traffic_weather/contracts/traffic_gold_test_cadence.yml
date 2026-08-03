@@ -396,9 +396,10 @@ tests:
   path: tests/traffic/transform/gold/assert_gold_traffic_incident_x_weather_current_hourly_context_reconciles.sql
   test_type: singular
   owner_unique_ids:
+  - model.asac_seoul.bridge_weather_admin_dong_grid
   - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
-  - model.asac_seoul.gold_weather_forecast_by_admin_dong
+  - model.asac_seoul.silver_kma_vilage_fcst_grid
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.assert_gold_traffic_incident_x_weather_current_hourly_grain_unique
@@ -419,9 +420,10 @@ tests:
   path: tests/traffic/transform/gold/assert_gold_traffic_incident_x_weather_current_hourly_no_hindsight.sql
   test_type: singular
   owner_unique_ids:
+  - model.asac_seoul.bridge_weather_admin_dong_grid
   - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
   - model.asac_seoul.gold_traffic_incident_x_weather_current_hourly
-  - model.asac_seoul.gold_weather_forecast_by_admin_dong
+  - model.asac_seoul.silver_kma_vilage_fcst_grid
   tier: gate
   tier_tag: traffic_gold_gate
 - unique_id: test.asac_seoul.assert_gold_traffic_incident_x_weather_current_hourly_reconciles

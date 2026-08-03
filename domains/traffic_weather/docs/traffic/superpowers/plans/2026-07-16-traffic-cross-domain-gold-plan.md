@@ -1,5 +1,7 @@
 # Traffic Cross-Domain Gold Implementation Plan
 
+> **2026-08-03 supersession note:** Task 1·2의 `gold_weather_forecast_by_admin_dong` 소비 경계는 prior eligible issue를 잃는 결함 때문에 폐기했습니다. Corrective implementation은 `bridge_weather_admin_dong_grid` + `silver_kma_vilage_fcst_grid` 이력을 직접 사용하고 `weather_w2_grid_winner_order_key`로 Traffic cutoff 이전의 카테고리별 최신 1건을 선택합니다. 이 보정에 한해 `domains/traffic_weather/contracts/traffic_gold_test_cadence.yml`도 수정 범위에 포함합니다.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build two Traffic-owned cross-domain hourly Gold context tables anchored on canonical Traffic current-hourly rows.
@@ -10,7 +12,7 @@
 
 ## Global Constraints
 
-- Edit only `domains/traffic_weather/models/traffic/**`, `domains/traffic_weather/tests/traffic/**`, and `domains/traffic_weather/docs/traffic/**`.
+- Edit only `domains/traffic_weather/models/traffic/**`, `domains/traffic_weather/tests/traffic/**`, `domains/traffic_weather/docs/traffic/**`, and the corrective test-owner entries in `domains/traffic_weather/contracts/traffic_gold_test_cadence.yml`.
 - Do not edit Weather, Citydata, Culture, Transit, Commerce, package, root, DAG, env, or package files.
 - Do not commit, push, or open a PR.
 - Trino is OFF; do not run warehouse `dbt run` or `dbt test`.
@@ -33,7 +35,7 @@
   - Add `CROSS_DOMAIN_GOLD_PRODUCTS = {...}` to lock the two names.
   - Update physical quality ship-set test so cross-domain models do not break the five Traffic quality product invariant.
   - Add assertions that each new model has `meta.cross_domain_gold: true` and not `traffic_quality_product: true`.
-  - Add static SQL assertions for `ref('gold_traffic_incident_current_by_admin_dong_hourly')`, package-qualified `ref('asac_seoul', 'gold_weather_forecast_by_admin_dong')`, `issued_at <= traffic.status_observed_at`, `row_number() over ( partition by admin_dong_code, hour_at, area_cd order by event_at desc nulls last, collected_at desc nulls last )`, and `avg(avg_ppltn)`/`max(avg_ppltn)` with no `sum(avg_ppltn)`.
+  - Add static SQL assertions for `ref('gold_traffic_incident_current_by_admin_dong_hourly')`, `ref('bridge_weather_admin_dong_grid')`, `ref('silver_kma_vilage_fcst_grid')`, the absence of `ref('asac_seoul', 'gold_weather_forecast_by_admin_dong')`, `issued_at <= traffic.status_observed_at`, `weather_w2_grid_winner_order_key`, `row_number() over ( partition by admin_dong_code, hour_at, area_cd order by event_at desc nulls last, collected_at desc nulls last )`, and `avg(avg_ppltn)`/`max(avg_ppltn)` with no `sum(avg_ppltn)`.
   - Add source YAML assertions for `source('citydata_gold', 'gold_citydata_ppltn_by_time')`, schema env var, and columns.
 
 - [ ] **Step 2: Run RED**
@@ -48,14 +50,15 @@
 - Create singular tests under `domains/traffic_weather/tests/traffic/transform/gold/`.
 
 **Interfaces:**
-- Consumes: `ref('gold_traffic_incident_current_by_admin_dong_hourly')`, package-qualified `ref('asac_seoul', 'gold_weather_forecast_by_admin_dong')`.
+- Consumes: `ref('gold_traffic_incident_current_by_admin_dong_hourly')`, fixed bridge v1 rows from `ref('bridge_weather_admin_dong_grid')`, and history-preserving forecasts from `ref('silver_kma_vilage_fcst_grid')`.
 - Produces: one row per Traffic `product_row_id` with weather coverage and pivoted values.
 
 - [ ] **Step 1: Implement SQL**
   - Materialize as table.
   - CTE `traffic` casts canonical row fields.
-  - CTE `weather_candidates` filters categories in `('TMP', 'POP', 'REH', 'WSD', 'SKY', 'PTY')`, joins exact admin-dong/hour, and requires `weather.issued_at <= traffic.status_observed_at`.
-  - CTE `weather_hourly` groups by `traffic_product_row_id`, counts distinct categories, maxes `issued_at`/`collected_at`, pivots numeric and qualitative fields, and derives `is_precipitating` only when PTY is present.
+  - CTE `weather_bridge` selects canonical-eligible fixed bridge v1 rows; `weather_history` retains non-null-issue Grid history.
+  - CTE `weather_candidates` filters logical categories in `('tmp', 'pop', 'reh', 'wsd', 'sky', 'pty')`, joins the exact bridge grid/hour, and requires `weather.issued_at <= traffic.status_observed_at` before ranking.
+  - CTE `weather_candidates` computes the deterministic rank per Traffic product/category with `weather_w2_grid_winner_order_key`; `latest_weather_category` keeps only `category_row_num = 1`, and `weather_hourly` then counts categories, maxes lineage timestamps, pivots values, and derives `is_precipitating` only when PTY is present.
   - Final select left joins to Traffic and never coalesces weather missing values to zero.
 
 - [ ] **Step 2: Add YAML**

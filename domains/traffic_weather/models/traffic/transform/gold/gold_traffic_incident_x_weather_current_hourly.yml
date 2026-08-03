@@ -1,5 +1,4 @@
 version: 2
-
 models:
   - name: gold_traffic_incident_x_weather_current_hourly
     description: 정본 Traffic 현재-시간 행정동 행에 no-hindsight KMA 예보 맥락을 left join으로 붙인 공개 Gold 모델입니다.
@@ -70,9 +69,8 @@ models:
           anchor_universe: gold_traffic_incident_current_by_admin_dong_hourly의 정본 행정동 전체 scaffold이며 날씨 맥락 유무와 무관하게 모든 행이 보존됩니다.
           usage_guidance: incident_count·has_incident·quality_state는 anchor 원본 값을 그대로 사용하고, 날씨 맥락은 weather_category_coverage_count로 커버리지를 먼저 확인한 뒤 사용합니다.
           do_not_use_for: 사고 발생시각별 이력이나 개인 위치 추정, 실시간 긴급 경보, 공식 기상특보 판정에 사용하지 않습니다.
-          semantic_caveats: 날씨 맥락은 status_observed_at 이전에 issued_at이 확정된 예보만 사용하는 no-hindsight 조건을 만족할 때만 채워지며, 결측은 Traffic incident_count·has_incident·quality_state를 절대 재작성하지 않습니다.
-          primary_key:
-            - product_row_id
+          semantic_caveats: 날씨 맥락은 status_observed_at 이전에 issued_at이 확정된 Grid 이력에서 카테고리별 최신 예보를 선택합니다. 더 최신인 미래 발표분이 있어도 이전의 유효한 발표분으로 돌아가며, 결측은 Traffic incident_count·has_incident·quality_state를 절대 재작성하지 않습니다.
+          primary_key: [product_row_id]
           column_order:
             - product_row_id
             - admin_dong_code
@@ -103,7 +101,7 @@ models:
           time:
             canonical_timezone: Asia/Seoul
             freshness_slo: Traffic anchor의 manifest freshness 계약(경고 15분·오류 30분)을 그대로 승계하며, 날씨 맥락은 no-hindsight 조건을 만족하는 최신 예보만 반영합니다.
-            as_of_meaning: snapshot_as_of_at은 anchor의 complete publishable run 수집 시각이며, weather_latest_issued_at은 그 시점 이전에 확정된 날씨 맥락의 최신 발표 시각입니다.
+            as_of_meaning: snapshot_as_of_at은 anchor의 complete publishable run 수집 시각이며, weather_latest_issued_at은 Traffic status_observed_at 이전에 확정된 날씨 맥락의 최신 발표 시각입니다.
             late_repair_policy: 이 모델은 매 실행마다 anchor와 날씨 맥락을 전체 재계산(full refresh)하므로 별도 late repair가 없습니다.
             roles:
               hour_at:
@@ -129,25 +127,16 @@ models:
                 timezone: Asia/Seoul
           space:
             enabled: true
-            source_chain:
-              - iceberg_dev.common.bronze_admin_dong_master
-              - asac_axes.dim_admin_dong
+            source_chain: [iceberg_dev.common.bronze_admin_dong_master, asac_axes.dim_admin_dong]
             canonical_key: admin_dong_code
             revision_field: admin_dong_revision_date
             approved_revision_date: "2025-04-01"
-            stamp_fields:
-              - admin_dong_code
-              - admin_dong
-              - gu_code
-              - gu
-              - admin_dong_revision_date
+            stamp_fields: [admin_dong_code, admin_dong, gu_code, gu, admin_dong_revision_date]
             candidate_key_explanation: admin_dong_code는 anchor(gold_traffic_incident_current_by_admin_dong_hourly)가 이미 dim_admin_dong과 exact join으로 확정한 stamp를 그대로 승계하는 후보 키이며, 이 모델은 canonical_admin_dong과의 방어적 join으로 그 확정을 재검증합니다.
-            mapping_version_explanation: 별도 bridge 버전을 선언하지 않고 anchor가 이미 확정한 stamp를 승계합니다.
+            mapping_version_explanation: 공개 공간 stamp는 anchor가 이미 확정한 값을 승계하고, 날씨 맥락을 찾을 때만 weather_admin_dong_grid_bridge_v1을 고정해 행정동과 KMA Grid를 연결합니다.
             null_location_explanation: 정본에 결합되지 않는 admin_dong_code는 canonical_admin_dong과의 inner join에서 자연히 제외됩니다.
-            fan_out_explanation: canonical_admin_dong은 admin_dong_code distinct 집합이므로 이 join으로 인한 행 증가는 없습니다. 위반 시 게시 전 재조정 테스트가 실패시킵니다.
-            reconciliation_tests:
-              - assert_gold_traffic_incident_x_weather_current_hourly_admin_stamp_exact
-              - assert_gold_traffic_incident_x_weather_current_hourly_admin_join_reconciles
+            fan_out_explanation: canonical_admin_dong은 admin_dong_code distinct 집합이며, 날씨 bridge·Grid 후보는 Traffic 제품 행과 카테고리별로 결정적 최신 1건을 선택한 뒤 집계합니다. 따라서 최종 anchor 행 증가는 허용하지 않으며 위반 시 게시 전 재조정 테스트가 실패시킵니다.
+            reconciliation_tests: [assert_gold_traffic_incident_x_weather_current_hourly_admin_stamp_exact, assert_gold_traffic_incident_x_weather_current_hourly_admin_join_reconciles]
           metrics:
             incident_count:
               expression: anchor(gold_traffic_incident_current_by_admin_dong_hourly)에서 재집계 없이 그대로 승계
@@ -161,19 +150,24 @@ models:
               non_additive_axes:
                 - time
           joins:
+            weather_admin_dong_bridge:
+              target: model.asac_seoul.bridge_weather_admin_dong_grid
+              source_keys: [admin_dong_code]
+              purpose: Traffic 정본 행정동을 고정된 weather_admin_dong_grid_bridge_v1의 KMA Grid 좌표로 변환합니다.
+              cardinality: many_to_one
+              fan_out_policy: 같은 행정동의 bridge 후보가 여러 개여도 최종 날씨 선택은 Traffic 제품 행과 카테고리별 결정적 winner 한 건으로 제한하며, 최종 anchor grain 증가는 허용하지 않습니다.
+              reconciliation_test: assert_gold_traffic_incident_x_weather_current_hourly_context_reconciles
             weather_context:
-              target: model.asac_seoul.gold_weather_forecast_by_admin_dong
-              source_keys:
-                - admin_dong_code
-                - hour_at
-              purpose: 같은 행정동·시간의 no-hindsight KMA 예보 맥락(카테고리별 최신 발표)을 결합합니다.
+              target: model.asac_seoul.silver_kma_vilage_fcst_grid
+              source_keys: [admin_dong_code, hour_at, status_observed_at]
+              purpose: 같은 행정동·시간의 KMA Grid 이력에서 status_observed_at 이전 카테고리별 최신 발표를 결합합니다.
               cardinality: one_to_one
-              fan_out_policy: 카테고리별 row_number 최신 1건만 남기고 traffic_product_row_id로 group by하므로 날씨 맥락은 최대 한 행이며, 위반 시 product_row_id의 표준 unique 테스트가 실패합니다.
-              reconciliation_test: unique_gold_traffic_incident_x_weather_current_hourly_product_row_id
+              fan_out_policy: 공유 Weather winner-order key로 카테고리별 최신 유효 이력 1건만 남기고 traffic_product_row_id로 group by하므로 날씨 맥락은 최대 한 행이며, 위반 시 context 재조정 테스트가 실패합니다.
+              reconciliation_test: assert_gold_traffic_incident_x_weather_current_hourly_context_reconciles
           quality:
             completeness_explanation: incident_count·has_incident·quality_state는 anchor의 completeness 판정을 그대로 승계하며, weather_category_coverage_count로 날씨 맥락 자체의 완전성을 별도로 확인합니다.
             freshness_explanation: status_observed_at(Traffic 관측)과 weather_latest_issued_at(날씨 발표)을 분리해 두 도메인의 신선도를 각각 해석합니다.
-            coverage_explanation: 정본 행정동 전체 scaffold를 anchor에서 그대로 승계하므로 돌발 유무와 무관하게 425개 행정동이 항상 존재합니다. 날씨 맥락 커버리지는 weather_category_coverage_count(0~6)로 별도 확인합니다.
+            coverage_explanation: 정본 행정동 전체 scaffold를 anchor에서 그대로 승계하므로 돌발 유무와 무관하게 426개 행정동이 항상 존재합니다. 날씨 맥락 커버리지는 weather_category_coverage_count(0~6)로 별도 확인합니다.
             state_fields:
               quality_state:
                 allowed_values:
@@ -194,8 +188,9 @@ models:
                   spatial_mapping_incomplete: current 사고 하나 이상이 정본 행정동에 정확히 결합되지 않은 상태입니다.
           lineage:
             source_relations:
+              - model.asac_seoul.bridge_weather_admin_dong_grid
               - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
-              - model.asac_seoul.gold_weather_forecast_by_admin_dong
+              - model.asac_seoul.silver_kma_vilage_fcst_grid
               - model.asac_axes.dim_admin_dong
             identifiers:
               as_of:
