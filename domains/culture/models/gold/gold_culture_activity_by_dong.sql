@@ -7,6 +7,12 @@
 -- 활동 원천·기간 전개는 int_culture_activity_days 공유. kcisa 는 activity_type 별도 유지(kcisa_count).
 -- free/edu 카운트(#280): free_access(티어링 #19) 흡수 — event 소스만 유무료·카테고리 보유.
 --   해석적 이름(family_friendly) 대신 기술적 카운트만 — "가족적합" 해석은 Q&A 레이어 몫(governed).
+-- 🔑 카운트 두 갈래(#406) — 더해도 되는 열과 안 되는 열이 섞여 있다:
+--   원천 유형 5종  performances·events·exhibitions·sejong·kcisa → 이 합이 activities_count
+--   부분집합 지표 4종  festivals(공연 중 KOPIS 축제) · free_events·edu_experience_events·
+--                     festival_events(모두 행사 중 일부) → 위 5종에 이미 포함, 더하면 중복
+--   festivals_count 를 원천 유형처럼 6번째로 세면 KOPIS 축제(301건)가 공연과 이중계상된다
+--   — mt20id 를 공연목록·축제목록이 공유하기 때문이고, 실측으로 합이 1,106 만큼 어긋났다.
 
 with dim as (
     select admin_dong_code, admin_dong, gu_code, gu, stat_region_cd
@@ -46,7 +52,12 @@ agg as (
         count(distinct case when activity_type = 'sejong'      then activity_id end) as sejong_count,
         count(distinct case when activity_type = 'kcisa'       then activity_id end) as kcisa_count,
         count(distinct case when activity_type = 'event' and is_free = '무료'      then activity_id end) as free_events_count,
-        count(distinct case when activity_type = 'event' and category = '교육/체험' then activity_id end) as edu_experience_events_count
+        count(distinct case when activity_type = 'event' and category = '교육/체험' then activity_id end) as edu_experience_events_count,
+        -- 서울시 문화행사의 축제 분류 6종(축제-문화/예술·기타·전통/역사·자연/경관·시민화합·관광/체육).
+        -- festivals_count(KOPIS)와 다른 원천이다 — 소비자가 "축제"로 기대하는 쪽은 이 열이고,
+        -- 이 창에서 KOPIS 축제(1,106 활동-일)보다 크다(1,813). 접두 매칭인 이유는 분류가
+        -- '축제-<세부>' 형태로 세분되고 세부 항목이 늘 수 있어서다.
+        count(distinct case when activity_type = 'event' and category like '축제%' then activity_id end) as festival_events_count
     from expanded
     group by admin_dong_code, activity_date
 )
@@ -62,6 +73,7 @@ select
     coalesce(a.sejong_count, 0)       as sejong_count,
     coalesce(a.kcisa_count, 0)        as kcisa_count,
     coalesce(a.free_events_count, 0)            as free_events_count,
-    coalesce(a.edu_experience_events_count, 0)  as edu_experience_events_count
+    coalesce(a.edu_experience_events_count, 0)  as edu_experience_events_count,
+    coalesce(a.festival_events_count, 0)        as festival_events_count
 from scaffold s
 left join agg a on a.admin_dong_code = s.admin_dong_code and a.event_date = s.event_date

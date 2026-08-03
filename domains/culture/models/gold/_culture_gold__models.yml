@@ -27,8 +27,8 @@ models:
             schedule_cron: "30 4 * * *"
         display:
           title: 행정동별 일자 문화활동량
-          summary: 서울 426개 행정동에 대해 하루 단위로 문화활동이 몇 건 열리는지 집계했습니다. 공연·행사·축제·전시 등 유형별 건수와 함께 무료 행사, 교육·체험 행사 건수를 따로 제공합니다.
-          caveat: 행사가 없는 동도 0으로 채워져 있어 지도나 시계열에 그대로 얹을 수 있습니다. 무료 여부는 서울시 문화행사 출처에만 있어 그 범위의 건수입니다.
+          summary: 서울 426개 행정동에 대해 하루 단위로 문화활동이 몇 건 열리는지 집계했습니다. 공연·행사·전시·세종문화회관·국립문화기관 5개 출처별 건수와 함께, 축제·무료·교육체험 행사 건수를 따로 제공합니다.
+          caveat: 전체 건수는 출처 5종(공연·행사·전시·세종·국립문화기관)의 합입니다. 축제·무료·교육체험 건수는 그 안에 이미 포함된 부분집합이라 5종에 더하면 중복됩니다. 행사가 없는 동도 0으로 채워져 있어 지도나 시계열에 그대로 얹을 수 있습니다. 좌표가 없어 행정동을 확정하지 못한 활동은 빠집니다(전체의 2.3%, 전시는 17.5%·국립문화기관은 12.8%로 편차가 큽니다 — 구 단위 집계가 필요하면 별도 제품을 쓰십시오). 날짜는 최근 90일부터 향후 1년까지만 담습니다.
           use_cases:
             - 생활권 문화 인프라 격차 분석
             - 부동산·상권 리포트의 생활편의 지표
@@ -60,16 +60,16 @@ models:
         data_type: date
         tests: [not_null]
       - name: activities_count
-        description: 그날 그 동에서 열린 전체 문화활동 수 — 아래 유형별 건수의 합
+        description: 그날 그 동에서 열린 전체 문화활동 수 — 출처 5종(performances·events·exhibitions·sejong·kcisa) 건수의 합. 축제·무료·교육체험 건수는 이 안에 포함된 부분집합이라 따로 더하지 않는다
         data_type: bigint
       - name: performances_count
-        description: KOPIS 공연 수
+        description: KOPIS 공연 수 (festivals_count 를 포함한다)
         data_type: bigint
       - name: events_count
-        description: 서울시 문화행사 수
+        description: 서울시 문화행사 수 (free_events_count·edu_experience_events_count·festival_events_count 를 포함한다)
         data_type: bigint
       - name: festivals_count
-        description: 서울시 축제 수
+        description: KOPIS 공연 중 축제로 분류된 수 — performances_count 의 부분집합이다(KOPIS 가 같은 공연 ID를 공연목록과 축제목록에 함께 싣는다). 서울시가 여는 축제는 festival_events_count 를 볼 것
         data_type: bigint
       - name: exhibitions_count
         description: SeMA 전시 수
@@ -84,7 +84,10 @@ models:
         description: 그날 그 동의 무료 문화행사 수. 유·무료 표기는 서울시 문화행사 출처에만 있어 그 범위의 건수
         data_type: bigint
       - name: edu_experience_events_count
-        description: 그날 그 동의 교육·체험 분류 행사 수
+        description: 그날 그 동의 교육·체험 분류 행사 수 — events_count 의 부분집합
+        data_type: bigint
+      - name: festival_events_count
+        description: 그날 그 동의 축제 분류 행사 수 — 서울시 문화행사의 축제 6분류(문화/예술·기타·전통/역사·자연/경관·시민화합·관광/체육)를 합친 것으로 events_count 의 부분집합. KOPIS 축제(festivals_count)와 다른 출처다
         data_type: bigint
 
   - name: gold_culture_booking_curve
