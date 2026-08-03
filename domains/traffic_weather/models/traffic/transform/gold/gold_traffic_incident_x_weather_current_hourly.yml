@@ -39,31 +39,7 @@ models:
           shape: wide
           public_projection:
             schema_version: "1.0.0"
-            columns:
-              - product_row_id
-              - admin_dong_code
-              - hour_at
-              - admin_dong
-              - gu_code
-              - gu
-              - admin_dong_revision_date
-              - incident_count
-              - has_incident
-              - quality_state
-              - snapshot_as_of_at
-              - status_observed_at
-              - published_at
-              - weather_category_coverage_count
-              - weather_latest_issued_at
-              - weather_latest_collected_at
-              - weather_latest_published_at
-              - tmp_value_num
-              - pop_value_num
-              - reh_value_num
-              - wsd_value_num
-              - sky_qualitative_code
-              - pty_qualitative_code
-              - is_precipitating
+            columns: [product_row_id, admin_dong_code, hour_at, admin_dong, gu_code, gu, admin_dong_revision_date, incident_count, has_incident, quality_state, snapshot_as_of_at, status_observed_at, published_at, weather_category_coverage_count, weather_latest_issued_at, weather_latest_collected_at, weather_latest_published_at, tmp_value_num, pop_value_num, reh_value_num, wsd_value_num, sky_qualitative_code, pty_qualitative_code, is_precipitating]
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
