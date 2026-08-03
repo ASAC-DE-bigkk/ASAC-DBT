@@ -1,6 +1,35 @@
+{% set incident_run_id = var('traffic_snapshot_dag_run_id', '') or '' %}
 {% set flow_run_id = var('traffic_flow_snapshot_dag_run_id', '') or '' %}
 
 with violations as (
+    select
+        'traffic_gold_publication' as model_name,
+        'missing_pinned_incident_run' as violation_type,
+        cast(null as varchar) as product_row_id
+    where nullif(trim('{{ incident_run_id }}'), '') is null
+
+    union all
+
+    select
+        'gold_traffic_incident_current_by_admin_dong_hourly',
+        'stale_incident_snapshot',
+        cast(product_row_id as varchar)
+    from {{ ref('gold_traffic_incident_current_by_admin_dong_hourly') }}
+    where cast(snapshot_dag_run_id as varchar)
+        is distinct from '{{ incident_run_id }}'
+
+    union all
+
+    select
+        'gold_traffic_incident_x_weather_current_hourly',
+        'stale_incident_snapshot',
+        cast(product_row_id as varchar)
+    from {{ ref('gold_traffic_incident_x_weather_current_hourly') }}
+    where cast(snapshot_dag_run_id as varchar)
+        is distinct from '{{ incident_run_id }}'
+
+    union all
+
     select
         'gold_traffic_incident_x_weather_current_hourly' as model_name,
         'invalid_product_row_id' as violation_type,
