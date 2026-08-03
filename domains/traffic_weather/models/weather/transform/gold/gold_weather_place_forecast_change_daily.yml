@@ -55,36 +55,7 @@ models:
                   AND forecast_date = :forecast_date
           public_projection:
             schema_version: "1.1.0"
-            columns:
-              - product_row_id
-              - place_id
-              - forecast_date
-              - latest_issued_at
-              - change_state
-              - place_name
-              - admin_dong_code
-              - admin_dong
-              - gu_code
-              - gu
-              - previous_issued_at
-              - issue_gap_hours
-              - latest_category_count
-              - previous_category_count
-              - latest_forecast_hour_count
-              - previous_forecast_hour_count
-              - latest_min_temp_c
-              - previous_min_temp_c
-              - min_temp_change_c
-              - latest_max_temp_c
-              - previous_max_temp_c
-              - max_temp_change_c
-              - latest_max_precip_prob_pct
-              - previous_max_precip_prob_pct
-              - max_precip_prob_change_pct
-              - latest_first_precipitation_at
-              - previous_first_precipitation_at
-              - latest_collected_at_max
-              - previous_collected_at_max
+            columns: [product_row_id, place_id, forecast_date, latest_issued_at, change_state, place_name, admin_dong_code, admin_dong, gu_code, gu, previous_issued_at, issue_gap_hours, latest_category_count, previous_category_count, latest_forecast_hour_count, previous_forecast_hour_count, latest_min_temp_c, previous_min_temp_c, min_temp_change_c, latest_max_temp_c, previous_max_temp_c, max_temp_change_c, latest_max_precip_prob_pct, previous_max_precip_prob_pct, max_precip_prob_change_pct, latest_first_precipitation_at, previous_first_precipitation_at, latest_collected_at_max, previous_collected_at_max]
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
