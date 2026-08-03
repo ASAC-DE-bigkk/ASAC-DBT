@@ -287,6 +287,60 @@ def test_public_projection_rejects_not_null_column_declared_nullable():
     assert "public_projection_nullability_conflict" in _rules(result.findings)
 
 
+def test_source_evidence_rejects_missing_or_ambiguous_rights_declaration():
+    model = _serving_model(
+        serving_overrides={
+            "source_evidence": [
+                {
+                    "source_id": "kma_vilage_fcst",
+                    "source_url": "http://not-secure.example.test/kma",
+                    "license": "",
+                    "license_url": "https://example.test/kogl",
+                    "redistribution": "maybe",
+                    "attribution": "",
+                    "rights_checked_at": "2026/08/04",
+                    "unexpected": "typo-must-not-pass",
+                },
+                {
+                    "source_id": "kma_vilage_fcst",
+                    "source_url": "https://example.test/duplicate",
+                    "license": "KOGL-1",
+                    "license_url": "https://example.test/kogl",
+                    "redistribution": "allowed_with_attribution",
+                    "attribution": "기상청",
+                    "rights_checked_at": "2026-08-04",
+                },
+            ],
+        }
+    )
+
+    result = validate([model])
+
+    rules = _rules(result.findings)
+    assert "source_evidence_invalid" in rules
+    assert "source_evidence_unknown_field" in rules
+    assert "source_evidence_duplicate" in rules
+
+
+def test_quality_coverage_rejects_unknown_field_and_unachievable_threshold():
+    model = _serving_model(
+        serving_overrides={
+            "quality_coverage": {
+                "field": "missing_dimension",
+                "expected_distinct_count": 0,
+                "minimum_ratio": 1.2,
+                "unexpected": "typo-must-not-pass",
+            },
+        }
+    )
+
+    result = validate([model])
+
+    rules = _rules(result.findings)
+    assert "quality_coverage_invalid" in rules
+    assert "quality_coverage_unknown_field" in rules
+
+
 def test_projection_identity_hash_preserves_order_and_ignores_descriptions():
     from serving_contract.projection_identity import canonical_projection_bytes, projection_schema_hash
 

@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.4
+schema_version: v1.6
 supported_contract_versions: [v1]
 
 # v1.1 (#478 보강 결정): 조건부 필수 — `if_present` 필드를 선언한 모델은
@@ -41,6 +41,8 @@ optional:
   upsert_strategy:        {type: enum, allowed: [merge, exact_set]}
   usage_patterns:         {type: list}   # v1.3 (#600/#638): 검증 질의 예시 — 항목 규칙은 usage_pattern_fields
   public_projection:      {type: object} # v1.4: 물리 D1/public projection allowlist
+  source_evidence:        {type: list}   # v1.5 (#678): 공개 권리·출처 증거 — 항목 규칙은 source_evidence_fields
+  quality_coverage:       {type: object} # v1.6 (#678): 재현 가능한 distinct coverage gate
 
 # Defaults the Publisher applies when the field is absent (documentation of intent;
 # the validator does not require them but forbids illegal explicit values).
@@ -91,3 +93,15 @@ usage_pattern_fields:
              verified_publication_id, allow_empty, insight_sample_ko, d1_table]
   requires_allowed: [select_columns, sort, aggregate, group_by, having,
                      join, subquery, window, filter_range, filter_set, filter_null]
+
+# v1.5 (#678): source_evidence 는 D1 ``d1_catalog_sources``로 함께 게시되는
+# 권리/출처 정본이다. 미선언은 레거시 호환을 위해 허용하지만, 선언한 제품은 빈 목록이나
+# 모호한 재배포 범위를 허용하지 않는다.
+source_evidence_fields:
+  required: [source_id, source_url, license, license_url, redistribution, attribution, rights_checked_at]
+  redistribution_allowed: [allowed_with_attribution, prohibited, unknown]
+
+# v1.6 (#678): 정적 기대 집합과 현재 publication의 distinct coverage를 명확히 분리한다.
+# observed count·ratio·pass/fail은 YAML에서 쓰지 않고 Publisher가 `d1_product_quality`에 기록한다.
+quality_coverage_fields:
+  required: [field, expected_distinct_count, minimum_ratio]

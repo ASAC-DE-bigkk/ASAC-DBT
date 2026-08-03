@@ -49,6 +49,9 @@ python serving_contract/validate_serving_contract.py \
 - `public_projection_internal_field` — raw/request/run lineage 또는 secret-like identifier를 public projection에 노출
 - `public_projection_column_metadata_missing` — projected column의 `description`, `data_type`, `semantic_role`, `nullable`, `null_meaning`, `unit` 누락
 - `public_projection_nullability_conflict` — **v1.4**: projected column의 dbt `not_null` 테스트와 `nullable: true` 동시 선언
+- `source_evidence_invalid` — **v1.5**: 출처 식별자·공개 HTTPS URL·권리 확인일·출처표시·재배포 범위 중 하나가 불완전하거나 모호함
+- `source_evidence_unknown_field` / `source_evidence_duplicate` — 출처 증거의 스펙 밖 필드(오타 가능성) 또는 모델 안의 `source_id` 중복
+- `quality_coverage_invalid` / `quality_coverage_unknown_field` — **v1.6**: coverage 축·기대 distinct 수·최소 비율이 재현 불가하거나 스펙 밖 필드가 있음
 - `model_not_in_manifest` — manifest에 없는 모델 선언 (manifest 제공 시)
 
 > 참고: 문서 §8의 "알 수 없는 `contract_version` → ERROR"는 **Publisher 런타임**의 책임이다.
