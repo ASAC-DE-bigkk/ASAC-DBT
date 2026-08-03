@@ -43,6 +43,12 @@ python serving_contract/validate_serving_contract.py \
 - `partial_policy_invalid` / `reliability_invalid` — 정책 값 범위·키
 - `conditional_required_missing` — **v1.1**: `event_time` 선언 제품의 `freshness_slo_minutes` 누락 (명부성 제품은 면제, `schema.yml`의 `conditional_required`로 구동)
 - `upsert_strategy_invalid` — `upsert_strategy`를 `publication_mode: upsert` 이외의 제품에 선언
+- `public_projection_invalid` — **v1.4**: `public_projection` exact key, semver, non-empty unique physical identifier list 위반
+- `public_projection_unknown_column` — projection 컬럼이 manifest 또는 YAML column 계약에 없음
+- `public_projection_required_field_missing` — projection에 primary key, `event_time`, `reliability.sample_count_field` 누락
+- `public_projection_internal_field` — raw/request/run lineage 또는 secret-like identifier를 public projection에 노출
+- `public_projection_column_metadata_missing` — projected column의 `description`, `data_type`, `semantic_role`, `nullable`, `null_meaning`, `unit` 누락
+- `public_projection_nullability_conflict` — **v1.4**: projected column의 dbt `not_null` 테스트와 `nullable: true` 동시 선언
 - `model_not_in_manifest` — manifest에 없는 모델 선언 (manifest 제공 시)
 
 > 참고: 문서 §8의 "알 수 없는 `contract_version` → ERROR"는 **Publisher 런타임**의 책임이다.

@@ -33,25 +33,54 @@ traffic as (
     from {{ ref('gold_traffic_incident_current_by_admin_dong_hourly') }}
 ),
 
+weather_bridge as (
+    select
+        cast(source_admin_code as varchar) as admin_dong_code,
+        cast(nx as integer) as nx,
+        cast(ny as integer) as ny
+    from {{ ref('bridge_weather_admin_dong_grid') }}
+    where cast(bridge_version as varchar) = 'weather_admin_dong_grid_bridge_v1'
+      and cast(canonical_join_eligible as boolean)
+),
+
+weather_history as (
+    select
+        cast(nx as integer) as nx,
+        cast(ny as integer) as ny,
+        cast(source_grid_place_id as varchar) as source_grid_place_id,
+        cast(issued_at as timestamp(6)) as issued_at,
+        cast(forecast_at as timestamp(6)) as forecast_at,
+        cast(category as varchar) as category,
+        cast(collected_at as timestamp(6)) as collected_at,
+        cast(published_at as timestamp(6)) as published_at,
+        cast(value_num as double) as value_num,
+        cast(qualitative_code as varchar) as qualitative_code,
+        cast(raw_object_key as varchar) as raw_object_key,
+        cast(request_id as varchar) as request_id,
+        cast(selected_dag_run_id as varchar) as dag_run_id
+    from {{ ref('silver_kma_vilage_fcst_grid') }}
+    where issued_at is not null
+),
+
 weather_candidates as (
     select
         traffic.product_row_id as traffic_product_row_id,
-        weather.category,
+        lower(weather.category) as category,
         cast(weather.issued_at as timestamp(6)) as issued_at,
         cast(weather.collected_at as timestamp(6)) as collected_at,
         cast(weather.published_at as timestamp(6)) as published_at,
         cast(weather.value_num as double) as value_num,
         cast(weather.qualitative_code as varchar) as qualitative_code,
         row_number() over (
-            partition by traffic.product_row_id, weather.category
-            order by
-                weather.issued_at desc nulls last,
-                weather.collected_at desc nulls last,
-                weather.published_at desc nulls last
+            partition by traffic.product_row_id, lower(weather.category)
+            order by {{ weather_w2_grid_winner_order_key('weather') }} desc
         ) as category_row_num
     from traffic
-    inner join {{ ref('asac_seoul', 'gold_weather_forecast_by_admin_dong') }} as weather
-        on traffic.admin_dong_code = weather.admin_dong_code
+    inner join weather_bridge
+        on traffic.admin_dong_code = weather_bridge.admin_dong_code
+    inner join weather_history as weather
+        on weather_bridge.nx = weather.nx
+       and weather_bridge.ny = weather.ny
        and cast(date_trunc('hour', weather.forecast_at) as timestamp(6)) = traffic.hour_at
        and weather.issued_at <= traffic.status_observed_at
     where lower(weather.category) in ('tmp', 'pop', 'reh', 'wsd', 'sky', 'pty')

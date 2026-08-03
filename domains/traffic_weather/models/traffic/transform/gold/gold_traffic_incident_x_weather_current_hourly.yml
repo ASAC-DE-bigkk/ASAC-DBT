@@ -1,5 +1,4 @@
 version: 2
-
 models:
   - name: gold_traffic_incident_x_weather_current_hourly
     description: 정본 Traffic 현재-시간 행정동 행에 no-hindsight KMA 예보 맥락을 left join으로 붙인 공개 Gold 모델입니다.
@@ -38,6 +37,9 @@ models:
           event_time: hour_at
           freshness_slo_minutes: 90
           shape: wide
+          public_projection:
+            schema_version: "1.0.0"
+            columns: [product_row_id, admin_dong_code, hour_at, admin_dong, gu_code, gu, admin_dong_revision_date, incident_count, has_incident, quality_state, snapshot_as_of_at, status_observed_at, published_at, weather_category_coverage_count, weather_latest_issued_at, weather_latest_collected_at, weather_latest_published_at, tmp_value_num, pop_value_num, reh_value_num, wsd_value_num, sky_qualitative_code, pty_qualitative_code, is_precipitating]
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
@@ -60,9 +62,8 @@ models:
           anchor_universe: gold_traffic_incident_current_by_admin_dong_hourly의 정본 행정동 전체 scaffold이며 날씨 맥락 유무와 무관하게 모든 행이 보존됩니다.
           usage_guidance: incident_count·has_incident·quality_state는 anchor 원본 값을 그대로 사용하고, 날씨 맥락은 weather_category_coverage_count로 커버리지를 먼저 확인한 뒤 사용합니다.
           do_not_use_for: 사고 발생시각별 이력이나 개인 위치 추정, 실시간 긴급 경보, 공식 기상특보 판정에 사용하지 않습니다.
-          semantic_caveats: 날씨 맥락은 status_observed_at 이전에 issued_at이 확정된 예보만 사용하는 no-hindsight 조건을 만족할 때만 채워지며, 결측은 Traffic incident_count·has_incident·quality_state를 절대 재작성하지 않습니다.
-          primary_key:
-            - product_row_id
+          semantic_caveats: 날씨 맥락은 status_observed_at 이전에 issued_at이 확정된 Grid 이력에서 카테고리별 최신 예보를 선택합니다. 더 최신인 미래 발표분이 있어도 이전의 유효한 발표분으로 돌아가며, 결측은 Traffic incident_count·has_incident·quality_state를 절대 재작성하지 않습니다.
+          primary_key: [product_row_id]
           column_order:
             - product_row_id
             - admin_dong_code
@@ -93,7 +94,7 @@ models:
           time:
             canonical_timezone: Asia/Seoul
             freshness_slo: Traffic anchor의 manifest freshness 계약(경고 15분·오류 30분)을 그대로 승계하며, 날씨 맥락은 no-hindsight 조건을 만족하는 최신 예보만 반영합니다.
-            as_of_meaning: snapshot_as_of_at은 anchor의 complete publishable run 수집 시각이며, weather_latest_issued_at은 그 시점 이전에 확정된 날씨 맥락의 최신 발표 시각입니다.
+            as_of_meaning: snapshot_as_of_at은 anchor의 complete publishable run 수집 시각이며, weather_latest_issued_at은 Traffic status_observed_at 이전에 확정된 날씨 맥락의 최신 발표 시각입니다.
             late_repair_policy: 이 모델은 매 실행마다 anchor와 날씨 맥락을 전체 재계산(full refresh)하므로 별도 late repair가 없습니다.
             roles:
               hour_at:
@@ -119,25 +120,16 @@ models:
                 timezone: Asia/Seoul
           space:
             enabled: true
-            source_chain:
-              - iceberg_dev.common.bronze_admin_dong_master
-              - asac_axes.dim_admin_dong
+            source_chain: [iceberg_dev.common.bronze_admin_dong_master, asac_axes.dim_admin_dong]
             canonical_key: admin_dong_code
             revision_field: admin_dong_revision_date
             approved_revision_date: "2025-04-01"
-            stamp_fields:
-              - admin_dong_code
-              - admin_dong
-              - gu_code
-              - gu
-              - admin_dong_revision_date
+            stamp_fields: [admin_dong_code, admin_dong, gu_code, gu, admin_dong_revision_date]
             candidate_key_explanation: admin_dong_code는 anchor(gold_traffic_incident_current_by_admin_dong_hourly)가 이미 dim_admin_dong과 exact join으로 확정한 stamp를 그대로 승계하는 후보 키이며, 이 모델은 canonical_admin_dong과의 방어적 join으로 그 확정을 재검증합니다.
-            mapping_version_explanation: 별도 bridge 버전을 선언하지 않고 anchor가 이미 확정한 stamp를 승계합니다.
+            mapping_version_explanation: 공개 공간 stamp는 anchor가 이미 확정한 값을 승계하고, 날씨 맥락을 찾을 때만 weather_admin_dong_grid_bridge_v1을 고정해 행정동과 KMA Grid를 연결합니다.
             null_location_explanation: 정본에 결합되지 않는 admin_dong_code는 canonical_admin_dong과의 inner join에서 자연히 제외됩니다.
-            fan_out_explanation: canonical_admin_dong은 admin_dong_code distinct 집합이므로 이 join으로 인한 행 증가는 없습니다. 위반 시 게시 전 재조정 테스트가 실패시킵니다.
-            reconciliation_tests:
-              - assert_gold_traffic_incident_x_weather_current_hourly_admin_stamp_exact
-              - assert_gold_traffic_incident_x_weather_current_hourly_admin_join_reconciles
+            fan_out_explanation: canonical_admin_dong은 admin_dong_code distinct 집합이며, 날씨 bridge·Grid 후보는 Traffic 제품 행과 카테고리별로 결정적 최신 1건을 선택한 뒤 집계합니다. 따라서 최종 anchor 행 증가는 허용하지 않으며 위반 시 게시 전 재조정 테스트가 실패시킵니다.
+            reconciliation_tests: [assert_gold_traffic_incident_x_weather_current_hourly_admin_stamp_exact, assert_gold_traffic_incident_x_weather_current_hourly_admin_join_reconciles]
           metrics:
             incident_count:
               expression: anchor(gold_traffic_incident_current_by_admin_dong_hourly)에서 재집계 없이 그대로 승계
@@ -151,19 +143,24 @@ models:
               non_additive_axes:
                 - time
           joins:
+            weather_admin_dong_bridge:
+              target: model.asac_seoul.bridge_weather_admin_dong_grid
+              source_keys: [admin_dong_code]
+              purpose: Traffic 정본 행정동을 고정된 weather_admin_dong_grid_bridge_v1의 KMA Grid 좌표로 변환합니다.
+              cardinality: many_to_one
+              fan_out_policy: 같은 행정동의 bridge 후보가 여러 개여도 최종 날씨 선택은 Traffic 제품 행과 카테고리별 결정적 winner 한 건으로 제한하며, 최종 anchor grain 증가는 허용하지 않습니다.
+              reconciliation_test: assert_gold_traffic_incident_x_weather_current_hourly_context_reconciles
             weather_context:
-              target: model.asac_seoul.gold_weather_forecast_by_admin_dong
-              source_keys:
-                - admin_dong_code
-                - hour_at
-              purpose: 같은 행정동·시간의 no-hindsight KMA 예보 맥락(카테고리별 최신 발표)을 결합합니다.
+              target: model.asac_seoul.silver_kma_vilage_fcst_grid
+              source_keys: [admin_dong_code, hour_at, status_observed_at]
+              purpose: 같은 행정동·시간의 KMA Grid 이력에서 status_observed_at 이전 카테고리별 최신 발표를 결합합니다.
               cardinality: one_to_one
-              fan_out_policy: 카테고리별 row_number 최신 1건만 남기고 traffic_product_row_id로 group by하므로 날씨 맥락은 최대 한 행이며, 위반 시 product_row_id의 표준 unique 테스트가 실패합니다.
-              reconciliation_test: unique_gold_traffic_incident_x_weather_current_hourly_product_row_id
+              fan_out_policy: 공유 Weather winner-order key로 카테고리별 최신 유효 이력 1건만 남기고 traffic_product_row_id로 group by하므로 날씨 맥락은 최대 한 행이며, 위반 시 context 재조정 테스트가 실패합니다.
+              reconciliation_test: assert_gold_traffic_incident_x_weather_current_hourly_context_reconciles
           quality:
             completeness_explanation: incident_count·has_incident·quality_state는 anchor의 completeness 판정을 그대로 승계하며, weather_category_coverage_count로 날씨 맥락 자체의 완전성을 별도로 확인합니다.
             freshness_explanation: status_observed_at(Traffic 관측)과 weather_latest_issued_at(날씨 발표)을 분리해 두 도메인의 신선도를 각각 해석합니다.
-            coverage_explanation: 정본 행정동 전체 scaffold를 anchor에서 그대로 승계하므로 돌발 유무와 무관하게 425개 행정동이 항상 존재합니다. 날씨 맥락 커버리지는 weather_category_coverage_count(0~6)로 별도 확인합니다.
+            coverage_explanation: 정본 행정동 전체 scaffold를 anchor에서 그대로 승계하므로 돌발 유무와 무관하게 426개 행정동이 항상 존재합니다. 날씨 맥락 커버리지는 weather_category_coverage_count(0~6)로 별도 확인합니다.
             state_fields:
               quality_state:
                 allowed_values:
@@ -184,8 +181,9 @@ models:
                   spatial_mapping_incomplete: current 사고 하나 이상이 정본 행정동에 정확히 결합되지 않은 상태입니다.
           lineage:
             source_relations:
+              - model.asac_seoul.bridge_weather_admin_dong_grid
               - model.asac_seoul.gold_traffic_incident_current_by_admin_dong_hourly
-              - model.asac_seoul.gold_weather_forecast_by_admin_dong
+              - model.asac_seoul.silver_kma_vilage_fcst_grid
               - model.asac_axes.dim_admin_dong
             identifiers:
               as_of:
@@ -217,10 +215,7 @@ models:
               config:
                 tags: [traffic_gold_gate]
         config:
-          meta:
-            semantic_role: primary_key
-            nullable: false
-            null_meaning: 제품 기본 키이므로 null을 허용하지 않습니다.
+          meta: {semantic_role: primary_key, nullable: false, null_meaning: '제품 기본 키이므로 null을 허용하지 않습니다.', unit: not_applicable}
       - name: admin_dong_code
         description: anchor에서 승계한 행안부 10자리 정본 행정동 코드입니다.
         data_type: varchar
@@ -229,10 +224,7 @@ models:
               config:
                 tags: [traffic_gold_gate]
         config:
-          meta:
-            semantic_role: join_key
-            nullable: false
-            null_meaning: natural grain과 정본 공간 조인에 필수이므로 null을 허용하지 않습니다.
+          meta: {semantic_role: join_key, nullable: false, null_meaning: 'natural grain과 정본 공간 조인에 필수이므로 null을 허용하지 않습니다.', unit: not_applicable}
       - name: hour_at
         description: anchor에서 승계한 서울 기준 snapshot 평가 시간입니다.
         data_type: timestamp(6)
@@ -241,12 +233,7 @@ models:
               config:
                 tags: [traffic_gold_gate]
         config:
-          meta:
-            semantic_role: timestamp
-            nullable: false
-            null_meaning: 모든 행정동 cell이 공유하는 평가 시간 grain이므로 null을 허용하지 않습니다.
-            time_role: evaluation_bucket
-            timezone: Asia/Seoul
+          meta: {semantic_role: timestamp, nullable: false, null_meaning: '모든 행정동 cell이 공유하는 평가 시간 grain이므로 null을 허용하지 않습니다.', time_role: evaluation_bucket, timezone: Asia/Seoul, unit: not_applicable}
       - name: admin_dong
         description: anchor에서 승계한 정본 행정동명입니다.
         data_type: varchar
@@ -255,10 +242,7 @@ models:
               config:
                 tags: [traffic_gold_gate]
         config:
-          meta:
-            semantic_role: spatial_stamp
-            nullable: false
-            null_meaning: 정본 행정동명이 없는 후보는 공개하지 않습니다.
+          meta: {semantic_role: spatial_stamp, nullable: false, null_meaning: '정본 행정동명이 없는 후보는 공개하지 않습니다.', unit: not_applicable}
       - name: gu_code
         description: anchor에서 승계한 행안부 자치구 5자리 코드입니다.
         data_type: varchar
@@ -271,6 +255,7 @@ models:
             semantic_role: spatial_stamp
             nullable: false
             null_meaning: 정본 자치구 코드가 없는 후보는 공개하지 않습니다.
+            unit: not_applicable
       - name: gu
         description: anchor에서 승계한 자치구명입니다.
         data_type: varchar
@@ -283,6 +268,7 @@ models:
             semantic_role: spatial_stamp
             nullable: false
             null_meaning: 정본 자치구명이 없는 후보는 공개하지 않습니다.
+            unit: not_applicable
       - name: admin_dong_revision_date
         description: anchor에서 승계한 승인 공통 행정동 revision입니다.
         data_type: date
@@ -295,6 +281,7 @@ models:
             semantic_role: spatial_stamp
             nullable: false
             null_meaning: 정본 개정일이 없는 후보는 공개하지 않습니다.
+            unit: not_applicable
       - name: incident_count
         description: anchor에서 그대로 승계한 현재 돌발 건수입니다. null은 anchor의 quality가 건수를 지지하지 못했다는 뜻이며 날씨 결합으로 재작성되지 않습니다.
         data_type: bigint
@@ -314,6 +301,7 @@ models:
             semantic_role: derived_flag
             nullable: true
             null_meaning: anchor의 quality가 boolean을 지지하지 못한 상태입니다.
+            unit: not_applicable
       - name: quality_state
         description: anchor에서 그대로 승계한 Traffic snapshot 품질 상태입니다.
         data_type: varchar
@@ -326,6 +314,7 @@ models:
             semantic_role: quality_state
             nullable: false
             null_meaning: 공개 제품은 quality_state 없는 행을 게시하지 않습니다.
+            unit: not_applicable
       - name: snapshot_as_of_at
         description: anchor에서 승계한 complete publishable run의 최신 request audit 수집 시각입니다.
         data_type: timestamp(6)
@@ -336,6 +325,7 @@ models:
             null_meaning: complete publishable 근거가 없는 상태입니다.
             time_role: as_of
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: status_observed_at
         description: anchor에서 승계한 상태 관측 시각이며 날씨 no-hindsight cutoff로도 사용됩니다.
         data_type: timestamp(6)
@@ -350,6 +340,7 @@ models:
             null_meaning: 관측 시각이 없으면 날씨 no-hindsight cutoff를 정할 수 없습니다.
             time_role: observation
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: published_at
         description: anchor에서 승계한 게시 시각입니다.
         data_type: timestamp(6)
@@ -364,6 +355,7 @@ models:
             null_meaning: 게시 시각이 없는 행은 공개하지 않습니다.
             time_role: publication
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: snapshot_dag_run_id
         description: anchor에서 승계한 snapshot DAG 실행 식별자입니다.
         data_type: varchar
@@ -396,6 +388,7 @@ models:
             semantic_role: derived_value
             nullable: true
             null_meaning: 해당 행정동·시간에 no-hindsight 조건을 만족하는 날씨 카테고리가 전혀 없는 경우입니다.
+            unit: count
       - name: weather_latest_issued_at
         description: status_observed_at 이전에 발표된 날씨 카테고리 중 가장 늦은 KMA 발표 시각입니다.
         data_type: timestamp(6)
@@ -406,6 +399,7 @@ models:
             null_meaning: 날씨 맥락이 전혀 결합되지 않은 경우입니다.
             time_role: context_issue
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: weather_latest_collected_at
         description: 결합된 날씨 카테고리 중 가장 늦은 수집 시각입니다.
         data_type: timestamp(6)
@@ -416,6 +410,7 @@ models:
             null_meaning: 날씨 맥락이 전혀 결합되지 않은 경우입니다.
             time_role: context_collection
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: weather_latest_published_at
         description: 결합된 날씨 카테고리 중 가장 늦은 공개 Weather Gold 게시 시각입니다.
         data_type: timestamp(6)
@@ -426,6 +421,7 @@ models:
             null_meaning: 날씨 맥락이 전혀 결합되지 않은 경우입니다.
             time_role: context_publication
             timezone: Asia/Seoul
+            unit: not_applicable
       - name: tmp_value_num
         description: 결합된 TMP(기온) 수치입니다.
         data_type: double
@@ -434,6 +430,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: TMP 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: celsius
       - name: pop_value_num
         description: 결합된 POP(강수확률) 수치입니다.
         data_type: double
@@ -442,6 +439,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: POP 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: percent
       - name: reh_value_num
         description: 결합된 REH(습도) 수치입니다.
         data_type: double
@@ -450,6 +448,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: REH 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: percent
       - name: wsd_value_num
         description: 결합된 WSD(풍속) 수치입니다.
         data_type: double
@@ -458,6 +457,7 @@ models:
             semantic_role: analytical_value
             nullable: true
             null_meaning: WSD 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: meter_per_second
       - name: sky_qualitative_code
         description: 결합된 SKY 하늘상태 정성 코드입니다.
         data_type: varchar
@@ -466,6 +466,7 @@ models:
             semantic_role: categorical_value
             nullable: true
             null_meaning: SKY 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: not_applicable
       - name: pty_qualitative_code
         description: 결합된 PTY 강수형태 정성 코드입니다.
         data_type: varchar
@@ -474,6 +475,7 @@ models:
             semantic_role: categorical_value
             nullable: true
             null_meaning: PTY 카테고리가 no-hindsight 조건을 만족하지 못했거나 결측된 경우입니다.
+            unit: not_applicable
       - name: is_precipitating
         description: PTY 코드에서 파생한 강수 여부 플래그이며 0은 false, 1~7은 true, 결측·미인식은 null입니다.
         data_type: boolean
@@ -482,3 +484,4 @@ models:
             semantic_role: derived_flag
             nullable: true
             null_meaning: PTY 카테고리가 결측이거나 인식되지 않는 코드인 경우입니다.
+            unit: not_applicable

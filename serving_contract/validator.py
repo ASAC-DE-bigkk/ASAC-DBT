@@ -18,6 +18,26 @@ import yaml
 from serving_contract.model import ManifestView, ServingModel
 
 SCHEMA_PATH = Path(__file__).parent / "schema.yml"
+IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+INTERNAL_PUBLIC_FIELD_PARTS = (
+    "raw_object_key",
+    "payload_hash",
+    "request_id",
+    "dag_run_id",
+    "source_run_id",
+    "snapshot_dag_run_id",
+    "representative_dag_run_id",
+    "api_key",
+    "service_key",
+    "access_key",
+    "secret",
+    "token",
+    "password",
+    "credential",
+    "email",
+    "ip_address",
+)
 
 
 @dataclass(frozen=True)
@@ -238,6 +258,7 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
 
     # primary_key 컬럼 실존 + not_null·고유성 근거.
     _check_primary_key(model, manifest, add)
+    _check_public_projection(model, manifest, add)
 
     # manifest 멤버십.
     if manifest.supplied and not manifest.has_model(model.name):
@@ -269,6 +290,81 @@ def _check_primary_key(model: ServingModel, manifest: ManifestView, add) -> None
         combined = combined or any("unique_combination" in t for t in model.model_tests)
         if not combined:
             add("primary_key_evidence_missing", f"복합 primary_key {pk} 에 조합 고유성(unique_combination_of_columns) 근거 없음")
+
+
+def _check_public_projection(model: ServingModel, manifest: ManifestView, add) -> None:
+    projection = model.serving.get("public_projection")
+    if projection is None:
+        return
+    if not isinstance(projection, dict):
+        add("public_projection_invalid", "public_projection 은 object 이어야 한다")
+        return
+
+    if set(projection) != {"schema_version", "columns"}:
+        add("public_projection_invalid", "public_projection 은 schema_version 과 columns 만 선언해야 한다")
+
+    schema_version = projection.get("schema_version")
+    if not isinstance(schema_version, str) or not SEMVER_RE.fullmatch(schema_version):
+        add("public_projection_invalid", "public_projection.schema_version 은 MAJOR.MINOR.PATCH 형식이어야 한다")
+
+    columns = projection.get("columns")
+    if not isinstance(columns, list) or not columns:
+        add("public_projection_invalid", "public_projection.columns 는 비어 있지 않은 리스트여야 한다")
+        return
+
+    seen: set[str] = set()
+    available = manifest.columns(model.name) if (manifest.supplied and manifest.has_model(model.name)) else set(model.columns)
+    check_columns = bool(available)
+
+    for column in columns:
+        if not isinstance(column, str) or not IDENTIFIER_RE.fullmatch(column):
+            add("public_projection_invalid", f"public_projection column {column!r} 은 물리 컬럼 식별자여야 한다")
+            continue
+        if column in seen:
+            add("public_projection_invalid", f"public_projection column '{column}' 중복")
+        seen.add(column)
+        lowered = column.lower()
+        if any(part in lowered for part in INTERNAL_PUBLIC_FIELD_PARTS):
+            add("public_projection_internal_field", f"public_projection column '{column}' 은 내부/비밀 식별자로 공개할 수 없다")
+        if check_columns and column not in available:
+            add("public_projection_unknown_column", f"public_projection column '{column}' 이 모델 컬럼에 없다")
+        if column not in model.columns:
+            add("public_projection_unknown_column", f"public_projection column '{column}' 이 YAML columns 계약에 없다")
+        else:
+            _check_projected_column_metadata(model, column, add)
+
+    required_columns = list(model.serving.get("primary_key") or [])
+    if isinstance(model.serving.get("event_time"), str):
+        required_columns.append(model.serving["event_time"])
+    reliability = model.serving.get("reliability")
+    if isinstance(reliability, dict) and isinstance(reliability.get("sample_count_field"), str):
+        required_columns.append(reliability["sample_count_field"])
+
+    projected = set(c for c in columns if isinstance(c, str))
+    for required_column in required_columns:
+        if required_column not in projected:
+            add("public_projection_required_field_missing", f"public_projection 에 필수 컬럼 '{required_column}' 누락")
+
+
+def _check_projected_column_metadata(model: ServingModel, column: str, add) -> None:
+    contract = model.column_contracts.get(column) or {}
+    meta = ((contract.get("config") or {}).get("meta") or {}) if isinstance(contract, dict) else {}
+    required_fields = {
+        "description": contract.get("description"),
+        "data_type": contract.get("data_type"),
+        "semantic_role": meta.get("semantic_role"),
+        "nullable": meta.get("nullable") if isinstance(meta.get("nullable"), bool) else None,
+        "null_meaning": meta.get("null_meaning"),
+        "unit": meta.get("unit"),
+    }
+    missing = [field for field, value in required_fields.items() if value in (None, "")]
+    if missing:
+        add("public_projection_column_metadata_missing", f"public_projection column '{column}' 메타데이터 누락: {missing}")
+    if "not_null" in model.columns.get(column, ()) and meta.get("nullable") is True:
+        add(
+            "public_projection_nullability_conflict",
+            f"public_projection column '{column}' 은 not_null 테스트와 nullable=true 를 함께 선언할 수 없다",
+        )
 
 
 def _check_global(models: list[ServingModel]) -> list[Finding]:

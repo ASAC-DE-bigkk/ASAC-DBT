@@ -32,26 +32,64 @@ models:
           event_time: observed_at_kst
           freshness_slo_minutes: 90
           shape: wide
+          public_projection:
+            schema_version: "1.0.0"
+            columns:
+              - product_row_id
+              - link_id
+              - flow_speed
+              - flow_travel_time
+              - flow_value_quality
+              - observed_at_utc
+              - observed_at_kst
+              - previous_flow_speed
+              - previous_flow_travel_time
+              - previous_observed_at_kst
+              - flow_speed_change
+              - flow_travel_time_change
+              - speed_change_state
     columns:
       - name: product_row_id
         description: link_id와 같은 제품 행 식별자입니다.
+        data_type: varchar
         tests:
           - not_null:
               config: {tags: [traffic_gold_gate]}
           - unique:
               config: {tags: [traffic_gold_gate]}
+        config:
+          meta:
+            semantic_role: primary_key
+            nullable: false
+            null_meaning: product_row_id 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
       - name: link_id
         description: TOPIS 도로 링크 식별자입니다.
+        data_type: varchar
         tests:
           - not_null:
               config: {tags: [traffic_gold_gate]}
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: false
+            null_meaning: link_id 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
       - name: observed_at_kst
         description: 최신 교통 흐름 관측 KST 시각입니다.
+        data_type: timestamp(6)
         tests:
           - not_null:
               config: {tags: [traffic_gold_gate]}
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: observed_at_kst 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
       - name: speed_change_state
         description: 직전 관측 없음, 속도 비교 불가, 감소, 증가, 동일을 구분합니다.
+        data_type: varchar
         tests:
           - not_null:
               config: {tags: [traffic_gold_gate]}
@@ -59,3 +97,90 @@ models:
               arguments:
                 values: [no_prior_observation, speed_unavailable, speed_decreased, speed_increased, speed_unchanged]
               config: {tags: [traffic_gold_gate]}
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: false
+            null_meaning: speed_change_state 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
+      - name: flow_speed
+        description: 교통 흐름 속도 값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: flow_speed 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: kilometer_per_hour
+      - name: flow_travel_time
+        description: 교통 흐름 통행시간 값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: flow_travel_time 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: second
+      - name: flow_value_quality
+        description: 속도·통행시간 값 존재 여부 품질 상태입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: false
+            null_meaning: flow_value_quality 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
+      - name: observed_at_utc
+        description: 원천 관측 UTC 시각입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: observed_at_utc 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
+      - name: previous_flow_speed
+        description: 직전 관측의 교통 흐름 속도 값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: previous_flow_speed 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: kilometer_per_hour
+      - name: previous_flow_travel_time
+        description: 직전 관측의 교통 흐름 통행시간 값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: previous_flow_travel_time 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: second
+      - name: previous_observed_at_kst
+        description: 직전 관측 시각을 서울 기준으로 변환한 값입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: previous_observed_at_kst 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: not_applicable
+      - name: flow_speed_change
+        description: 최신 속도와 직전 속도의 차이입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: flow_speed_change 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: kilometer_per_hour
+      - name: flow_travel_time_change
+        description: 최신 통행시간과 직전 통행시간의 차이입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: flow_travel_time_change 값이 null이면 원천 결측, 조인 미매칭 또는 비교 기준 부족으로 해당 공개 지표를 산출할 수 없음을 뜻합니다.
+            unit: second
