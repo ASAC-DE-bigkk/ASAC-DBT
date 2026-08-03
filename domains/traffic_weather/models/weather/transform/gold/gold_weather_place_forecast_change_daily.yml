@@ -35,6 +35,24 @@ models:
           freshness_slo_minutes: 240
           retention_or_horizon: 게시 시점 기준 오늘 이후의 최신 예보 일자만 유지합니다.
           shape: wide
+          # D1/클라이언트가 실행하는 SQL이 아닌 카탈로그 참조 구현입니다.
+          # D1 재게시 전이므로 verified_* 실측·인사이트는 선언하지 않습니다.
+          usage_patterns:
+            - pattern_id: forecast_change_for_place_date
+              question_ko: 특정 장소·예보일에서 최신 발표는 직전 발표보다 어떻게 바뀌었습니까?
+              axes: 장소·예보일 필터 — 최신·직전 발표 변화 비교
+              requires: [select_columns]
+              allow_empty: true
+              sql: |
+                -- :place_id, :forecast_date
+                SELECT place_name, admin_dong, gu, forecast_date,
+                       latest_issued_at, previous_issued_at, change_state,
+                       min_temp_change_c, max_temp_change_c,
+                       max_precip_prob_change_pct,
+                       latest_first_precipitation_at, previous_first_precipitation_at
+                FROM gold_weather_place_forecast_change_daily
+                WHERE place_id = :place_id
+                  AND forecast_date = :forecast_date
           public_projection:
             schema_version: "1.1.0"
             columns:
