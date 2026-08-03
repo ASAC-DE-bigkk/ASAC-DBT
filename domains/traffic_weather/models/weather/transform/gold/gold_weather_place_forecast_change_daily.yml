@@ -5,6 +5,8 @@ models:
     description: 장소·예보일별 최근 두 KMA 발표를 비교해 기온·강수확률·첫 강수 예상시각의 수정 내역을 제공하는 공개 Gold 제품입니다.
     access: public
     config:
+      contract:
+        enforced: true
       meta:
         serving:
           enabled: true
@@ -35,18 +37,170 @@ models:
           shape: wide
           public_projection:
             schema_version: "1.1.0"
-            columns: [
-              product_row_id, place_id, forecast_date, latest_issued_at, change_state,
-              place_name, admin_dong_code, admin_dong, gu_code, gu,
-              previous_issued_at, issue_gap_hours, latest_category_count, previous_category_count,
-              latest_forecast_hour_count, previous_forecast_hour_count,
-              latest_min_temp_c, previous_min_temp_c, min_temp_change_c,
-              latest_max_temp_c, previous_max_temp_c, max_temp_change_c,
-              latest_max_precip_prob_pct, previous_max_precip_prob_pct,
-              max_precip_prob_change_pct, latest_first_precipitation_at,
-              previous_first_precipitation_at, latest_collected_at_max,
-              previous_collected_at_max,
-            ]
+            columns:
+              - product_row_id
+              - place_id
+              - forecast_date
+              - latest_issued_at
+              - change_state
+              - place_name
+              - admin_dong_code
+              - admin_dong
+              - gu_code
+              - gu
+              - previous_issued_at
+              - issue_gap_hours
+              - latest_category_count
+              - previous_category_count
+              - latest_forecast_hour_count
+              - previous_forecast_hour_count
+              - latest_min_temp_c
+              - previous_min_temp_c
+              - min_temp_change_c
+              - latest_max_temp_c
+              - previous_max_temp_c
+              - max_temp_change_c
+              - latest_max_precip_prob_pct
+              - previous_max_precip_prob_pct
+              - max_precip_prob_change_pct
+              - latest_first_precipitation_at
+              - previous_first_precipitation_at
+              - latest_collected_at_max
+              - previous_collected_at_max
+        public_gold:
+          contract_version: "1.0"
+          documentation_language: ko-KR
+          owner: Weather 데이터 제품 운영팀
+          maturity: low
+          visibility: published_producer
+          contract_status: dev_pending
+          exposure_status: none_no_live_consumer
+          intended_consumer_types:
+            - analyst
+            - ai_catalog
+            - cross_domain_dbt
+            - rapidapi_serving
+          cross_domain_usage_examples:
+            - 강수 대응 서비스에서 최신 발표와 직전 발표의 강수확률 변화를 함께 확인합니다.
+            - 행사 운영 분석에서 장소별 최고·최저기온 예보가 발표 사이에 얼마나 바뀌었는지 확인합니다.
+          product_question: 특정 장소의 일별 예보는 직전 KMA 발표보다 어떻게 바뀌었습니까?
+          row_meaning: >-
+            최신 기상청 발표와 그 직전 발표를 비교한 장소(place_id)·예보일(forecast_date)별
+            예보 변화 1건입니다.
+          grain: place_id와 forecast_date마다 한 행 — 최신 발표와 직전 발표의 일별 비교.
+          anchor_universe: >-
+            최신 발표에 존재하는 장소·예보일 조합을 기준으로 하며, 비교할 직전 발표가 없더라도
+            최신 발표 행은 유지합니다.
+          usage_guidance: >-
+            change_state를 먼저 확인한 뒤 기온·강수확률·최초 강수 예보 시각의 전후 값을 비교하고,
+            latest_issued_at과 previous_issued_at으로 실제 비교 대상 발표를 확인합니다.
+          do_not_use_for: >-
+            관측소 실측 날씨나 사후 확정값 조회, 장기 기후 평년값 또는 계절 전망에 사용하지 않습니다.
+          semantic_caveats: >-
+            forecast_date는 Asia/Seoul 기준 예보일입니다. 직전 발표가 없으면 previous 계열 값과
+            변화량이 비어 있을 수 있으며, 최초 강수 예보 시각은 실제 강수 시작 시각이 아닙니다.
+          primary_key: [product_row_id]
+          column_order:
+            - product_row_id
+            - place_id
+            - forecast_date
+            - latest_issued_at
+            - change_state
+            - place_name
+            - admin_dong_code
+            - admin_dong
+            - gu_code
+            - gu
+            - previous_issued_at
+            - issue_gap_hours
+            - latest_category_count
+            - previous_category_count
+            - latest_forecast_hour_count
+            - previous_forecast_hour_count
+            - latest_min_temp_c
+            - previous_min_temp_c
+            - min_temp_change_c
+            - latest_max_temp_c
+            - previous_max_temp_c
+            - max_temp_change_c
+            - latest_max_precip_prob_pct
+            - previous_max_precip_prob_pct
+            - max_precip_prob_change_pct
+            - latest_first_precipitation_at
+            - previous_first_precipitation_at
+            - latest_collected_at_max
+            - previous_collected_at_max
+          time:
+            canonical_timezone: Asia/Seoul
+            freshness_slo: latest_collected_at_max 기준 240분 이내 갱신을 목표로 합니다.
+            as_of_meaning: >-
+              latest_issued_at은 최신 비교 기준 발표이고 previous_issued_at은 바로 직전 비교 발표입니다.
+            late_repair_policy: >-
+              지연 수집이나 원천 정정이 반영되면 같은 product_row_id의 비교 결과를 다시 계산해 교체합니다.
+            roles:
+              latest_issued_at:
+                time_role: latest_issue
+                timezone: Asia/Seoul
+              previous_issued_at:
+                time_role: previous_issue
+                timezone: Asia/Seoul
+              latest_first_precipitation_at:
+                time_role: latest_first_precipitation_forecast
+                timezone: Asia/Seoul
+              previous_first_precipitation_at:
+                time_role: previous_first_precipitation_forecast
+                timezone: Asia/Seoul
+              latest_collected_at_max:
+                time_role: latest_collection
+                timezone: Asia/Seoul
+              previous_collected_at_max:
+                time_role: previous_collection
+                timezone: Asia/Seoul
+          space:
+            enabled: false
+          metrics: {}
+          joins: {}
+          quality:
+            completeness_explanation: >-
+              최신 발표의 장소·예보일 행을 기준으로 하며, 직전 발표가 없을 때도 최신 행은 유지합니다.
+            coverage_explanation: >-
+              장소 기준정보와 연결되고 최신 발표에 포함된 서울 장소·예보일 조합을 제공합니다.
+            freshness_explanation: >-
+              latest_collected_at_max를 기준으로 최신 수집 시각과 240분 갱신 목표를 확인합니다.
+            state_fields:
+              change_state:
+                allowed_values:
+                  - no_previous_issue
+                  - partial_comparison
+                  - changed
+                  - unchanged
+                state_explanations:
+                  no_previous_issue: 비교 가능한 직전 발표가 없어 최신 발표만 제공하는 상태입니다.
+                  partial_comparison: 최신·직전 발표는 있으나 기온·강수확률·첫 강수 예보 시각 중 일부만 비교할 수 있는 상태입니다.
+                  changed: 비교 가능한 핵심 예보 값 중 하나 이상이 직전 발표와 달라진 상태입니다.
+                  unchanged: 비교 가능한 핵심 예보 값이 직전 발표와 모두 같은 상태입니다.
+          lineage:
+            source_relations:
+              - model.asac_seoul.silver_weather_forecast_by_admin_dong
+            identifiers:
+              as_of:
+                columns:
+                  - latest_issued_at
+                  - forecast_date
+              publication:
+                relation_level_only: true
+                columns: []
+              raw:
+                relation_level_only: true
+                columns: []
+              request:
+                relation_level_only: true
+                columns: []
+              run:
+                relation_level_only: true
+                columns: []
+          lifecycle:
+            status: active
     columns:
       - name: product_row_id
         description: place_id와 forecast_date를 직렬화한 식별자입니다.

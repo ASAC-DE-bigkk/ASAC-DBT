@@ -110,6 +110,54 @@ def test_current_outlook_declares_internal_snapshot_anchor_without_public_projec
     assert "current_hour_at as snapshot_as_of_hour" in sql
 
 
+def test_forecast_change_declares_public_gold_semantic_contract() -> None:
+    model = _model(FORECAST_CHANGE_MODEL)
+    config = model["config"]
+    serving = config["meta"]["serving"]
+    public_gold = config["meta"]["public_gold"]
+    columns = _columns(model)
+
+    assert config["contract"] == {"enforced": True}
+    assert public_gold["contract_version"] == "1.0"
+    assert public_gold["product_question"] == serving["product_question"]
+    assert public_gold["grain"] == serving["grain"]
+    assert public_gold["primary_key"] == serving["primary_key"]
+    assert public_gold["column_order"] == serving["public_projection"]["columns"]
+    assert public_gold["time"]["canonical_timezone"] == "Asia/Seoul"
+
+    expected_time_columns = {
+        "latest_issued_at",
+        "previous_issued_at",
+        "latest_first_precipitation_at",
+        "previous_first_precipitation_at",
+        "latest_collected_at_max",
+        "previous_collected_at_max",
+    }
+    assert set(public_gold["time"]["roles"]) == expected_time_columns
+    for column_name in expected_time_columns:
+        role = public_gold["time"]["roles"][column_name]
+        column_meta = columns[column_name]["config"]["meta"]
+        assert role["time_role"] == column_meta["time_role"]
+        assert role["timezone"] == column_meta["timezone"]
+
+    change_state = public_gold["quality"]["state_fields"]["change_state"]
+    assert change_state["allowed_values"] == [
+        "no_previous_issue",
+        "partial_comparison",
+        "changed",
+        "unchanged",
+    ]
+    assert set(change_state["state_explanations"]) == set(
+        change_state["allowed_values"]
+    )
+    assert all(change_state["state_explanations"].values())
+
+    assert public_gold["lineage"]["source_relations"] == [
+        "model.asac_seoul.silver_weather_forecast_by_admin_dong"
+    ]
+    assert "실측" in public_gold["do_not_use_for"]
+
+
 def test_forecast_change_projection_exposes_the_comparison_evidence() -> None:
     model = _model(FORECAST_CHANGE_MODEL)
     serving = model["config"]["meta"]["serving"]
