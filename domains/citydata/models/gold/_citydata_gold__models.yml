@@ -1179,15 +1179,38 @@ models:
             schedule_cron: 30 0 * * *
           shape: rollup
           usage_patterns:
-            - pattern_id: bike_rich_dow_hour_for_place
+            - pattern_id: "bike_rich_dow_hour_for_place"
               question_ko: 이 장소는 무슨 요일 몇 시에 따릉이가 가장 많나?
               axes: 요일×시간 랭킹 — avg_bikes_available DESC (장소 고정)
-              requires: [select_columns, sort]
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 여의도는 토요일 오후 2시대 대여가능 대수가 가장 많다.
               sql: |
                 -- :area=여의도, :n=10
                 SELECT dow, hr, avg_bikes_available, avg_availability_pct
                 FROM gold_citydata_sbike_dow_hour
                 WHERE area_nm = :area
+                ORDER BY avg_bikes_available DESC LIMIT :n
+            - pattern_id: "bike_hourly_profile_for_place_dow"
+              question_ko: 이 장소, 이 요일의 시간대별 따릉이 프로파일은?
+              axes: 시간 시계열 — hr ASC (장소·요일 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 여의도 토요일은 새벽에 대여가능 대수가 낮고 오후에 회복된다.
+              sql: |
+                -- :area=여의도, :dow=6
+                SELECT hr, avg_bikes_available, avg_availability_pct
+                FROM gold_citydata_sbike_dow_hour
+                WHERE area_nm = :area AND dow = :dow
+                ORDER BY hr ASC
+            - pattern_id: "bike_best_places_at_dow_hour"
+              question_ko: 이 요일·시간에 따릉이가 잘 잡히는 장소 top N은?
+              axes: 장소 랭킹 — avg_bikes_available DESC (요일·시간 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 월요일 오전 8시엔 도심 업무지구보다 주거지 인접 장소에서 잘 잡힌다.
+              sql: |
+                -- :dow=1, :hr=8, :n=10
+                SELECT area_nm, gu, avg_bikes_available, avg_availability_pct
+                FROM gold_citydata_sbike_dow_hour
+                WHERE dow = :dow AND hr = :hr
                 ORDER BY avg_bikes_available DESC LIMIT :n
         display:
           title: 요일·시간 따릉이 가용 패턴
@@ -1272,16 +1295,39 @@ models:
             schedule_cron: 30 0 * * *
           shape: rollup
           usage_patterns:
-            - pattern_id: air_trend_for_place
+            - pattern_id: "air_trend_for_place"
               question_ko: 이 장소 최근 며칠 미세먼지 추이는?
               axes: 날짜 시계열 — event_date ASC (장소 고정)
-              requires: [select_columns, sort]
+              requires: [select_columns, filter_set, filter_range, sort]
+              insight_sample_ko: 강남구 PM2.5는 최근 2주 완만히 하락하는 추세다.
               sql: |
                 -- :area=강남구, :from=2026-07-20, :to=2026-08-03
                 SELECT event_date, avg_pm10, avg_pm25, avg_air_idx_value
                 FROM gold_citydata_air_daily
                 WHERE area_nm = :area AND event_date BETWEEN :from AND :to
                 ORDER BY event_date ASC
+            - pattern_id: "air_worst_days_for_place"
+              question_ko: 이 장소 최근 N일 중 미세먼지가 가장 나빴던 날은?
+              axes: 날짜 랭킹 — avg_pm10 DESC (장소·기간 고정)
+              requires: [select_columns, filter_set, filter_range, sort]
+              insight_sample_ko: 강남구 최근 2주 중 PM10 최악일은 7/28이었다.
+              sql: |
+                -- :area=강남구, :from=2026-07-20, :to=2026-08-03, :n=5
+                SELECT event_date, avg_pm10, avg_pm25, avg_air_idx_value
+                FROM gold_citydata_air_daily
+                WHERE area_nm = :area AND event_date BETWEEN :from AND :to
+                ORDER BY avg_pm10 DESC LIMIT :n
+            - pattern_id: "air_compare_places_on_date"
+              question_ko: 특정 날짜에 어느 자치구·장소 대기질이 더 나빴나?
+              axes: 장소 랭킹 — avg_pm10 DESC (날짜 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 8/1엔 서남권 장소들의 PM10이 도심보다 높았다.
+              sql: |
+                -- :date=2026-08-01, :n=25
+                SELECT area_nm, gu, avg_pm10, avg_pm25, avg_air_idx_value
+                FROM gold_citydata_air_daily
+                WHERE event_date = :date
+                ORDER BY avg_pm10 DESC LIMIT :n
         display:
           title: 일별 대기질 추이
           summary: 장소마다 날짜별 평균 미세먼지(PM10/PM2.5)와 통합대기지수를 요약했습니다. 실시간 대신 며칠 추세를 봅니다.
@@ -1361,15 +1407,39 @@ models:
             schedule_cron: 30 0 * * *
           shape: rollup
           usage_patterns:
-            - pattern_id: charger_free_dow_hour_for_place
+            - pattern_id: "charger_free_dow_hour_for_place"
               question_ko: 이 장소는 무슨 요일 몇 시에 충전소가 가장 잘 비나?
               axes: 요일×시간 랭킹 — avg_available_pct DESC (장소 고정)
-              requires: [select_columns, sort]
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 강남역은 평일 새벽 2~5시 가용률 90%+, 저녁 7~9시 40%대다.
               sql: |
                 -- :area=강남역, :n=10
                 SELECT dow, hr, avg_available_pct, n_chargers
                 FROM gold_citydata_charger_dow_hour
                 WHERE area_nm = :area
+                ORDER BY avg_available_pct DESC LIMIT :n
+            - pattern_id: "charger_hourly_profile_for_place_dow"
+              question_ko: 이 장소, 이 요일의 시간대별 충전소 가용 프로파일은?
+              axes: 시간 시계열 — hr ASC (장소·요일 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 강남역 월요일은 새벽에 잘 비고 퇴근시간에 혼잡해진다.
+              sql: |
+                -- :area=강남역, :dow=1
+                SELECT hr, avg_available_pct, n_chargers
+                FROM gold_citydata_charger_dow_hour
+                WHERE area_nm = :area AND dow = :dow
+                ORDER BY hr ASC
+            - pattern_id: "charger_reliable_free_slots"
+              question_ko: 표본이 충분한 셀 중 이 장소에서 가장 잘 비는 요일·시간은?
+              axes: 요일×시간 랭킹 — avg_available_pct DESC (장소 고정, reliable=true 만)
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              insight_sample_ko: 표본 충분 셀만 보면 강남역은 평일 새벽대가 신뢰도 높게 잘 빈다.
+              sql: |
+                -- :area=강남역, :n=10
+                SELECT dow, hr, avg_available_pct, base_n
+                FROM gold_citydata_charger_dow_hour
+                WHERE area_nm = :area AND reliable = true
                 ORDER BY avg_available_pct DESC LIMIT :n
         display:
           title: 요일·시간 충전소 가용 패턴
