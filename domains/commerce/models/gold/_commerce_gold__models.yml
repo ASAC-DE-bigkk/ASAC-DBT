@@ -3925,6 +3925,14 @@ models:
           d1_table: d1_uptae_rollup
           d1_rollup: (major,category,dataset,uptaenm) 집계 + share 사전계산 — gu 드롭
           product_id: commerce_uptae_rollup   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          # 롤업이 만들어 내는 파생 컬럼의 설명 — gold 에 없는 컬럼이라 아래 columns: 로는 못 적는다
+          # (contract.enforced 가 gold 실출력과 대조하므로 선언하면 빌드가 깨진다). export 가 이 표를
+          # columns 설명과 합쳐 d1_catalog_columns.description_ko 로 게시한다(#638 §2.1). 정본은 여기다.
+          d1_derived_columns:
+            share: >-
+              같은 dataset 안에서 이 업태가 차지하는 영업 업소 비중(0~1, active_cnt 기준).
+              롤업 시점에 사전계산 — gold 에는 없다. dataset 별로 합이 1이 되므로 서로 다른
+              dataset 간 비교에는 쓰지 않는다.
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "uptae_top_ranking"
               question_ko: "서울에서 활성 업소가 가장 많은 세부 업태 top-N은?"
