@@ -10,22 +10,36 @@ models:
       - name: station_id
         description: 역사 코드(bldn_id) — PK.
         tests:
-          - not_null
-          - unique
+          - not_null:
+              config:
+                tags: [gate]
+          - unique:
+              config:
+                tags: [gate]
       - name: station_name
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [hourly]
       - name: route
         tests:
-          - not_null
+          # gate: (station_name_join, route) 조인 유일성 계약의 축 — 대량 null 회귀는
+          # 매핑 결손으로 이어지므로 15분 게이트가 잡는다(애매하면 gate 원칙).
+          - not_null:
+              config:
+                tags: [gate]
       - name: longitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lon}
+              config:
+                tags: [hourly]
       - name: latitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
+              config:
+                tags: [hourly]
       - name: admin_dong_code
         description: >
           행안부 10자리. 마스터 784역 중 서울 행정경계 내 ~400역만 할당됨(coverage≈0.51).
@@ -33,6 +47,8 @@ models:
         tests:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.50}
+              config:
+                tags: [hourly]
       - name: gu_code
         description: 행안부 5자리(자치구).
 
@@ -43,11 +59,17 @@ models:
     columns:
       - name: parking_id
         tests:
-          - not_null
-          - unique
+          - not_null:
+              config:
+                tags: [gate]
+          - unique:
+              config:
+                tags: [gate]
       - name: parking_name
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [hourly]
       - name: wd_oper_bgng_tm
         description: 평일 운영 시작시각(HHMM 문자열 그대로, '0000/0000'=미상 존재).
       - name: wd_oper_end_tm
@@ -62,10 +84,14 @@ models:
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lon}
+              config:
+                tags: [hourly]
       - name: latitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
+              config:
+                tags: [hourly]
       - name: admin_dong_code
         description: >
           좌표 0.0(미상) 주차장이 다수라 커버리지 제한. 마스터 850개 lot 중 유효좌표
@@ -74,6 +100,8 @@ models:
         tests:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.12}
+              config:
+                tags: [hourly]
 
   # ---------------- 실버 ----------------
   # 테스트 스코핑(B안): 성장하는 incremental 모델의 행 단위 테스트(not_null·accepted_values·
@@ -83,6 +111,12 @@ models:
   #     걸러 공검증(항상 통과)이 된다. 전량 유지해도 Iceberg null-count 프루닝으로 저렴.
   #   · axis_coverage 는 전 이력 실측으로 임계를 캘리브레이션(0.45/0.85 등)한 비율 테스트라
   #     윈도를 좁히면 표본 구성이 달라져 오탐한다 — 재캘리브레이션 전까지 전량 유지.
+  # 테스트 티어(A안): tag:gate = 그레인 unique·키/시간축 not_null·freshness 계약 —
+  #   transit_transform 의 매 15분 dbt build 가 실행(계약 게이트 유지). tag:hourly =
+  #   range/enum/coverage/파생·속성 not_null·warn 감시 — 같은 DAG 의 시간당 1회 분기
+  #   (dbt_test_rest)가 실행(검출 지연 최대 1시간 감수, 쿼리 개수 부담 완화).
+  #   무태그 테스트는 fresh build 에 남는다(신규 테스트의 보수적 기본값). heavy 모델
+  #   테스트는 태그 없이 heavy DAG 의 build --select tag:heavy 소관(모델 tags 상속).
   - name: silver_transit_parking
     description: >
       주차장 실시간 정제. grain (parking_id, event_at). event_at=NOW_PRK_VHCL_UPDT_TM KST.
@@ -93,27 +127,34 @@ models:
           - not_null:
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: event_at
         description: 도메인 대표시각(주차 현황 갱신, KST).
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증), 섹션 주석 참조
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증), 섹션 주석 참조
+              config:
+                tags: [gate]
       - name: longitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lon}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: latitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: admin_dong_code
         description: dim_transit_parking 조인. 실시간 lot 은 대부분 유효좌표(coverage≈0.96).
         tests:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.90}
+              config:
+                tags: [hourly]
 
   - name: silver_transit_subway_arrival
     description: >
@@ -125,10 +166,13 @@ models:
           - not_null:
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: event_at
         description: 도메인 대표시각(도착정보 수신, KST).
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: route
         description: seoul_subway_line_code seed 로 subwayId 에서 변환한 노선 라벨.
       - name: is_last_train
@@ -140,6 +184,7 @@ models:
               arguments: {values: [0, 1], quote: false}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: terminal_statn_nm
         description: 종착(행선지) 역명(원천 bstatnNm).
       - name: transfer_line_cnt
@@ -150,12 +195,14 @@ models:
               arguments: {kind: lon}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: latitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: admin_dong_code
         description: >
           dim_transit_station 조인. 수집이 경로형 ALL(#369)로 바뀌며 수도권 전 역이
@@ -166,6 +213,8 @@ models:
         tests:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.45}
+              config:
+                tags: [hourly]
 
   - name: silver_transit_bus_position
     description: >
@@ -177,10 +226,13 @@ models:
           - not_null:
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: event_at
         description: 도메인 대표시각(버스 위치 관측, KST).
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: stop_flag
         description: 정차 여부(원천 stopFlag 0/1 → int, 1=정류소 정차 중).
         tests:
@@ -188,6 +240,7 @@ models:
               arguments: {values: [0, 1], quote: false}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: is_full
         description: 만차 여부(원천 isFullFlag 0/1 → int).
         tests:
@@ -195,6 +248,7 @@ models:
               arguments: {values: [0, 1], quote: false}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: is_last_bus
         description: 막차 여부(원천 islastyn 0/1 → int).
         tests:
@@ -202,6 +256,7 @@ models:
               arguments: {values: [0, 1], quote: false}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: rt_dist_km
         description: 노선 누적 진행거리 km(원천 rtDist, 실증 39.65~62.2 → 노선 왕복 수십 km 스케일).
       - name: full_sect_dist_km
@@ -212,12 +267,14 @@ models:
               arguments: {kind: lon}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: latitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
               config:
                 where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
       - name: admin_dong_code
         description: >
           런타임 point-in-polygon 할당. 수집이 전 노선(ALL, #369)으로 바뀌며 서울
@@ -230,6 +287,8 @@ models:
         tests:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.85}
+              config:
+                tags: [hourly]
 
   # ---------------- 골드 ----------------
   - name: gold_transit_dong_hourly
@@ -273,6 +332,7 @@ models:
           combination_of_columns: [admin_dong_code, hour_at]
           config:
             where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+            tags: [gate]
     columns:
       - name: admin_dong_code
         description: 행안부 10자리 행정동 코드(공간축, 그레인 축). null 행은 소스에서 제외.
@@ -280,10 +340,13 @@ models:
           - not_null:
               config:
                 where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: hour_at
         description: 시간 버킷(KST 벽시계, date_trunc('hour', event_at)). 그레인 축.
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: bus_obs_cnt
         description: 버스 관측 행수(동×시간).
       - name: bus_veh_cnt
@@ -321,14 +384,22 @@ models:
     columns:
       - name: bus_route_id
         tests:
-          - not_null
-          - unique
+          - not_null:
+              config:
+                tags: [gate]
+          - unique:
+              config:
+                tags: [gate]
       - name: tier
         description: 1=간선·광역(전 시간대 수집), 2=그 외(하루 3회 수집).
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [hourly]
           - accepted_values:
               arguments: {values: [1, 2], quote: false}
+              config:
+                tags: [hourly]
 
   - name: gold_transit_dong_15min
     config:
@@ -344,10 +415,13 @@ models:
           - not_null:
               config:
                 where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: bucket_at
         description: 15분 버킷(KST 벽시계, transit_time_bucket). 그레인 축.
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: bus_obs_cnt
         description: 버스 관측 행수(전 티어 — 현재 상태·커버리지 용도).
       - name: bus_obs_cnt_t1
@@ -374,16 +448,20 @@ models:
           - not_null:
               config:
                 where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: sect_ord
         description: 노선 내 구간 순번(원천 sectOrd). 그레인 축 — null 행은 제외.
         tests:
           - not_null:
               config:
                 where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: bucket_at
         description: 30분 버킷(KST 벽시계). 그레인 축.
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: tier
         description: >
           빌드 시점의 dim_transit_bus_route_tier 분류 스탬프. 과거 버킷 소급 재분류 없음
@@ -393,6 +471,7 @@ models:
               arguments: {values: [1, 2], quote: false}
               config:
                 where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [hourly]
 
   - name: gold_transit_parking_lot_15min
     config:
@@ -407,10 +486,13 @@ models:
           - not_null:
               config:
                 where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: bucket_at
         description: 15분 버킷(KST 벽시계). 그레인 축.
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: occ_last
         description: 버킷 내 최신 관측 점유율(max_by). 최신 관측이 결손이면 null.
       - name: admin_dong_code
@@ -418,6 +500,8 @@ models:
         tests:
           - asac_axes.axis_coverage:
               arguments: {min_ratio: 0.90}
+              config:
+                tags: [hourly]
 
   # ---------------- 사용자향 골드 1차 (#289) ----------------
   - name: gold_transit_dong_now
@@ -477,8 +561,12 @@ models:
       - name: admin_dong_code
         description: 행안부 10자리 행정동 코드(그레인 축).
         tests:
-          - not_null
-          - unique
+          - not_null:
+              config:
+                tags: [gate]
+          - unique:
+              config:
+                tags: [gate]
       - name: admin_dong
         description: 행정동 이름(dim_admin_dong).
       - name: gu_code
@@ -492,6 +580,8 @@ models:
         tests:
           - accepted_values:
               arguments: {values: ['여유', '보통', '혼잡']}
+              config:
+                tags: [hourly]
       - name: bus_full_ratio
         description: 버스 만차 비율(is_full 평균, 0~1).
       - name: bus_veh_cnt
@@ -530,9 +620,12 @@ models:
               config:
                 # 하한만 건다 — 미래 행(예보)은 윈도 상한이 없어 그대로 검증된다.
                 where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: hour_at
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: precip_mm
         description: 예보 강수량 mm. 원천 '강수없음'은 null — PTY(precip_type)=0 과 함께 해석.
       - name: precip_type
@@ -554,9 +647,12 @@ models:
           - not_null:
               config:
                 where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: hour_at
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: sbike_bike_last_sum
         description: 동 내 대여소별 최신 잔여 대수 합(시간 내 마지막 관측 기준).
 
@@ -698,8 +794,12 @@ models:
       - name: parking_id
         description: 주차장 ID(그레인 축).
         tests:
-          - not_null
-          - unique
+          - not_null:
+              config:
+                tags: [gate]
+          - unique:
+              config:
+                tags: [gate]
       - name: parking_name
         description: 주차장 이름(dim_transit_parking).
       - name: admin_dong_code
@@ -716,7 +816,10 @@ models:
           총면수>0 인 관측만 산출). 만차 초과 주차 시 1 초과 가능(#231) — 범위 규칙은
           range 테스트가 단언. 24h 내 유효 관측 없는 lot 은 스냅샷에서 제외(품질 규칙).
         tests:
-          - not_null
+          # 서빙 품질 규칙(#668 게시 증거)의 핵심 단언이라 gate — 파생값이지만 15분 게시 제품.
+          - not_null:
+              config:
+                tags: [gate]
       - name: avail_pct
         description: "[현재 관측] 여유 %((1-occ_now)×100 반올림)."
       - name: capacity_now
@@ -743,13 +846,17 @@ models:
       - name: last_bucket_at
         description: "[기준 시각] 최신 15분 버킷 시각 — 프로파일 조인 기준 칸."
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [gate]
       - name: last_event_at
         description: >
           [기준 시각] 최신 관측 시각(KST) — 신선도 축(event_time). 현재 관측·추세·통계
           모두 이 시각 기준이며, 조회 시점까지의 경과분 계산은 소비 측 몫.
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [gate]
 
   - name: gold_transit_bus_route_comfort
     config:
@@ -868,9 +975,12 @@ models:
           - not_null:
               config:
                 where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
+                tags: [gate]
       - name: hour_at
         tests:
-          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
+          - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+              config:
+                tags: [gate]
       - name: congest_lvl_last
         description: 시간 내 최신 혼잡 라벨(여유/보통/약간 붐빔/붐빔).
       - name: is_parking_pressured
@@ -913,11 +1023,15 @@ models:
       # 서빙 계약 복합 PK 근거(#478). G6 행 부활 오염(dedup 전)엔 red 가 정상 — 오염 게시 게이트.
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [area_cd, target_hour_at]
+          config:
+            tags: [gate]
     columns:
       - name: area_cd
         description: citydata 핫스팟 지역 코드(그레인 축).
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [gate]
       - name: area_nm
         description: 핫스팟 지역 이름.
       - name: admin_dong_code
@@ -927,7 +1041,9 @@ models:
       - name: target_hour_at
         description: 전망 대상 시각(미래, KST). 그레인 축 — Worker from/to 필터축.
         tests:
-          - not_null
+          - not_null:
+              config:
+                tags: [gate]
       - name: target_dow
         description: 대상 요일(1=월~7=일, Trino day_of_week).
       - name: is_weekend

@@ -17,6 +17,7 @@
 --   개별 개소 몇 곳이 향후 비수치/공란을 내보내도 통과하되, 대량 파싱 붕괴(전건 null 회귀)는
 --   반드시 실패하도록 여유를 둔 하한. 윈도에 행이 없으면(수집 공백) nullif 로 비율이 null 이 되어
 --   미검출된다 — 신선도(행 유무)는 이 테스트 소관이 아니고 별도 감시 대상이므로 의도적.
+{{ config(tags=['hourly']) }}
 
 with recent as (
     select now_prk_vhcl_cnt, total_capacity

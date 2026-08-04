@@ -6,6 +6,7 @@
 -- 스코핑(B안): 최근 var(transit_test_lookback_days)일만 스캔 — 위반 행은 정의상 event_at 이
 --   수집시각보다 미래(≈현재 이후)라 항상 윈도 하한 위에 있고, 과거에 유입된 위반은 당시
 --   빌드가 이미 잡았다. 필터 회귀 감지력은 그대로, 스캔만 고정 비용화.
+{{ config(tags=['gate']) }}
 
 {% set recent_window -%}
 event_at >= current_date - interval '{{ var("transit_test_lookback_days") }}' day

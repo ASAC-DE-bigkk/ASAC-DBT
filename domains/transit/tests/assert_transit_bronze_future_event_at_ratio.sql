@@ -18,7 +18,7 @@
 --   잔여 한계: per-device 클럭 드리프트(개별 주차장 단말·버스 차량 몇 대만 +스큐 초과)는
 --   원천 단위 비율 임계 아래로 소멸할 수 있다 — 이 테스트는 '원천 전체의 급성 이상' 감지용이며
 --   소수 단말 드랍은 임계를 못 넘는다(개별 행은 silver 필터로 안전히 제거됨은 동일).
-{{ config(severity='warn') }}
+{{ config(severity='warn', tags=['hourly']) }}
 
 {% set window_start -%}
 cast(at_timezone(current_timestamp, 'UTC') as timestamp(6)) - interval '{{ var("transit_freshness_monitor_hours") }}' hour

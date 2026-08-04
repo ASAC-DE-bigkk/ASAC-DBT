@@ -13,5 +13,7 @@ __pycache__/
 domains/*/target/
 # transit heavy DAG 의 격리 artifact 경로 (--target-path target_heavy)
 domains/*/target_heavy/
+# transit 시간당 테스트 분기의 격리 artifact 경로 (--target-path target_test_hourly)
+domains/*/target_test_hourly/
 domains/*/dbt_packages/
 domains/*/logs/

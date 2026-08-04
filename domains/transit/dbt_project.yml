@@ -59,6 +59,19 @@ clean-targets:
 #   제외한다(#443 에서 예고한 분리). 실시간성 있는 table 모델(dong_now,
 #   forecast_card, parking_full_risk)은 의도적으로 heavy 가 아니다 — 추가 전에
 #   제품 오너 확인 필요.
+#
+# 테스트 티어(A안 — B안 스코핑 #418 의 보완, 쿼리 '개수' 부담 완화):
+#   tag:gate   — 그레인 unique(unique/unique_combination/assert_*_grain_unique)·
+#                키/시간축 not_null·미래 event_at 차단(freshness 계약,
+#                assert_silver_transit_no_future_event_at). transit_transform 의 매
+#                15분 dbt build 에 남아 계약 게이트를 유지한다(위반 시 즉시 run 실패).
+#   tag:hourly — range/enum(accepted_values)/bbox/coverage/파생·속성 not_null·warn
+#                감시. 같은 DAG 의 시간당 1회 분기(dbt_test_rest)가 dbt test
+#                --select tag:hourly 로 실행 — 검출 지연 최대 1시간을 감수한
+#                항목만 넣는다(서빙 차단 성격이면 gate 로).
+#   무태그      — fresh build 에 남는다. 신규 테스트는 태그를 정하기 전까지
+#                보수적으로 15분 게이트로 취급된다는 뜻. heavy 모델의 테스트는
+#                태그 없이 모델 tags(heavy) 상속으로 heavy DAG build 소관.
 models:
   transit:
     dim:
