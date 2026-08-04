@@ -77,7 +77,7 @@ models:
             minimum_ratio: 1.0
           public_projection:
             schema_version: "1.0.0"
-            columns: [admin_dong_code, event_date, admin_dong, gu_code, gu, activities_count, performances_count, events_count, kopis_festivals_count, exhibitions_count, sejong_count, kcisa_count, free_events_count, edu_experience_events_count, festival_events_count]
+            columns: [admin_dong_code, admin_dong, gu_code, gu, stat_region_cd, event_date, activities_count, performances_count, events_count, kopis_festivals_count, exhibitions_count, sejong_count, kcisa_count, free_events_count, edu_experience_events_count, festival_events_count]
           # usage_patterns — ASAC-DAG#638 v1 규격. requires 는 고정 어휘 11개에서, basic
           # 프로파일(등호 필터·시간축 from/to·limit·전체 컬럼) 위의 추가분만 적는다.
           # sql 은 참조 구현(D1/SQLite 방언)이다 — 클라이언트가 보내 실행하는 값이 아니다.
@@ -147,6 +147,7 @@ models:
       - name: stat_region_cd
         description: 통계청 집계구 코드 — 통계청 인구·가구 통계와 붙일 때 사용
         data_type: varchar
+        config: {meta: {semantic_role: statistical_area_id, nullable: true, null_meaning: 원천 통계청 집계구 코드가 제공되지 않음, unit: code}}
       - name: event_date
         description: 활동 일자(KST). 여러 날에 걸친 행사는 날짜마다 한 행으로 펼쳐진다
         data_type: date
