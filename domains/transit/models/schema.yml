@@ -76,6 +76,13 @@ models:
               arguments: {min_ratio: 0.12}
 
   # ---------------- 실버 ----------------
+  # 테스트 스코핑(B안): 성장하는 incremental 모델의 행 단위 테스트(not_null·accepted_values·
+  # in_seoul_bbox·unique_combination)는 최근 var(transit_test_lookback_days)일만 검증한다
+  # — 아카이브가 커져도 test 비용이 상수(vars 주석 참조). 단,
+  #   · 시간축 컬럼 자신의 not_null 은 스코핑하지 않는다: 자기 컬럼 where 가 null 을 먼저
+  #     걸러 공검증(항상 통과)이 된다. 전량 유지해도 Iceberg null-count 프루닝으로 저렴.
+  #   · axis_coverage 는 전 이력 실측으로 임계를 캘리브레이션(0.45/0.85 등)한 비율 테스트라
+  #     윈도를 좁히면 표본 구성이 달라져 오탐한다 — 재캘리브레이션 전까지 전량 유지.
   - name: silver_transit_parking
     description: >
       주차장 실시간 정제. grain (parking_id, event_at). event_at=NOW_PRK_VHCL_UPDT_TM KST.
@@ -83,19 +90,25 @@ models:
     columns:
       - name: parking_id
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: event_at
         description: 도메인 대표시각(주차 현황 갱신, KST).
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증), 섹션 주석 참조
       - name: longitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lon}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: latitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: admin_dong_code
         description: dim_transit_parking 조인. 실시간 lot 은 대부분 유효좌표(coverage≈0.96).
         tests:
@@ -109,11 +122,13 @@ models:
     columns:
       - name: statn_id
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: event_at
         description: 도메인 대표시각(도착정보 수신, KST).
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: route
         description: seoul_subway_line_code seed 로 subwayId 에서 변환한 노선 라벨.
       - name: is_last_train
@@ -123,6 +138,8 @@ models:
         tests:
           - accepted_values:
               arguments: {values: [0, 1], quote: false}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: terminal_statn_nm
         description: 종착(행선지) 역명(원천 bstatnNm).
       - name: transfer_line_cnt
@@ -131,10 +148,14 @@ models:
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lon}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: latitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: admin_dong_code
         description: >
           dim_transit_station 조인. 수집이 경로형 ALL(#369)로 바뀌며 수도권 전 역이
@@ -153,26 +174,34 @@ models:
     columns:
       - name: veh_id
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: event_at
         description: 도메인 대표시각(버스 위치 관측, KST).
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: stop_flag
         description: 정차 여부(원천 stopFlag 0/1 → int, 1=정류소 정차 중).
         tests:
           - accepted_values:
               arguments: {values: [0, 1], quote: false}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: is_full
         description: 만차 여부(원천 isFullFlag 0/1 → int).
         tests:
           - accepted_values:
               arguments: {values: [0, 1], quote: false}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: is_last_bus
         description: 막차 여부(원천 islastyn 0/1 → int).
         tests:
           - accepted_values:
               arguments: {values: [0, 1], quote: false}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: rt_dist_km
         description: 노선 누적 진행거리 km(원천 rtDist, 실증 39.65~62.2 → 노선 왕복 수십 km 스케일).
       - name: full_sect_dist_km
@@ -181,10 +210,14 @@ models:
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lon}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: latitude
         tests:
           - asac_axes.in_seoul_bbox:
               arguments: {kind: lat}
+              config:
+                where: "event_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: admin_dong_code
         description: >
           런타임 point-in-polygon 할당. 수집이 전 노선(ALL, #369)으로 바뀌며 서울
@@ -235,17 +268,22 @@ models:
       정화된 silver(#66)만 소비하므로 추가 시간 필터 없음. incremental merge(-3h lookback).
     tests:
       # 서빙 계약 복합 PK 근거 — validator 가 unique_combination 이름으로 인정(#478, culture #346 관례).
+      # 스코핑(B안): incremental merge lookback 3h ≪ 윈도 — 신규 갱신 버킷의 중복은 윈도 내에서 잡힌다.
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [admin_dong_code, hour_at]
+          config:
+            where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
     columns:
       - name: admin_dong_code
         description: 행안부 10자리 행정동 코드(공간축, 그레인 축). null 행은 소스에서 제외.
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: hour_at
         description: 시간 버킷(KST 벽시계, date_trunc('hour', event_at)). 그레인 축.
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: bus_obs_cnt
         description: 버스 관측 행수(동×시간).
       - name: bus_veh_cnt
@@ -303,11 +341,13 @@ models:
     columns:
       - name: admin_dong_code
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: bucket_at
         description: 15분 버킷(KST 벽시계, transit_time_bucket). 그레인 축.
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: bus_obs_cnt
         description: 버스 관측 행수(전 티어 — 현재 상태·커버리지 용도).
       - name: bus_obs_cnt_t1
@@ -331,15 +371,19 @@ models:
     columns:
       - name: bus_route_id
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: sect_ord
         description: 노선 내 구간 순번(원천 sectOrd). 그레인 축 — null 행은 제외.
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: bucket_at
         description: 30분 버킷(KST 벽시계). 그레인 축.
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: tier
         description: >
           빌드 시점의 dim_transit_bus_route_tier 분류 스탬프. 과거 버킷 소급 재분류 없음
@@ -347,6 +391,8 @@ models:
         tests:
           - accepted_values:
               arguments: {values: [1, 2], quote: false}
+              config:
+                where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
 
   - name: gold_transit_parking_lot_15min
     config:
@@ -358,11 +404,13 @@ models:
     columns:
       - name: parking_id
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "bucket_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: bucket_at
         description: 15분 버킷(KST 벽시계). 그레인 축.
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: occ_last
         description: 버킷 내 최신 관측 점유율(max_by). 최신 관측이 결손이면 null.
       - name: admin_dong_code
@@ -478,10 +526,13 @@ models:
     columns:
       - name: admin_dong_code
         tests:
-          - not_null
+          - not_null:
+              config:
+                # 하한만 건다 — 미래 행(예보)은 윈도 상한이 없어 그대로 검증된다.
+                where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: hour_at
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: precip_mm
         description: 예보 강수량 mm. 원천 '강수없음'은 null — PTY(precip_type)=0 과 함께 해석.
       - name: precip_type
@@ -500,10 +551,12 @@ models:
     columns:
       - name: admin_dong_code
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: hour_at
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: sbike_bike_last_sum
         description: 동 내 대여소별 최신 잔여 대수 합(시간 내 마지막 관측 기준).
 
@@ -812,10 +865,12 @@ models:
     columns:
       - name: area_cd
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
       - name: hour_at
         tests:
-          - not_null
+          - not_null  # 시간축 자신 — 스코핑 금지(공검증)
       - name: congest_lvl_last
         description: 시간 내 최신 혼잡 라벨(여유/보통/약간 붐빔/붐빔).
       - name: is_parking_pressured
