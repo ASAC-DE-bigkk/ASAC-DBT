@@ -105,6 +105,10 @@ sources:
               - not_null
 
       # --- 실시간(스트리밍) ---
+      # 테스트 스코핑(B안): raw not_null 은 최근 var(transit_test_lookback_days)일
+      # (ingested_at UTC — 저장 관례는 assert_transit_bronze_future_event_at_ratio 와 동일)만
+      # 검증한다. ingested_at 자신의 not_null 은 자기 where 가 null 을 걸러 공검증이 되므로
+      # 스코핑하지 않는다(전량 유지 — Iceberg null-count 프루닝으로 저렴).
       - name: subway_arrival
         identifier: bronze_subway_arrival
         description: >
@@ -114,10 +118,12 @@ sources:
           - name: raw
             description: 도착예측 1건 JSON 페이로드.
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    where: "ingested_at >= cast(at_timezone(current_timestamp, 'UTC') as timestamp(6)) - interval '{{ var('transit_test_lookback_days') }}' day"
           - name: ingested_at
             tests:
-              - not_null
+              - not_null  # 시간축 자신 — 스코핑 금지(공검증)
 
       - name: parking
         identifier: bronze_parking
@@ -139,10 +145,12 @@ sources:
         columns:
           - name: raw
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    where: "ingested_at >= cast(at_timezone(current_timestamp, 'UTC') as timestamp(6)) - interval '{{ var('transit_test_lookback_days') }}' day"
           - name: ingested_at
             tests:
-              - not_null
+              - not_null  # 시간축 자신 — 스코핑 금지(공검증)
 
       - name: bus_position
         identifier: bronze_bus_position
@@ -153,10 +161,12 @@ sources:
           - name: raw
             description: ServiceResult XML(다수 itemList 포함).
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    where: "ingested_at >= cast(at_timezone(current_timestamp, 'UTC') as timestamp(6)) - interval '{{ var('transit_test_lookback_days') }}' day"
           - name: ingested_at
             tests:
-              - not_null
+              - not_null  # 시간축 자신 — 스코핑 금지(공검증)
 
   # ---- 크로스 도메인 published 테이블 (#289) ----
   # citydata 프로젝트의 관례(sources.yml)와 동일: database 는 target 이 해석(iceberg[_dev]),
