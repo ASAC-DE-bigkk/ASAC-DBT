@@ -9,6 +9,7 @@
 --     occ_now 가 실린 행에 0 이하 총면수가 실리면 상류 회귀다(null 은 통과 — 상류 결손 허용).
 --   rate_base_n = 최신 버킷 -45분 이내 15분 버킷 수 → grain 유일성 하에서 [1,4] 불변.
 -- null 은 통과(미산출·프로파일 미보유 등 계약상 정상 결측). 범위 밖 행을 반환하면 실패.
+{{ config(tags=['hourly']) }}
 select 'occ_now' as metric, parking_id, occ_now as value
 from {{ ref('gold_transit_parking_full_risk') }}
 where occ_now is not null and occ_now < 0

@@ -24,22 +24,31 @@ sources:
           - name: bldn_id
             description: 역사 코드(4자리) — 마스터 PK.
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    tags: [gate]
           - name: bldn_nm
             description: 역명(일부 괄호 부기 예 '잠실(송파구청)').
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    tags: [hourly]
           - name: route
             description: 노선 라벨(예 '2호선','신분당선','7호선(인천)').
             tests:
-              - not_null
+              # gate: dim 의 (station_name_join, route) 조인 계약 축(원천) — 애매하면 gate.
+              - not_null:
+                  config:
+                    tags: [gate]
           - name: lat
             description: 위도(WGS84 십진도, varchar).
           - name: lot
             description: 경도(WGS84 십진도, varchar).
           - name: load_date
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    tags: [gate]
 
       - name: bus_route_master
         identifier: bronze_bus_route_master
@@ -57,7 +66,9 @@ sources:
               구조적으로 거짓 — 유일성 계약은 (bus_route_id, load_date) 단위로
               assert_transit_bronze_bus_route_master_pk_per_load_date 가 지킨다.
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    tags: [gate]
           - name: route_type
             description: >
               원천 routeType(varchar — 3간선·6광역·4지선·8경기 등 서울 API 코드).
@@ -67,9 +78,13 @@ sources:
           - name: tier
             description: 1=간선·광역(dense 수집), 2=그 외. DAG 가 BUS_TIER1_TYPES 로 판정.
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    tags: [hourly]
               - accepted_values:
                   arguments: {values: [1, 2], quote: false}
+                  config:
+                    tags: [hourly]
 
       - name: park_info_master
         identifier: bronze_park_info_master
@@ -92,19 +107,29 @@ sources:
           - name: pklt_cd
             description: 주차장 코드 — 마스터 PK.
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    tags: [gate]
           - name: pklt_nm
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    tags: [hourly]
           - name: addr
             description: 주소(첫 토큰이 자치구인 경우가 많음).
           - name: lat
           - name: lot
           - name: load_date
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    tags: [gate]
 
       # --- 실시간(스트리밍) ---
+      # 테스트 스코핑(B안): raw not_null 은 최근 var(transit_test_lookback_days)일
+      # (ingested_at UTC — 저장 관례는 assert_transit_bronze_future_event_at_ratio 와 동일)만
+      # 검증한다. ingested_at 자신의 not_null 은 자기 where 가 null 을 걸러 공검증이 되므로
+      # 스코핑하지 않는다(전량 유지 — Iceberg null-count 프루닝으로 저렴).
       - name: subway_arrival
         identifier: bronze_subway_arrival
         description: >
@@ -114,10 +139,15 @@ sources:
           - name: raw
             description: 도착예측 1건 JSON 페이로드.
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    where: "ingested_at >= cast(at_timezone(current_timestamp, 'UTC') as timestamp(6)) - interval '{{ var('transit_test_lookback_days') }}' day"
+                    tags: [hourly]
           - name: ingested_at
             tests:
-              - not_null
+              - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+                  config:
+                    tags: [gate]
 
       - name: parking
         identifier: bronze_parking
@@ -139,10 +169,15 @@ sources:
         columns:
           - name: raw
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    where: "ingested_at >= cast(at_timezone(current_timestamp, 'UTC') as timestamp(6)) - interval '{{ var('transit_test_lookback_days') }}' day"
+                    tags: [hourly]
           - name: ingested_at
             tests:
-              - not_null
+              - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+                  config:
+                    tags: [gate]
 
       - name: bus_position
         identifier: bronze_bus_position
@@ -153,10 +188,15 @@ sources:
           - name: raw
             description: ServiceResult XML(다수 itemList 포함).
             tests:
-              - not_null
+              - not_null:
+                  config:
+                    where: "ingested_at >= cast(at_timezone(current_timestamp, 'UTC') as timestamp(6)) - interval '{{ var('transit_test_lookback_days') }}' day"
+                    tags: [hourly]
           - name: ingested_at
             tests:
-              - not_null
+              - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
+                  config:
+                    tags: [gate]
 
   # ---- 크로스 도메인 published 테이블 (#289) ----
   # citydata 프로젝트의 관례(sources.yml)와 동일: database 는 target 이 해석(iceberg[_dev]),

@@ -27,6 +27,14 @@ vars:
   # ⚠️ 이 값을 과거로 낮추면 오염 구간이 아카이브로 유입된다 — 낮추기 전 silver 정합 확인.
   transit_archive_start_at: "2026-07-21 09:00:00"
 
+  # 데이터 테스트 스코핑 윈도(일). 성장하는 아카이브(silver 3종·gold 아카이브)를 매 15분
+  # 전량 스캔하던 테스트를 최근 N일 파티션으로 한정해 test 비용을 상수화한다(성장형→고정형).
+  # 스코핑 비대상: dim·프로파일(그레인 유계)·소형 스냅샷(dong_now·full_risk·forecast_card)·
+  # 주간 마스터·axis_coverage(임계가 전 이력 실측 기준 캘리브레이션) — 전량 검증 유지.
+  # ⚠️ 윈도 밖(N일 이전)에 새로 생기는 위반은 못 잡는다 — 과거 파티션을 소급 재적재/백필할
+  # 때는 임시로 늘리거나 해당 테스트를 전량으로 1회 돌려 확인할 것.
+  transit_test_lookback_days: 2
+
 
 
 model-paths: ["models"]
@@ -51,6 +59,19 @@ clean-targets:
 #   제외한다(#443 에서 예고한 분리). 실시간성 있는 table 모델(dong_now,
 #   forecast_card, parking_full_risk)은 의도적으로 heavy 가 아니다 — 추가 전에
 #   제품 오너 확인 필요.
+#
+# 테스트 티어(A안 — B안 스코핑 #418 의 보완, 쿼리 '개수' 부담 완화):
+#   tag:gate   — 그레인 unique(unique/unique_combination/assert_*_grain_unique)·
+#                키/시간축 not_null·미래 event_at 차단(freshness 계약,
+#                assert_silver_transit_no_future_event_at). transit_transform 의 매
+#                15분 dbt build 에 남아 계약 게이트를 유지한다(위반 시 즉시 run 실패).
+#   tag:hourly — range/enum(accepted_values)/bbox/coverage/파생·속성 not_null·warn
+#                감시. 같은 DAG 의 시간당 1회 분기(dbt_test_rest)가 dbt test
+#                --select tag:hourly 로 실행 — 검출 지연 최대 1시간을 감수한
+#                항목만 넣는다(서빙 차단 성격이면 gate 로).
+#   무태그      — fresh build 에 남는다. 신규 테스트는 태그를 정하기 전까지
+#                보수적으로 15분 게이트로 취급된다는 뜻. heavy 모델의 테스트는
+#                태그 없이 모델 tags(heavy) 상속으로 heavy DAG build 소관.
 models:
   transit:
     dim:
