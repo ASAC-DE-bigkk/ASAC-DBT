@@ -6,6 +6,7 @@ rules. CLI exit codes 0/1/2 are asserted directly.
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ from serving_contract.model import ServingModel, load_manifest, load_models_from
 from serving_contract.validator import validate
 
 FIXTURES = Path(__file__).parent / "fixtures"
+REPO_ROOT = Path(__file__).resolve().parents[2]
 VALID = FIXTURES / "valid_contracts.yml"
 INVALID = FIXTURES / "invalid_contracts.yml"
 NOT_IN_MANIFEST = FIXTURES / "not_in_manifest.yml"
@@ -339,6 +341,97 @@ def test_quality_coverage_rejects_unknown_field_and_unachievable_threshold():
     rules = _rules(result.findings)
     assert "quality_coverage_invalid" in rules
     assert "quality_coverage_unknown_field" in rules
+
+
+def test_citydata_and_transit_declared_source_evidence_is_complete_and_valid():
+    """Citydata's source/coverage and Transit's source evidence retain their declared contracts."""
+    models = load_models_from_yaml(
+        [
+            REPO_ROOT / "domains/citydata/models/gold/_citydata_gold__models.yml",
+            REPO_ROOT / "domains/transit/models/schema.yml",
+        ]
+    )
+    by_name = {model.name: model for model in models}
+    citydata = by_name["gold_citydata_purchasing_power_daily"]
+    transit = by_name["gold_transit_parking_full_risk"]
+
+    assert citydata.serving["source_evidence"] == [
+        {
+            "source_id": "seoul_citydata",
+            "source_url": "https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do",
+            "license": "공공누리 제1유형(출처표시)",
+            "license_url": "https://www.kogl.or.kr/info/licenseType1.do",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "서울특별시",
+            "rights_checked_at": "2026-08-03",
+        }
+    ]
+    assert citydata.serving["quality_coverage"] == {
+        "field": "area_cd",
+        "expected_distinct_count": 121,
+        "minimum_ratio": 1.0,
+    }
+    assert transit.serving["source_evidence"] == [
+        {
+            "source_id": "park_info_master",
+            "source_url": "https://data.seoul.go.kr/dataList/OA-13122/S/1/datasetView.do",
+            "license": "공공누리 제1유형(출처표시)",
+            "license_url": "https://www.kogl.or.kr/info/licenseType1.do",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "서울특별시",
+            "rights_checked_at": "2026-08-03",
+        },
+        {
+            "source_id": "parking",
+            "source_url": "https://data.seoul.go.kr/dataList/OA-21709/A/1/datasetView.do",
+            "license": "공공누리 제1유형(출처표시)",
+            "license_url": "https://www.kogl.or.kr/info/licenseType1.do",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "서울특별시",
+            "rights_checked_at": "2026-08-03",
+        },
+    ]
+
+    result = validate([citydata, transit])
+    assert result.ok, [finding.as_dict() for finding in result.findings]
+
+
+def test_commerce_localdata_source_evidence_covers_all_registry_sources():
+    """Commerce preserves one static rights record for every LOCALDATA registry source."""
+    models = load_models_from_yaml(
+        [REPO_ROOT / "domains/commerce/models/gold/_commerce_gold__models.yml"]
+    )
+    commerce = {model.name: model for model in models}["gold_license_flow_monthly"]
+    sources = commerce.serving["source_evidence"]
+
+    with (
+        REPO_ROOT / "domains/commerce/seeds/commerce_dataset_taxonomy.csv"
+    ).open(encoding="utf-8-sig", newline="") as handle:
+        expected_source_ids = {
+            f"commerce_localdata_{row['short']}" for row in csv.DictReader(handle)
+        }
+
+    assert len(expected_source_ids) == 152
+    assert len(sources) == 152
+    assert {source["source_id"] for source in sources} == expected_source_ids
+    assert len({source["source_url"] for source in sources}) == 152
+    assert all(
+        source["source_url"].startswith("https://data.seoul.go.kr/dataList/OA-")
+        and source["source_url"].endswith("/S/1/datasetView.do")
+        for source in sources
+    )
+    assert {source["license_url"] for source in sources} == {
+        "https://www.kogl.or.kr/info/licenseType1.do"
+    }
+    assert {source["redistribution"] for source in sources} == {
+        "allowed_with_attribution"
+    }
+    assert {source["rights_checked_at"] for source in sources} == {"2026-08-04"}
+    assert len({source["license"] for source in sources}) == 1
+    assert len({source["attribution"] for source in sources}) == 1
+
+    result = validate([commerce])
+    assert result.ok, [finding.as_dict() for finding in result.findings]
 
 
 def test_projection_identity_hash_preserves_order_and_ignores_descriptions():

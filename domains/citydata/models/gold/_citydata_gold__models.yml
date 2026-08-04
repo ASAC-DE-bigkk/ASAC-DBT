@@ -473,6 +473,19 @@ models:
           shape: rollup
           event_time: event_date
           freshness_slo_minutes: 1560
+          # #406에서 확인한 Citydata 원천·장소 축 계약이다. 공개 projection과 실제 게시 여부는 별도 gate다.
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
+          quality_coverage:
+            field: area_cd
+            expected_distinct_count: 121
+            minimum_ratio: 1.0
           usage_patterns:
             - pattern_id: top_purchasing_power_on_date
               question_ko: 특정 날 붐빔 대비 소비(구매력 지수)가 가장 높았던 장소는?

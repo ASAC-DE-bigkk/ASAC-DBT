@@ -658,6 +658,22 @@ models:
           event_time: last_event_at
           freshness_slo_minutes: 75         # dong_now 와 동일 근거 (프로토타입 75분 승계)
           shape: wide
+          # source_id는 원천 source 노드명과 일치시킨다. 고정 coverage·공개 projection은 별도 근거가 필요하다.
+          source_evidence:
+            - source_id: park_info_master
+              source_url: https://data.seoul.go.kr/dataList/OA-13122/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
+            - source_id: parking
+              source_url: https://data.seoul.go.kr/dataList/OA-21709/A/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           # usage_patterns 파일럿(#384) — 최소 필드 사유는 dong_now 블록 주석과 동일.
           usage_patterns:
             - pattern_id: full_soon_lots
