@@ -16,7 +16,7 @@ culture as (
         cast(activities_count as bigint) as activities_count,
         cast(performances_count as bigint) as performances_count,
         cast(events_count as bigint) as events_count,
-        cast(festivals_count as bigint) as festivals_count,
+        cast(kopis_festivals_count as bigint) as kopis_festivals_count,
         cast(exhibitions_count as bigint) as exhibitions_count
     from {{ source('traffic_culture_gold', 'gold_culture_activity_by_dong') }}
 )
@@ -42,7 +42,7 @@ select
     culture.activities_count,
     culture.performances_count,
     culture.events_count,
-    culture.festivals_count,
+    culture.kopis_festivals_count,
     culture.exhibitions_count,
     'not_exposed_by_upstream_gold' as external_freshness_status
 from traffic

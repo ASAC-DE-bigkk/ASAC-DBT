@@ -343,6 +343,81 @@ def test_quality_coverage_rejects_unknown_field_and_unachievable_threshold():
     assert "quality_coverage_unknown_field" in rules
 
 
+def test_quality_coverage_allows_source_relation_measurement_outside_public_projection():
+    model = _serving_model(
+        serving_overrides={
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["product_row_id", "event_at"],
+            },
+            "quality_coverage": {
+                "field": "source_dimension",
+                "expected_distinct_count": 152,
+                "minimum_ratio": 1.0,
+                "measurement_scope": "source_relation",
+            },
+        },
+        columns={
+            "product_row_id": ("not_null", "unique"),
+            "event_at": (),
+            "source_dimension": (),
+        },
+    )
+
+    result = validate([model])
+
+    assert not {"quality_coverage_invalid", "quality_coverage_unknown_field"} & _rules(result.findings)
+
+
+def test_quality_coverage_allows_explicit_not_applicable_reason():
+    model = _serving_model(
+        serving_overrides={
+            "quality_coverage": {
+                "not_applicable_reason": "게시 모집단이 매 source run의 최근 유효 관측 집합으로 동적으로 정의됨",
+            }
+        }
+    )
+
+    result = validate([model])
+
+    assert "quality_coverage_invalid" not in _rules(result.findings)
+
+
+def test_public_projection_uses_public_primary_key_for_rollup_grain():
+    model = _serving_model(
+        serving_overrides={
+            "primary_key": ["product_row_id", "source_dimension"],
+            "public_primary_key": ["product_row_id"],
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["product_row_id", "event_at"],
+            },
+        },
+        columns={
+            "product_row_id": ("not_null", "unique"),
+            "source_dimension": ("not_null",),
+            "event_at": (),
+        },
+    )
+
+    result = validate([model])
+
+    required_missing = [f for f in result.findings if f.rule == "public_projection_required_field_missing"]
+    assert not required_missing
+
+
+def test_public_primary_key_requires_public_projection():
+    model = _serving_model(
+        serving_overrides={
+            "public_primary_key": ["product_row_id"],
+        }
+    )
+
+    result = validate([model])
+
+    assert "public_projection_invalid" in _rules(result.findings)
+
+
 def test_citydata_and_transit_declared_source_evidence_is_complete_and_valid():
     """Citydata's source/coverage and Transit's source evidence retain their declared contracts."""
     models = load_models_from_yaml(
@@ -431,6 +506,77 @@ def test_commerce_localdata_source_evidence_covers_all_registry_sources():
     assert len({source["attribution"] for source in sources}) == 1
 
     result = validate([commerce])
+    assert result.ok, [finding.as_dict() for finding in result.findings]
+
+
+def test_culture_activity_source_evidence_covers_all_six_lineages_with_approved_redistribution():
+    """Culture records every lineage with approved external redistribution."""
+    models = load_models_from_yaml(
+        [REPO_ROOT / "domains/culture/models/gold/_culture_gold__models.yml"]
+    )
+    culture = {model.name: model for model in models}["gold_culture_activity_by_dong"]
+
+    assert culture.serving["source_evidence"] == [
+        {
+            "source_id": "kopis_open_api",
+            "source_url": "https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074",
+            "license": "KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용",
+            "license_url": "https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "공연예술통합전산망(KOPIS)",
+            "rights_checked_at": "2026-08-04",
+        },
+        {
+            "source_id": "seoul_cultural_event",
+            "source_url": "https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do",
+            "license": "공공누리 제1유형(출처표시)",
+            "license_url": "https://www.kogl.or.kr/info/licenseType1.do",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "서울특별시",
+            "rights_checked_at": "2026-08-04",
+        },
+        {
+            "source_id": "sema_exhibition",
+            "source_url": "https://data.seoul.go.kr/dataList/OA-15323/S/1/datasetView.do",
+            "license": "공공누리 제1유형(출처표시)",
+            "license_url": "https://www.kogl.or.kr/info/licenseType1.do",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "서울시립미술관",
+            "rights_checked_at": "2026-08-04",
+        },
+        {
+            "source_id": "sejong_performance",
+            "source_url": "https://data.seoul.go.kr/dataList/OA-2708/S/1/datasetView.do",
+            "license": "공공누리 제1유형(출처표시)",
+            "license_url": "https://www.kogl.or.kr/info/licenseType1.do",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "세종문화회관, 각 컨텐츠주체",
+            "rights_checked_at": "2026-08-04",
+        },
+        {
+            "source_id": "kcisa_culture_info",
+            "source_url": "https://www.data.go.kr/data/15138937/openapi.do",
+            "license": "이용허락범위 제한 없음",
+            "license_url": "https://www.data.go.kr/data/15138937/openapi.do",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "한국문화정보원",
+            "rights_checked_at": "2026-08-04",
+        },
+        {
+            "source_id": "national_data_office_admin_dong_link",
+            "source_url": "https://www.data.go.kr/data/15136368/fileData.do",
+            "license": "공공저작물 제3유형(출처표시·변경금지) — 2차 가공 집계 외부 API 재배포 승인",
+            "license_url": "https://www.kogl.or.kr/info/licenseType3.do",
+            "redistribution": "allowed_with_attribution",
+            "attribution": "국가데이터처",
+            "rights_checked_at": "2026-08-04",
+        },
+    ]
+    assert {source["redistribution"] for source in culture.serving["source_evidence"]} == {
+        "allowed_with_attribution"
+    }
+
+    result = validate([culture])
     assert result.ok, [finding.as_dict() for finding in result.findings]
 
 
