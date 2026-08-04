@@ -32,6 +32,7 @@ models:
             trigger_type: asset
             max_interval_minutes: 240
           event_time: latest_issued_at
+          freshness_field: latest_collected_at_max
           freshness_slo_minutes: 240
           retention_or_horizon: 게시 시점 기준 오늘 이후의 최신 예보 일자만 유지합니다.
           shape: wide
