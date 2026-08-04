@@ -13,10 +13,14 @@
 --  * avg_ppltn            : 인구중간값 평균 (세그먼트 무관 참고)
 --  * avg_congest_score    : 혼잡도 평균 (1 여유 · 2 보통 · 3 약간붐빔 · 4 붐빔)
 --  * sample_count         : 집계된 5분 실측 스냅샷 수 (신뢰도)
+--  * last_event_at         : 그 버킷에 기여한 가장 최근 event_at (증분 서빙 워터마크).
+--                            서빙 export(incremental upsert)가 D1 의 max(last_event_at) 이후
+--                            바뀐 버킷만 읽어 그 PK 만 갱신 → D1 쓰기 절약. 표시용 아님(신선도 참고).
 --
 -- silver_ppltn 은 LIVE_PPLTN(실측)만 파싱하므로 전 행이 실측이다(fcst_yn 은 "예보 존재
 -- 여부" 플래그라 전부 'Y' — 실측/예보 구분 아님, 필터 안 함).
--- table+replace(프로젝트 기본) 상속 — 매 run 전체 재빌드(멱등).
+-- table+replace(프로젝트 기본) 상속 — 매 run 전체 재빌드(멱등). 전이력 평균이라 매 run 전량
+-- 재계산하되, last_event_at 로 '바뀐 버킷'을 서빙단이 식별해 D1 쓰기만 증분화한다.
 -- dow: Trino day_of_week — 1=월 … 6=토 … 7=일. hour: 0~23 (KST, event_at 기준).
 
 {{ config(
@@ -30,6 +34,7 @@ with src as (
         p.gu_code,
         p.longitude,
         p.latitude,
+        p.event_at,
         day_of_week(p.event_at) as dow,
         hour(p.event_at)        as hour,
         (cast(p.area_ppltn_min as double) + p.area_ppltn_max) / 2.0 as pop_mid,
@@ -51,7 +56,7 @@ with src as (
 unpvt as (
     select
         s.area_cd, s.admin_dong_code, s.gu_code, s.longitude, s.latitude,
-        s.dow, s.hour, s.pop_mid, s.congest_score,
+        s.event_at, s.dow, s.hour, s.pop_mid, s.congest_score,
         seg.segment_type, seg.segment, seg.rate
     from src s
     cross join unnest(
@@ -80,7 +85,8 @@ select
     round(avg(u.pop_mid * u.rate / 100.0), 1)      as avg_est_headcount,
     round(avg(u.pop_mid), 1)                       as avg_ppltn,
     round(avg(u.congest_score), 2)                 as avg_congest_score,
-    count(*)                                       as sample_count
+    count(*)                                       as sample_count,
+    max(u.event_at)                                as last_event_at   -- 증분 서빙 워터마크
 from unpvt u
 left join {{ ref('dim_seoul_area') }} a on u.area_cd = a.area_cd
 group by
