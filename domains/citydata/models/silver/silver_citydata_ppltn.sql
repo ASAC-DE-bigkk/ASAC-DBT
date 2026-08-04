@@ -55,6 +55,11 @@ with bronze as (
     -- 동일 검증). 블록 payload 는 [{...}] 배열이라 위에서 $[0] 로 꺼낸다. 단일 수집원 통합.
     where block_name = 'LIVE_PPLTN_STTS'
     {% if is_incremental() %}
+      -- 파티션 프루닝: bronze 는 load_date(varchar)로 파티셔닝 — collected_at 술어만으론
+      -- 파티션을 못 쳐내 매 실행 bronze 전체를 스캔했다(ASK-Seoul#93). 최근 파티션만 읽게
+      -- load_date 창을 먼저 건다. 2일 창은 아래 30분 collected_at 창의 안전한 상위집합
+      -- (자정 경계·지연 도착 커버)이라 출력 행은 불변, 스캔량만 준다.
+      and load_date >= date_format(current_date - interval '2' day, '%Y-%m-%d')
       and {{ asac_axes.utc_to_kst('collected_at') }} >= (
         select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
         from {{ this }}
