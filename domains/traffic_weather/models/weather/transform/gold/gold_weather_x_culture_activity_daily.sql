@@ -38,7 +38,7 @@ culture as (
         activities_count,
         performances_count,
         events_count,
-        festivals_count,
+        kopis_festivals_count,
         exhibitions_count,
         sejong_count,
         kcisa_count
@@ -70,7 +70,7 @@ select
     culture.activities_count,
     culture.performances_count,
     culture.events_count,
-    culture.festivals_count,
+    culture.kopis_festivals_count,
     culture.exhibitions_count,
     culture.sejong_count,
     culture.kcisa_count,
