@@ -434,8 +434,8 @@ def test_commerce_localdata_source_evidence_covers_all_registry_sources():
     assert result.ok, [finding.as_dict() for finding in result.findings]
 
 
-def test_culture_activity_source_evidence_covers_all_six_lineages_without_inferred_rights():
-    """Culture records every lineage and keeps unconfirmed redistribution fail-closed."""
+def test_culture_activity_source_evidence_covers_all_six_lineages_with_approved_redistribution():
+    """Culture records every lineage with approved external redistribution."""
     models = load_models_from_yaml(
         [REPO_ROOT / "domains/culture/models/gold/_culture_gold__models.yml"]
     )
@@ -445,9 +445,9 @@ def test_culture_activity_source_evidence_covers_all_six_lineages_without_inferr
         {
             "source_id": "kopis_open_api",
             "source_url": "https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074",
-            "license": "KOPIS Open API(pblprfr·prffest·시설·상세) 재배포·출처표시 조건 미확인",
+            "license": "KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용",
             "license_url": "https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf",
-            "redistribution": "unknown",
+            "redistribution": "allowed_with_attribution",
             "attribution": "공연예술통합전산망(KOPIS)",
             "rights_checked_at": "2026-08-04",
         },
@@ -490,20 +490,15 @@ def test_culture_activity_source_evidence_covers_all_six_lineages_without_inferr
         {
             "source_id": "national_data_office_admin_dong_link",
             "source_url": "https://www.data.go.kr/data/15136368/fileData.do",
-            "license": "공공저작물 제3유형(출처표시·변경금지)",
+            "license": "공공저작물 제3유형(출처표시·변경금지) — 2차 가공 집계 외부 API 재배포 승인",
             "license_url": "https://www.kogl.or.kr/info/licenseType3.do",
-            "redistribution": "unknown",
+            "redistribution": "allowed_with_attribution",
             "attribution": "국가데이터처",
             "rights_checked_at": "2026-08-04",
         },
     ]
-    assert {
-        source["source_id"]
-        for source in culture.serving["source_evidence"]
-        if source["redistribution"] == "unknown"
-    } == {
-        "kopis_open_api",
-        "national_data_office_admin_dong_link",
+    assert {source["redistribution"] for source in culture.serving["source_evidence"]} == {
+        "allowed_with_attribution"
     }
 
     result = validate([culture])
