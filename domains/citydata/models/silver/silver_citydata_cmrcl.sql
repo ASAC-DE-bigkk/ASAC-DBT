@@ -23,6 +23,10 @@ with src as (
     from {{ source('bronze_citydata', 'bronze_seoul_citydata') }}
     where block_name = 'LIVE_CMRCL_STTS'
     {% if is_incremental() %}
+      -- 파티션 프루닝(ASK-Seoul#93): load_date 로 최근 파티션만 읽는다. bronze 는 load_date 로
+      -- 파티셔닝되어 collected_at 술어만으로는 프루닝이 안 된다. 2일 창은 아래 30분
+      -- collected_at 창의 상위집합(자정 경계·지연도착 커버) → 출력 불변, 스캔량만 준다.
+      and load_date >= date_format(current_date - interval '2' day, '%Y-%m-%d')
       and {{ asac_axes.utc_to_kst('collected_at') }} >= (
           select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
           from {{ this }}
