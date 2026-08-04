@@ -141,15 +141,15 @@ models:
         data_type: date
         tests: [not_null]
       - name: activities_count
-        description: 그날 그 동에서 열린 전체 문화활동 수 — 활동 ID 기준 중복을 제거한 값이며 총계는 언제나 이 열을 쓴다. 유형별 열을 더해서 총계를 만들지 말 것(KOPIS 가 같은 공연을 공연목록·축제목록에 함께 실어 festivals_count 가 performances_count 와 겹치고, 무료·교육체험·축제 행사 수도 events_count 의 부분집합이다)
+        description: 그날 그 동에서 열린 전체 문화활동 수 — 활동 ID 기준 중복을 제거한 값이며 총계는 언제나 이 열을 쓴다. 유형별 열을 더해서 총계를 만들지 말 것(KOPIS 가 같은 공연을 공연목록·축제목록에 함께 실어 kopis_festivals_count 가 performances_count 와 겹치고, 무료·교육체험·축제 행사 수도 events_count 의 부분집합이다)
         data_type: bigint
       - name: performances_count
-        description: KOPIS 공연 수 (festivals_count 를 포함한다)
+        description: KOPIS 공연 수 (kopis_festivals_count 를 포함한다)
         data_type: bigint
       - name: events_count
         description: 서울시 문화행사 수 (free_events_count·edu_experience_events_count·festival_events_count 를 포함한다)
         data_type: bigint
-      - name: festivals_count
+      - name: kopis_festivals_count
         description: KOPIS 공연 중 축제로 분류된 수 — performances_count 의 부분집합이다(KOPIS 가 같은 공연 ID를 공연목록과 축제목록에 함께 싣는다). 서울시가 여는 축제는 festival_events_count 를 볼 것
         data_type: bigint
       - name: exhibitions_count
@@ -168,7 +168,7 @@ models:
         description: 그날 그 동의 교육·체험 분류 행사 수 — events_count 의 부분집합
         data_type: bigint
       - name: festival_events_count
-        description: 그날 그 동의 축제 분류 행사 수 — 서울시 문화행사의 축제 6분류(문화/예술·기타·전통/역사·자연/경관·시민화합·관광/체육)를 합친 것으로 events_count 의 부분집합. KOPIS 축제(festivals_count)와 다른 출처다
+        description: 그날 그 동의 축제 분류 행사 수 — 서울시 문화행사의 축제 6분류(문화/예술·기타·전통/역사·자연/경관·시민화합·관광/체육)를 합친 것으로 events_count 의 부분집합. KOPIS 축제(kopis_festivals_count)와 다른 출처다
         data_type: bigint
 
   - name: gold_culture_booking_curve
@@ -754,7 +754,7 @@ models:
         data_type: date
         tests: [not_null]
       - name: activities_count
-        description: 그날 그 구의 전체 문화활동 수 — 활동 ID 기준 중복을 제거한 값이며 총계는 언제나 이 열을 쓴다. 유형별 열의 합과 다르다(#406 실측 — 정본 620,342 · 유형 합 621,477). KOPIS 가 같은 공연을 공연목록·축제목록에 함께 실어 festivals_count 가 performances_count 와 겹치기 때문이다
+        description: 그날 그 구의 전체 문화활동 수 — 활동 ID 기준 중복을 제거한 값이며 총계는 언제나 이 열을 쓴다. 유형별 열의 합과 다르다(#406 실측 — 정본 620,342 · 유형 합 621,477). KOPIS 가 같은 공연을 공연목록·축제목록에 함께 실어 kopis_festivals_count 가 performances_count 와 겹치기 때문이다
         data_type: bigint
       - name: performances_count
         description: KOPIS 공연 수
@@ -762,7 +762,7 @@ models:
       - name: events_count
         description: 서울시 문화행사 수
         data_type: bigint
-      - name: festivals_count
+      - name: kopis_festivals_count
         description: KOPIS 공연 중 축제로 분류된 수 — performances_count 와 같은 공연을 세므로(KOPIS 가 mt20id 를 공연목록·축제목록에 함께 싣는다) 유형별 합에 더하면 이중계상된다. 서울시가 여는 축제가 필요하면 gold_culture_activity_by_dong 의 festival_events_count 를 볼 것
         data_type: bigint
       - name: exhibitions_count
