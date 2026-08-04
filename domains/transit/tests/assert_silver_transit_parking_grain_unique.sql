@@ -4,6 +4,7 @@
 --   한계: merge lookback(-2h)은 ingested_at 축이라, event_at 이 오래 정지한 행(갱신 멈춘
 --   lot 의 재유입 등)의 중복은 윈도 밖에 생겨 미검출될 수 있다 — 전면적 merge/dedup 회귀는
 --   최근 event_at 행도 함께 중복시켜 여전히 잡히는, 클래스 단위 감시로 이해할 것.
+{{ config(tags=['gate']) }}
 select
     parking_id,
     event_at,

@@ -2,6 +2,7 @@
 -- (seed × dim, route=line_name) 에서 (subway_id, station_name_join) 이 유일해야
 -- arrival 조인이 행을 부풀리지 않는다. 다행 seed(1075·1077)를 포함해 실데이터 중복 0건 실증.
 -- 중복이면 실패.
+{{ config(tags=['gate']) }}
 with station_by_line as (
     select
         s.subway_id,

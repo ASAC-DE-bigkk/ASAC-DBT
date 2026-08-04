@@ -6,6 +6,7 @@
 -- null 은 통과(집계 대상 없음/상류 결손). 범위 밖 행을 반환하면 실패.
 -- 스코핑(B안): 최근 var(transit_test_lookback_days)일만 검증 — 범위 위반은 신규 집계
 --   구간(merge lookback -3h)에서 생기므로 최근 윈도로 충분. 세 분기 공통 윈도는 CTE 로 1회.
+{{ config(tags=['hourly']) }}
 with recent as (
     select admin_dong_code, hour_at, bus_full_ratio, bus_stop_ratio, parking_occupancy_avg
     from {{ ref('gold_transit_dong_hourly') }}

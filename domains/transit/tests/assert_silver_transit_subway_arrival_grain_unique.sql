@@ -4,6 +4,7 @@
 --   event_at 도 같아 윈도 경계에서 갈라지지 않는다.
 --   한계: merge lookback(-2h)은 ingested_at 축이라 event_at 이 오래된 행의 재유입 중복은
 --   윈도 밖일 수 있다 — 전면적 merge 회귀는 최근 행에서 여전히 잡히는 클래스 단위 감시.
+{{ config(tags=['gate']) }}
 select
     statn_id,
     ordkey,
