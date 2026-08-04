@@ -770,6 +770,11 @@ models:
               redistribution: allowed_with_attribution
               attribution: 서울특별시
               rights_checked_at: "2026-08-03"
+          quality_coverage:
+            not_applicable_reason: 게시 모집단은 매 source run의 최근 24시간 유효 주차 관측 집합으로 동적으로 정의되어 고정 distinct 분모가 성립하지 않음
+          public_projection:
+            schema_version: "1.0.0"
+            columns: [parking_id, last_event_at, parking_name, admin_dong_code, gu_code, latitude, longitude, occ_now, avail_pct, capacity_now, avail_lot_est, occ_rate_per_min, rate_base_n, minutes_to_full_est, full_prob_now_slot, profile_base_n, last_bucket_at]
           # usage_patterns 파일럿(#384) — 최소 필드 사유는 dong_now 블록 주석과 동일.
           usage_patterns:
             - pattern_id: full_soon_lots
@@ -809,6 +814,8 @@ models:
     columns:
       - name: parking_id
         description: 주차장 ID(그레인 축).
+        data_type: varchar
+        config: {meta: {semantic_role: entity_id, nullable: false, null_meaning: not_applicable, unit: code}}
         tests:
           - not_null:
               config:
@@ -818,19 +825,31 @@ models:
                 tags: [gate]
       - name: parking_name
         description: 주차장 이름(dim_transit_parking).
+        data_type: varchar
+        config: {meta: {semantic_role: entity_name, nullable: true, null_meaning: 주차장 마스터 이름을 매핑하지 못함, unit: name}}
       - name: admin_dong_code
         description: 행정동 코드.
+        data_type: varchar
+        config: {meta: {semantic_role: administrative_area_id, nullable: true, null_meaning: 유효 좌표 또는 행정동 매핑이 없음, unit: code}}
       - name: gu_code
         description: 자치구 코드.
+        data_type: varchar
+        config: {meta: {semantic_role: administrative_area_id, nullable: true, null_meaning: 유효 좌표 또는 자치구 매핑이 없음, unit: code}}
       - name: latitude
         description: 위도(지도 표시용, dim 마스터).
+        data_type: double
+        config: {meta: {semantic_role: latitude, nullable: true, null_meaning: 주차장 마스터의 유효 좌표가 없음, unit: degree}}
       - name: longitude
         description: 경도(지도 표시용, dim 마스터).
+        data_type: double
+        config: {meta: {semantic_role: longitude, nullable: true, null_meaning: 주차장 마스터의 유효 좌표가 없음, unit: degree}}
       - name: occ_now
         description: >
           [현재 관측] 현재 점유율(최신 버킷 occ_last — 점유대수·총면수 둘 다 유효하고
           총면수>0 인 관측만 산출). 만차 초과 주차 시 1 초과 가능(#231) — 범위 규칙은
           range 테스트가 단언. 24h 내 유효 관측 없는 lot 은 스냅샷에서 제외(품질 규칙).
+        data_type: double
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable, unit: ratio}}
         tests:
           # 서빙 품질 규칙(#668 게시 증거)의 핵심 단언이라 gate — 파생값이지만 15분 게시 제품.
           - not_null:
@@ -838,29 +857,47 @@ models:
                 tags: [gate]
       - name: avail_pct
         description: "[현재 관측] 여유 %((1-occ_now)×100 반올림)."
+        data_type: double
+        config: {meta: {semantic_role: derived_metric, nullable: false, null_meaning: not_applicable, unit: percent}}
       - name: capacity_now
         description: "[현재 관측] 총 면수(최신 관측 TPKCT — 운영상 증감 가능)."
+        data_type: integer
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable, unit: parking_spaces}}
       - name: avail_lot_est
         description: "[현재 관측 파생] 잔여 대수 추정(총면수×여유율 반올림)."
+        data_type: double
+        config: {meta: {semantic_role: derived_metric, nullable: false, null_meaning: not_applicable, unit: estimated_parking_spaces}}
       - name: occ_rate_per_min
         description: >
           [추세 추정] 분당 점유율 변화 — 최근 45분 연속 4버킷의 처음↔끝 차이.
           4버킷 미만 관측(신규·결측 lot)이면 null(추세 미산출 가드).
+        data_type: double
+        config: {meta: {semantic_role: derived_metric, nullable: true, null_meaning: 최근 45분 연속 4버킷이 없어 추세를 계산하지 못함, unit: ratio_per_minute}}
       - name: rate_base_n
         description: "[추세 추정 근거] 추세 계산에 쓴 버킷 수(45분 창) — 4 미만이면 추세 미산출."
+        data_type: bigint
+        config: {meta: {semantic_role: sample_count, nullable: false, null_meaning: not_applicable, unit: count}}
       - name: minutes_to_full_est
         description: >
           [추세 추정] 만차(점유 0.95)까지 예상 분 — 최근 추세의 선형 외삽.
           채워지는 중(rate>0)일 때만, 이미 만차면 0, 그 외 null.
+        data_type: double
+        config: {meta: {semantic_role: derived_metric, nullable: true, null_meaning: 채워지는 추세가 아니거나 추세 표본이 부족함, unit: minute}}
       - name: full_prob_now_slot
         description: >
           [과거 통계] 이 시간대(요일×시) 평시 만차 확률 — 아카이브 전량 프로파일
           (occ_max>=0.95 터치 비율)에서 그 lot 의 최신 관측 시각 칸을 조인.
           null=프로파일 미보유.
+        data_type: decimal(2,1)
+        config: {meta: {semantic_role: probability, nullable: true, null_meaning: 해당 주차장·요일·시간대 프로파일이 없음, unit: ratio}}
       - name: profile_base_n
         description: "[과거 통계 근거] 조인된 프로파일 칸의 표본 수(base_n) — 소비 측 배지 판단."
+        data_type: bigint
+        config: {meta: {semantic_role: sample_count, nullable: true, null_meaning: 해당 주차장·요일·시간대 프로파일이 없음, unit: count}}
       - name: last_bucket_at
         description: "[기준 시각] 최신 15분 버킷 시각 — 프로파일 조인 기준 칸."
+        data_type: timestamp(6)
+        config: {meta: {semantic_role: observation_bucket_time, nullable: false, null_meaning: not_applicable, unit: timestamp_kst}}
         tests:
           - not_null:
               config:
@@ -869,6 +906,8 @@ models:
         description: >
           [기준 시각] 최신 관측 시각(KST) — 신선도 축(event_time). 현재 관측·추세·통계
           모두 이 시각 기준이며, 조회 시점까지의 경과분 계산은 소비 측 몫.
+        data_type: timestamp(6)
+        config: {meta: {semantic_role: observed_at, nullable: false, null_meaning: not_applicable, unit: timestamp_kst}}
         tests:
           - not_null:
               config:

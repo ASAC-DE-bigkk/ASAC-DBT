@@ -1179,6 +1179,18 @@ models:
               redistribution: allowed_with_attribution
               attribution: 서울특별시
               rights_checked_at: "2026-08-04"
+          quality_coverage:
+            field: dataset
+            expected_distinct_count: 152
+            # dev Gold 실측 147/152. 아래 5개 registry source는 완결월 이력이 아직 0건이라 정상 제외다.
+            # caregiver_academy, construction_waste, special_high_pressure_gas,
+            # tobacco_wholesale, water_tank_cleaning
+            minimum_ratio: 0.95
+            measurement_scope: source_relation
+          public_projection:
+            schema_version: "1.0.0"
+            columns: [ym, event_type, major, category, gu_code, cnt]
+          public_primary_key: [ym, event_type, major, category, gu_code]
           d1_rollup: (ym,event_type,major,category,gu_code) SUM(cnt) — dataset/dong/legal 드롭(HOW 정본=export SERVING_SPEC)
           event_time: ym                      # 시간축(#478 v1) — _catalog.time_axis/freshness 채움(타 도메인 동형)
           freshness_slo_minutes: 89280        # 62일. 완결월 grain: ym='YYYY-MM' 를 월초로 파싱하면 최신 이벤트월이 최대 약 62일 전(당월 제외+월 마감 지연). 게시 지연 감시는 publication_trigger.max_interval_minutes(26h) 담당
@@ -1478,6 +1490,7 @@ models:
       - name: ym
         data_type: varchar
         description: 이벤트 발생 연월(YYYY-MM, 문자열). 완결월만(당월 제외).
+        config: {meta: {semantic_role: event_month, nullable: false, null_meaning: not_applicable, unit: YYYY-MM}}
         tests: [not_null]              # PK 근거(#478)
       - name: y
         data_type: integer
@@ -1486,6 +1499,7 @@ models:
       - name: event_type
         data_type: varchar
         description: opened(개업)/closed(폐업).
+        config: {meta: {semantic_role: event_type, nullable: false, null_meaning: not_applicable, unit: category}}
         tests:
           - not_null
           - accepted_values:
@@ -1498,6 +1512,7 @@ models:
       - name: gu_code
         data_type: varchar
         description: 시군구 코드 5자리. 결측 'UNK'.
+        config: {meta: {semantic_role: administrative_area_id, nullable: false, null_meaning: not_applicable; 미매핑은 UNK 값으로 표현, unit: code}}
         tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
@@ -1510,13 +1525,16 @@ models:
       - name: major
         data_type: varchar
         description: 대분류(health/culture/industry/environment).
+        config: {meta: {semantic_role: major_category, nullable: false, null_meaning: not_applicable, unit: category}}
         tests: [not_null]
       - name: category
         data_type: varchar
         description: 중분류.
+        config: {meta: {semantic_role: category, nullable: true, null_meaning: taxonomy 중분류가 지정되지 않음, unit: category}}
       - name: cnt
         data_type: bigint
         description: 월별 개업/폐업 건수.
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable, unit: count}}
         tests: [not_null]
       - name: src_collected_at
         data_type: timestamp(6)

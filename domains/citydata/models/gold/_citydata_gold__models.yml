@@ -486,6 +486,9 @@ models:
             field: area_cd
             expected_distinct_count: 121
             minimum_ratio: 1.0
+          public_projection:
+            schema_version: "1.0.0"
+            columns: [event_date, area_cd, area_nm, area_category, gu, ppltn_avg, payment_amt_total, spend_per_crowd_idx, rank_spend, rank_spend_in_gu]
           usage_patterns:
             - pattern_id: top_purchasing_power_on_date
               question_ko: 특정 날 붐빔 대비 소비(구매력 지수)가 가장 높았던 장소는?
@@ -517,20 +520,25 @@ models:
       - name: event_date
         data_type: date
         description: 집계 날짜 (KST) — grain 축
+        config: {meta: {semantic_role: event_date, nullable: false, null_meaning: not_applicable, unit: date}}
         tests: [not_null]
       - name: area_cd
         data_type: varchar
         description: 장소 코드 (POI###, grain 축)
+        config: {meta: {semantic_role: entity_id, nullable: false, null_meaning: not_applicable, unit: code}}
         tests: [not_null]
       - name: area_nm
         data_type: varchar
         description: 장소명
+        config: {meta: {semantic_role: entity_name, nullable: true, null_meaning: 원천 장소명이 제공되지 않음, unit: name}}
       - name: area_category
         data_type: varchar
         description: 장소 분류
+        config: {meta: {semantic_role: category, nullable: true, null_meaning: 원천 장소 분류가 제공되지 않음, unit: category}}
       - name: gu
         data_type: varchar
         description: 자치구명
+        config: {meta: {semantic_role: administrative_area_name, nullable: true, null_meaning: 장소의 자치구를 매핑하지 못함, unit: name}}
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -549,6 +557,7 @@ models:
       - name: ppltn_avg
         data_type: decimal(18,6)
         description: 그날 평균 유동인구
+        config: {meta: {semantic_role: measure, nullable: true, null_meaning: 해당 장소·일자의 유동인구 측정이 없음, unit: estimated_people}}
       - name: ppltn_peak
         data_type: decimal(18,6)
         description: 그날 최대 유동인구
@@ -561,6 +570,7 @@ models:
       - name: payment_amt_total
         data_type: bigint
         description: 그날 결제금액 합
+        config: {meta: {semantic_role: measure, nullable: true, null_meaning: 해당 장소·일자의 결제금액 측정이 없음, unit: KRW}}
       - name: payment_amt_peak
         data_type: bigint
         description: 그날 최대 결제금액
@@ -576,12 +586,15 @@ models:
       - name: spend_per_crowd_idx
         data_type: decimal(38,13)
         description: 결제금액 / 평균 유동인구 (구매력 proxy, 상대 지수)
+        config: {meta: {semantic_role: derived_metric, nullable: true, null_meaning: 결제금액 또는 유동인구 분모가 없어 지수를 계산하지 못함, unit: relative_index}}
       - name: rank_spend
         data_type: bigint
         description: 그날 전체 장소 중 spend_per_crowd_idx 순위 (1=Top). 하위=구매력 약한 지역
+        config: {meta: {semantic_role: rank, nullable: true, null_meaning: 구매력 지수가 없어 순위를 계산하지 못함, unit: ordinal_rank}}
       - name: rank_spend_in_gu
         data_type: bigint
         description: 그날 자치구 내 순위
+        config: {meta: {semantic_role: rank, nullable: true, null_meaning: 구매력 지수 또는 자치구가 없어 순위를 계산하지 못함, unit: ordinal_rank}}
 
     tests:
       - dbt_utils.unique_combination_of_columns:
