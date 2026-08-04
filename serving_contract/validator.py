@@ -282,7 +282,7 @@ def _check_source_evidence(model: ServingModel, schema: dict[str, Any]) -> list[
 
 
 def _check_quality_coverage(model: ServingModel, schema: dict[str, Any]) -> list[Finding]:
-    """Validate a reproducible distinct-coverage declaration; runtime values remain Publisher-owned."""
+    """Validate measured coverage or an explicit reason that coverage has no stable denominator."""
     findings: list[Finding] = []
     coverage = model.serving.get("quality_coverage")
     spec = schema.get("quality_coverage_fields") or {}
@@ -294,8 +294,17 @@ def _check_quality_coverage(model: ServingModel, schema: dict[str, Any]) -> list
     def add(rule: str, message: str) -> None:
         findings.append(Finding(rule, model.name, message, model.source))
 
-    required = set(spec.get("required") or ())
-    for field in sorted(set(coverage) - required):
+    not_applicable_required = set(spec.get("not_applicable_required") or ())
+    if set(coverage) == not_applicable_required:
+        reason = coverage.get("not_applicable_reason")
+        if not isinstance(reason, str) or not reason.strip():
+            add("quality_coverage_invalid", "quality_coverage.not_applicable_reason 은 비어 있지 않아야 한다")
+        return findings
+
+    required = set(spec.get("measured_required") or ())
+    optional = set(spec.get("measured_optional") or ())
+    allowed_fields = required | optional
+    for field in sorted(set(coverage) - allowed_fields):
         add("quality_coverage_unknown_field", f"quality_coverage — 스펙 밖 필드 '{field}' (오타 확인)")
     missing = sorted(required - set(coverage))
     if missing:
@@ -308,7 +317,12 @@ def _check_quality_coverage(model: ServingModel, schema: dict[str, Any]) -> list
         add("quality_coverage_invalid", f"quality_coverage.field '{field}' 이 YAML columns 계약에 없다")
     else:
         projection = model.serving.get("public_projection")
-        if isinstance(projection, dict) and field not in (projection.get("columns") or []):
+        scope = coverage.get("measurement_scope", "published_rows")
+        if (
+            scope == "published_rows"
+            and isinstance(projection, dict)
+            and field not in (projection.get("columns") or [])
+        ):
             add("quality_coverage_invalid", f"quality_coverage.field '{field}' 은 public_projection에 포함돼야 한다")
 
     expected = coverage.get("expected_distinct_count")
@@ -321,6 +335,13 @@ def _check_quality_coverage(model: ServingModel, schema: dict[str, Any]) -> list
         or not 0 < float(minimum_ratio) <= 1
     ):
         add("quality_coverage_invalid", "quality_coverage.minimum_ratio 는 0 초과 1 이하여야 한다")
+    scope = coverage.get("measurement_scope", "published_rows")
+    allowed_scopes = set(spec.get("measurement_scope_allowed") or ())
+    if scope not in allowed_scopes:
+        add(
+            "quality_coverage_invalid",
+            f"quality_coverage.measurement_scope={scope!r} 은 허용값 {sorted(allowed_scopes)} 이 아니다",
+        )
 
     return findings
 
@@ -413,6 +434,8 @@ def _check_primary_key(model: ServingModel, manifest: ManifestView, add) -> None
 def _check_public_projection(model: ServingModel, manifest: ManifestView, add) -> None:
     projection = model.serving.get("public_projection")
     if projection is None:
+        if model.serving.get("public_primary_key") is not None:
+            add("public_projection_invalid", "public_primary_key 는 public_projection 과 함께 선언해야 한다")
         return
     if not isinstance(projection, dict):
         add("public_projection_invalid", "public_projection 은 object 이어야 한다")
@@ -451,7 +474,17 @@ def _check_public_projection(model: ServingModel, manifest: ManifestView, add) -
         else:
             _check_projected_column_metadata(model, column, add)
 
-    required_columns = list(model.serving.get("primary_key") or [])
+    public_primary_key = model.serving.get("public_primary_key")
+    if public_primary_key is not None:
+        if (
+            not isinstance(public_primary_key, list)
+            or not public_primary_key
+            or any(not isinstance(column, str) or not IDENTIFIER_RE.fullmatch(column) for column in public_primary_key)
+            or len(set(public_primary_key)) != len(public_primary_key)
+        ):
+            add("public_projection_invalid", "public_primary_key 는 중복 없는 물리 컬럼 식별자 리스트여야 한다")
+            public_primary_key = []
+    required_columns = list(public_primary_key or model.serving.get("primary_key") or [])
     if isinstance(model.serving.get("event_time"), str):
         required_columns.append(model.serving["event_time"])
     reliability = model.serving.get("reliability")

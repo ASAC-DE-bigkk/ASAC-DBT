@@ -343,6 +343,81 @@ def test_quality_coverage_rejects_unknown_field_and_unachievable_threshold():
     assert "quality_coverage_unknown_field" in rules
 
 
+def test_quality_coverage_allows_source_relation_measurement_outside_public_projection():
+    model = _serving_model(
+        serving_overrides={
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["product_row_id", "event_at"],
+            },
+            "quality_coverage": {
+                "field": "source_dimension",
+                "expected_distinct_count": 152,
+                "minimum_ratio": 1.0,
+                "measurement_scope": "source_relation",
+            },
+        },
+        columns={
+            "product_row_id": ("not_null", "unique"),
+            "event_at": (),
+            "source_dimension": (),
+        },
+    )
+
+    result = validate([model])
+
+    assert not {"quality_coverage_invalid", "quality_coverage_unknown_field"} & _rules(result.findings)
+
+
+def test_quality_coverage_allows_explicit_not_applicable_reason():
+    model = _serving_model(
+        serving_overrides={
+            "quality_coverage": {
+                "not_applicable_reason": "게시 모집단이 매 source run의 최근 유효 관측 집합으로 동적으로 정의됨",
+            }
+        }
+    )
+
+    result = validate([model])
+
+    assert "quality_coverage_invalid" not in _rules(result.findings)
+
+
+def test_public_projection_uses_public_primary_key_for_rollup_grain():
+    model = _serving_model(
+        serving_overrides={
+            "primary_key": ["product_row_id", "source_dimension"],
+            "public_primary_key": ["product_row_id"],
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["product_row_id", "event_at"],
+            },
+        },
+        columns={
+            "product_row_id": ("not_null", "unique"),
+            "source_dimension": ("not_null",),
+            "event_at": (),
+        },
+    )
+
+    result = validate([model])
+
+    required_missing = [f for f in result.findings if f.rule == "public_projection_required_field_missing"]
+    assert not required_missing
+
+
+def test_public_primary_key_requires_public_projection():
+    model = _serving_model(
+        serving_overrides={
+            "public_primary_key": ["product_row_id"],
+        }
+    )
+
+    result = validate([model])
+
+    assert "public_projection_invalid" in _rules(result.findings)
+
+
 def test_citydata_and_transit_declared_source_evidence_is_complete_and_valid():
     """Citydata's source/coverage and Transit's source evidence retain their declared contracts."""
     models = load_models_from_yaml(

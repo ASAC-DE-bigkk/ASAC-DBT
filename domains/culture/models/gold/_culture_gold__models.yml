@@ -71,6 +71,13 @@ models:
               redistribution: allowed_with_attribution
               attribution: 국가데이터처
               rights_checked_at: "2026-08-04"
+          quality_coverage:
+            field: admin_dong_code
+            expected_distinct_count: 426
+            minimum_ratio: 1.0
+          public_projection:
+            schema_version: "1.0.0"
+            columns: [admin_dong_code, event_date, admin_dong, gu_code, gu, activities_count, performances_count, events_count, kopis_festivals_count, exhibitions_count, sejong_count, kcisa_count, free_events_count, edu_experience_events_count, festival_events_count]
           # usage_patterns — ASAC-DAG#638 v1 규격. requires 는 고정 어휘 11개에서, basic
           # 프로파일(등호 필터·시간축 from/to·limit·전체 컬럼) 위의 추가분만 적는다.
           # sql 은 참조 구현(D1/SQLite 방언)이다 — 클라이언트가 보내 실행하는 값이 아니다.
@@ -122,54 +129,69 @@ models:
       - name: admin_dong_code
         description: 행정동 코드 — 행정안전부 표준 10자리. 다른 행정동 데이터와 붙이는 조인 키
         data_type: varchar
+        config: {meta: {semantic_role: administrative_area_id, nullable: false, null_meaning: not_applicable, unit: code}}
         tests: [not_null]
       - name: admin_dong
         description: 행정동 이름(예 명동)
         data_type: varchar
+        config: {meta: {semantic_role: administrative_area_name, nullable: true, null_meaning: 행정동 이름 매핑이 제공되지 않음, unit: name}}
       - name: gu_code
         description: 자치구 코드(구 롤업 키)
         data_type: varchar
+        config: {meta: {semantic_role: administrative_area_id, nullable: false, null_meaning: not_applicable, unit: code}}
         tests: [not_null]
       - name: gu
         description: 자치구 이름(예 중구)
         data_type: varchar
+        config: {meta: {semantic_role: administrative_area_name, nullable: true, null_meaning: 자치구 이름 매핑이 제공되지 않음, unit: name}}
       - name: stat_region_cd
         description: 통계청 집계구 코드 — 통계청 인구·가구 통계와 붙일 때 사용
         data_type: varchar
       - name: event_date
         description: 활동 일자(KST). 여러 날에 걸친 행사는 날짜마다 한 행으로 펼쳐진다
         data_type: date
+        config: {meta: {semantic_role: event_date, nullable: false, null_meaning: not_applicable, unit: date}}
         tests: [not_null]
       - name: activities_count
         description: 그날 그 동에서 열린 전체 문화활동 수 — 활동 ID 기준 중복을 제거한 값이며 총계는 언제나 이 열을 쓴다. 유형별 열을 더해서 총계를 만들지 말 것(KOPIS 가 같은 공연을 공연목록·축제목록에 함께 실어 kopis_festivals_count 가 performances_count 와 겹치고, 무료·교육체험·축제 행사 수도 events_count 의 부분집합이다)
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 활동 없음은 0, unit: count}}
       - name: performances_count
         description: KOPIS 공연 수 (kopis_festivals_count 를 포함한다)
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 공연 없음은 0, unit: count}}
       - name: events_count
         description: 서울시 문화행사 수 (free_events_count·edu_experience_events_count·festival_events_count 를 포함한다)
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 행사 없음은 0, unit: count}}
       - name: kopis_festivals_count
         description: KOPIS 공연 중 축제로 분류된 수 — performances_count 의 부분집합이다(KOPIS 가 같은 공연 ID를 공연목록과 축제목록에 함께 싣는다). 서울시가 여는 축제는 festival_events_count 를 볼 것
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; KOPIS 축제 없음은 0, unit: count}}
       - name: exhibitions_count
         description: SeMA 전시 수
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 전시 없음은 0, unit: count}}
       - name: sejong_count
         description: 세종문화회관 공연 수
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 세종문화회관 공연 없음은 0, unit: count}}
       - name: kcisa_count
         description: KCISA 국립문화기관 행사 수
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; KCISA 행사 없음은 0, unit: count}}
       - name: free_events_count
         description: 그날 그 동의 무료 문화행사 수. 유·무료 표기는 서울시 문화행사 출처에만 있어 그 범위의 건수
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 무료 행사 없음은 0, unit: count}}
       - name: edu_experience_events_count
         description: 그날 그 동의 교육·체험 분류 행사 수 — events_count 의 부분집합
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 교육·체험 행사 없음은 0, unit: count}}
       - name: festival_events_count
         description: 그날 그 동의 축제 분류 행사 수 — 서울시 문화행사의 축제 6분류(문화/예술·기타·전통/역사·자연/경관·시민화합·관광/체육)를 합친 것으로 events_count 의 부분집합. KOPIS 축제(kopis_festivals_count)와 다른 출처다
         data_type: bigint
+        config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 서울시 축제 행사 없음은 0, unit: count}}
 
   - name: gold_culture_booking_curve
     description: "공연별 예매상황판 순위 궤적 요약(그레인 performance_id, 1공연 1행, #269). KOPIS는 순위(rank)만 제공 — 예매율·판매좌석·매진 데이터 없어 '순위 궤적'으로 실현. boxoffice_daily(스냅샷별)와 그레인 다름."

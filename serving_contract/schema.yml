@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.7
+schema_version: v1.8
 supported_contract_versions: [v1]
 
 # v1.1 (#478 보강 결정): 조건부 필수 — `if_present` 필드를 선언한 모델은
@@ -44,8 +44,9 @@ optional:
   upsert_strategy:        {type: enum, allowed: [merge, exact_set, incremental]}
   usage_patterns:         {type: list}   # v1.3 (#600/#638): 검증 질의 예시 — 항목 규칙은 usage_pattern_fields
   public_projection:      {type: object} # v1.4: 물리 D1/public projection allowlist
+  public_primary_key:     {type: list, min_items: 1} # v1.8: rollup 후 공개 D1 grain의 PK override
   source_evidence:        {type: list}   # v1.5 (#678): 공개 권리·출처 증거 — 항목 규칙은 source_evidence_fields
-  quality_coverage:       {type: object} # v1.6 (#678): 재현 가능한 distinct coverage gate
+  quality_coverage:       {type: object} # v1.8: distinct coverage 또는 명시적 not-applicable 근거
 
 # Defaults the Publisher applies when the field is absent (documentation of intent;
 # the validator does not require them but forbids illegal explicit values).
@@ -104,7 +105,12 @@ source_evidence_fields:
   required: [source_id, source_url, license, license_url, redistribution, attribution, rights_checked_at]
   redistribution_allowed: [allowed_with_attribution, prohibited, unknown]
 
-# v1.6 (#678): 정적 기대 집합과 현재 publication의 distinct coverage를 명확히 분리한다.
-# observed count·ratio·pass/fail은 YAML에서 쓰지 않고 Publisher가 `d1_product_quality`에 기록한다.
+# v1.8 (#678): 정적 기대 집합과 현재 publication의 distinct coverage를 명확히 분리한다.
+# `measurement_scope=source_relation`은 공개 rollup에서 제거되는 원천 축을 게시 전 source relation에서
+# 측정한다. 고정 분모 자체가 성립하지 않는 동적 모집단은 수치를 꾸며내지 않고
+# `not_applicable_reason` 한 필드로 근거를 선언한다.
 quality_coverage_fields:
-  required: [field, expected_distinct_count, minimum_ratio]
+  measured_required: [field, expected_distinct_count, minimum_ratio]
+  measured_optional: [measurement_scope]
+  measurement_scope_allowed: [published_rows, source_relation]
+  not_applicable_required: [not_applicable_reason]
