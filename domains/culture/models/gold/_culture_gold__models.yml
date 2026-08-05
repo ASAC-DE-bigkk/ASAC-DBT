@@ -229,6 +229,17 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # source_evidence — 이 제품은 KOPIS 예매 순위만 읽는다(silver_culture_boxoffice·
+          # silver_culture_performance). 지역 축이 없어 행정동 링크를 쓰지 않으므로
+          # activity_by_dong 의 6원천 중 KOPIS 하나만 상속한다(#88 §1-2 B).
+          source_evidence:
+            - source_id: kopis_open_api
+              source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
+              license: KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용
+              license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
+              redistribution: allowed_with_attribution
+              attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
           # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조
           usage_patterns:
             - pattern_id: steady_sellers
@@ -352,6 +363,17 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # source_evidence — 이 제품은 KOPIS 예매 순위만 읽는다(silver_culture_boxoffice·
+          # silver_culture_performance). 지역 축이 없어 행정동 링크를 쓰지 않으므로
+          # activity_by_dong 의 6원천 중 KOPIS 하나만 상속한다(#88 §1-2 B).
+          source_evidence:
+            - source_id: kopis_open_api
+              source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
+              license: KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용
+              license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
+              redistribution: allowed_with_attribution
+              attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
           # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
           # 3건 모두 "최신 스냅샷" 스칼라 서브쿼리를 쓴다 → requires 에 subquery.
           usage_patterns:
@@ -492,6 +514,52 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # source_evidence — 권리 정본은 gold_culture_activity_by_dong 블록이고 여기는 같은
+          # silver 를 읽으므로 같은 원천을 상속한다(#88 §1-2 B). 값을 베낀 게 아니라
+          # **같은 원천이라 같은 값**이다 — 원천 권리가 바뀌면 두 곳을 함께 고친다.
+          source_evidence:
+            - source_id: kopis_open_api
+              source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
+              license: KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용
+              license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
+              redistribution: allowed_with_attribution
+              attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
+            - source_id: seoul_cultural_event
+              source_url: https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: sema_exhibition
+              source_url: https://data.seoul.go.kr/dataList/OA-15323/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울시립미술관
+              rights_checked_at: "2026-08-04"
+            - source_id: sejong_performance
+              source_url: https://data.seoul.go.kr/dataList/OA-2708/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 세종문화회관, 각 컨텐츠주체
+              rights_checked_at: "2026-08-04"
+            - source_id: kcisa_culture_info
+              source_url: https://www.data.go.kr/data/15138937/openapi.do
+              license: 이용허락범위 제한 없음
+              license_url: https://www.data.go.kr/data/15138937/openapi.do
+              redistribution: allowed_with_attribution
+              attribution: 한국문화정보원
+              rights_checked_at: "2026-08-04"
+            - source_id: national_data_office_admin_dong_link
+              source_url: https://www.data.go.kr/data/15136368/fileData.do
+              license: 공공저작물 제3유형(출처표시·변경금지) — 2차 가공 집계 외부 API 재배포 승인
+              license_url: https://www.kogl.or.kr/info/licenseType3.do
+              redistribution: allowed_with_attribution
+              attribution: 국가데이터처
+              rights_checked_at: "2026-08-04"
           # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조
           usage_patterns:
             - pattern_id: calm_days
@@ -599,6 +667,59 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # source_evidence — 권리 정본은 gold_culture_activity_by_dong 블록이고 여기는 같은
+          # silver 를 읽으므로 같은 원천을 상속한다(#88 §1-2 B). 값을 베낀 게 아니라
+          # **같은 원천이라 같은 값**이다 — 원천 권리가 바뀌면 두 곳을 함께 고친다.
+          source_evidence:
+            - source_id: kopis_open_api
+              source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
+              license: KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용
+              license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
+              redistribution: allowed_with_attribution
+              attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
+            - source_id: seoul_cultural_event
+              source_url: https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: sema_exhibition
+              source_url: https://data.seoul.go.kr/dataList/OA-15323/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울시립미술관
+              rights_checked_at: "2026-08-04"
+            - source_id: sejong_performance
+              source_url: https://data.seoul.go.kr/dataList/OA-2708/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 세종문화회관, 각 컨텐츠주체
+              rights_checked_at: "2026-08-04"
+            - source_id: kcisa_culture_info
+              source_url: https://www.data.go.kr/data/15138937/openapi.do
+              license: 이용허락범위 제한 없음
+              license_url: https://www.data.go.kr/data/15138937/openapi.do
+              redistribution: allowed_with_attribution
+              attribution: 한국문화정보원
+              rights_checked_at: "2026-08-04"
+            - source_id: national_data_office_admin_dong_link
+              source_url: https://www.data.go.kr/data/15136368/fileData.do
+              license: 공공저작물 제3유형(출처표시·변경금지) — 2차 가공 집계 외부 API 재배포 승인
+              license_url: https://www.kogl.or.kr/info/licenseType3.do
+              redistribution: allowed_with_attribution
+              attribution: 국가데이터처
+              rights_checked_at: "2026-08-04"
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-05"
           # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
           # ⚠️ 두 패턴 모두 평시 베이스라인(핫스팟 ~120곳 한정) — 특정 행사일 실측이 아니다(제품 caveat)
           usage_patterns:
@@ -705,6 +826,52 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          # source_evidence — 권리 정본은 gold_culture_activity_by_dong 블록이고 여기는 같은
+          # silver 를 읽으므로 같은 원천을 상속한다(#88 §1-2 B). 값을 베낀 게 아니라
+          # **같은 원천이라 같은 값**이다 — 원천 권리가 바뀌면 두 곳을 함께 고친다.
+          source_evidence:
+            - source_id: kopis_open_api
+              source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
+              license: KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용
+              license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
+              redistribution: allowed_with_attribution
+              attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
+            - source_id: seoul_cultural_event
+              source_url: https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: sema_exhibition
+              source_url: https://data.seoul.go.kr/dataList/OA-15323/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울시립미술관
+              rights_checked_at: "2026-08-04"
+            - source_id: sejong_performance
+              source_url: https://data.seoul.go.kr/dataList/OA-2708/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 세종문화회관, 각 컨텐츠주체
+              rights_checked_at: "2026-08-04"
+            - source_id: kcisa_culture_info
+              source_url: https://www.data.go.kr/data/15138937/openapi.do
+              license: 이용허락범위 제한 없음
+              license_url: https://www.data.go.kr/data/15138937/openapi.do
+              redistribution: allowed_with_attribution
+              attribution: 한국문화정보원
+              rights_checked_at: "2026-08-04"
+            - source_id: national_data_office_admin_dong_link
+              source_url: https://www.data.go.kr/data/15136368/fileData.do
+              license: 공공저작물 제3유형(출처표시·변경금지) — 2차 가공 집계 외부 API 재배포 승인
+              license_url: https://www.kogl.or.kr/info/licenseType3.do
+              redistribution: allowed_with_attribution
+              attribution: 국가데이터처
+              rights_checked_at: "2026-08-04"
           # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
           # 기간 질의는 반드시 겹침(start<=:to AND end>=:from)으로 — 시작일만 걸면 진행 중
           # 장기 행사를 놓친다(제품 caveat). 시간축(event_start_date) 밖의 event_end_date
