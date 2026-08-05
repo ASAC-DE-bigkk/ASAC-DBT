@@ -5008,6 +5008,10 @@ models:
           serving_tier: d1_rollup
           d1_table: d1_uptae_rollup
           d1_rollup: (major,category,dataset,uptaenm) 집계 + share 사전계산 — gu 드롭
+          # 롤업이 export 시점에 만들어 내는 파생 컬럼. gold 에 없어 `columns:` 로는 선언할 수 없다
+          # (contract.enforced 가 gold 실출력과 대조하므로). export 가 d1_catalog_columns 게시에 쓴다.
+          d1_derived_columns:
+            share: 같은 dataset 안에서 이 세부 업태(uptaenm)가 차지하는 활성 업소 비율(0~1). 분모는 그 dataset 의 active_cnt 합계이며, 합계가 0이면 NULL.
           product_id: commerce_uptae_rollup   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "uptae_top_ranking"
