@@ -34,6 +34,130 @@ models:
           freshness_slo_minutes: 90
           retention_or_horizon: 무기한 누적 Gold이며 D1 exporter 적재 전 보존·purge 정책을 별도 승인합니다.
           shape: event
+          usage_patterns:
+            - pattern_id: hotspots_for_hour
+              question_ko: 특정 시간대에 저속 상위 10위로 관측된 링크는 어디입니까?
+              axes: 시간대·hotspot 상태 필터 — 혼잡 순위 ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 10
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
+              sql: |
+                -- :hour_at='2026-08-05 09:00:00'
+                SELECT link_id, hour_at, flow_speed, flow_travel_time, congestion_rank, observed_link_count
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at = :hour_at AND hotspot_state = 'lowest_speed_top_10'
+                ORDER BY congestion_rank ASC
+            - pattern_id: ranked_links_for_hour
+              question_ko: 특정 시간대에 관측된 링크를 속도 순위로 보고 싶습니다.
+              axes: 시간대 필터 — congestion_rank ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 16
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
+              sql: |
+                -- :hour_at='2026-08-05 09:00:00', :n=50
+                SELECT link_id, hour_at, flow_speed, flow_travel_time, congestion_rank, hotspot_state,
+                       observed_link_count
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at = :hour_at
+                ORDER BY congestion_rank ASC
+                LIMIT :n
+            - pattern_id: hotspot_history_for_link
+              question_ko: 특정 링크가 저속 hotspot으로 관측된 시간대는 언제입니까?
+              axes: 링크·hotspot 상태·시간 범위 필터 — 시간 ASC
+              requires: [select_columns, filter_set, filter_range, sort]
+              allow_empty: true
+              verified_rows: 10
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
+              sql: |
+                -- :link_id='1210023300', :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00'
+                SELECT link_id, hour_at, flow_speed, congestion_rank, observed_link_count
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE link_id = :link_id
+                  AND hotspot_state = 'lowest_speed_top_10'
+                  AND hour_at >= :from_at AND hour_at < :to_at
+                ORDER BY hour_at ASC
+            - pattern_id: lowest_speed_in_window
+              question_ko: 특정 시간 범위에서 관측 속도가 가장 낮았던 링크는 어디입니까?
+              axes: 시간 범위·가용 속도 필터 — flow_speed ASC
+              requires: [select_columns, filter_range, filter_set, sort]
+              allow_empty: true
+              verified_rows: 50
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
+              sql: |
+                -- :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00', :n=50
+                SELECT link_id, hour_at, flow_speed, congestion_rank, observed_link_count, hotspot_state
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at >= :from_at AND hour_at < :to_at
+                  AND flow_value_quality = 'available'
+                ORDER BY flow_speed ASC
+                LIMIT :n
+            - pattern_id: hourly_observation_coverage
+              question_ko: 시간대별로 혼잡 순위를 계산한 관측 링크 수는 얼마입니까?
+              axes: 시간대 범위 집계 — hour_at ASC
+              requires: [select_columns, filter_range, aggregate, group_by, sort]
+              allow_empty: true
+              verified_rows: 35
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
+              sql: |
+                -- :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00'
+                SELECT hour_at, max(observed_link_count) AS observed_link_count
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at >= :from_at AND hour_at < :to_at
+                GROUP BY hour_at
+                ORDER BY hour_at ASC
+            - pattern_id: missing_speed_for_hour
+              question_ko: 특정 시간대에 속도 값이 없어 순위를 신뢰할 수 없는 링크는 무엇입니까?
+              axes: 시간대·missing_speed 상태 필터 — 링크 ID ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 0
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
+              sql: |
+                -- :hour_at='2026-08-05 09:00:00', :n=50
+                SELECT link_id, hour_at, flow_speed, flow_travel_time, flow_value_quality, hotspot_state
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at = :hour_at AND hotspot_state = 'missing_speed'
+                ORDER BY link_id
+                LIMIT :n
+            - pattern_id: rank_cutoff_for_hour
+              question_ko: 특정 시간대에서 지정한 혼잡 순위 이내에 드는 링크는 무엇입니까?
+              axes: 시간대·순위 상한 필터 — congestion_rank ASC
+              requires: [select_columns, filter_set, filter_range, sort]
+              allow_empty: true
+              verified_rows: 10
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
+              sql: |
+                -- :hour_at='2026-08-05 09:00:00', :max_rank=10
+                SELECT link_id, hour_at, flow_speed, congestion_rank, hotspot_state
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at = :hour_at AND congestion_rank <= :max_rank
+                ORDER BY congestion_rank ASC
+            - pattern_id: recent_hotspot_hours
+              question_ko: 최근 특정 시간 범위에서 저속 hotspot으로 반복 관측된 링크는 무엇입니까?
+              axes: 시간 범위·hotspot 상태 집계 — 발생 시간 수 DESC
+              requires: [select_columns, filter_range, filter_set, aggregate, group_by, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
+              sql: |
+                -- :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00', :n=20
+                SELECT link_id, count(*) AS hotspot_hour_count, min(flow_speed) AS min_flow_speed
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at >= :from_at AND hour_at < :to_at
+                  AND hotspot_state = 'lowest_speed_top_10'
+                GROUP BY link_id
+                ORDER BY hotspot_hour_count DESC, min_flow_speed ASC
+                LIMIT :n
           public_projection:
             schema_version: "1.0.0"
             columns:
