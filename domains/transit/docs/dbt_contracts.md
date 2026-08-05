@@ -149,7 +149,8 @@ transit 도메인 dbt PR에서 지켜야 할 **source · 수집주기 · time ·
 | G7 | gold_transit_event_access | event_ref ×culture | table |
 | G8 | gold_transit_supply_x_demand_hourly | (area_cd,hour_at) ×citydata | incr, `full_refresh=false` |
 | G9 | gold_transit_lastmile_dong_hourly | (dong,hour_at) ×citydata | incr, `full_refresh=false` |
-| G10 | gold_transit_forecast_card | (area_cd, 미래시각) ×citydata×weather | table |
+
+(G10 forecast_card 는 제거 — 상류 citydata ppltn_forecast 삭제 대응, ASAC-DBT#432)
 
 **기존**: `gold_transit_dong_hourly`(#67, 동×시간, incr) — 15분판 dong_15min 이 아카이브 축.
 

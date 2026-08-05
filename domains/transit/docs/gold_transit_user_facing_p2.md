@@ -17,7 +17,8 @@
 | `gold_transit_bus_route_comfort` (#288 G3) | 노선×구간×dow×hh | "8시대 이 구간 혼잡 4.2/5" (tier1 165노선 한정) |
 | `gold_transit_event_access` (#290 G7) | event_ref | 최근접 역·주차장(전 행사, dim 기반) + 행사 시간대 만차 확률 |
 | `gold_transit_supply_x_demand_hourly` (#291 G8) | 핫스팟×시간 | 수요(인구·혼잡·승하차) vs 주차 여유 + 압박 플래그. 동 축 공급 지표는 제외(중복) |
-| `gold_transit_forecast_card` (#292 G10) | 핫스팟×미래시각 | 기대 인구 + 날씨 예보(G6 재사용) + 리듬 기준선 → "내일 이 시간" 카드(+3일) |
+
+(#292 G10 forecast_card 는 제거 — 상류 citydata ppltn_forecast 삭제 대응, ASAC-DBT#432)
 
 ## 소비 시 주의
 

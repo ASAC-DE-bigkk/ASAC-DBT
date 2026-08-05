@@ -29,7 +29,7 @@ vars:
 
   # 데이터 테스트 스코핑 윈도(일). 성장하는 아카이브(silver 3종·gold 아카이브)를 매 15분
   # 전량 스캔하던 테스트를 최근 N일 파티션으로 한정해 test 비용을 상수화한다(성장형→고정형).
-  # 스코핑 비대상: dim·프로파일(그레인 유계)·소형 스냅샷(dong_now·full_risk·forecast_card)·
+  # 스코핑 비대상: dim·프로파일(그레인 유계)·소형 스냅샷(dong_now·full_risk)·
   # 주간 마스터·axis_coverage(임계가 전 이력 실측 기준 캘리브레이션) — 전량 검증 유지.
   # ⚠️ 윈도 밖(N일 이전)에 새로 생기는 위반은 못 잡는다 — 과거 파티션을 소급 재적재/백필할
   # 때는 임시로 늘리거나 해당 테스트를 전량으로 1회 돌려 확인할 것.
@@ -57,8 +57,9 @@ clean-targets:
 #   15분 신선도가 불필요해 transit_transform_heavy DAG 가 --select tag:heavy 로
 #   느린 주기에 따로 빌드하고, transit_transform(*/15)은 --exclude tag:heavy 로
 #   제외한다(#443 에서 예고한 분리). 실시간성 있는 table 모델(dong_now,
-#   forecast_card, parking_full_risk)은 의도적으로 heavy 가 아니다 — 추가 전에
+#   parking_full_risk)은 의도적으로 heavy 가 아니다 — 추가 전에
 #   제품 오너 확인 필요.
+#   (forecast_card 는 상류 citydata ppltn_forecast 삭제로 함께 제거 — ASAC-DBT#432)
 #
 # 테스트 티어(A안 — B안 스코핑 #418 의 보완, 쿼리 '개수' 부담 완화):
 #   tag:gate   — 그레인 unique(unique/unique_combination/assert_*_grain_unique)·
