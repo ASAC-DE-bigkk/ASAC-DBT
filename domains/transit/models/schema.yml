@@ -312,6 +312,50 @@ models:
           # dong_now 75분(내재지연 실측 보정, #475)과 같은 논리로 한 사이클 여유를 더해 180분.
           freshness_slo_minutes: 180
           shape: rollup
+          # usage_patterns 3건(DBT#434 기준: 외부 유지 제품은 예시 3건 이상). hour_at 은
+          # 포맷 혼재(마이크로초 유무)라 시각 축 추출은 strftime 대신 substr 로 고정.
+          usage_patterns:
+            - pattern_id: dong_day_timeline
+              question_ko: 이 동네는 그날 시간대별로 얼마나 붐볐나?
+              axes: 필터(동, 날짜) — 시간 오름차순 타임라인
+              requires: [select_columns, filter_set, sort]
+              sql: |
+                -- :dong=1165054000(행정동 코드), :date=2026-08-01
+                SELECT hour_at, bus_congestion_avg, bus_veh_cnt, subway_arrival_cnt, parking_occupancy_avg
+                FROM gold_transit_dong_hourly
+                WHERE admin_dong_code = :dong AND substr(hour_at, 1, 10) = :date
+                ORDER BY hour_at
+              verified_rows: 12
+              verified_at: "2026-08-05"
+              allow_empty: true   # 그 날짜에 관측이 없는 동은 0행이 정상
+            - pattern_id: dong_peak_hours
+              question_ko: 이 동네는 보통 몇 시에 버스가 가장 붐비나?
+              axes: 시간대 집계 — 버스 혼잡 평균 DESC (버스 축만 — 타 소스 평균을 버스 관측 시간대로 좁히지 않기 위함)
+              requires: [select_columns, aggregate, group_by, filter_set, filter_null, sort]
+              sql: |
+                -- :dong=1165054000, :n=5
+                SELECT substr(hour_at, 12, 2) AS hh,
+                       ROUND(AVG(bus_congestion_avg), 3) AS bus_congestion,
+                       COUNT(*) AS observed_hours
+                FROM gold_transit_dong_hourly
+                WHERE admin_dong_code = :dong AND bus_congestion_avg IS NOT NULL
+                GROUP BY hh
+                ORDER BY bus_congestion DESC LIMIT :n
+              verified_rows: 5
+              verified_at: "2026-08-05"
+              allow_empty: true   # 버스 관측이 전무한 동(주차·지하철만 있는 동 실재)은 0행이 정상
+            - pattern_id: busiest_dongs_at_hour
+              question_ko: 특정 시각에 버스가 가장 혼잡했던 동네는?
+              axes: 동 랭킹(시각 고정) — 버스 혼잡 평균 DESC
+              requires: [select_columns, filter_set, filter_null, sort]
+              sql: |
+                -- :at=2026-08-01 18:00:00, :n=10 — 정확 일치 대신 substr: 마이크로초 붙은 이력 행도 매칭
+                SELECT admin_dong_code, bus_congestion_avg, bus_veh_cnt
+                FROM gold_transit_dong_hourly
+                WHERE substr(hour_at, 1, 19) = :at AND bus_congestion_avg IS NOT NULL
+                ORDER BY bus_congestion_avg DESC LIMIT :n
+              verified_rows: 10
+              verified_at: "2026-08-05"
         display:
           title: 행정동별 시간대 교통 이력
           summary: 서울 행정동마다 시간대별 교통 상태를 쌓아 온 이력입니다. 한 시간 동안 버스가 얼마나 붐볐고, 지하철이 몇 번 도착했으며, 주차장이 얼마나 찼는지를 동×시간 한 칸에 담았습니다. 지금 상태가 아니라 과거 흐름을 보는 용도입니다.
@@ -523,27 +567,47 @@ models:
           # 30분은 내재지연 오탐, 실측+여유 75분 (프로토타입 STALE_THRESHOLD_MIN 승계).
           freshness_slo_minutes: 75
           shape: wide
-          # usage_patterns 파일럿(#384, 규약 ASAC-DAG#600) — 스펙 optional 정의 전이라 최소
-          # 필드만. verified_rows·insight_sample_ko 는 검증 경로 확정 후 별도 이슈에서 채움.
+          # usage_patterns — 파일럿 2건(#384)에 DBT#434 기준(3건 이상·verified 필수)으로
+          # requires·verified_rows·verified_at 를 채우고 단건 조회 축 1건 추가.
           usage_patterns:
             - pattern_id: congested_dongs_now_top
               question_ko: 지금 버스가 가장 혼잡한 동네는?
               axes: 동 랭킹 — 버스 혼잡도 평균 DESC
+              requires: [select_columns, filter_null, sort]
               sql: |
                 -- :n=10
                 SELECT admin_dong, gu, bus_congestion_avg, bus_congestion_grade, bus_last_event_at
                 FROM gold_transit_dong_now
                 WHERE bus_congestion_avg IS NOT NULL
                 ORDER BY bus_congestion_avg DESC LIMIT :n
+              verified_rows: 10
+              verified_at: "2026-08-05"
             - pattern_id: parking_avail_dongs_in_gu
               question_ko: 이 자치구에서 지금 주차 여유 있는 동네는?
               axes: 구 내 동 랭킹 — 주차 여유 % DESC
+              requires: [select_columns, filter_set, filter_null, sort]
               sql: |
                 -- :gu=강남구, :n=10
                 SELECT admin_dong, parking_avail_pct, parking_lot_cnt, parking_last_event_at
                 FROM gold_transit_dong_now
                 WHERE gu = :gu AND parking_avail_pct IS NOT NULL
                 ORDER BY parking_avail_pct DESC LIMIT :n
+              verified_rows: 4    # 주차 관측이 있는 동만 행 생성 — 구별로 10 미만이 정상
+              verified_at: "2026-08-05"
+              allow_empty: true   # 실시간 주차 관측이 없는 구는 0행이 정상
+            - pattern_id: my_dong_now
+              question_ko: 우리 동네 지금 교통 상태는 어떤가?
+              axes: 단건 조회 — 구+행정동 이름으로 현재 스냅샷 1행
+              requires: [select_columns, filter_set]
+              sql: |
+                -- :gu=서초구, :dong=서초2동 — 동명은 구 간 중복(예: 신사동 강남/관악)이라 gu 필터 필수
+                SELECT admin_dong, gu, bus_congestion_grade, bus_congestion_avg,
+                       parking_avail_pct, parking_lot_cnt, subway_wait_min, bus_last_event_at
+                FROM gold_transit_dong_now
+                WHERE gu = :gu AND admin_dong = :dong
+              verified_rows: 1
+              verified_at: "2026-08-05"
+              allow_empty: true   # 없는 동 이름·관측 없는 동은 0행이 정상
         display:
           title: 지금 우리 동네 교통 상태
           summary: 서울 각 행정동의 현재 교통 상태를 한 행으로 보여줍니다. 버스가 얼마나 붐비는지(여유·보통·혼잡), 인근 공영주차장에 자리가 얼마나 남았는지(%), 지하철이 평균 몇 분 뒤 도착하는지를 동 단위로 묶었습니다. 각 값이 몇 분 전 관측인지도 함께 있어 얼마나 최신인지 판단할 수 있습니다.
@@ -686,7 +750,9 @@ models:
       meta:
         serving:
           enabled: true
-          external: true
+          # DBT#434 재검토: 식별자가 parking_id 뿐(이름·위치 없음)이라 단독 해석 불가(G3),
+          # 핵심 수치 full_prob 는 full_risk·event_access 경유로 이미 외부 노출. 내부 부품으로 유지.
+          external: false
           product_id: transit_parking_profile
           product_question: 이 주차장은 요일·시간대별로 평소 얼마나 찹니까?
           grain: (parking_id, dow, hh)마다 한 행 — 주차장 평시 점유 프로파일.
@@ -775,25 +841,46 @@ models:
           public_projection:
             schema_version: "1.0.0"
             columns: [parking_id, last_event_at, parking_name, admin_dong_code, gu_code, latitude, longitude, occ_now, avail_pct, capacity_now, avail_lot_est, occ_rate_per_min, rate_base_n, minutes_to_full_est, full_prob_now_slot, profile_base_n, last_bucket_at]
-          # usage_patterns 파일럿(#384) — 최소 필드 사유는 dong_now 블록 주석과 동일.
+          # usage_patterns — 파일럿 2건(#384)에 DBT#434 기준으로 requires·verified 를 채우고
+          # 제품 고유의 관측 vs 통계 비교 축(#406 3축 설계) 1건 추가.
           usage_patterns:
             - pattern_id: full_soon_lots
               question_ko: 곧 만차될 것 같은 주차장은 어디인가?
               axes: 주차장 랭킹 — 만차까지 예상 분 ASC
+              requires: [select_columns, filter_range, sort]
               sql: |
                 -- :n=10
                 SELECT parking_name, gu_code, avail_pct, minutes_to_full_est, last_event_at
                 FROM gold_transit_parking_full_risk
                 WHERE minutes_to_full_est > 0  -- 0=이미 만차(비조치 대상) 제외
                 ORDER BY minutes_to_full_est ASC LIMIT :n
+              verified_rows: 10
+              verified_at: "2026-08-05"
             - pattern_id: best_avail_lots_now
               question_ko: 지금 자리 여유가 가장 많은 주차장은?
               axes: 주차장 랭킹 — 잔여 대수 추정 DESC
+              requires: [select_columns, sort]
               sql: |
                 -- :n=10
                 SELECT parking_name, avail_pct, avail_lot_est, capacity_now, last_event_at
                 FROM gold_transit_parking_full_risk
                 ORDER BY avail_lot_est DESC LIMIT :n
+              verified_rows: 10
+              verified_at: "2026-08-05"
+            - pattern_id: avail_lots_in_gu
+              question_ko: 이 자치구에서 지금 자리 여유 있는 주차장은?
+              axes: 구 내 주차장 랭킹 — 여유 % DESC (현재 관측 축만 사용)
+              requires: [select_columns, filter_set, filter_null, sort]
+              sql: |
+                -- :gu=11710(법정 구 코드), :n=10
+                SELECT parking_name, admin_dong_code, avail_pct, avail_lot_est,
+                       capacity_now, last_event_at
+                FROM gold_transit_parking_full_risk
+                WHERE gu_code = :gu AND avail_pct IS NOT NULL
+                ORDER BY avail_pct DESC LIMIT :n
+              verified_rows: 4    # 구별 실시간 제공 주차장 수만큼 — 10 미만이 정상
+              verified_at: "2026-08-05"
+              allow_empty: true   # 실시간 제공 주차장이 없는 구는 0행이 정상
         display:
           title: 지금 주차장 만차 위험
           summary: 공영주차장별로 ① 지금 얼마나 찼는지(최신 관측값), ② 채워지는 속도로 본 '만차까지 남은 예상 시간'(최근 1시간 추세 추정), ③ '이 시간대 평소 만차 확률'(과거 관측 통계)을 한 행에 담아, 지금 출발하면 자리가 있을지 판단하도록 했습니다. 세 값은 계산 근거가 서로 다릅니다(관측·추정·통계) — 구분은 각 컬럼 설명을 따르세요.
@@ -946,6 +1033,53 @@ models:
             schedule_cron: "40 8 * * *"     # 3-tier daily 주기 승계 (ASAC-DAG#475)
           # event_time 없음 — 명부성 제품(신선도를 잴 시간축 없음, 계약 v1.1 면제 사유 그대로).
           shape: wide
+          # usage_patterns 3건(DBT#434 기준). 행사 조회는 결과가 비는 게 정상인 질의라
+          # 전건 allow_empty — 소비 측은 0행을 '조건에 맞는 행사 없음'으로 해석한다.
+          usage_patterns:
+            - pattern_id: event_route_lookup
+              question_ko: 이 행사에 대중교통이나 자차로 어떻게 가나?
+              axes: 필터(행사명 부분 일치) — 최근접 역·주차장 안내
+              requires: [select_columns, filter_set, sort]
+              sql: |
+                -- :q=미술관, :n=10 — ORDER BY 없는 LIMIT 은 비결정적이라 시작일 최신순 고정
+                SELECT title, venue_name, gu, nearest_station_name, nearest_station_route,
+                       nearest_station_dist_m, nearest_parking_name, nearest_parking_dist_m
+                FROM gold_transit_event_access
+                WHERE title LIKE '%' || :q || '%'
+                ORDER BY event_start_date DESC, event_ref LIMIT :n
+              verified_rows: 10
+              verified_at: "2026-08-05"
+              allow_empty: true
+            - pattern_id: subway_easy_events_in_gu
+              question_ko: 이 구에서 지하철로 가기 편한 행사는?
+              axes: 구 내 행사 랭킹 — 최근접 역 거리 ASC (종료 행사 제외)
+              requires: [select_columns, filter_set, filter_range, sort]
+              sql: |
+                -- :gu=성북구, :today=2026-08-05, :n=10
+                SELECT title, venue_name, event_start_date, event_end_date,
+                       nearest_station_name, nearest_station_dist_m
+                FROM gold_transit_event_access
+                WHERE gu = :gu AND event_end_date >= :today
+                ORDER BY nearest_station_dist_m ASC LIMIT :n
+              verified_rows: 10
+              verified_at: "2026-08-05"
+              allow_empty: true
+            - pattern_id: low_parking_stress_events_today
+              question_ko: 오늘 하는 행사 중 주차 부담이 적은 곳은?
+              axes: 행사 랭킹(오늘 진행 중, 주차장 도보권 한정) — 인근 주차장 평시 만차 확률 ASC
+              requires: [select_columns, filter_range, filter_null, sort]
+              sql: |
+                -- :today=2026-08-05, :max_m=500(주차장 거리 상한 — 멀어서 안 차는 행사 배제), :n=10
+                SELECT title, venue_name, gu, nearest_parking_name,
+                       nearest_parking_dist_m, nearest_parking_full_prob
+                FROM gold_transit_event_access
+                WHERE event_start_date <= :today AND event_end_date >= :today
+                  AND nearest_parking_full_prob IS NOT NULL
+                  AND nearest_parking_dist_m <= :max_m
+                ORDER BY nearest_parking_full_prob ASC, nearest_parking_dist_m ASC LIMIT :n
+              verified_rows: 10
+              verified_at: "2026-08-05"
+              allow_empty: true
         display:
           title: 행사장 가는 길 안내
           summary: 진행·예정 문화행사마다 가장 가까운 지하철역과 공영주차장을 거리와 함께 정리했습니다. 도보 몇 분 거리에 어떤 역이 있는지, 주차장은 얼마나 가까운지, 그 시간대 주차가 붐비는지까지 한 행에 담아 '이 행사 어떻게 갈까'를 바로 답합니다.
