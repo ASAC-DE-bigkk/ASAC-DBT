@@ -41,6 +41,122 @@ models:
               redistribution: allowed_with_attribution
               attribution: 서울특별시
               rights_checked_at: "2026-08-06"
+          usage_patterns:
+            - pattern_id: latest_snapshot_for_link
+              question_ko: 특정 링크의 가장 최근 속도·통행시간·관측 시각은 무엇입니까?
+              axes: 링크 필터 — 최신 스냅샷 조회
+              requires: [select_columns, filter_set]
+              allow_empty: true
+              verified_rows: 1
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
+              sql: |
+                -- :link_id='1190000100'
+                SELECT link_id, flow_speed, flow_travel_time, flow_value_quality, observed_at_kst, collected_at_kst
+                FROM gold_traffic_flow_link_latest
+                WHERE link_id = :link_id
+            - pattern_id: available_link_values
+              question_ko: 현재 속도와 통행시간 값이 모두 사용 가능한 링크는 무엇입니까?
+              axes: available 품질 상태 필터 — 관측 시각 DESC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 50
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
+              sql: |
+                -- :n=50
+                SELECT link_id, flow_speed, flow_travel_time, observed_at_kst, collected_at_kst
+                FROM gold_traffic_flow_link_latest
+                WHERE flow_value_quality = 'available'
+                ORDER BY observed_at_kst DESC
+                LIMIT :n
+            - pattern_id: missing_value_links
+              question_ko: 최신 교통 값이 결측인 링크는 무엇입니까?
+              axes: missing_value 품질 상태 필터 — 관측 시각 DESC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 0
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
+              sql: |
+                -- :n=50
+                SELECT link_id, flow_value_quality, observed_at_kst, collected_at_kst
+                FROM gold_traffic_flow_link_latest
+                WHERE flow_value_quality = 'missing_value'
+                ORDER BY observed_at_kst DESC
+                LIMIT :n
+            - pattern_id: slowest_available_links
+              question_ko: 현재 값이 있는 링크 중 속도가 가장 낮은 곳은 어디입니까?
+              axes: available 상태 필터 — flow_speed ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
+              sql: |
+                -- :n=20
+                SELECT link_id, flow_speed, flow_travel_time, observed_at_kst
+                FROM gold_traffic_flow_link_latest
+                WHERE flow_value_quality = 'available'
+                ORDER BY flow_speed ASC
+                LIMIT :n
+            - pattern_id: longest_travel_time_links
+              question_ko: 현재 값이 있는 링크 중 통행시간이 가장 긴 곳은 어디입니까?
+              axes: available 상태 필터 — flow_travel_time DESC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
+              sql: |
+                -- :n=20
+                SELECT link_id, flow_speed, flow_travel_time, observed_at_kst
+                FROM gold_traffic_flow_link_latest
+                WHERE flow_value_quality = 'available'
+                ORDER BY flow_travel_time DESC
+                LIMIT :n
+            - pattern_id: link_observation_window
+              question_ko: 특정 관측 시간 범위에 갱신된 링크의 최신 값은 무엇입니까?
+              axes: 관측 시각 범위 필터 — 관측 시각 DESC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 100
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
+              sql: |
+                -- :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00', :n=100
+                SELECT link_id, flow_speed, flow_travel_time, flow_value_quality, observed_at_kst, collected_at_kst
+                FROM gold_traffic_flow_link_latest
+                WHERE observed_at_kst >= :from_at AND observed_at_kst < :to_at
+                ORDER BY observed_at_kst DESC
+                LIMIT :n
+            - pattern_id: oldest_current_observations
+              question_ko: 최신 링크 스냅샷 중 관측 시각이 가장 오래된 링크는 무엇입니까?
+              axes: 관측 시각 정렬 — observed_at_kst ASC
+              requires: [select_columns, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
+              sql: |
+                -- :n=20
+                SELECT link_id, flow_value_quality, observed_at_kst, collected_at_kst
+                FROM gold_traffic_flow_link_latest
+                ORDER BY observed_at_kst ASC
+                LIMIT :n
+            - pattern_id: value_quality_overview
+              question_ko: 최신 링크 스냅샷에서 값 품질 상태별 링크 수는 얼마입니까?
+              axes: 값 품질 상태 집계 — 링크 수 DESC
+              requires: [select_columns, aggregate, group_by, sort]
+              allow_empty: false
+              verified_rows: 1
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
+              sql: |
+                SELECT flow_value_quality, count(*) AS link_count
+                FROM gold_traffic_flow_link_latest
+                GROUP BY flow_value_quality
+                ORDER BY link_count DESC, flow_value_quality
           public_projection:
             schema_version: "1.0.0"
             columns:

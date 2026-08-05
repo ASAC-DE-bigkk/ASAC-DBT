@@ -60,6 +60,129 @@ models:
             sample_count_field: observation_count
             minimum_sample_count: 12
             insufficient_sample_policy: flag_degraded
+          usage_patterns:
+            - pattern_id: profile_for_link_time_slot
+              question_ko: 특정 링크의 특정 요일·시간대 평균 속도와 통행시간 기준선은 무엇입니까?
+              axes: 링크·요일·시간 필터 — 프로파일 조회
+              requires: [select_columns, filter_set]
+              allow_empty: true
+              verified_rows: 1
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e9b2664871904a11a7750014e4192574"
+              sql: |
+                -- :link_id='1120006300', :kst_day_of_week=4, :kst_hour=13
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, speed_observation_count,
+                       avg_flow_speed, min_flow_speed, max_flow_speed, avg_flow_travel_time
+                FROM gold_traffic_flow_link_time_profile
+                WHERE link_id = :link_id
+                  AND kst_day_of_week = :kst_day_of_week
+                  AND kst_hour = :kst_hour
+            - pattern_id: profiles_for_link_day
+              question_ko: 특정 링크의 한 요일 전체 시간대별 속도 프로파일은 어떻습니까?
+              axes: 링크·요일 필터 — 시간 ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 1
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e9b2664871904a11a7750014e4192574"
+              sql: |
+                -- :link_id='1120006300', :kst_day_of_week=4
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, avg_flow_speed,
+                       avg_flow_travel_time
+                FROM gold_traffic_flow_link_time_profile
+                WHERE link_id = :link_id AND kst_day_of_week = :kst_day_of_week
+                ORDER BY kst_hour ASC
+            - pattern_id: same_time_across_links
+              question_ko: 특정 요일·시간대에 평균 속도가 낮은 링크는 어디입니까?
+              axes: 요일·시간 필터 — 평균 속도 ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 16
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e9b2664871904a11a7750014e4192574"
+              sql: |
+                -- :kst_day_of_week=4, :kst_hour=13, :n=20
+                SELECT link_id, observation_count, avg_flow_speed, min_flow_speed, max_flow_speed,
+                       avg_flow_travel_time
+                FROM gold_traffic_flow_link_time_profile
+                WHERE kst_day_of_week = :kst_day_of_week AND kst_hour = :kst_hour
+                ORDER BY avg_flow_speed ASC
+                LIMIT :n
+            - pattern_id: slowest_average_profiles
+              question_ko: 표본이 충분한 시간대 프로파일 중 평균 속도가 가장 낮은 링크는 어디입니까?
+              axes: 최소 표본 필터 — 평균 속도 ASC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 0
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e9b2664871904a11a7750014e4192574"
+              sql: |
+                -- :min_observation_count=12, :n=20
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, avg_flow_speed,
+                       avg_flow_travel_time
+                FROM gold_traffic_flow_link_time_profile
+                WHERE observation_count >= :min_observation_count
+                ORDER BY avg_flow_speed ASC
+                LIMIT :n
+            - pattern_id: low_sample_profiles
+              question_ko: 대표성이 낮을 수 있는 표본 부족 시간대 프로파일은 무엇입니까?
+              axes: 표본 수 상한 필터 — observation_count ASC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 50
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e9b2664871904a11a7750014e4192574"
+              sql: |
+                -- :min_observation_count=12, :n=50
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, speed_observation_count,
+                       avg_flow_speed
+                FROM gold_traffic_flow_link_time_profile
+                WHERE observation_count < :min_observation_count
+                ORDER BY observation_count ASC, link_id
+                LIMIT :n
+            - pattern_id: wide_speed_range_profiles
+              question_ko: 같은 시간대 안에서도 속도 변동 폭이 큰 링크 프로파일은 무엇입니까?
+              axes: 속도 범위 하한 필터 — 범위 DESC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e9b2664871904a11a7750014e4192574"
+              sql: |
+                -- :min_speed_range=1, :n=20
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, min_flow_speed,
+                       max_flow_speed, max_flow_speed - min_flow_speed AS speed_range
+                FROM gold_traffic_flow_link_time_profile
+                WHERE max_flow_speed - min_flow_speed >= :min_speed_range
+                ORDER BY speed_range DESC
+                LIMIT :n
+            - pattern_id: travel_time_baselines
+              question_ko: 특정 링크의 시간대별 평균 통행시간 기준선은 무엇입니까?
+              axes: 링크 필터 — 평균 통행시간 DESC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 1
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e9b2664871904a11a7750014e4192574"
+              sql: |
+                -- :link_id='1120006300'
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, avg_flow_travel_time
+                FROM gold_traffic_flow_link_time_profile
+                WHERE link_id = :link_id
+                ORDER BY avg_flow_travel_time DESC NULLS LAST, kst_day_of_week, kst_hour
+            - pattern_id: profile_coverage_by_time_slot
+              question_ko: 요일·시간대별로 기준선이 있는 링크 프로파일 수는 얼마입니까?
+              axes: 요일·시간대 집계 — 프로파일 수 DESC
+              requires: [select_columns, aggregate, group_by, sort]
+              allow_empty: false
+              verified_rows: 35
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e9b2664871904a11a7750014e4192574"
+              sql: |
+                SELECT kst_day_of_week, kst_hour, count(*) AS profile_count
+                FROM gold_traffic_flow_link_time_profile
+                GROUP BY kst_day_of_week, kst_hour
+                ORDER BY kst_day_of_week, kst_hour
     columns:
       - name: product_row_id
         description: link_id, 요일, 시간을 직렬화한 제품 행 식별자입니다.

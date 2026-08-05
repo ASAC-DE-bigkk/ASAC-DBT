@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import yaml
 
@@ -167,6 +168,22 @@ V1_USAGE_PATTERN_EXPECTATIONS = {
     },
 }
 
+MIN_EXTERNAL_USAGE_PATTERNS = 8
+MAX_EXTERNAL_USAGE_PATTERNS = 10
+ALLOWED_USAGE_PATTERN_REQUIRES = {
+    "select_columns",
+    "sort",
+    "aggregate",
+    "group_by",
+    "having",
+    "join",
+    "subquery",
+    "window",
+    "filter_range",
+    "filter_set",
+    "filter_null",
+}
+
 LEGACY_SERVING_FIELDS = {
     "serving_tier",
     "serving_gold_candidate",
@@ -293,7 +310,7 @@ def test_public_d1_projection_columns_are_declared_and_public_safe() -> None:
             assert meta.get("unit"), f"{product_id}.{column_name} missing unit"
 
 
-def test_v1_skill_products_declare_unverified_reference_usage_patterns() -> None:
+def test_v1_skill_products_keep_verified_reference_usage_patterns() -> None:
     models = _models()
 
     for product_id, expected in V1_USAGE_PATTERN_EXPECTATIONS.items():
@@ -309,14 +326,92 @@ def test_v1_skill_products_declare_unverified_reference_usage_patterns() -> None
         assert pattern["axes"] == expected["axes"]
         assert pattern["requires"] == expected["requires"]
         assert pattern["allow_empty"] is True
-        assert not {
-            "verified_rows",
-            "verified_at",
-            "verified_publication_id",
-            "insight_sample_ko",
-        } & pattern.keys(), f"{product_id} declares unverified D1 result evidence"
+        assert isinstance(pattern.get("verified_rows"), int) and pattern["verified_rows"] >= 0
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", pattern.get("verified_at", ""))
+        assert re.fullmatch(r"[0-9a-f]{32}", pattern.get("verified_publication_id", ""))
         for fragment in expected["sql_fragments"]:
             assert fragment in pattern["sql"]
+
+
+def test_external_d1_products_declare_eight_distinct_usage_patterns() -> None:
+    models = _models()
+
+    for product_id in EXPECTED_PRODUCTS:
+        serving = models[f"gold_{product_id}"]["config"]["meta"]["serving"]
+        patterns = serving.get("usage_patterns")
+
+        assert isinstance(patterns, list), f"{product_id} usage_patterns must be a list"
+        assert len(patterns) >= MIN_EXTERNAL_USAGE_PATTERNS, (
+            f"{product_id} needs at least {MIN_EXTERNAL_USAGE_PATTERNS} external usage patterns"
+        )
+        assert len(patterns) <= MAX_EXTERNAL_USAGE_PATTERNS, (
+            f"{product_id} must keep at most {MAX_EXTERNAL_USAGE_PATTERNS} external usage patterns"
+        )
+
+        pattern_ids = [pattern.get("pattern_id") for pattern in patterns]
+        assert all(isinstance(pattern_id, str) and pattern_id for pattern_id in pattern_ids)
+        assert len(pattern_ids) == len(set(pattern_ids)), f"{product_id} has duplicate pattern IDs"
+
+        for pattern in patterns:
+            assert isinstance(pattern.get("question_ko"), str) and pattern["question_ko"].strip()
+            assert isinstance(pattern.get("axes"), str) and pattern["axes"].strip()
+            assert isinstance(pattern.get("sql"), str) and pattern["sql"].strip()
+            assert f"FROM gold_{product_id}" in pattern["sql"]
+            assert isinstance(pattern.get("allow_empty"), bool)
+            lowered_sql = pattern["sql"].lower()
+            assert not any(fragment in lowered_sql for fragment in INTERNAL_PUBLIC_FIELD_FRAGMENTS), (
+                f"{product_id}.{pattern['pattern_id']} references an internal/secret field"
+            )
+
+            assert isinstance(pattern.get("verified_rows"), int) and pattern["verified_rows"] >= 0
+            assert re.fullmatch(
+                r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z",
+                pattern.get("verified_at", ""),
+            )
+            assert re.fullmatch(
+                r"[0-9a-f]{32}",
+                pattern.get("verified_publication_id", ""),
+            )
+
+            executable_sql = re.sub(r"--.*$", "", pattern["sql"], flags=re.MULTILINE)
+            placeholders = set(re.findall(r":([a-z][a-z0-9_]*)", executable_sql))
+            documented_params = set(
+                re.findall(r":([a-z][a-z0-9_]*)\s*=", pattern["sql"])
+            )
+            assert placeholders <= documented_params, (
+                f"{product_id}.{pattern['pattern_id']} lacks reproducible verified parameters"
+            )
+            n_match = re.search(r":n=(\d+)", pattern["sql"])
+            if n_match:
+                assert pattern["verified_rows"] <= int(n_match.group(1)), (
+                    f"{product_id}.{pattern['pattern_id']} verified rows exceed documented :n"
+                )
+
+            requires = pattern.get("requires")
+            assert isinstance(requires, list) and requires
+            assert set(requires) <= ALLOWED_USAGE_PATTERN_REQUIRES
+
+
+def test_contract_critical_usage_patterns_keep_complete_quality_states() -> None:
+    models = _models()
+
+    congestion_patterns = models[
+        "gold_traffic_flow_congestion_hotspots_hourly"
+    ]["config"]["meta"]["serving"]["usage_patterns"]
+    missing_speed = next(
+        pattern for pattern in congestion_patterns
+        if pattern["pattern_id"] == "missing_speed_for_hour"
+    )
+    assert "hotspot_state = 'missing_speed'" in missing_speed["sql"]
+
+    incident_patterns = models[
+        "gold_traffic_incident_x_weather_current_hourly"
+    ]["config"]["meta"]["serving"]["usage_patterns"]
+    incomplete_weather = next(
+        pattern for pattern in incident_patterns
+        if pattern["pattern_id"] == "incomplete_weather_context"
+    )
+    assert "coalesce(weather_category_coverage_count, 0) < :required_category_count" in incomplete_weather["sql"]
 
 
 def test_public_d1_not_null_projection_columns_are_non_nullable() -> None:

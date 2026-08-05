@@ -40,6 +40,130 @@ models:
               redistribution: allowed_with_attribution
               attribution: 서울특별시
               rights_checked_at: "2026-08-06"
+          usage_patterns:
+            - pattern_id: change_for_link
+              question_ko: 특정 링크의 최신 속도와 통행시간은 직전 관측보다 어떻게 바뀌었습니까?
+              axes: 링크 필터 — 최신·직전 관측 비교
+              requires: [select_columns, filter_set]
+              allow_empty: true
+              verified_rows: 1
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "60eec21f66b64832ae71f0b6cf0f3cc3"
+              sql: |
+                -- :link_id='1000001200'
+                SELECT link_id, observed_at_kst, previous_observed_at_kst, flow_speed, previous_flow_speed,
+                       flow_speed_change, flow_travel_time, previous_flow_travel_time,
+                       flow_travel_time_change, speed_change_state
+                FROM gold_traffic_flow_change_latest
+                WHERE link_id = :link_id
+            - pattern_id: speed_decreased_links
+              question_ko: 직전 관측보다 속도가 감소한 링크는 어디입니까?
+              axes: speed_decreased 상태 필터 — 속도 변화 ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "60eec21f66b64832ae71f0b6cf0f3cc3"
+              sql: |
+                -- :n=20
+                SELECT link_id, observed_at_kst, flow_speed, previous_flow_speed, flow_speed_change,
+                       flow_travel_time_change, speed_change_state
+                FROM gold_traffic_flow_change_latest
+                WHERE speed_change_state = 'speed_decreased'
+                ORDER BY flow_speed_change ASC
+                LIMIT :n
+            - pattern_id: speed_increased_links
+              question_ko: 직전 관측보다 속도가 증가한 링크는 어디입니까?
+              axes: speed_increased 상태 필터 — 속도 변화 DESC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "60eec21f66b64832ae71f0b6cf0f3cc3"
+              sql: |
+                -- :n=20
+                SELECT link_id, observed_at_kst, flow_speed, previous_flow_speed, flow_speed_change,
+                       flow_travel_time_change, speed_change_state
+                FROM gold_traffic_flow_change_latest
+                WHERE speed_change_state = 'speed_increased'
+                ORDER BY flow_speed_change DESC
+                LIMIT :n
+            - pattern_id: links_without_prior_observation
+              question_ko: 직전 관측이 없어 변화 비교를 할 수 없는 링크는 무엇입니까?
+              axes: no_prior_observation 상태 필터 — 최신 관측 시각 DESC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 46
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "60eec21f66b64832ae71f0b6cf0f3cc3"
+              sql: |
+                -- :n=50
+                SELECT link_id, observed_at_kst, flow_speed, flow_travel_time, speed_change_state
+                FROM gold_traffic_flow_change_latest
+                WHERE speed_change_state = 'no_prior_observation'
+                ORDER BY observed_at_kst DESC
+                LIMIT :n
+            - pattern_id: largest_speed_drop
+              question_ko: 속도 하락 폭이 가장 큰 링크는 어디입니까?
+              axes: 음수 속도 변화 필터 — flow_speed_change ASC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "60eec21f66b64832ae71f0b6cf0f3cc3"
+              sql: |
+                -- :n=20
+                SELECT link_id, observed_at_kst, flow_speed, previous_flow_speed, flow_speed_change,
+                       speed_change_state
+                FROM gold_traffic_flow_change_latest
+                WHERE flow_speed_change < 0
+                ORDER BY flow_speed_change ASC
+                LIMIT :n
+            - pattern_id: largest_travel_time_increase
+              question_ko: 통행시간 증가 폭이 가장 큰 링크는 어디입니까?
+              axes: 양수 통행시간 변화 필터 — flow_travel_time_change DESC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "60eec21f66b64832ae71f0b6cf0f3cc3"
+              sql: |
+                -- :n=20
+                SELECT link_id, observed_at_kst, flow_travel_time, previous_flow_travel_time,
+                       flow_travel_time_change, speed_change_state
+                FROM gold_traffic_flow_change_latest
+                WHERE flow_travel_time_change > 0
+                ORDER BY flow_travel_time_change DESC
+                LIMIT :n
+            - pattern_id: speed_change_state_overview
+              question_ko: 최신 링크 스냅샷에서 속도 변화 상태별 링크 수는 얼마입니까?
+              axes: 속도 변화 상태 집계 — 링크 수 DESC
+              requires: [select_columns, aggregate, group_by, sort]
+              allow_empty: false
+              verified_rows: 4
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "60eec21f66b64832ae71f0b6cf0f3cc3"
+              sql: |
+                SELECT speed_change_state, count(*) AS link_count
+                FROM gold_traffic_flow_change_latest
+                GROUP BY speed_change_state
+                ORDER BY link_count DESC, speed_change_state
+            - pattern_id: change_observation_window
+              question_ko: 특정 관측 시간 범위에서 속도 변화가 큰 링크는 어디입니까?
+              axes: 관측 시각 범위 필터 — 절대 속도 변화 DESC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 50
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "60eec21f66b64832ae71f0b6cf0f3cc3"
+              sql: |
+                -- :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00', :n=50
+                SELECT link_id, observed_at_kst, flow_speed, previous_flow_speed, flow_speed_change,
+                       flow_travel_time_change, speed_change_state
+                FROM gold_traffic_flow_change_latest
+                WHERE observed_at_kst >= :from_at AND observed_at_kst < :to_at
+                ORDER BY abs(flow_speed_change) DESC
+                LIMIT :n
           public_projection:
             schema_version: "1.0.0"
             columns:

@@ -67,6 +67,130 @@ models:
             sample_count_field: distinct_observation_date_count
             minimum_sample_count: 4
             insufficient_sample_policy: flag_degraded
+          usage_patterns:
+            - pattern_id: anomaly_for_link
+              question_ko: 특정 도로 링크의 최신 속도는 같은 요일·시간대 기준선과 비교해 어떻습니까?
+              axes: 링크 필터 — 최신 속도·중앙값·이상 방향 비교
+              requires: [select_columns, filter_set]
+              allow_empty: true
+              verified_rows: 1
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "af13423e1c1f43ca8f71ba8720672738"
+              sql: |
+                -- :link_id='1080002600'
+                SELECT link_id, observed_at_kst, flow_speed, median_flow_speed, p25_flow_speed, p75_flow_speed,
+                       speed_delta_from_median, speed_ratio_to_median, anomaly_direction, baseline_state
+                FROM gold_traffic_flow_anomaly_current
+                WHERE link_id = :link_id
+            - pattern_id: anomalies_by_direction
+              question_ko: 기준 범위보다 느리거나 빠른 링크는 무엇입니까?
+              axes: 이상 방향 필터 — 속도 편차 절대값 DESC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 0
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "af13423e1c1f43ca8f71ba8720672738"
+              sql: |
+                -- :anomaly_direction='below_typical_range', :n=20
+                SELECT link_id, observed_at_kst, flow_speed, median_flow_speed, speed_delta_from_median,
+                       speed_ratio_to_median, anomaly_direction
+                FROM gold_traffic_flow_anomaly_current
+                WHERE anomaly_direction = :anomaly_direction
+                ORDER BY abs(speed_delta_from_median) DESC
+                LIMIT :n
+            - pattern_id: representative_baseline_outliers
+              question_ko: 표본이 충분한 링크 중 기준선에서 가장 크게 벗어난 곳은 어디입니까?
+              axes: representative 기준선 필터 — 속도 편차 절대값 DESC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 0
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "af13423e1c1f43ca8f71ba8720672738"
+              sql: |
+                -- :n=20
+                SELECT link_id, flow_speed, median_flow_speed, speed_delta_from_median, speed_ratio_to_median,
+                       distinct_observation_date_count, baseline_state
+                FROM gold_traffic_flow_anomaly_current
+                WHERE baseline_state = 'representative'
+                ORDER BY abs(speed_delta_from_median) DESC
+                LIMIT :n
+            - pattern_id: slowdown_from_baseline
+              question_ko: 평소 중앙값보다 가장 느려진 링크는 어디입니까?
+              axes: 음수 속도 편차 필터 — speed_delta_from_median ASC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 0
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "af13423e1c1f43ca8f71ba8720672738"
+              sql: |
+                -- :n=20
+                SELECT link_id, observed_at_kst, flow_speed, median_flow_speed, speed_delta_from_median,
+                       speed_ratio_to_median, anomaly_direction
+                FROM gold_traffic_flow_anomaly_current
+                WHERE speed_delta_from_median < 0
+                ORDER BY speed_delta_from_median ASC
+                LIMIT :n
+            - pattern_id: speedup_from_baseline
+              question_ko: 평소 중앙값보다 가장 빨라진 링크는 어디입니까?
+              axes: 양수 속도 편차 필터 — speed_delta_from_median DESC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 0
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "af13423e1c1f43ca8f71ba8720672738"
+              sql: |
+                -- :n=20
+                SELECT link_id, observed_at_kst, flow_speed, median_flow_speed, speed_delta_from_median,
+                       speed_ratio_to_median, anomaly_direction
+                FROM gold_traffic_flow_anomaly_current
+                WHERE speed_delta_from_median > 0
+                ORDER BY speed_delta_from_median DESC
+                LIMIT :n
+            - pattern_id: insufficient_history_baselines
+              question_ko: 이력 표본이 부족해 현재 이상 여부를 판단할 수 없는 링크는 무엇입니까?
+              axes: 기준선 상태 필터 — 이력 일수 ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 50
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "af13423e1c1f43ca8f71ba8720672738"
+              sql: |
+                -- :n=50
+                SELECT link_id, observed_at_kst, flow_speed, distinct_observation_date_count,
+                       profile_observation_count, baseline_state
+                FROM gold_traffic_flow_anomaly_current
+                WHERE baseline_state = 'insufficient_history'
+                ORDER BY distinct_observation_date_count ASC, profile_observation_count ASC
+                LIMIT :n
+            - pattern_id: baseline_state_overview
+              question_ko: 최신 링크 스냅샷에서 기준선 판정 상태별 링크 수는 얼마입니까?
+              axes: 기준선 상태 집계 — 링크 수 DESC
+              requires: [select_columns, aggregate, group_by, sort]
+              allow_empty: false
+              verified_rows: 2
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "af13423e1c1f43ca8f71ba8720672738"
+              sql: |
+                SELECT baseline_state, count(*) AS link_count
+                FROM gold_traffic_flow_anomaly_current
+                GROUP BY baseline_state
+                ORDER BY link_count DESC, baseline_state
+            - pattern_id: anomaly_observation_window
+              question_ko: 특정 관측 시간 범위에서 기준선 대비 속도 편차가 큰 링크는 무엇입니까?
+              axes: 관측 시각 범위 필터 — 절대 속도 편차 DESC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 50
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "af13423e1c1f43ca8f71ba8720672738"
+              sql: |
+                -- :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00', :n=50
+                SELECT link_id, observed_at_kst, flow_speed, median_flow_speed, speed_delta_from_median,
+                       anomaly_direction, baseline_state
+                FROM gold_traffic_flow_anomaly_current
+                WHERE observed_at_kst >= :from_at AND observed_at_kst < :to_at
+                ORDER BY abs(speed_delta_from_median) DESC
+                LIMIT :n
     columns:
       - name: product_row_id
         description: link_id와 같은 제품 행 식별자입니다.

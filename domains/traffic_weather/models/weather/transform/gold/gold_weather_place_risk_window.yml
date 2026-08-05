@@ -41,6 +41,126 @@ models:
               redistribution: allowed_with_attribution
               attribution: 기상청
               rights_checked_at: "2026-08-06"
+          usage_patterns:
+            - pattern_id: risk_windows_for_place
+              question_ko: 특정 장소에서 자체 임계값을 만족한 위험 후보 예보는 언제입니까?
+              axes: 장소 필터 — 예보 대상 시각 ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 66
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              sql: |
+                -- :place_id='seoul_admd_1120062000'
+                SELECT place_id, forecast_at, risk_labels
+                FROM gold_weather_place_risk_window
+                WHERE place_id = :place_id
+                ORDER BY forecast_at ASC
+            - pattern_id: upcoming_risk_windows
+              question_ko: 특정 시간 범위에 위험 후보가 예보된 장소·시각은 무엇입니까?
+              axes: 예보 대상 시각 범위 필터 — 시간 ASC
+              requires: [select_columns, filter_range, sort]
+              allow_empty: true
+              verified_rows: 100
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              sql: |
+                -- :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00', :n=100
+                SELECT place_id, forecast_at, risk_labels
+                FROM gold_weather_place_risk_window
+                WHERE forecast_at >= :from_at AND forecast_at < :to_at
+                ORDER BY forecast_at ASC, place_id
+                LIMIT :n
+            - pattern_id: risk_label_candidates
+              question_ko: 특정 위험 후보 라벨을 포함한 장소·시각은 무엇입니까?
+              axes: 위험 후보 라벨 포함 필터 — 예보 대상 시각 ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 100
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              sql: |
+                -- :risk_label='폭염후보', :n=100
+                SELECT place_id, forecast_at, risk_labels
+                FROM gold_weather_place_risk_window
+                WHERE risk_labels LIKE '%' || :risk_label || '%'
+                ORDER BY forecast_at ASC, place_id
+                LIMIT :n
+            - pattern_id: risk_candidates_for_place_window
+              question_ko: 특정 장소의 방문 시간 범위에 위험 후보 예보가 있습니까?
+              axes: 장소·예보 대상 시각 범위 필터 — 시간 ASC
+              requires: [select_columns, filter_set, filter_range, sort]
+              allow_empty: true
+              verified_rows: 45
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              sql: |
+                -- :place_id='seoul_admd_1120062000', :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00'
+                SELECT place_id, forecast_at, risk_labels
+                FROM gold_weather_place_risk_window
+                WHERE place_id = :place_id
+                  AND forecast_at >= :from_at AND forecast_at < :to_at
+                ORDER BY forecast_at ASC
+            - pattern_id: next_risk_candidate_for_place
+              question_ko: 특정 장소의 다음 위험 후보 예보 시각과 근거는 무엇입니까?
+              axes: 장소·기준 시각 필터 — 예보 대상 시각 ASC, 1건
+              requires: [select_columns, filter_set, filter_range, sort]
+              allow_empty: true
+              verified_rows: 1
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              sql: |
+                -- :place_id='seoul_admd_1120062000', :as_of_at='2026-07-30 00:00:00'
+                SELECT place_id, forecast_at, risk_labels
+                FROM gold_weather_place_risk_window
+                WHERE place_id = :place_id AND forecast_at >= :as_of_at
+                ORDER BY forecast_at ASC
+                LIMIT 1
+            - pattern_id: multi_risk_label_candidates
+              question_ko: 한 시각에 둘 이상의 위험 후보 라벨이 함께 나타난 장소는 어디입니까?
+              axes: 복수 위험 후보 라벨 필터 — 예보 대상 시각 ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 0
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              sql: |
+                -- :n=100
+                SELECT place_id, forecast_at, risk_labels
+                FROM gold_weather_place_risk_window
+                WHERE risk_labels LIKE '%,%'
+                ORDER BY forecast_at ASC, place_id
+                LIMIT :n
+            - pattern_id: latest_risk_candidates
+              question_ko: 가장 먼 미래 시각까지 이어지는 위험 후보 예보는 무엇입니까?
+              axes: 예보 대상 시각 정렬 — forecast_at DESC
+              requires: [select_columns, sort]
+              allow_empty: true
+              verified_rows: 20
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              sql: |
+                -- :n=20
+                SELECT place_id, forecast_at, risk_labels
+                FROM gold_weather_place_risk_window
+                ORDER BY forecast_at DESC, place_id
+                LIMIT :n
+            - pattern_id: risk_candidate_count_by_place
+              question_ko: 특정 시간 범위에서 장소별 위험 후보 예보 건수는 얼마입니까?
+              axes: 예보 대상 시각 범위 집계 — 위험 후보 수 DESC
+              requires: [select_columns, filter_range, aggregate, group_by, sort]
+              allow_empty: true
+              verified_rows: 100
+              verified_at: "2026-08-05T14:39:11Z"
+              verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              sql: |
+                -- :from_at='2026-07-30 00:00:00', :to_at='2026-08-06 00:00:00', :n=100
+                SELECT place_id, count(*) AS risk_candidate_count
+                FROM gold_weather_place_risk_window
+                WHERE forecast_at >= :from_at AND forecast_at < :to_at
+                GROUP BY place_id
+                ORDER BY risk_candidate_count DESC, place_id
+                LIMIT :n
           public_projection:
             schema_version: "1.0.0"
             columns:
