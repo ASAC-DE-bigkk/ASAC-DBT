@@ -250,7 +250,7 @@ models:
             - pattern_id: fast_risers
               question_ko: 개막하자마자 상위권에 오른 공연은?
               axes: 필터(days_to_peak, best_rank) — days_to_peak ASC
-              requires: [select_columns, filter_compare, sort]
+              requires: [select_columns, filter_range, sort]
               verified_rows: 4
               verified_at: "2026-08-05"
               verified_publication_id: a1d0ab0d52a34f4094c3e1dfad56af87
@@ -633,7 +633,7 @@ models:
             - pattern_id: busiest_gu_at_hour
               question_ko: 이 요일 이 시간에 가장 붐비는 자치구는 어디인가?
               axes: 구 랭킹 — (요일·시간 고정) avg_congest_score DESC
-              requires: [select_columns, filter_compare, sort]
+              requires: [select_columns, filter_set, sort]
               verified_rows: 10
               verified_at: "2026-08-05"
               verified_publication_id: 865b88b6a8f1428e8fd6cbb9f937fa26
@@ -1250,7 +1250,7 @@ models:
             - pattern_id: gu_dine_summary
               question_ko: 이 구에서 행사 보고 밥 먹기 좋은 동네는?
               axes: 필터(gu) + 동 랭킹 — dine_around_score DESC
-              requires: [select_columns, filter_compare, sort]
+              requires: [select_columns, filter_set, sort]
               verified_rows: 10
               verified_at: "2026-08-05"
               verified_publication_id: be6602f2b7fb4156a729e70715b55534
@@ -1265,7 +1265,7 @@ models:
             - pattern_id: culture_rich_dining_poor
               question_ko: 행사는 많은데 주변 식당이 부족한 동네는?
               axes: 갭 탐지 — culture_events_pctl 상위 ∩ dining_stock_pctl 하위
-              requires: [select_columns, filter_compare, sort]
+              requires: [select_columns, filter_range, sort]
               verified_rows: 10
               verified_at: "2026-08-05"
               verified_publication_id: be6602f2b7fb4156a729e70715b55534
