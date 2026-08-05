@@ -124,6 +124,14 @@ models:
           enabled: true
           external: true
           product_id: citydata_ppltn_daily
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           product_question: 이 장소는 하루 평균·최대 얼마나 붐볐습니까?
           grain: (event_date, area_code) 마다 한 행 — 장소·일 인구 집계.
           primary_key: [event_date, area_code]
@@ -155,6 +163,16 @@ models:
                 FROM gold_citydata_ppltn_daily
                 WHERE event_date = :date
                 ORDER BY max_population DESC LIMIT :n
+            - pattern_id: place_daily_trend
+              question_ko: 이 장소의 최근 일별 붐빔 추이는?
+              axes: 시계열 — 장소 고정, event_date 축
+              requires: [select_columns, filter_set, filter_range, sort]
+              sql: |
+                -- :area=성수동, :from=2026-07-01, :to=2026-07-31
+                SELECT event_date, average_population, max_population, busy_ratio_percent
+                FROM gold_citydata_ppltn_daily
+                WHERE area_name = :area AND event_date BETWEEN :from AND :to
+                ORDER BY event_date
         display:
           title: 장소별 일 혼잡 요약
           summary: 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
@@ -240,6 +258,14 @@ models:
           enabled: true
           external: true
           product_id: citydata_ppltn_hourly
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           product_question: 이 장소는 몇 시에 붐비고 몇 시에 한산합니까?
           grain: (time_bucket, area_cd) 마다 한 행 — 장소·시간 인구 집계.
           primary_key: [time_bucket, area_cd]
@@ -271,6 +297,16 @@ models:
                 FROM gold_citydata_ppltn_hourly
                 WHERE time_bucket = :ts
                 ORDER BY average_population DESC LIMIT :n
+            - pattern_id: place_hourly_trend
+              question_ko: 이 장소의 최근 시간별 붐빔 추이는?
+              axes: 시계열 — 장소 고정, time_bucket 축
+              requires: [select_columns, filter_set, filter_range, sort]
+              sql: |
+                -- :area_cd=POI014, :from=2026-07-30 00:00:00, :to=2026-07-30 23:00:00
+                SELECT time_bucket, average_population, peak_congestion_level
+                FROM gold_citydata_ppltn_hourly
+                WHERE area_cd = :area_cd AND time_bucket BETWEEN :from AND :to
+                ORDER BY time_bucket
         display:
           title: 장소별 시간대 혼잡
           summary: 장소마다 시간 단위로 인구·혼잡을 집계했습니다. 몇 시가 붐비고 한산한지 시간대별로 볼 수 있습니다.
@@ -359,6 +395,14 @@ models:
           enabled: true
           external: true
           product_id: citydata_cmrcl_daily
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           product_question: 이 장소는 하루 결제·상권 활력이 어느 정도입니까?
           grain: (event_date, area_cd) 마다 한 행 — 장소·일 상권 집계.
           primary_key: [event_date, area_cd]
@@ -380,6 +424,26 @@ models:
                 FROM gold_citydata_cmrcl_daily
                 WHERE event_date = :date
                 ORDER BY payment_count_total DESC LIMIT :n
+            - pattern_id: place_commerce_trend
+              question_ko: 특정 장소의 최근 결제 추이는?
+              axes: 시계열 — 장소 고정, event_date 축
+              requires: [select_columns, filter_set, filter_range, sort]
+              sql: |
+                -- :area_cd=POI014, :from=2026-07-01, :to=2026-07-31
+                SELECT event_date, payment_count_total, busy_ratio_percent, peak_cmrcl_lvl
+                FROM gold_citydata_cmrcl_daily
+                WHERE area_cd = :area_cd AND event_date BETWEEN :from AND :to
+                ORDER BY event_date
+            - pattern_id: busy_places_in_gu
+              question_ko: 특정 자치구에서 상권이 가장 바빴던 장소는?
+              axes: 장소 랭킹 — busy_ratio_percent DESC (자치구·날짜 고정)
+              requires: [select_columns, filter_set, sort]
+              sql: |
+                -- :gu=강남구, :date=2026-07-30, :n=10
+                SELECT area_nm, busy_ratio_percent, payment_count_total, peak_cmrcl_lvl
+                FROM gold_citydata_cmrcl_daily
+                WHERE gu = :gu AND event_date = :date
+                ORDER BY busy_ratio_percent DESC LIMIT :n
         display:
           title: 장소별 일 소비(상권)
           summary: 장소마다 하루 결제 건수와 상권 활력을 집계했습니다. 붐빔 대비 얼마나 소비가 일어나는지 봅니다.
@@ -500,6 +564,26 @@ models:
                 FROM gold_citydata_purchasing_power_daily
                 WHERE event_date = :date
                 ORDER BY spend_per_crowd_idx DESC LIMIT :n
+            - pattern_id: place_purchasing_power_trend
+              question_ko: 이 장소의 구매력 지수 추이는?
+              axes: 시계열 — 장소 고정, event_date 축
+              requires: [select_columns, filter_set, filter_range, sort]
+              sql: |
+                -- :area_cd=POI014, :from=2026-07-01, :to=2026-07-31
+                SELECT event_date, spend_per_crowd_idx, payment_amt_total, ppltn_avg
+                FROM gold_citydata_purchasing_power_daily
+                WHERE area_cd = :area_cd AND event_date BETWEEN :from AND :to
+                ORDER BY event_date
+            - pattern_id: high_crowd_low_spend_on_date
+              question_ko: 특정 날 붐비는데 소비는 약했던 장소는?
+              axes: 장소 랭킹 — spend_per_crowd_idx ASC (날짜 고정)
+              requires: [select_columns, sort]
+              sql: |
+                -- :date=2026-07-30, :n=10
+                SELECT area_nm, gu, ppltn_avg, spend_per_crowd_idx, rank_spend
+                FROM gold_citydata_purchasing_power_daily
+                WHERE event_date = :date
+                ORDER BY spend_per_crowd_idx ASC LIMIT :n
         display:
           title: 장소별 구매력 지수
           summary: 붐빔 대비 결제를 지수화해 어느 장소의 유동인구가 실제 소비로 잘 이어지는지 봅니다.
@@ -608,6 +692,49 @@ models:
           enabled: true
           external: true
           product_id: citydata_ppltn_x_culture_daily
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
+            - source_id: kopis_open_api
+              source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
+              license: KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용
+              license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
+              redistribution: allowed_with_attribution
+              attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
+            - source_id: seoul_cultural_event
+              source_url: https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: sema_exhibition
+              source_url: https://data.seoul.go.kr/dataList/OA-15323/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울시립미술관
+              rights_checked_at: "2026-08-04"
+            - source_id: sejong_performance
+              source_url: https://data.seoul.go.kr/dataList/OA-2708/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 세종문화회관, 각 컨텐츠주체
+              rights_checked_at: "2026-08-04"
+            - source_id: kcisa_culture_info
+              source_url: https://www.data.go.kr/data/15138937/openapi.do
+              license: 이용허락범위 제한 없음
+              license_url: https://www.data.go.kr/data/15138937/openapi.do
+              redistribution: allowed_with_attribution
+              attribution: 한국문화정보원
+              rights_checked_at: "2026-08-04"
           product_question: 이 동네는 문화행사가 유동인구와 어떻게 맞물립니까?
           grain: (event_date, admin_dong_code) 마다 한 행 — 동·일 인구×문화.
           primary_key: [event_date, admin_dong_code]
@@ -629,6 +756,26 @@ models:
                 FROM gold_citydata_ppltn_x_culture_daily
                 WHERE event_date = :date
                 ORDER BY event_count DESC LIMIT :n
+            - pattern_id: festival_dongs_on_date
+              question_ko: 특정 날 축제가 열리는 붐비는 동네는?
+              axes: 동 랭킹 — ppltn_avg DESC (날짜 고정, 축제 有)
+              requires: [select_columns, sort]
+              sql: |
+                -- :date=2026-07-30, :n=10
+                SELECT admin_dong, gu, festival_count, event_count, ppltn_avg
+                FROM gold_citydata_ppltn_x_culture_daily
+                WHERE event_date = :date AND festival_count > 0
+                ORDER BY ppltn_avg DESC LIMIT :n
+            - pattern_id: dong_culture_crowd_trend
+              question_ko: 이 동네의 문화행사와 붐빔 추이는?
+              axes: 시계열 — 동 고정, event_date 축
+              requires: [select_columns, filter_set, filter_range, sort]
+              sql: |
+                -- :dong_code=1123072, :from=2026-07-01, :to=2026-07-31
+                SELECT event_date, event_count, has_event, ppltn_avg, ppltn_peak
+                FROM gold_citydata_ppltn_x_culture_daily
+                WHERE admin_dong_code = :dong_code AND event_date BETWEEN :from AND :to
+                ORDER BY event_date
         display:
           title: 동네 혼잡 × 문화활동
           summary: 행정동·일 단위로 인구 혼잡과 문화행사·활동을 겹쳐 봤습니다. 행사와 유동의 관계를 봅니다.
@@ -702,6 +849,21 @@ models:
           enabled: true
           external: true
           product_id: citydata_transit_x_incident_hourly
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
+            - source_id: seoul_topis_acc_info
+              source_url: https://data.seoul.go.kr/dataList/OA-13315/A/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
           product_question: 이 동네는 언제 교통이 막히고 돌발이 잦습니까?
           grain: (time_bucket, admin_dong_code) 마다 한 행 — 동·시간 교통×돌발.
           primary_key: [time_bucket, admin_dong_code]
@@ -723,6 +885,26 @@ models:
                 FROM gold_citydata_transit_x_incident_hourly
                 WHERE time_bucket = :ts
                 ORDER BY incident_count DESC LIMIT :n
+            - pattern_id: busiest_transit_dongs_at_time
+              question_ko: 특정 시각에 승차가 가장 많은 동네는?
+              axes: 동 랭킹 — board_5min_avg DESC (시각 고정)
+              requires: [select_columns, sort]
+              sql: |
+                -- :ts=2026-07-30 08:00:00, :n=10
+                SELECT admin_dong, gu, board_5min_avg, alight_5min_avg, incident_count
+                FROM gold_citydata_transit_x_incident_hourly
+                WHERE time_bucket = :ts
+                ORDER BY board_5min_avg DESC LIMIT :n
+            - pattern_id: dong_transit_incident_trend
+              question_ko: 이 동네의 시간별 승하차·돌발 추이는?
+              axes: 시계열 — 동 고정, time_bucket 축
+              requires: [select_columns, filter_set, filter_range, sort]
+              sql: |
+                -- :dong_code=1123072, :from=2026-07-30 00:00:00, :to=2026-07-30 23:00:00
+                SELECT time_bucket, board_5min_avg, alight_5min_avg, incident_count, has_incident
+                FROM gold_citydata_transit_x_incident_hourly
+                WHERE admin_dong_code = :dong_code AND time_bucket BETWEEN :from AND :to
+                ORDER BY time_bucket
         display:
           title: 동네 교통량 × 돌발
           summary: 행정동·시간별 승하차 강도와 교통 돌발 상황을 함께 봅니다. 어디가 언제 막히는지 봅니다.
@@ -793,6 +975,21 @@ models:
           enabled: true
           external: true
           product_id: citydata_ppltn_x_weather_hourly
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
+            - source_id: kma_vilage_fcst
+              source_url: https://www.data.go.kr/data/15084084/openapi.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 기상청
+              rights_checked_at: "2026-08-04"
           product_question: 날씨가 이 동네 붐빔에 어떻게 영향을 줍니까?
           grain: (time_bucket, admin_dong_code) 마다 한 행 — 동·시간 인구×기상.
           primary_key: [time_bucket, admin_dong_code]
@@ -813,6 +1010,26 @@ models:
                 SELECT admin_dong, gu, ppltn_avg, temp_c, precip_prob
                 FROM gold_citydata_ppltn_x_weather_hourly
                 WHERE time_bucket = :ts AND is_raining = 1
+                ORDER BY ppltn_avg DESC LIMIT :n
+            - pattern_id: dong_weather_crowd_trend
+              question_ko: 이 동네의 시간별 붐빔과 날씨 추이는?
+              axes: 시계열 — 동 고정, time_bucket 축
+              requires: [select_columns, filter_set, filter_range, sort]
+              sql: |
+                -- :dong_code=1123072, :from=2026-07-30 00:00:00, :to=2026-07-30 23:00:00
+                SELECT time_bucket, ppltn_avg, temp_c, precip_prob, is_raining
+                FROM gold_citydata_ppltn_x_weather_hourly
+                WHERE admin_dong_code = :dong_code AND time_bucket BETWEEN :from AND :to
+                ORDER BY time_bucket
+            - pattern_id: crowded_dongs_at_time
+              question_ko: 특정 시각 가장 붐비는 동네와 그때 날씨는?
+              axes: 동 랭킹 — ppltn_avg DESC (시각 고정)
+              requires: [select_columns, sort]
+              sql: |
+                -- :ts=2026-07-30 18:00:00, :n=10
+                SELECT admin_dong, gu, ppltn_avg, temp_c, precip_prob, is_raining
+                FROM gold_citydata_ppltn_x_weather_hourly
+                WHERE time_bucket = :ts
                 ORDER BY ppltn_avg DESC LIMIT :n
         display:
           title: 동네 혼잡 × 날씨
@@ -890,6 +1107,14 @@ models:
           enabled: true
           external: true
           product_id: citydata_ppltn_demographics
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           product_question: 이 장소는 어떤 성별·나이대가 언제 몰립니까?
           grain: (area_cd, dow, hour, segment_type, segment) 마다 한 행 — 방문객 구성 패턴.
           primary_key: [area_cd, dow, hour, segment_type, segment]
@@ -924,6 +1149,16 @@ models:
                 FROM gold_citydata_ppltn_demographics
                 WHERE area_nm = :area AND dow = :dow AND hour = :hour AND segment_type = 'age'
                 ORDER BY avg_est_headcount DESC
+            - pattern_id: gender_mix_for_place_at_time
+              question_ko: 이 장소 이 요일·시간의 성별 구성은?
+              axes: 세그먼트 랭킹 — avg_rate_pct DESC (장소·요일·시간 고정, gender)
+              requires: [select_columns, filter_set, sort]
+              sql: |
+                -- :area=강남역, :dow=6, :hour=20
+                SELECT segment, avg_rate_pct, avg_est_headcount
+                FROM gold_citydata_ppltn_demographics
+                WHERE area_nm = :area AND dow = :dow AND hour = :hour AND segment_type = 'gender'
+                ORDER BY avg_rate_pct DESC
         display:
           title: 방문객 인구통계 패턴
           summary: 장소·요일·시간대별로 방문객의 성별·나이대 비율 패턴을 제공합니다. "20대는 언제 몰리나"에 답합니다.
@@ -1014,6 +1249,14 @@ models:
           enabled: true
           external: true
           product_id: citydata_ppltn_dow_hour
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           product_question: 이 장소는 무슨 요일 몇 시가 붐빕니까?
           grain: (area_cd, dow, hr) 마다 한 행 — 요일×시간 붐빔 패턴.
           primary_key: [area_cd, dow, hr]
@@ -1033,6 +1276,26 @@ models:
                 FROM gold_citydata_ppltn_dow_hour
                 WHERE area_nm = :area
                 ORDER BY avg_ppltn DESC LIMIT :n
+            - pattern_id: quietest_dow_hour_for_place
+              question_ko: 이 장소가 가장 한산한 요일·시간은?
+              axes: 요일×시간 랭킹 — avg_ppltn ASC (장소 고정, reliable만)
+              requires: [select_columns, filter_set, sort]
+              sql: |
+                -- :area=성수동, :n=10
+                SELECT dow, hr, avg_ppltn, typical_congest_lvl
+                FROM gold_citydata_ppltn_dow_hour
+                WHERE area_nm = :area AND reliable = 1
+                ORDER BY avg_ppltn ASC LIMIT :n
+            - pattern_id: place_profile_on_dow
+              question_ko: 특정 요일, 이 장소의 시간대별 붐빔은?
+              axes: 시간 프로파일 — 장소·요일 고정, hr 축
+              requires: [select_columns, filter_set, sort]
+              sql: |
+                -- :area=강남역, :dow=2
+                SELECT hr, avg_ppltn, typical_congest_lvl, reliable
+                FROM gold_citydata_ppltn_dow_hour
+                WHERE area_nm = :area AND dow = :dow
+                ORDER BY hr
         display:
           title: 요일·시간 혼잡 패턴
           summary: 장소마다 무슨 요일 몇 시가 붐비고 한산한지 요일×시간으로 요약했습니다. 실검 수요가 가장 많은 축입니다.
@@ -1110,6 +1373,14 @@ models:
           enabled: true
           external: true
           product_id: citydata_sbike_dow_hour
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           product_question: 이 장소는 무슨 요일 몇 시에 따릉이가 많습니까?
           grain: (area_cd, dow, hr) 마다 한 행 — 영역 요일×시간 따릉이 가용 패턴.
           primary_key: [area_cd, dow, hr]
@@ -1224,6 +1495,14 @@ models:
           enabled: true
           external: true
           product_id: citydata_air_daily
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           product_question: 이 동네 미세먼지가 요즘 며칠간 어떤 추이입니까?
           grain: (area_cd, event_date) 마다 한 행 — 장소·일 대기질 집계.
           primary_key: [area_cd, event_date]
@@ -1338,6 +1617,14 @@ models:
           enabled: true
           external: true
           product_id: citydata_charger_dow_hour
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-03"
           product_question: 이 장소는 무슨 요일 몇 시에 EV 충전소가 잘 빕니까?
           grain: (area_cd, dow, hr) 마다 한 행 — 영역 요일×시간 충전소 가용 패턴.
           primary_key: [area_cd, dow, hr]
