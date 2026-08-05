@@ -33,6 +33,14 @@ models:
           freshness_slo_minutes: 240
           retention_or_horizon: 최신 KMA 예보가 제공하는 미래 구간만 매 게시 시점에 교체합니다.
           shape: event
+          source_evidence:
+            - source_id: kma_vilage_fcst
+              source_url: https://www.data.go.kr/data/15084084/openapi.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 기상청
+              rights_checked_at: "2026-08-06"
           usage_patterns:
             - pattern_id: risk_windows_for_place
               question_ko: 특정 장소에서 자체 임계값을 만족한 위험 후보 예보는 언제입니까?

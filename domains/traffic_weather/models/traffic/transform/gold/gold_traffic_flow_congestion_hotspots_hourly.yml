@@ -34,6 +34,14 @@ models:
           freshness_slo_minutes: 90
           retention_or_horizon: 무기한 누적 Gold이며 D1 exporter 적재 전 보존·purge 정책을 별도 승인합니다.
           shape: event
+          source_evidence:
+            - source_id: seoul_traffic_flow
+              source_url: https://data.seoul.go.kr/dataList/OA-13291/A/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-06"
           usage_patterns:
             - pattern_id: hotspots_for_hour
               question_ko: 특정 시간대에 저속 상위 10위로 관측된 링크는 어디입니까?

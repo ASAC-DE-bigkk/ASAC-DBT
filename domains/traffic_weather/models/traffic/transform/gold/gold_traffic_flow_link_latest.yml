@@ -33,6 +33,14 @@ models:
           event_time: observed_at_kst
           freshness_slo_minutes: 90
           shape: wide
+          source_evidence:
+            - source_id: seoul_traffic_flow
+              source_url: https://data.seoul.go.kr/dataList/OA-13291/A/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-06"
           usage_patterns:
             - pattern_id: latest_snapshot_for_link
               question_ko: 특정 링크의 가장 최근 속도·통행시간·관측 시각은 무엇입니까?
