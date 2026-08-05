@@ -33,6 +33,14 @@ models:
           freshness_slo_minutes: 90
           retention_or_horizon: 보존된 전체 Traffic Flow Silver 이력을 affected profile key 단위로 재집계합니다.
           shape: rollup
+          source_evidence:
+            - source_id: seoul_traffic_flow
+              source_url: https://data.seoul.go.kr/dataList/OA-13291/A/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-06"
           public_projection:
             schema_version: "1.0.0"
             columns:
