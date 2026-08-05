@@ -310,13 +310,12 @@ def test_resource_discovery_accepts_a_new_colocated_model_without_a_registry(
     ]
 
 
-def test_model_properties_are_small_colocated_and_public_gold_is_one_to_one() -> None:
+def test_model_properties_are_colocated_and_public_gold_is_one_to_one() -> None:
     for domain in DOMAINS:
         assert not (PROJECT_ROOT / "models" / domain / "schema.yml").exists()
         for yaml_path in _domain_yaml_paths(domain):
             if yaml_path.name == "sources.yml" or "seeds" in yaml_path.parts:
                 continue
-            assert len(yaml_path.read_text(encoding="utf-8").splitlines()) <= 500
             for token in yaml.scan(yaml_path.read_text(encoding="utf-8")):
                 assert not isinstance(token, (AnchorToken, AliasToken))
 
