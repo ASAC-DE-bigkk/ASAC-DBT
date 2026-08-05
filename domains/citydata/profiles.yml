@@ -23,9 +23,9 @@ seoul_ppltn:
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       user: "{{ env_var('TRINO_USER', 'airflow') }}"
       database: "{{ env_var('TRINO_DEV_ICEBERG_CATALOG', 'iceberg_dev') }}"
-      # 기본 스키마 = seoul_citydata (인구 포함 전 모델·seed 통합, #87). 개인 샌드박스는
-      # SEOUL_CITYDATA_SCHEMA 하나로 격리(예: dev_<id>) — 모델(명시)·seed(기본) 모두 이 값.
-      schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'seoul_citydata') }}"
+      # 기본 스키마 = citydata (dev·prod 통일, 도메인명 정렬 #60). 과거 dev 는 seoul_citydata
+      # (#69/#87)였으나 prod 규약으로 통일. 개인 샌드박스는 SEOUL_CITYDATA_SCHEMA(예: dev_<id>)로 격리.
+      schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'citydata') }}"
       http_scheme: "{{ env_var('TRINO_HTTP_SCHEME', 'http') }}"
       threads: 2
       timeout_seconds: 300
