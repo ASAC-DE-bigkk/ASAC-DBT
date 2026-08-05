@@ -34,13 +34,7 @@ models:
           freshness_slo_minutes: 240
           shape: wide
           source_evidence:
-            - source_id: kma_vilage_fcst
-              source_url: https://www.data.go.kr/data/15084084/openapi.do
-              license: 공공누리 제1유형(출처표시)
-              license_url: https://www.kogl.or.kr/info/licenseType1.do
-              redistribution: allowed_with_attribution
-              attribution: 기상청
-              rights_checked_at: "2026-08-06"
+            - {source_id: kma_vilage_fcst, source_url: https://www.data.go.kr/data/15084084/openapi.do, license: "공공누리 제1유형(출처표시)", license_url: https://www.kogl.or.kr/info/licenseType1.do, redistribution: allowed_with_attribution, attribution: 기상청, rights_checked_at: "2026-08-06"}
           public_projection:
             schema_version: "1.0.0"
             columns: [
