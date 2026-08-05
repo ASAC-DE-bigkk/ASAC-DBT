@@ -141,11 +141,11 @@ def _check_structural(model: ServingModel, schema: dict[str, Any]) -> list[Findi
         if key in model.meta:
             add("legacy_double_declaration", f"구 메타 'meta.{key}' 와 신규 'meta.serving' 이중 선언")
 
-    # v1.1 conditional requirement: declaring `if_present` obligates `then_required`.
+    # Conditional requirement: declaring `if_present` obligates `then_required`.
     for rule in schema.get("conditional_required", []):
         trigger, needed = rule.get("if_present"), rule.get("then_required")
         if trigger and needed and trigger in serving and needed not in serving:
-            add("conditional_required_missing", f"'{trigger}' 선언 제품은 '{needed}' 필수 (v1.1)")
+            add("conditional_required_missing", f"'{trigger}' 선언 제품은 '{needed}' 필수")
 
     # v1.3 (#600/#638): usage_patterns 항목 검증 — 스펙 밖 필드·requires 오타가 통과되지 않게.
     findings.extend(_check_usage_patterns(model, schema))
@@ -397,6 +397,7 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
 
     # primary_key 컬럼 실존 + not_null·고유성 근거.
     _check_primary_key(model, manifest, add)
+    _check_freshness_field(model, manifest, add)
     _check_public_projection(model, manifest, add)
 
     # manifest 멤버십.
@@ -404,6 +405,21 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
         add("model_not_in_manifest", "계약에 선언됐으나 dbt manifest 에 없는 모델")
 
     return findings
+
+
+def _check_freshness_field(model: ServingModel, manifest: ManifestView, add) -> None:
+    """An explicit quality-time axis must be a real model column."""
+    field = model.serving.get("freshness_field")
+    if field is None:
+        return
+    if not isinstance(field, str) or not IDENTIFIER_RE.fullmatch(field):
+        add("freshness_field_invalid", "freshness_field 는 물리 컬럼 식별자여야 한다")
+        return
+    if field not in model.columns:
+        add("freshness_field_not_a_column", f"freshness_field '{field}' 이 YAML columns 계약에 없다")
+        return
+    if manifest.supplied and manifest.has_model(model.name) and field not in manifest.columns(model.name):
+        add("freshness_field_not_a_column", f"freshness_field '{field}' 이 dbt manifest 컬럼에 없다")
 
 
 def _check_primary_key(model: ServingModel, manifest: ManifestView, add) -> None:
@@ -487,6 +503,8 @@ def _check_public_projection(model: ServingModel, manifest: ManifestView, add) -
     required_columns = list(public_primary_key or model.serving.get("primary_key") or [])
     if isinstance(model.serving.get("event_time"), str):
         required_columns.append(model.serving["event_time"])
+    if isinstance(model.serving.get("freshness_field"), str):
+        required_columns.append(model.serving["freshness_field"])
     reliability = model.serving.get("reliability")
     if isinstance(reliability, dict) and isinstance(reliability.get("sample_count_field"), str):
         required_columns.append(reliability["sample_count_field"])

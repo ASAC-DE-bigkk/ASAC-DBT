@@ -55,6 +55,7 @@ def _serving_model(
         or {
             "product_row_id": ("not_null", "unique"),
             "event_at": (),
+            "collected_at": (),
             "sample_count": (),
             "public_value": (),
         },
@@ -221,6 +222,55 @@ def test_public_projection_requires_primary_event_and_reliability_columns():
     result = validate([model])
 
     assert "public_projection_required_field_missing" in _rules(result.findings)
+
+
+def test_public_projection_requires_explicit_freshness_field():
+    model = _serving_model(
+        serving_overrides={
+            "event_time": "event_at",
+            "freshness_field": "collected_at",
+            "freshness_slo_minutes": 60,
+            "public_projection": {
+                "schema_version": "1.0.0",
+                "columns": ["product_row_id", "event_at"],
+            },
+        }
+    )
+
+    result = validate([model])
+
+    assert any(
+        finding.rule == "public_projection_required_field_missing"
+        and "collected_at" in finding.message
+        for finding in result.findings
+    )
+
+
+def test_freshness_field_must_be_a_model_column():
+    model = _serving_model(
+        serving_overrides={
+            "freshness_field": "missing_collected_at",
+            "freshness_slo_minutes": 60,
+        }
+    )
+
+    result = validate([model])
+
+    assert "freshness_field_not_a_column" in _rules(result.findings)
+
+
+def test_freshness_field_requires_freshness_slo():
+    model = _serving_model(
+        serving_overrides={"freshness_field": "collected_at"}
+    )
+
+    result = validate([model])
+
+    assert any(
+        finding.rule == "conditional_required_missing"
+        and "freshness_field" in finding.message
+        for finding in result.findings
+    )
 
 
 def test_public_projection_rejects_unknown_columns_with_or_without_manifest():

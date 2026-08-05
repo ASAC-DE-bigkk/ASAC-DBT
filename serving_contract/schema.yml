@@ -7,13 +7,15 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.8
+schema_version: v1.9
 supported_contract_versions: [v1]
 
-# v1.1 (#478 보강 결정): 조건부 필수 — `if_present` 필드를 선언한 모델은
-# `then_required` 필드도 선언해야 한다 (event_time 없는 명부성 제품은 면제).
+# 조건부 필수 — `if_present` 필드를 선언한 모델은 `then_required` 필드도 선언해야 한다.
+# v1.1 event_time 규칙에 v1.9 freshness_field 규칙을 추가했다.
 conditional_required:
   - if_present: event_time
+    then_required: freshness_slo_minutes
+  - if_present: freshness_field
     then_required: freshness_slo_minutes
 
 # meta.serving.* fields that MUST be present (non-empty) on every model declaring a
@@ -33,6 +35,7 @@ required:
 optional:
   contract_version:       {type: enum, allowed: [v1]}
   event_time:             {type: string}
+  freshness_field:        {type: string} # v1.9: event_time과 다른 실제 품질 신선도 축
   retention_or_horizon:   {type: string}
   partial_policy:         {type: object}
   freshness_slo_minutes:  {type: int, min: 1}
