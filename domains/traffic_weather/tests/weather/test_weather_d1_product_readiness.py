@@ -178,6 +178,15 @@ def test_forecast_change_projection_exposes_the_comparison_evidence() -> None:
     } <= set(serving["public_projection"]["columns"])
 
 
+def test_forecast_change_normalizes_utc_collection_time_to_contract_timezone() -> None:
+    sql = (
+        GOLD_DIR / "gold_weather_place_forecast_change_daily.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "asac_axes.utc_to_kst('forecast.collected_at')" in sql
+    assert "as collected_at_max" in sql
+
+
 def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() -> None:
     selectors = yaml.safe_load(SELECTORS_PATH.read_text(encoding="utf-8"))["selectors"]
     selector_names = {selector["name"] for selector in selectors}

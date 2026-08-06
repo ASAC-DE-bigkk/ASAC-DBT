@@ -33,7 +33,10 @@ issue_daily as (
               and forecast.fcst_value_raw is not null
               and forecast.fcst_value_raw <> '0'
         ) as first_precipitation_at,
-        max(cast(forecast.collected_at as timestamp(6))) as collected_at_max
+        -- Bronze `collected_at` is stored as a UTC-naive timestamp.  This
+        -- product contract exposes collection time in its canonical KST axis;
+        -- normalize before the freshness field is published to D1.
+        max(cast({{ asac_axes.utc_to_kst('forecast.collected_at') }} as timestamp(6))) as collected_at_max
     from {{ ref('silver_weather_forecast_by_admin_dong') }} as forecast
     cross join kst_today
     where cast(forecast.forecast_at as date) >= kst_today.today
