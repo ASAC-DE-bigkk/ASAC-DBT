@@ -114,7 +114,7 @@ models:
           serving_tier: d1_rollup
           d1_table: d1_flow_monthly
           # 152개 서울 열린데이터광장 LOCALDATA 원천은 OA별 URL을 보존한다.
-          source_evidence:
+          source_evidence: &commerce_localdata_sources
             - source_id: commerce_localdata_general_restaurant
               source_url: https://data.seoul.go.kr/dataList/OA-16094/S/1/datasetView.do
               license: 공공누리 제1유형(출처표시)
@@ -1764,6 +1764,9 @@ models:
                        ROUND(100.0*(opened - LAG(opened) OVER (ORDER BY y))/NULLIF(LAG(opened) OVER (ORDER BY y),0),1) AS yoy_pct
                 FROM y ORDER BY y
               requires: [select_columns, sort, aggregate, group_by, subquery, window, filter_range]
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_flow_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           contract_version: v1
           product_question: 개·폐업 흐름 추이(연)
@@ -1856,6 +1859,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_seasonality
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_seasonality   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "peak_months_top_n"
@@ -2280,6 +2286,9 @@ models:
                 FROM d1_churn_yearly WHERE y = :y AND gu_code <> 'UNK'
                 ORDER BY net_change ASC LIMIT :n
               requires: [select_columns, sort, filter_range]
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_churn_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           contract_version: v1
           product_question: 연별 교체율·신생비는?
@@ -2359,6 +2368,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_lifespan
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_lifespan   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "lifespan_ecr_worst_topn"
@@ -2596,6 +2608,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_cohort_survival
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_cohort_survival   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "survival_top_ranking"
@@ -2854,6 +2869,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_status_duration
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_status_duration   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "pause_longest_topn"
@@ -3136,6 +3154,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_status_transition
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_status_transition   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rank_transition_paths"
@@ -3318,6 +3339,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_dong_summary
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_dong_summary   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "dong-open-top"
@@ -3576,6 +3600,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_dong_category_matrix
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_dong_category_matrix   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "dong-category-profile"
@@ -3827,6 +3854,9 @@ models:
           serving_tier: d1_rollup
           d1_table: [d1_geo_grid_overview, d1_geo_grid_detail]
           d1_rollup: overview=(grid_lat,grid_lng,major) 집계 · detail=(grid_lat,grid_lng,major,category) 원 grain
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_geo_grid   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "hotspot-top-grids"
@@ -4292,6 +4322,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_gu_specialization
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_gu_specialization   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "gu_top_specialized"
@@ -4497,6 +4530,9 @@ models:
           serving_tier: d1_rollup
           d1_table: d1_age_band
           d1_rollup: (major,category,gu_code,age_band) SUM(active_cnt) — dataset 드롭
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_age_band   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rank_gu_new_share_top"
@@ -4802,6 +4838,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_area_profile
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_area_profile   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rank_top_avg_area_by_dataset"
@@ -5012,6 +5051,9 @@ models:
           # (contract.enforced 가 gold 실출력과 대조하므로). export 가 d1_catalog_columns 게시에 쓴다.
           d1_derived_columns:
             share: 같은 dataset 안에서 이 세부 업태(uptaenm)가 차지하는 활성 업소 비율(0~1). 분모는 그 dataset 의 active_cnt 합계이며, 합계가 0이면 NULL.
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_uptae_rollup   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "uptae_top_ranking"
@@ -5224,6 +5266,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_multi_site
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_multi_site   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "top_multi_site_ratio"
@@ -5459,6 +5504,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_change_activity
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_change_activity   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rename-ratio-top"
@@ -5717,6 +5765,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_address_succession
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_address_succession   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "top-succession-pairs"
@@ -5990,6 +6041,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_phone_succession
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_phone_succession   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "top-succession-pairs"
@@ -6237,6 +6291,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_data_quality
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_data_quality   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "worst_phone_rate_topn"
@@ -6492,6 +6549,9 @@ models:
           external: true              # 공개 /catalog·외부 API 노출
           serving_tier: d1_direct
           d1_table: d1_env_facility_operation
+          # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
+          # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
+          source_evidence: *commerce_localdata_sources
           product_id: commerce_env_facility_operation   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "air-operating-days-top-gu"
