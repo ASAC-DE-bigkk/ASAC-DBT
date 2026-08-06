@@ -20,6 +20,9 @@ models:
           grain: "행정동×날짜마다 한 행"
           primary_key: [admin_dong_code, event_date]
           event_time: event_date
+          # 신선도 축은 event_time 과 다르다(#707) — 계약 v1.9 freshness_field.
+          # event_date/event_start_date 는 미래로 뻗는 달력이라 신선도가 될 수 없다.
+          freshness_field: source_collected_at
           freshness_slo_minutes: 1800
           publication_mode: snapshot
           zero_policy: retain_last_good
@@ -76,8 +79,8 @@ models:
             expected_distinct_count: 426
             minimum_ratio: 1.0
           public_projection:
-            schema_version: "1.0.0"
-            columns: [admin_dong_code, admin_dong, gu_code, gu, stat_region_cd, event_date, activities_count, performances_count, events_count, kopis_festivals_count, exhibitions_count, sejong_count, kcisa_count, free_events_count, edu_experience_events_count, festival_events_count]
+            schema_version: "1.1.0"
+            columns: [admin_dong_code, admin_dong, gu_code, gu, stat_region_cd, event_date, activities_count, performances_count, events_count, kopis_festivals_count, exhibitions_count, sejong_count, kcisa_count, free_events_count, edu_experience_events_count, festival_events_count, source_collected_at]
           # usage_patterns — ASAC-DAG#638 v1 규격. requires 는 고정 어휘 11개에서, basic
           # 프로파일(등호 필터·시간축 from/to·limit·전체 컬럼) 위의 추가분만 적는다.
           # sql 은 참조 구현(D1/SQLite 방언)이다 — 클라이언트가 보내 실행하는 값이 아니다.
@@ -210,6 +213,17 @@ models:
         description: 그날 그 동의 축제 분류 행사 수 — 서울시 문화행사의 축제 6분류(문화/예술·기타·전통/역사·자연/경관·시민화합·관광/체육)를 합친 것으로 events_count 의 부분집합. KOPIS 축제(kopis_festivals_count)와 다른 출처다
         data_type: bigint
         config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable; 서울시 축제 행사 없음은 0, unit: count}}
+      - name: source_collected_at
+        description: 이 행정동·날짜 집계에 쓰인 원천이 마지막으로 수집된 시각(KST). **서빙 신선도 축**(#707) — 활동이 없는 스캐폴드 칸은 NULL 이고 그게 정직하다(원천이 없다). event_date 는 미래 1년까지 뻗는 달력이라 신선도가 될 수 없다(실측 max 2027-05-30)
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: 그 칸에 활동이 없어 원천 자체가 없습니다. 스캐폴드가 0-fill 한 칸이며, Publisher 는 NULL 이 아닌 값들의 max 를 신선도로 씁니다.
+            time_role: latest_collection
+            timezone: Asia/Seoul
+            unit: not_applicable
 
   - name: gold_culture_booking_curve
     description: "공연별 예매상황판 순위 궤적 요약(그레인 performance_id, 1공연 1행, #269). KOPIS는 순위(rank)만 제공 — 예매율·판매좌석·매진 데이터 없어 '순위 궤적'으로 실현. boxoffice_daily(스냅샷별)와 그레인 다름."
@@ -509,6 +523,9 @@ models:
           grain: "구×날짜마다 한 행"
           primary_key: [gu_code, event_date]
           event_time: event_date
+          # 신선도 축은 event_time 과 다르다(#707) — 계약 v1.9 freshness_field.
+          # event_date/event_start_date 는 미래로 뻗는 달력이라 신선도가 될 수 없다.
+          freshness_field: source_collected_at
           freshness_slo_minutes: 1800
           publication_mode: snapshot
           zero_policy: retain_last_good
@@ -648,6 +665,9 @@ models:
       - name: concentration
         description: 경쟁 집중도(busiest_type_count / total_events, 0~1) — 1=한 유형 독점, 낮을수록 다양
         data_type: double
+      - name: source_collected_at
+        description: 이 자치구·날짜 집계에 쓰인 원천이 마지막으로 수집된 시각(KST). **서빙 신선도 축**(#707) — event_date 는 미래 1년까지 뻗는 달력이라 신선도가 될 수 없다
+        data_type: timestamp(6)
 
   - name: gold_culture_event_crowd
     description: '문화 행사 자치구의 요일×시간대별 평시 혼잡 베이스라인(그레인 gu_code×day_of_week×hour_of_day, #276·v2 #282). citydata gold를 크로스도메인 source로 읽어 event_schedule 있는 gu로 스코프. "그 행사 지역 무슨 요일 몇 시가 붐비나/한적한가". ⚠~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님.'
@@ -821,6 +841,9 @@ models:
           grain: "행사(event_ref)마다 한 행"
           primary_key: [event_ref]
           event_time: event_start_date
+          # 신선도 축은 event_time 과 다르다(#707) — 계약 v1.9 freshness_field.
+          # event_date/event_start_date 는 미래로 뻗는 달력이라 신선도가 될 수 없다.
+          freshness_field: source_collected_at
           freshness_slo_minutes: 1800
           publication_mode: snapshot
           zero_policy: retain_last_good
@@ -1009,6 +1032,9 @@ models:
           - not_null
           - accepted_values:
               arguments: {values: [dong_precise, gu_only, unmatched]}
+      - name: source_collected_at
+        description: 이 행사 정보를 원천에서 수집한 시각(KST). **서빙 신선도 축**(#707) — event_start_date 는 미래 일정이라 신선도가 될 수 없다(실측 max 2026-12-29)
+        data_type: timestamp(6)
 
   - name: gold_culture_location_daily
     description: 자치구(gu_code) × 일자 문화활동 집계(기간 겹침 전개). activity_by_dong 의 구 단위 판 + 정밀도 지표.
