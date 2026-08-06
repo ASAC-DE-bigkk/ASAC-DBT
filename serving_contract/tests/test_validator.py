@@ -679,3 +679,61 @@ def test_projection_identity_hash_preserves_order_and_ignores_descriptions():
             },
         },
     )
+
+
+# ── display (v1.10 · #706) ────────────────────────────────────────────────────
+# 세 도메인이 계약 밖에서 이미 쓰던 네 키를 승격한 것이라, 검증의 목적은 "새 규칙을
+# 강제한다"가 아니라 **오타와 화면이 못 쓰는 값을 막는다**이다.
+
+def test_display_absent_is_valid():
+    """미선언이 정상이다 — optional 이고, 선언 시점에 절반만 쓰고 있었다."""
+    result = validate([_serving_model()])
+
+    assert not [f for f in result.findings if f.rule.startswith("display_")]
+
+
+def test_display_minimal_declaration_passes():
+    model = _serving_model(serving_overrides={
+        "display": {"title": "행정동별 문화 활동", "summary": "하루 단위 집계입니다."},
+    })
+
+    result = validate([model])
+
+    assert not [f for f in result.findings if f.rule.startswith("display_")]
+
+
+def test_display_full_declaration_passes():
+    model = _serving_model(serving_overrides={
+        "display": {
+            "title": "행정동별 문화 활동",
+            "summary": "하루 단위 집계입니다.",
+            "caveat": "좌표가 없는 활동은 빠집니다.",
+            "use_cases": ["생활권 문화 인프라 격차 분석", "동 단위 문화 히트맵"],
+        },
+    })
+
+    result = validate([model])
+
+    assert not [f for f in result.findings if f.rule.startswith("display_")]
+
+
+@pytest.mark.parametrize("display", [
+    {"summary": "제목이 없다"},                                  # required 누락
+    {"title": "제목", "summary": "   "},                         # 공백만
+    {"title": "제목", "summary": "요약", "titel": "오타"},        # 스펙 밖 필드
+    {"title": "가" * 41, "summary": "요약"},                     # 40자 초과
+    {"title": "제목", "summary": "요약", "use_cases": []},        # 빈 리스트
+    {"title": "제목", "summary": "요약", "use_cases": ["", "b"]},  # 빈 항목
+    {"title": "제목", "summary": "요약", "caveat": " "},          # 선언했는데 비었다
+])
+def test_display_rejects_malformed(display):
+    result = validate([_serving_model(serving_overrides={"display": display})])
+
+    rules = _rules(result.findings)
+    assert "display_invalid" in rules or "display_unknown_field" in rules
+
+
+def test_display_must_be_a_mapping():
+    result = validate([_serving_model(serving_overrides={"display": ["제목"]})])
+
+    assert "display_invalid" in _rules(result.findings)
