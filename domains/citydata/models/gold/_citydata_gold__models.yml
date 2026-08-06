@@ -168,14 +168,14 @@ models:
                 FROM gold_citydata_ppltn_daily
                 WHERE area_name = :area AND event_date BETWEEN :from AND :to
                 ORDER BY event_date
-        display:
-          title: 장소별 일 혼잡 요약
-          summary: 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
-          caveat: 하루 집계라 순간 피크는 max_population으로만 보입니다.
-          use_cases:
-            - 일별 방문 추세
-            - 요일·계절 비교
-            - 리포트 KPI
+          display:
+            title: 장소별 일 혼잡 요약
+            summary: 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
+            caveat: 하루 집계라 순간 피크는 max_population으로만 보입니다.
+            use_cases:
+              - 일별 방문 추세
+              - 요일·계절 비교
+              - 리포트 KPI
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       장소별 일 혼잡 요약 — 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
@@ -298,14 +298,14 @@ models:
                 FROM gold_citydata_ppltn_hourly
                 WHERE area_cd = :area_cd AND time_bucket BETWEEN :from AND :to
                 ORDER BY time_bucket
-        display:
-          title: 장소별 시간대 혼잡
-          summary: 장소마다 시간 단위로 인구·혼잡을 집계했습니다. 몇 시가 붐비고 한산한지 시간대별로 볼 수 있습니다.
-          caveat: 시간 단위 집계라 그 안의 분 단위 변동은 5분 시계열을 보세요.
-          use_cases:
-            - 시간대별 방문 계획
-            - 피크타임 분석
-            - 운영 인력 배치
+          display:
+            title: 장소별 시간대 혼잡
+            summary: 장소마다 시간 단위로 인구·혼잡을 집계했습니다. 몇 시가 붐비고 한산한지 시간대별로 볼 수 있습니다.
+            caveat: 시간 단위 집계라 그 안의 분 단위 변동은 5분 시계열을 보세요.
+            use_cases:
+              - 시간대별 방문 계획
+              - 피크타임 분석
+              - 운영 인력 배치
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       장소별 시간대 혼잡 — 장소마다 시간 단위로 인구·혼잡을 집계했습니다. 몇 시가 붐비고 한산한지 시간대별로 볼 수 있습니다.
@@ -430,14 +430,14 @@ models:
                 FROM gold_citydata_cmrcl_daily
                 WHERE gu = :gu AND event_date = :date
                 ORDER BY busy_ratio_percent DESC LIMIT :n
-        display:
-          title: 장소별 일 소비(상권)
-          summary: 장소마다 하루 결제 건수와 상권 활력을 집계했습니다. 붐빔 대비 얼마나 소비가 일어나는지 봅니다.
-          caveat: 신한카드 결제 집계라 현금·타카드는 제외이며, 개별 점포가 아닌 장소 단위입니다.
-          use_cases:
-            - 상권 활력 추세
-            - 붐빔 대비 소비 분석
-            - 입지 리포트
+          display:
+            title: 장소별 일 소비(상권)
+            summary: 장소마다 하루 결제 건수와 상권 활력을 집계했습니다. 붐빔 대비 얼마나 소비가 일어나는지 봅니다.
+            caveat: 신한카드 결제 집계라 현금·타카드는 제외이며, 개별 점포가 아닌 장소 단위입니다.
+            use_cases:
+              - 상권 활력 추세
+              - 붐빔 대비 소비 분석
+              - 입지 리포트
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       장소별 일 소비(상권) — 장소마다 하루 결제 건수와 상권 활력을 집계했습니다. 붐빔 대비 얼마나 소비가 일어나는지 봅니다.
@@ -567,14 +567,14 @@ models:
                 FROM gold_citydata_purchasing_power_daily
                 WHERE event_date = :date
                 ORDER BY spend_per_crowd_idx ASC LIMIT :n
-        display:
-          title: 장소별 구매력 지수
-          summary: 붐빔 대비 결제를 지수화해 어느 장소의 유동인구가 실제 소비로 잘 이어지는지 봅니다.
-          caveat: 상대 지수라 절대 금액이 아닙니다.
-          use_cases:
-            - 고구매력 상권 발굴
-            - 유동 대비 소비 효율
-            - 입점 우선순위
+          display:
+            title: 장소별 구매력 지수
+            summary: 붐빔 대비 결제를 지수화해 어느 장소의 유동인구가 실제 소비로 잘 이어지는지 봅니다.
+            caveat: 상대 지수라 절대 금액이 아닙니다.
+            use_cases:
+              - 고구매력 상권 발굴
+              - 유동 대비 소비 효율
+              - 입점 우선순위
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       장소별 구매력 지수 — 붐빔 대비 결제를 지수화해 어느 장소의 유동인구가 실제 소비로 잘 이어지는지 봅니다.
@@ -754,14 +754,14 @@ models:
                 FROM gold_citydata_ppltn_x_culture_daily
                 WHERE admin_dong_code = :dong_code AND event_date BETWEEN :from AND :to
                 ORDER BY event_date
-        display:
-          title: 동네 혼잡 × 문화활동
-          summary: 행정동·일 단위로 인구 혼잡과 문화행사·활동을 겹쳐 봤습니다. 행사와 유동의 관계를 봅니다.
-          caveat: 동시 노출 관점이라 인과관계는 아닙니다.
-          use_cases:
-            - 행사 주변 혼잡 예측
-            - 문화·유동 상관 분석
-            - 행사 입지 검토
+          display:
+            title: 동네 혼잡 × 문화활동
+            summary: 행정동·일 단위로 인구 혼잡과 문화행사·활동을 겹쳐 봤습니다. 행사와 유동의 관계를 봅니다.
+            caveat: 동시 노출 관점이라 인과관계는 아닙니다.
+            use_cases:
+              - 행사 주변 혼잡 예측
+              - 문화·유동 상관 분석
+              - 행사 입지 검토
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       동네 혼잡 × 문화활동 — 행정동·일 단위로 인구 혼잡과 문화행사·활동을 겹쳐 봤습니다. 행사와 유동의 관계를 봅니다.
@@ -879,14 +879,14 @@ models:
                 FROM gold_citydata_transit_x_incident_hourly
                 WHERE admin_dong_code = :dong_code AND time_bucket BETWEEN :from AND :to
                 ORDER BY time_bucket
-        display:
-          title: 동네 교통량 × 돌발
-          summary: 행정동·시간별 승하차 강도와 교통 돌발 상황을 함께 봅니다. 어디가 언제 막히는지 봅니다.
-          caveat: transit 도메인과 축이 겹칠 수 있어 소유 조율 대상입니다.
-          use_cases:
-            - 교통 혼잡 시간 회피
-            - 돌발 영향 분석
-            - 이동 계획
+          display:
+            title: 동네 교통량 × 돌발
+            summary: 행정동·시간별 승하차 강도와 교통 돌발 상황을 함께 봅니다. 어디가 언제 막히는지 봅니다.
+            caveat: transit 도메인과 축이 겹칠 수 있어 소유 조율 대상입니다.
+            use_cases:
+              - 교통 혼잡 시간 회피
+              - 돌발 영향 분석
+              - 이동 계획
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       동네 교통량 × 돌발 — 행정동·시간별 승하차 강도와 교통 돌발 상황을 함께 봅니다. 어디가 언제 막히는지 봅니다.
@@ -1001,14 +1001,14 @@ models:
                 FROM gold_citydata_ppltn_x_weather_hourly
                 WHERE time_bucket = :ts
                 ORDER BY ppltn_avg DESC LIMIT :n
-        display:
-          title: 동네 혼잡 × 날씨
-          summary: 행정동·시간별 인구 혼잡과 기상 예보를 겹쳐 봤습니다. 날씨가 붐빔에 어떻게 영향 주는지 봅니다.
-          caveat: KMA 단기예보(기온·강수)만 결합하며 대기질(미세먼지)은 별도입니다.
-          use_cases:
-            - 날씨별 방문 패턴
-            - 우천 시 혼잡 예측
-            - 야외 행사 리스크
+          display:
+            title: 동네 혼잡 × 날씨
+            summary: 행정동·시간별 인구 혼잡과 기상 예보를 겹쳐 봤습니다. 날씨가 붐빔에 어떻게 영향 주는지 봅니다.
+            caveat: KMA 단기예보(기온·강수)만 결합하며 대기질(미세먼지)은 별도입니다.
+            use_cases:
+              - 날씨별 방문 패턴
+              - 우천 시 혼잡 예측
+              - 야외 행사 리스크
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       동네 혼잡 × 날씨 — 행정동·시간별 인구 혼잡과 기상 예보를 겹쳐 봤습니다. 날씨가 붐빔에 어떻게 영향 주는지 봅니다.
@@ -1125,14 +1125,14 @@ models:
                 FROM gold_citydata_ppltn_demographics
                 WHERE area_nm = :area AND dow = :dow AND hour = :hour AND segment_type = 'gender'
                 ORDER BY avg_rate_pct DESC
-        display:
-          title: 방문객 인구통계 패턴
-          summary: 장소·요일·시간대별로 방문객의 성별·나이대 비율 패턴을 제공합니다. "20대는 언제 몰리나"에 답합니다.
-          caveat: 집계 패턴이라 개인정보가 아닙니다.
-          use_cases:
-            - 타깃 고객 분석
-            - 시간대별 마케팅
-            - 상권 인구 프로파일
+          display:
+            title: 방문객 인구통계 패턴
+            summary: 장소·요일·시간대별로 방문객의 성별·나이대 비율 패턴을 제공합니다. "20대는 언제 몰리나"에 답합니다.
+            caveat: 집계 패턴이라 개인정보가 아닙니다.
+            use_cases:
+              - 타깃 고객 분석
+              - 시간대별 마케팅
+              - 상권 인구 프로파일
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
       방문객 인구통계 패턴 — 장소·요일·시간대별로 방문객의 성별·나이대 비율 패턴을 제공합니다. "20대는 언제 몰리나"에 답합니다.
@@ -1255,14 +1255,14 @@ models:
                 FROM gold_citydata_ppltn_dow_hour
                 WHERE area_nm = :area AND dow = :dow
                 ORDER BY hr
-        display:
-          title: 요일·시간 혼잡 패턴
-          summary: 장소마다 무슨 요일 몇 시가 붐비고 한산한지 요일×시간으로 요약했습니다. 실검 수요가 가장 많은 축입니다.
-          caveat: 2주 데이터라 셀당 표본이 얇습니다(base_n·reliable 동봉). reliable=false 셀은 참고용입니다.
-          use_cases:
-            - 무슨 요일 붐벼 응답
-            - 요일별 방문 계획
-            - 한산한 요일·시간 추천
+          display:
+            title: 요일·시간 혼잡 패턴
+            summary: 장소마다 무슨 요일 몇 시가 붐비고 한산한지 요일×시간으로 요약했습니다. 실검 수요가 가장 많은 축입니다.
+            caveat: 2주 데이터라 셀당 표본이 얇습니다(base_n·reliable 동봉). reliable=false 셀은 참고용입니다.
+            use_cases:
+              - 무슨 요일 붐벼 응답
+              - 요일별 방문 계획
+              - 한산한 요일·시간 추천
       contract: {enforced: true}
     description: >
       요일·시간 혼잡 패턴 — 장소마다 무슨 요일 몇 시가 붐비고 한산한지 요일×시간으로 요약했습니다. 실검 수요가 가장 많은 축입니다.
@@ -1378,13 +1378,13 @@ models:
                 FROM gold_citydata_sbike_dow_hour
                 WHERE dow = :dow AND hr = :hr
                 ORDER BY avg_bikes_available DESC LIMIT :n
-        display:
-          title: 요일·시간 따릉이 가용 패턴
-          summary: 장소마다 무슨 요일 몇 시에 따릉이가 많고 적은지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
-          caveat: 초기 데이터라 셀당 표본이 얇습니다(base_n·reliable 동봉). reliable=false 셀은 참고용입니다.
-          use_cases:
-            - 따릉이 잘 잡히는 요일·시간
-            - 자전거 이동 계획
+          display:
+            title: 요일·시간 따릉이 가용 패턴
+            summary: 장소마다 무슨 요일 몇 시에 따릉이가 많고 적은지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
+            caveat: 초기 데이터라 셀당 표본이 얇습니다(base_n·reliable 동봉). reliable=false 셀은 참고용입니다.
+            use_cases:
+              - 따릉이 잘 잡히는 요일·시간
+              - 자전거 이동 계획
       contract: {enforced: true}
     description: >
       요일·시간 따릉이 가용 패턴 — 장소마다 무슨 요일 몇 시에 따릉이가 많고 적은지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
@@ -1499,13 +1499,13 @@ models:
                 FROM gold_citydata_air_daily
                 WHERE event_date = :date
                 ORDER BY avg_pm10 DESC LIMIT :n
-        display:
-          title: 일별 대기질 추이
-          summary: 장소마다 날짜별 평균 미세먼지(PM10/PM2.5)와 통합대기지수를 요약했습니다. 실시간 대신 며칠 추세를 봅니다.
-          caveat: 통합대기지수(air_idx_value)는 높을수록 나쁨입니다.
-          use_cases:
-            - 미세먼지 며칠 추이
-            - 요즘 대기질 좋아졌나 나빠졌나
+          display:
+            title: 일별 대기질 추이
+            summary: 장소마다 날짜별 평균 미세먼지(PM10/PM2.5)와 통합대기지수를 요약했습니다. 실시간 대신 며칠 추세를 봅니다.
+            caveat: 통합대기지수(air_idx_value)는 높을수록 나쁨입니다.
+            use_cases:
+              - 미세먼지 며칠 추이
+              - 요즘 대기질 좋아졌나 나빠졌나
       contract: {enforced: true}
     description: >
       일별 대기질 추이 — 장소마다 날짜별 평균 미세먼지(PM10/PM2.5)와 통합대기지수를 요약했습니다. 실시간 대신 며칠 추세를 봅니다.
@@ -1618,13 +1618,13 @@ models:
                 FROM gold_citydata_charger_dow_hour
                 WHERE area_nm = :area AND reliable = true
                 ORDER BY avg_available_pct DESC LIMIT :n
-        display:
-          title: 요일·시간 충전소 가용 패턴
-          summary: 장소마다 무슨 요일 몇 시에 EV 충전소가 잘 비는지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
-          caveat: 상태변경 로그를 시간 as-of 리샘플링해 산출한 평균입니다. base_n·reliable 동봉 — reliable=false 셀은 참고용.
-          use_cases:
-            - 충전 잘 되는 요일·시간
-            - EV 충전 계획
+          display:
+            title: 요일·시간 충전소 가용 패턴
+            summary: 장소마다 무슨 요일 몇 시에 EV 충전소가 잘 비는지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
+            caveat: 상태변경 로그를 시간 as-of 리샘플링해 산출한 평균입니다. base_n·reliable 동봉 — reliable=false 셀은 참고용.
+            use_cases:
+              - 충전 잘 되는 요일·시간
+              - EV 충전 계획
       contract: {enforced: true}
     description: >
       요일·시간 충전소 가용 패턴 — 장소마다 무슨 요일 몇 시에 EV 충전소가 잘 비는지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
