@@ -151,7 +151,58 @@ def _check_structural(model: ServingModel, schema: dict[str, Any]) -> list[Findi
     findings.extend(_check_usage_patterns(model, schema))
     findings.extend(_check_source_evidence(model, schema))
     findings.extend(_check_quality_coverage(model, schema))
+    findings.extend(_check_display(model, schema))
 
+    return findings
+
+
+def _check_display(model: ServingModel, schema: dict[str, Any]) -> list[Finding]:
+    """display(optional, v1.10 · #706) — 사람이 읽는 표시 메타.
+
+    형(object)은 optional 루프가 보고 여기는 내용을 본다. 다른 중첩 스펙과 같은 규약이다:
+    스펙 밖 필드는 오타로 보고 잡되, **미선언은 통과**시킨다(선언한 절반만 검증 대상).
+    """
+    findings: list[Finding] = []
+    display = model.serving.get("display")
+    spec = schema.get("display_fields") or {}
+    if display is None:
+        return findings
+
+    def add(rule: str, message: str) -> None:
+        findings.append(Finding(rule, model.name, message, model.source))
+
+    if not isinstance(display, dict):
+        add("display_invalid", f"display 는 매핑이어야 하는데 {type(display).__name__}")
+        return findings
+
+    required = list(spec.get("required") or ())
+    optional = list(spec.get("optional") or ())
+    for field in sorted(set(display) - set(required) - set(optional)):
+        add("display_unknown_field", f"display — 스펙 밖 필드 {field!r} (오타 확인)")
+
+    for field in required:
+        value = display.get(field)
+        if not isinstance(value, str) or not value.strip():
+            add("display_invalid", f"display.{field} — 필수이며 비어 있지 않은 문자열이어야 한다")
+
+    caveat = display.get("caveat")
+    if caveat is not None and (not isinstance(caveat, str) or not caveat.strip()):
+        add("display_invalid", "display.caveat — 선언했으면 비어 있지 않아야 한다")
+
+    # title 은 표·카드 제목 자리라 길면 화면이 자른다. 잘린 제목은 뜻이 바뀌므로 계약에서 막는다.
+    title = display.get("title")
+    max_len = spec.get("title_max_len")
+    if isinstance(title, str) and isinstance(max_len, int) and len(title) > max_len:
+        add("display_invalid", f"display.title — {max_len}자 이하여야 한다 (현재 {len(title)}자)")
+
+    use_cases = display.get("use_cases")
+    if use_cases is not None:
+        if not isinstance(use_cases, list) or not use_cases:
+            add("display_invalid", "display.use_cases — 선언했으면 비어 있지 않은 리스트여야 한다")
+        else:
+            for index, entry in enumerate(use_cases):
+                if not isinstance(entry, str) or not entry.strip():
+                    add("display_invalid", f"display.use_cases[{index}] — 비어 있지 않은 문자열이어야 한다")
     return findings
 
 

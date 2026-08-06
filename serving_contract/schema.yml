@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.9
+schema_version: v1.10
 supported_contract_versions: [v1]
 
 # 조건부 필수 — `if_present` 필드를 선언한 모델은 `then_required` 필드도 선언해야 한다.
@@ -40,6 +40,13 @@ optional:
   partial_policy:         {type: object}
   freshness_slo_minutes:  {type: int, min: 1}
   shape:                  {type: enum, allowed: [wide, rollup, event]}
+  # v1.10 (#706): 사람이 읽는 표시 메타. 화면(마켓플레이스 카탈로그·콘솔)이 제품을 뭐라
+  # 부르고 어떻게 소개할지의 정본이다. `description` 은 기계·API 소비자용 기술 서술이라
+  # 청중이 다르다 — 실측하면 "gold_citydata_ppltn_hourly — 장소별 시간 혼잡 인사이트…"
+  # 처럼 테이블명이 앞장서서 화면에 못 쓴다.
+  # optional 인 이유: 선언 시점에 23/54 제품만 쓰고 있었다. 필수로 하면 미선언 도메인이
+  # 즉시 게시 실패한다. 없으면 화면이 지금처럼 product_id 로 내려앉는다.
+  display:                {type: object}
   reliability:            {type: object}
   # v1.7: incremental 추가 — reader 가 event_time(워터마크) 이후 바뀐 그레인만 읽어
   # partial INSERT OR REPLACE(그 PK 만 갱신, 나머지 D1 행 보존). 전체-테이블 parity 면제.
@@ -117,3 +124,10 @@ quality_coverage_fields:
   measured_optional: [measurement_scope]
   measurement_scope_allowed: [published_rows, source_relation]
   not_applicable_required: [not_applicable_reason]
+
+# v1.10 (#706): display 하위 필드. 세 도메인(citydata·culture·transit)이 계약 밖에서
+# 이미 같은 네 키로 수렴해 있던 것을 그대로 승격했다 — 새 설계가 아니다.
+display_fields:
+  required: [title, summary]
+  optional: [caveat, use_cases]
+  title_max_len: 40      # 표·카드 제목 자리. 넘으면 화면이 자른다
