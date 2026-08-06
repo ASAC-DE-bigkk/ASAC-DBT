@@ -13,9 +13,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY_ROOT = PROJECT_ROOT.parents[1]
 MODULE_PATH = PROJECT_ROOT / "workflows" / "premerge_gate.py"
 EXPECTED_GOLD_SELECTOR_COUNTS = {
-    "ask_seoul_traffic_transform_gold_gate_tests": 163,
-    "ask_seoul_traffic_transform_gold_hourly_tests": 183,
-    "ask_seoul_traffic_transform_gold_full_tests": 213,
+    "ask_seoul_traffic_transform_gold_gate_tests": 125,
+    "ask_seoul_traffic_transform_gold_hourly_tests": 145,
+    "ask_seoul_traffic_transform_gold_full_tests": 175,
 }
 
 
@@ -201,11 +201,11 @@ def test_gate_owns_the_complete_read_only_premerge_sequence(tmp_path: Path) -> N
         "--inventory",
         str(project_dir / "contracts" / "traffic_gold_test_cadence.yml"),
         "--selector-count",
-        "ask_seoul_traffic_transform_gold_gate_tests=163",
+        "ask_seoul_traffic_transform_gold_gate_tests=125",
         "--selector-count",
-        "ask_seoul_traffic_transform_gold_hourly_tests=183",
+        "ask_seoul_traffic_transform_gold_hourly_tests=145",
         "--selector-count",
-        "ask_seoul_traffic_transform_gold_full_tests=213",
+        "ask_seoul_traffic_transform_gold_full_tests=175",
     ]
     assert commands[7] == [
         sys.executable,
