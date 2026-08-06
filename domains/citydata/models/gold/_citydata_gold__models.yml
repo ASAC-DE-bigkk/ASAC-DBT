@@ -24,12 +24,7 @@ models:
           arguments:
             columns: [event_at, area_cd]
     description: >
-      gold_citydata_ppltn_by_time — 5분 스냅샷 단위 장소 인구혼잡도 시계열 원장.
-      silver 소비, avg_ppltn(최소·최대 평균) 파생, 좌표·행정구역(행안부 코드)·시간축은
-      #48 공통축 보강. 해결 질문: "어제 15시 전후 홍대 인구가 어떻게 변했나",
-      "특정 기간 5분 단위 원자료 추출". grain (event_at, area_cd) · 갱신 fast ·
-      적재 table+replace(통째 재빌드). ⚠ 연 1,270만 행급 대용량 — API 직접 서빙 보류,
-      기간 조회는 일별(ppltn_daily)·시간별 롤업(예정) 골드 사용.
+      장소 혼잡 5분 시계열 — 서울 주요 장소의 인구 혼잡을 5분 단위로 쌓은 원자료입니다. 서울시는 실시간만 제공하지만 우리가 누적 보관해 과거 특정 시점의 혼잡을 재구성할 수 있습니다.
     columns:
       - name: event_at
         data_type: timestamp(6)
@@ -183,11 +178,7 @@ models:
             - 리포트 KPI
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
-      gold_citydata_ppltn_daily — 장소별 하루 혼잡 인사이트. 일 평균/최대/최소 인구,
-      피크 시각·피크 혼잡도, 붐빔 비율, 측정 완결성(슬라이스 수). 해결 질문:
-      "지난주 성수동은 언제 제일 붐볐나", "최근 한 달 일평균 인구 추이",
-      "기간을 지정해 과거 혼잡 이력 비교". grain (event_date, area_code) ·
-      갱신 slow(일) · 적재 table+replace(통째 재빌드).
+      장소별 일 혼잡 요약 — 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
     columns:
       - name: event_date
         data_type: date
@@ -317,12 +308,7 @@ models:
             - 운영 인력 배치
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
-      gold_citydata_ppltn_hourly — 장소별 시간 혼잡 인사이트. 시간 평균/최대/최소 인구,
-      피크 5분 시각·혼잡도, 붐빔 비율, 측정 완결성(최대 12슬라이스). daily(일)와 by_time(5분)
-      사이의 시간 해상도 — "지난 일주일 시간별" 서빙 조회를 채운다. 해결 질문:
-      "어제 오후 몇 시에 제일 붐볐나", "지난주 홍대 시간대별 붐빔 추이".
-      grain (time_bucket, area_cd) · 갱신 slow(시간 롤업) · 적재 table+replace(통째 재빌드) ·
-      D1 서빙은 시간버킷 append.
+      장소별 시간대 혼잡 — 장소마다 시간 단위로 인구·혼잡을 집계했습니다. 몇 시가 붐비고 한산한지 시간대별로 볼 수 있습니다.
     columns:
       - name: time_bucket
         data_type: timestamp(6)
@@ -454,10 +440,7 @@ models:
             - 입지 리포트
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
-      gold_citydata_cmrcl_daily — 장소별 일 소비(상권) 인사이트. 결제 건수 합/평균,
-      최대 결제금액, 결제 피크 시각·피크 활성 수준, 바쁨 비율, 측정 완결성. 해결 질문:
-      "이번 주 소비가 제일 활발했던 장소는", "특정 장소의 일별 결제 추이".
-      grain (event_date, area_cd) · 갱신 slow(일) · 적재 table+replace(통째 재빌드).
+      장소별 일 소비(상권) — 장소마다 하루 결제 건수와 상권 활력을 집계했습니다. 붐빔 대비 얼마나 소비가 일어나는지 봅니다.
     columns:
       - name: event_date
         data_type: date
@@ -594,12 +577,7 @@ models:
             - 입점 우선순위
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
-      gold_citydata_purchasing_power_daily — 장소별 일 구매력·붐빔대비구매 지수.
-      유동인구(ppltn)와 결제(cmrcl)를 일집계 조인해 buy/spend_per_crowd_idx 와
-      rank(전체·자치구내) 산출. 해결 질문: "사람은 많은데 소비는 약한 곳은",
-      "구매력 상위 상권 랭킹", "기간별 구매력 변화". grain (event_date, area_cd) ·
-      갱신 slow(일) · 적재 table+replace(통째 재빌드).
-      ⚠ 유동인구는 동시 체류 추정 — 지수는 장소 간 상대 비교용.
+      장소별 구매력 지수 — 붐빔 대비 결제를 지수화해 어느 장소의 유동인구가 실제 소비로 잘 이어지는지 봅니다.
     columns:
       - name: event_date
         data_type: date
@@ -786,11 +764,7 @@ models:
             - 행사 입지 검토
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
-      gold_citydata_ppltn_x_culture_daily — 행정동×일 인구혼잡 × 문화활동 6종
-      (행사·축제·공연·전시·세종·KCISA, 크로스도메인 culture source). 동별 일 붐빔과
-      그날 활성 문화활동 수·유형 결합. 해결 질문: "행사 있는 날 그 동네가 얼마나 더 붐비나",
-      "이번 주말 축제 열리는 동네는". grain (event_date, admin_dong_code) ·
-      갱신 slow(일) · 적재 table+replace(통째 재빌드). ⚠ 커버리지 = 핫플 장소가 속한 동 한정.
+      동네 혼잡 × 문화활동 — 행정동·일 단위로 인구 혼잡과 문화행사·활동을 겹쳐 봤습니다. 행사와 유동의 관계를 봅니다.
     columns:
       - name: event_date
         data_type: date
@@ -915,11 +889,7 @@ models:
             - 이동 계획
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
-      gold_citydata_transit_x_incident_hourly — 행정동×시간 승하차 강도 × 교통돌발
-      (크로스도메인 traffic source). 5분창 승하차 중앙값의 시간내 평균(대표 강도)과
-      그 시간 활성 돌발 수·유형(사고·공사 등) 결합. 해결 질문: "사고 났을 때 승하차가
-      얼마나 줄었나", "돌발이 몰리는 시간대·동네는". grain (time_bucket=시, admin_dong_code) ·
-      갱신 fast · 적재 table+replace(통째 재빌드).
+      동네 교통량 × 돌발 — 행정동·시간별 승하차 강도와 교통 돌발 상황을 함께 봅니다. 어디가 언제 막히는지 봅니다.
     columns:
       - name: time_bucket
         data_type: timestamp(6)
@@ -1041,11 +1011,7 @@ models:
             - 야외 행사 리스크
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
-      gold_citydata_ppltn_x_weather_hourly — 행정동×시간 인구혼잡 × 기상청 단기예보
-      (기온·강수확률·습도·풍속·하늘상태, 크로스도메인 weather source, 최신 발표분 피벗).
-      해결 질문: "비 오면 홍대가 덜 붐비나", "날씨 조건별 혼잡 패턴 분석".
-      grain (time_bucket=시, admin_dong_code) · 갱신 fast · 적재 table+replace(통째 재빌드).
-      ⚠ 날씨는 예보값(관측 아님).
+      동네 혼잡 × 날씨 — 행정동·시간별 인구 혼잡과 기상 예보를 겹쳐 봤습니다. 날씨가 붐빔에 어떻게 영향 주는지 봅니다.
     columns:
       - name: time_bucket
         data_type: timestamp(6)
@@ -1169,14 +1135,7 @@ models:
             - 상권 인구 프로파일
       contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
     description: >
-      gold_citydata_ppltn_demographics — 장소×요일×시간대 인구 성별·나이대 세그먼트 패턴.
-      silver_ppltn 의 wide 비율을 long 으로 언피벗해 요일×시간대 평균 집계
-      (avg_rate_pct·avg_est_headcount). 해결 질문: "토요일 14시 20대가 많은 지역은",
-      "이 장소 주중 저녁의 주 연령대는" — segment 필터 + avg_est_headcount 정렬.
-      grain (area_cd, dow, hour, segment_type, segment) · 갱신 slow · 골드 table+replace(통째 재빌드).
-      D1 서빙은 incremental upsert — last_event_at 워터마크로 바뀐 버킷만 그 PK 만 갱신(쓰기 절약).
-      ⚠ 성별×나이대 교차는 원본에 없어 미포함 — age headcount × gender rate 근사(독립가정) ·
-      avg_est_headcount 는 인구범위 중간값 기반 추정치.
+      방문객 인구통계 패턴 — 장소·요일·시간대별로 방문객의 성별·나이대 비율 패턴을 제공합니다. "20대는 언제 몰리나"에 답합니다.
     columns:
       - name: area_cd
         data_type: varchar
@@ -1306,11 +1265,7 @@ models:
             - 한산한 요일·시간 추천
       contract: {enforced: true}
     description: >
-      gold_citydata_ppltn_dow_hour — 장소×요일×시간 인구혼잡 롤업. by_time 파생.
-      해결 질문: "화요일 저녁 강남 붐빔?", "성수동 제일 한산한 요일·시간?".
-      forecast(주말/평일 2분할)의 요일 세분화판. grain (area_cd, dow, hr) · 갱신 패턴 ·
-      적재 table+replace. ⚠ 2.7주 데이터라 셀당 표본 얇음(median~22) — base_n·reliable 동봉,
-      소비측이 표본 적은 셀을 "참고용"으로 캐비앳. 누적되면 신뢰도 상승(base_n 제거 가능).
+      요일·시간 혼잡 패턴 — 장소마다 무슨 요일 몇 시가 붐비고 한산한지 요일×시간으로 요약했습니다. 실검 수요가 가장 많은 축입니다.
     columns:
       - name: area_cd
         data_type: varchar
@@ -1432,10 +1387,7 @@ models:
             - 자전거 이동 계획
       contract: {enforced: true}
     description: >
-      gold_citydata_sbike_dow_hour — 장소×요일×시간 따릉이 가용 롤업. silver_citydata_sbike 파생.
-      수집 시점마다 영역 내 대여소를 합산(영역 총 가용/거치대) 후 요일×시간 평균.
-      실시간 "지금 몇 대"(구 sbike_availability, PlayMCP 커버) 대신 요일×시간 전형 패턴.
-      grain (area_cd, dow, hr) · table+replace. ⚠ 초기 표본 얇음 — base_n·reliable 동봉.
+      요일·시간 따릉이 가용 패턴 — 장소마다 무슨 요일 몇 시에 따릉이가 많고 적은지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
     columns:
       - name: area_cd
         data_type: varchar
@@ -1556,9 +1508,7 @@ models:
             - 요즘 대기질 좋아졌나 나빠졌나
       contract: {enforced: true}
     description: >
-      gold_citydata_air_daily — 장소×일자 대기질 집계. silver_citydata_air 파생(air 는 by_time 없음).
-      일 평균 PM10/PM2.5·통합대기지수 + 일 최대. 실시간 대기질(PlayMCP 커버) 대신 일별 시계열 추이.
-      대기질은 날씨·계절이 좌우 → 요일×시간 평균보다 일별 실측이 의미. grain (area_cd, event_date) · append.
+      일별 대기질 추이 — 장소마다 날짜별 평균 미세먼지(PM10/PM2.5)와 통합대기지수를 요약했습니다. 실시간 대신 며칠 추세를 봅니다.
     columns:
       - name: area_cd
         data_type: varchar
@@ -1677,10 +1627,7 @@ models:
             - EV 충전 계획
       contract: {enforced: true}
     description: >
-      gold_citydata_charger_dow_hour — 장소×요일×시간 EV 충전소 가용 롤업. silver_citydata_charger
-      파생. 실시간 "지금 쓸 수 있나"(구 charger_availability, PlayMCP 커버·ASAC-DBT#401 제거) 대신
-      요일×시간 전형 패턴. ⚠ silver 가 상태변경 로그라 naive 평균은 편향 → 최근 3주 시간 as-of
-      리샘플링(각 시각 충전기 상태를 구간으로 판정)으로 평균. grain (area_cd, dow, hr) · table+replace.
+      요일·시간 충전소 가용 패턴 — 장소마다 무슨 요일 몇 시에 EV 충전소가 잘 비는지 요일×시간으로 요약했습니다. 실시간이 아니라 전형 패턴입니다.
     columns:
       - name: area_cd
         data_type: varchar
