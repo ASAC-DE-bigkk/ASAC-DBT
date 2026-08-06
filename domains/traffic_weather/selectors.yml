@@ -159,72 +159,6 @@ selectors:
         - exclude:
             - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
 
-  - name: ask_seoul_traffic_transform_commerce_gold_scope
-    description: Commerce source에 결합된 Traffic Gold leaf model과 직결 test 범위다.
-    definition:
-      union:
-        - method: fqn
-          value: gold_traffic_incident_x_commerce_business_exposure_current
-          children: true
-
-  - name: ask_seoul_traffic_transform_gold_models_without_commerce
-    description: 정규 Traffic Gold model에서 Commerce 결합 leaf를 제외한다.
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_traffic_transform_gold_models}
-        - exclude:
-            - {method: selector, value: ask_seoul_traffic_transform_commerce_gold_scope}
-
-  - name: ask_seoul_traffic_transform_gold_incident_models_without_commerce
-    description: Incident-only Gold model에서 Commerce 결합 leaf를 제외한다.
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_traffic_transform_gold_incident_models}
-        - exclude:
-            - {method: selector, value: ask_seoul_traffic_transform_commerce_gold_scope}
-
-  - name: ask_seoul_traffic_transform_gold_gate_tests_without_commerce
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_traffic_transform_gold_gate_tests}
-        - exclude:
-            - {method: selector, value: ask_seoul_traffic_transform_commerce_gold_scope}
-
-  - name: ask_seoul_traffic_transform_gold_hourly_tests_without_commerce
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_traffic_transform_gold_hourly_tests}
-        - exclude:
-            - {method: selector, value: ask_seoul_traffic_transform_commerce_gold_scope}
-
-  - name: ask_seoul_traffic_transform_gold_full_tests_without_commerce
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_traffic_transform_gold_full_tests}
-        - exclude:
-            - {method: selector, value: ask_seoul_traffic_transform_commerce_gold_scope}
-
-  - name: ask_seoul_traffic_transform_gold_incident_gate_tests_without_commerce
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_traffic_transform_gold_incident_gate_tests}
-        - exclude:
-            - {method: selector, value: ask_seoul_traffic_transform_commerce_gold_scope}
-
-  - name: ask_seoul_traffic_transform_gold_incident_hourly_tests_without_commerce
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_traffic_transform_gold_incident_hourly_tests}
-        - exclude:
-            - {method: selector, value: ask_seoul_traffic_transform_commerce_gold_scope}
-
-  - name: ask_seoul_traffic_transform_gold_incident_full_tests_without_commerce
-    definition:
-      intersection:
-        - {method: selector, value: ask_seoul_traffic_transform_gold_incident_full_tests}
-        - exclude:
-            - {method: selector, value: ask_seoul_traffic_transform_commerce_gold_scope}
-
   - name: ask_seoul_traffic_recovery_silver
     description: 고정 snapshot용 Traffic recovery Silver phase를 선택한다.
     definition: {method: tag, value: ask_seoul_traffic_recovery_silver, indirect_selection: cautious}
@@ -266,47 +200,77 @@ selectors:
         - {method: fqn, value: silver_seoul_traffic_flow, indirect_selection: empty}
         - {method: fqn, value: assert_traffic_flow_silver_publication_receipt, indirect_selection: empty}
 
-  - name: ask_seoul_traffic_transform_gold_hot_build
-    description: Pinned Incident anchor, six Traffic D1 serving models, and their compound receipt.
+  - name: ask_seoul_traffic_transform_core_gold_hot_build
+    description: Pinned Traffic Incident anchor, five Traffic Flow D1 models, and the core receipt.
     definition:
       union:
         - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_flow_link_latest, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_flow_change_latest, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_flow_link_time_profile, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_flow_anomaly_current, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_core_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_core_gold_incident_hot_build
+    description: Pinned Traffic Incident anchor and core receipt without Flow branches.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_core_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_core_gold_bootstrap_hot_build
+    description: First-run Traffic anchor plus the five Traffic Flow D1 models and core receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_change_latest, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_link_time_profile, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_flow_anomaly_current, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_core_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_core_gold_incident_bootstrap_hot_build
+    description: First-run Traffic anchor plus the core receipt without Flow branches.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_core_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_cross_domain_gold_hot_build
+    description: Traffic anchor plus the separately published Traffic×Weather product and cross-domain receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
         - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  - name: ask_seoul_traffic_transform_cross_domain_gold_bootstrap_hot_build
+    description: First-run Traffic anchor plus the separately published Traffic×Weather product and receipt.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+
+  # Backward-compatible names now resolve to the Traffic Core path.  The
+  # cross-domain path has explicit selectors above so it cannot block Core.
+  - name: ask_seoul_traffic_transform_gold_hot_build
+    description: Compatibility alias for the Traffic Core hot build.
+    definition: {method: selector, value: ask_seoul_traffic_transform_core_gold_hot_build}
 
   - name: ask_seoul_traffic_transform_gold_incident_hot_build
-    description: Pinned Incident anchor, incident-only D1 model, and receipt without Flow branches.
-    definition:
-      union:
-        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
-        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+    description: Compatibility alias for the Traffic Core incident hot build.
+    definition: {method: selector, value: ask_seoul_traffic_transform_core_gold_incident_hot_build}
 
   - name: ask_seoul_traffic_transform_gold_bootstrap_hot_build
-    description: First-run Traffic anchor plus the six D1 serving models and compound receipt.
-    definition:
-      union:
-        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_flow_link_latest, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_flow_change_latest, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_flow_link_time_profile, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_flow_anomaly_current, indirect_selection: empty}
-        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+    description: Compatibility alias for the Traffic Core bootstrap hot build.
+    definition: {method: selector, value: ask_seoul_traffic_transform_core_gold_bootstrap_hot_build}
 
   - name: ask_seoul_traffic_transform_gold_incident_bootstrap_hot_build
-    description: First-run Traffic anchor plus the incident-only D1 model and compound receipt.
-    definition:
-      union:
-        - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
-        - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
-        - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
+    description: Compatibility alias for the Traffic Core incident bootstrap hot build.
+    definition: {method: selector, value: ask_seoul_traffic_transform_core_gold_incident_bootstrap_hot_build}
 
   - name: ask_seoul_traffic_daily_assurance
     description: Full Traffic contracts executed by the 09:00 reliability audit.
@@ -317,7 +281,7 @@ selectors:
         - {method: selector, value: ask_seoul_traffic_transform_flow_silver_tests}
         - {method: selector, value: ask_seoul_traffic_transform_common_admin}
         - {method: selector, value: ask_seoul_traffic_transform_asac_axes_contract}
-        - {method: selector, value: ask_seoul_traffic_transform_gold_full_tests_without_commerce}
+        - {method: selector, value: ask_seoul_traffic_transform_gold_full_tests}
 
   - name: ask_seoul_weather_transform_source
     description: Weather Bronze source와 해당 source 계약 리소스를 선택한다.

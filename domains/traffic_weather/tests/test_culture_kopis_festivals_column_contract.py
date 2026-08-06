@@ -7,15 +7,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MODEL_EXPECTATIONS = {
     PROJECT_ROOT
     / "models"
-    / "traffic"
-    / "transform"
-    / "gold"
-    / "gold_traffic_incident_x_culture_activity_daily.sql": (
-        "cast(kopis_festivals_count as bigint) as kopis_festivals_count",
-        "culture.kopis_festivals_count",
-    ),
-    PROJECT_ROOT
-    / "models"
     / "weather"
     / "transform"
     / "gold"

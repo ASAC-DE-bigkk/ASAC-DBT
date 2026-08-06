@@ -9,21 +9,11 @@ GOLD_DIR = PROJECT_ROOT / "models" / "traffic" / "transform" / "gold"
 _JINJA_ENVIRONMENT = Environment(autoescape=False)
 
 CURRENT_EXACT_TABLE_MODELS = (
-    "gold_traffic_incident_active_latest",
-    "gold_traffic_incident_clearance_horizon_latest",
-    "gold_traffic_incident_clearance_watchlist",
     "gold_traffic_incident_current_by_admin_dong_hourly",
     "gold_traffic_incident_expected_clearance_profile_by_admin_dong_daily",
     "gold_traffic_incident_spatial_mapping_quality_daily",
     "gold_traffic_incident_summary",
-    "gold_traffic_incident_type_mix_latest",
-    "gold_traffic_incident_x_citydata_crowding_current_hourly",
-    "gold_traffic_incident_x_citydata_live_context_current",
-    "gold_traffic_incident_x_commerce_business_exposure_current",
-    "gold_traffic_incident_x_culture_activity_daily",
-    "gold_traffic_incident_x_culture_event_schedule_daily",
     "gold_traffic_incident_x_flow",
-    "gold_traffic_incident_x_transit_hourly",
     "gold_traffic_incident_x_weather_current_hourly",
 )
 

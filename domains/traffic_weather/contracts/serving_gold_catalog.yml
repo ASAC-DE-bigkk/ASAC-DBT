@@ -7,21 +7,12 @@ domains:
   traffic:
     schema: traffic
     serving_models:
-      - gold_traffic_incident_active_latest
-      - gold_traffic_incident_type_mix_latest
-      - gold_traffic_incident_clearance_watchlist
-      - gold_traffic_incident_clearance_horizon_latest
       - gold_traffic_flow_link_latest
       - gold_traffic_flow_congestion_hotspots_hourly
       - gold_traffic_flow_change_latest
       - gold_traffic_flow_link_time_profile
+      - gold_traffic_flow_anomaly_current
       - gold_traffic_incident_x_weather_current_hourly
-      - gold_traffic_incident_x_citydata_crowding_current_hourly
-      - gold_traffic_incident_x_transit_hourly
-      - gold_traffic_incident_x_culture_activity_daily
-      - gold_traffic_incident_x_culture_event_schedule_daily
-      - gold_traffic_incident_x_commerce_business_exposure_current
-      - gold_traffic_incident_x_citydata_live_context_current
 
   weather:
     schema: weather
