@@ -10,28 +10,31 @@
 -- 5개 코어 arm은 activity_type == type_bucket. quality_status(#111)는 location 의
 -- dong_precise_count 용으로 실어 나른다(activity_by_dong 은 admin_dong 그레인이라 미사용).
 -- is_free·category(#280): event arm만 실값 — activity_by_dong free/edu 카운트용, 타 arm null.
+-- collected_at(#707): **원천을 언제 수집했나**. gold 가 max() 로 접어 서빙 계약의
+-- freshness_field 가 된다. event_start_date 는 미래 1년까지 뻗어 있어(달력 제품)
+-- max(event_date) 를 신선도로 쓰면 미래값이 나온다 — 실측 2027-05-30.
 
 with raw_activities as (
     select admin_dong_code, gu_code, gu, cast(performance_id as varchar) as activity_id,
            'performance' as activity_type, 'performance' as type_bucket, quality_status,
            cast(null as varchar) as is_free, cast(null as varchar) as category,
-           event_start_date, event_end_date
+           event_start_date, event_end_date, collected_at
     from {{ ref('silver_culture_performance') }}
     union all
     select admin_dong_code, gu_code, gu, event_key, 'event', 'event', quality_status,
-           is_free, category, event_start_date, event_end_date
+           is_free, category, event_start_date, event_end_date, collected_at
     from {{ ref('silver_culture_event') }}
     union all
     select admin_dong_code, gu_code, gu, cast(festival_id as varchar), 'festival', 'festival', quality_status,
-           cast(null as varchar), cast(null as varchar), event_start_date, event_end_date
+           cast(null as varchar), cast(null as varchar), event_start_date, event_end_date, collected_at
     from {{ ref('silver_culture_festival') }}
     union all
     select admin_dong_code, gu_code, gu, cast(exhibition_id as varchar), 'exhibition', 'exhibition', quality_status,
-           cast(null as varchar), cast(null as varchar), event_start_date, event_end_date
+           cast(null as varchar), cast(null as varchar), event_start_date, event_end_date, collected_at
     from {{ ref('silver_culture_exhibition') }}
     union all
     select admin_dong_code, gu_code, gu, cast(sejong_id as varchar), 'sejong', 'sejong', quality_status,
-           cast(null as varchar), cast(null as varchar), event_start_date, event_end_date
+           cast(null as varchar), cast(null as varchar), event_start_date, event_end_date, collected_at
     from {{ ref('silver_culture_sejong') }}
     union all
     -- kcisa(#85): activity_type='kcisa'(by_dong 별도 축) / type_bucket=service_name 병합(location 축)
@@ -44,7 +47,7 @@ with raw_activities as (
            end,
            quality_status,
            cast(null as varchar), cast(null as varchar),
-           event_start_date, event_end_date
+           event_start_date, event_end_date, collected_at
     from {{ ref('silver_culture_kcisa_event') }}
 ),
 
@@ -56,7 +59,7 @@ valid as (
 select
     v.admin_dong_code, v.gu_code, v.gu,
     v.activity_id, v.activity_type, v.type_bucket, v.quality_status,
-    v.is_free, v.category,
+    v.is_free, v.category, v.collected_at,
     d.activity_date
 from valid v
 cross join unnest(sequence(v.event_start_date, v.event_end_date, interval '1' day)) as d(activity_date)

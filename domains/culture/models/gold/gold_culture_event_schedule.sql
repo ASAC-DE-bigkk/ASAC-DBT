@@ -17,7 +17,9 @@ with unioned as (
         event_start_date, event_end_date, event_at,
         gu, gu_code, admin_dong, admin_dong_code,
         latitude, longitude, quality_status,
-        6 as source_priority
+        6 as source_priority,
+
+        collected_at
     from {{ ref('silver_culture_event') }}
 
     union all
@@ -31,7 +33,8 @@ with unioned as (
         event_start_date, event_end_date, event_at,
         gu, gu_code, admin_dong, admin_dong_code,
         latitude, longitude, quality_status,
-        1
+        1,
+        collected_at
     from {{ ref('silver_culture_performance') }}
 
     union all
@@ -45,7 +48,8 @@ with unioned as (
         event_start_date, event_end_date, event_at,
         gu, gu_code, admin_dong, admin_dong_code,
         latitude, longitude, quality_status,
-        2
+        2,
+        collected_at
     from {{ ref('silver_culture_exhibition') }}
 
     union all
@@ -59,7 +63,8 @@ with unioned as (
         event_start_date, event_end_date, event_at,
         gu, gu_code, admin_dong, admin_dong_code,
         latitude, longitude, quality_status,
-        3
+        3,
+        collected_at
     from {{ ref('silver_culture_festival') }}
 
     union all
@@ -73,7 +78,8 @@ with unioned as (
         event_start_date, event_end_date, event_at,
         gu, gu_code, admin_dong, admin_dong_code,
         latitude, longitude, quality_status,
-        4
+        4,
+        collected_at
     from {{ ref('silver_culture_sejong') }}
 
     union all
@@ -87,7 +93,8 @@ with unioned as (
         event_start_date, event_end_date, event_at,
         gu, gu_code, admin_dong, admin_dong_code,
         latitude, longitude, quality_status,
-        5
+        5,
+        collected_at
     from {{ ref('silver_culture_kcisa_event') }}
 ),
 
@@ -111,5 +118,7 @@ select
     event_ref, event_type, title, category, venue_name, is_free,
     event_start_date, event_end_date, event_at,
     gu, gu_code, admin_dong, admin_dong_code,
-    latitude, longitude, quality_status
+    latitude, longitude, quality_status,
+    -- 신선도 축(#707) — event_start_date 는 미래 일정이라 신선도가 될 수 없다(실측 2026-12-29).
+    collected_at as source_collected_at
 from deduped

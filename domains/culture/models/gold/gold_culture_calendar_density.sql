@@ -13,7 +13,8 @@ by_type as (
         max(gu)                     as gu,
         activity_date               as event_date,
         activity_type,
-        count(distinct activity_id) as type_count
+        count(distinct activity_id) as type_count,
+        max(collected_at)           as source_collected_at
     from activities
     group by gu_code, activity_date, activity_type
 ),
@@ -26,7 +27,9 @@ agg as (
         sum(type_count)                  as total_events,
         count(*)                         as distinct_types,
         max(type_count)                  as busiest_type_count,
-        max_by(activity_type, type_count) as busiest_type
+        max_by(activity_type, type_count) as busiest_type,
+        -- 신선도 축(#707) — event_date 는 미래 1년까지 뻗는 달력이라 신선도가 될 수 없다.
+        max(source_collected_at)         as source_collected_at
     from by_type
     group by gu_code, event_date
 )
@@ -40,5 +43,6 @@ select
     busiest_type,
     cast(busiest_type_count as integer)               as busiest_type_count,
     -- 경쟁 집중도: 최다 유형이 그날 전체에서 차지하는 비율(0~1, 1=한 유형 독점)
-    cast(busiest_type_count as double) / total_events as concentration
+    cast(busiest_type_count as double) / total_events as concentration,
+    source_collected_at
 from agg

@@ -24,7 +24,7 @@ with dim as (
 ),
 
 expanded as (
-    select admin_dong_code, activity_id, activity_type, activity_date, is_free, category
+    select admin_dong_code, activity_id, activity_type, activity_date, is_free, category, collected_at
     from {{ ref('int_culture_activity_days') }}
     where admin_dong_code is not null
 ),
@@ -48,6 +48,10 @@ agg as (
     select
         admin_dong_code,
         activity_date as event_date,
+        -- 신선도 축(#707) — 이 칸의 집계에 쓰인 원천이 마지막으로 수집된 시각.
+        -- event_date 는 미래 1년까지 뻗는 달력이라 신선도가 될 수 없다.
+        -- 활동이 없는 스캐폴드 칸은 NULL 이고, 그게 맞다(원천이 없다).
+        max(collected_at) as source_collected_at,
         count(distinct activity_id) as activities_count,
         count(distinct case when activity_type = 'performance' then activity_id end) as performances_count,
         count(distinct case when activity_type = 'event'       then activity_id end) as events_count,
@@ -78,6 +82,9 @@ select
     coalesce(a.kcisa_count, 0)        as kcisa_count,
     coalesce(a.free_events_count, 0)            as free_events_count,
     coalesce(a.edu_experience_events_count, 0)  as edu_experience_events_count,
-    coalesce(a.festival_events_count, 0)        as festival_events_count
+    coalesce(a.festival_events_count, 0)        as festival_events_count,
+    -- coalesce 하지 않는다 — 활동 없는 칸은 원천이 없으므로 NULL 이 정직하다.
+    -- Publisher 는 NULL 이 아닌 값들의 max() 를 신선도로 쓴다(#707).
+    a.source_collected_at
 from scaffold s
 left join agg a on a.admin_dong_code = s.admin_dong_code and a.event_date = s.event_date
