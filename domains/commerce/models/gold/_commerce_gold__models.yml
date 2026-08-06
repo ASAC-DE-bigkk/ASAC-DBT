@@ -3559,7 +3559,7 @@ models:
     columns:
       - name: admin_dong_code
         data_type: varchar
-        description: 행정동코드 10자리(grain — 동당 1행).
+        description: 행정동코드 10자리(동당 1행).
         tests: [not_null, unique]
       - name: admin_dong
         data_type: varchar
@@ -4491,7 +4491,7 @@ models:
     columns:
       - name: gu_code
         data_type: varchar
-        description: 시군구 코드 5자리(grain).
+        description: 시군구 코드 5자리.
         tests: [not_null]
       - name: gu
         data_type: varchar
@@ -5468,7 +5468,7 @@ models:
         tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
-        description: 데이터셋 short(grain).
+        description: 데이터셋 short.
         tests: [not_null]
       - name: sites_with_phone
         data_type: bigint
@@ -5721,7 +5721,7 @@ models:
         tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
-        description: 데이터셋 short(grain).
+        description: 데이터셋 short.
         tests: [not_null]
       - name: businesses
         data_type: bigint
@@ -6504,7 +6504,7 @@ models:
         tests: [not_null]              # PK 근거(#478)
       - name: dataset
         data_type: varchar
-        description: 데이터셋 short(grain — API 단위).
+        description: 데이터셋 short(API 단위).
         tests: [not_null]
       - name: total_rows
         data_type: bigint
