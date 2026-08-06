@@ -1392,6 +1392,215 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
+          source_evidence:
+            # 크로스도메인 제품 — 두 상류의 원천을 **각 도메인이 선언한 값 그대로** 인용한다
+            # (Serving#88 §B: "상대 도메인이 이미 선언한 값을 그대로 인용").
+            # ① 문화 축 — gold_culture_activity_by_dong 의 6원천
+            - source_id: kopis_open_api
+              source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
+              license: KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용
+              license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
+              redistribution: allowed_with_attribution
+              attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
+            - source_id: seoul_cultural_event
+              source_url: https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: sema_exhibition
+              source_url: https://data.seoul.go.kr/dataList/OA-15323/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울시립미술관
+              rights_checked_at: "2026-08-04"
+            - source_id: sejong_performance
+              source_url: https://data.seoul.go.kr/dataList/OA-2708/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 세종문화회관, 각 컨텐츠주체
+              rights_checked_at: "2026-08-04"
+            - source_id: kcisa_culture_info
+              source_url: https://www.data.go.kr/data/15138937/openapi.do
+              license: 이용허락범위 제한 없음
+              license_url: https://www.data.go.kr/data/15138937/openapi.do
+              redistribution: allowed_with_attribution
+              attribution: 한국문화정보원
+              rights_checked_at: "2026-08-04"
+            - source_id: national_data_office_admin_dong_link
+              source_url: https://www.data.go.kr/data/15136368/fileData.do
+              license: 공공저작물 제3유형(출처표시·변경금지) — 2차 가공 집계 외부 API 재배포 승인
+              license_url: https://www.kogl.or.kr/info/licenseType3.do
+              redistribution: allowed_with_attribution
+              attribution: 국가데이터처
+              rights_checked_at: "2026-08-04"
+            # ② 요식업 축 — commerce gold_license_dong_category_matrix 의 category='food' 23종.
+            #    commerce 가 commerce_flow_monthly 에 선언한 값을 그대로 옮겼다(같은 silver_license_* 계보).
+            - source_id: commerce_localdata_bakery
+              source_url: https://data.seoul.go.kr/dataList/OA-16084/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_container_pkg_mfg
+              source_url: https://data.seoul.go.kr/dataList/OA-16081/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_contract_meal_service
+              source_url: https://data.seoul.go.kr/dataList/OA-16066/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_edible_ice_sale
+              source_url: https://data.seoul.go.kr/dataList/OA-16086/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_entertainment_bar
+              source_url: https://data.seoul.go.kr/dataList/OA-16090/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_food_additive_mfg
+              source_url: https://data.seoul.go.kr/dataList/OA-16079/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_food_cold_storage
+              source_url: https://data.seoul.go.kr/dataList/OA-16074/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_food_mfg
+              source_url: https://data.seoul.go.kr/dataList/OA-16078/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_food_sale_etc
+              source_url: https://data.seoul.go.kr/dataList/OA-16080/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_food_subdivision
+              source_url: https://data.seoul.go.kr/dataList/OA-16075/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_food_transport
+              source_url: https://data.seoul.go.kr/dataList/OA-16076/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_food_vending
+              source_url: https://data.seoul.go.kr/dataList/OA-16077/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_foreigner_entertainment_bar
+              source_url: https://data.seoul.go.kr/dataList/OA-16093/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_general_restaurant
+              source_url: https://data.seoul.go.kr/dataList/OA-16094/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_group_meal_facility
+              source_url: https://data.seoul.go.kr/dataList/OA-16067/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_group_meal_food_sale
+              source_url: https://data.seoul.go.kr/dataList/OA-16068/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_hfood_dist_sale
+              source_url: https://data.seoul.go.kr/dataList/OA-16069/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_hfood_general_sale
+              source_url: https://data.seoul.go.kr/dataList/OA-16070/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_instant_sale_mfg
+              source_url: https://data.seoul.go.kr/dataList/OA-16085/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_rest_restaurant
+              source_url: https://data.seoul.go.kr/dataList/OA-16095/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_singing_bar
+              source_url: https://data.seoul.go.kr/dataList/OA-16089/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_tour_entertainment_bar
+              source_url: https://data.seoul.go.kr/dataList/OA-16092/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: commerce_localdata_tour_restaurant
+              source_url: https://data.seoul.go.kr/dataList/OA-16091/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
           # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
           # qa_eval 의 '개별 점포 추천' 4문항은 이 제품이 답하지 않는다(원천 부재 = 제품 경계) —
           # 이 1건은 qa_eval 무대응이라 product_question 에서 파생했다
