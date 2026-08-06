@@ -379,14 +379,14 @@ models:
             tags: [gate]
     columns:
       - name: admin_dong_code
-        description: 행안부 10자리 행정동 코드(공간축, 그레인 축). null 행은 소스에서 제외.
+        description: 행안부 10자리 행정동 코드(공간축). null 행은 소스에서 제외.
         tests:
           - not_null:
               config:
                 where: "hour_at >= current_date - interval '{{ var('transit_test_lookback_days') }}' day"
                 tags: [gate]
       - name: hour_at
-        description: 시간 버킷(KST 벽시계, date_trunc('hour', event_at)). 그레인 축.
+        description: 시간 버킷(KST 벽시계).
         tests:
           - not_null:  # 시간축 자신 — 스코핑 금지(공검증)
               config:
@@ -411,8 +411,7 @@ models:
         description: 관측 주차 개소 수(동×시간 distinct lot).
       - name: parking_occupancy_avg
         description: >
-          평균 점유율(개소별 평균 점유율의 평균, 개소 동등가중). 과거 소수문자열 캐스트
-          결손으로 전건 null 이던 시기 있음 — #72 매크로로 해소(2026-07-20 실증 #286).
+          평균 점유율 — 주차장마다 구한 평균 점유율을 다시 평균한 값입니다(주차장 수로 동등 가중).
       - name: parking_full_lot_cnt
         description: 만차 개소 수(개소별 시간 내 최대 점유율 >= 0.95).
 
@@ -623,7 +622,7 @@ models:
       스냅샷(table) — 경과 시간은 조회 시점 기준으로 소비 측이 계산.
     columns:
       - name: admin_dong_code
-        description: 행안부 10자리 행정동 코드(그레인 축).
+        description: 행안부 10자리 행정동 코드.
         tests:
           - not_null:
               config:
@@ -632,7 +631,7 @@ models:
               config:
                 tags: [gate]
       - name: admin_dong
-        description: 행정동 이름(dim_admin_dong).
+        description: 행정동 이름.
       - name: gu_code
         description: 자치구 코드.
       - name: gu
@@ -785,7 +784,7 @@ models:
           combination_of_columns: [parking_id, dow, hh]
     columns:
       - name: parking_id
-        description: 주차장 ID(그레인 축).
+        description: 주차장 ID.
         tests:
           - not_null
       - name: dow
@@ -900,7 +899,7 @@ models:
       (15분 아카이브) → profile·full_risk. 매 변환 재생성 table.
     columns:
       - name: parking_id
-        description: 주차장 ID(그레인 축).
+        description: 주차장 ID.
         data_type: varchar
         config: {meta: {semantic_role: entity_id, nullable: false, null_meaning: not_applicable, unit: code}}
         tests:
@@ -911,7 +910,7 @@ models:
               config:
                 tags: [gate]
       - name: parking_name
-        description: 주차장 이름(dim_transit_parking).
+        description: 주차장 이름.
         data_type: varchar
         config: {meta: {semantic_role: entity_name, nullable: true, null_meaning: 주차장 마스터 이름을 매핑하지 못함, unit: name}}
       - name: admin_dong_code
@@ -932,9 +931,9 @@ models:
         config: {meta: {semantic_role: longitude, nullable: true, null_meaning: 주차장 마스터의 유효 좌표가 없음, unit: degree}}
       - name: occ_now
         description: >
-          [현재 관측] 현재 점유율(최신 버킷 occ_last — 점유대수·총면수 둘 다 유효하고
-          총면수>0 인 관측만 산출). 만차 초과 주차 시 1 초과 가능(#231) — 범위 규칙은
-          range 테스트가 단언. 24h 내 유효 관측 없는 lot 은 스냅샷에서 제외(품질 규칙).
+          [현재 관측] 현재 점유율 — 가장 최근 관측 기준입니다. 주차 대수와 총 면수가 모두 유효할 때만
+          계산합니다. 만차를 넘겨 세운 경우 1을 넘을 수 있습니다. 24시간 안에 유효한 관측이 없는
+          주차장은 제외됩니다.
         data_type: double
         config: {meta: {semantic_role: measure, nullable: false, null_meaning: not_applicable, unit: ratio}}
         tests:
@@ -956,8 +955,8 @@ models:
         config: {meta: {semantic_role: derived_metric, nullable: false, null_meaning: not_applicable, unit: estimated_parking_spaces}}
       - name: occ_rate_per_min
         description: >
-          [추세 추정] 분당 점유율 변화 — 최근 45분 연속 4버킷의 처음↔끝 차이.
-          4버킷 미만 관측(신규·결측 lot)이면 null(추세 미산출 가드).
+          [추세 추정] 분당 점유율 변화 — 최근 45분 관측의 처음과 끝 차이입니다. 관측이 4회에
+          못 미치면(새로 생겼거나 관측이 빠진 주차장) 값이 비어 있습니다.
         data_type: double
         config: {meta: {semantic_role: derived_metric, nullable: true, null_meaning: 최근 45분 연속 4버킷이 없어 추세를 계산하지 못함, unit: ratio_per_minute}}
       - name: rate_base_n
@@ -1095,7 +1094,7 @@ models:
       전 요일 평균). 매 변환 재생성 table.
     columns:
       - name: event_ref
-        description: 행사 식별자(그레인 축, culture 원천 승계).
+        description: 행사 식별자(culture 원천 승계).
         tests:
           - not_null
           - unique
@@ -1174,4 +1173,3 @@ models:
         description: 시간 내 최신 혼잡 라벨(여유/보통/약간 붐빔/붐빔).
       - name: is_parking_pressured
         description: 혼잡('약간 붐빔'/'붐빔') AND 주차 점유>=0.8. 주차 실측 없는 동은 false 아님 null 주의.
-
