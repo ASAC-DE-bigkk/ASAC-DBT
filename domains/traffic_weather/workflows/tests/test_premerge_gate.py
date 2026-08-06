@@ -234,7 +234,6 @@ def test_gate_owns_the_complete_read_only_premerge_sequence(tmp_path: Path) -> N
     assert "ci__snapshot" in vars_payload
     assert "traffic_snapshot_dag_run_id" in vars_payload
     assert "traffic_flow_snapshot_dag_run_id" in vars_payload
-    assert "traffic_citydata_crowding_snapshot_id" in vars_payload
 
     for _, kwargs in runner.calls[1:6]:
         assert kwargs["cwd"] == project_dir

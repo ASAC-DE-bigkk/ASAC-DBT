@@ -9,20 +9,19 @@ HOT_TESTS = Path(__file__).resolve().parent / "hot_path"
 
 INCIDENT_HOT = "ask_seoul_traffic_transform_incident_hot_build"
 FLOW_HOT = "ask_seoul_traffic_transform_flow_hot_build"
-GOLD_HOT = "ask_seoul_traffic_transform_gold_hot_build"
-GOLD_INCIDENT_HOT = "ask_seoul_traffic_transform_gold_incident_hot_build"
-GOLD_BOOTSTRAP_HOT = "ask_seoul_traffic_transform_gold_bootstrap_hot_build"
+GOLD_HOT = "ask_seoul_traffic_transform_core_gold_hot_build"
+GOLD_INCIDENT_HOT = "ask_seoul_traffic_transform_core_gold_incident_hot_build"
+GOLD_BOOTSTRAP_HOT = "ask_seoul_traffic_transform_core_gold_bootstrap_hot_build"
 GOLD_INCIDENT_BOOTSTRAP_HOT = (
-    "ask_seoul_traffic_transform_gold_incident_bootstrap_hot_build"
+    "ask_seoul_traffic_transform_core_gold_incident_bootstrap_hot_build"
 )
 DAILY_ASSURANCE = "ask_seoul_traffic_daily_assurance"
 
 INCIDENT_RECEIPT = "assert_traffic_incident_silver_publication_receipt"
 FLOW_RECEIPT = "assert_traffic_flow_silver_publication_receipt"
-GOLD_RECEIPT = "assert_traffic_gold_serving_publication_receipt"
+GOLD_RECEIPT = "assert_traffic_core_gold_serving_publication_receipt"
 
 TRAFFIC_D1_MODELS = {
-    "gold_traffic_incident_x_weather_current_hourly",
     "gold_traffic_flow_congestion_hotspots_hourly",
     "gold_traffic_flow_link_latest",
     "gold_traffic_flow_change_latest",
@@ -63,7 +62,6 @@ def test_hot_path_selectors_define_exact_traffic_models_and_receipts():
     }
     assert _explicit_fqns(selectors[GOLD_INCIDENT_HOT]) == {
         TRAFFIC_INCIDENT_ANCHOR,
-        "gold_traffic_incident_x_weather_current_hourly",
         GOLD_RECEIPT,
     }
 
@@ -76,7 +74,6 @@ def test_gold_bootstrap_selectors_preserve_the_always_rebuilt_incident_anchor():
     )
     assert _explicit_fqns(selectors[GOLD_INCIDENT_BOOTSTRAP_HOT]) == {
         TRAFFIC_INCIDENT_ANCHOR,
-        "gold_traffic_incident_x_weather_current_hourly",
         GOLD_RECEIPT,
     }
 
@@ -95,7 +92,7 @@ def test_daily_assurance_preserves_every_full_traffic_contract_family():
         "ask_seoul_traffic_transform_flow_silver_tests",
         "ask_seoul_traffic_transform_common_admin",
         "ask_seoul_traffic_transform_asac_axes_contract",
-        "ask_seoul_traffic_transform_gold_full_tests_without_commerce",
+        "ask_seoul_traffic_transform_gold_full_tests",
     }
 
 

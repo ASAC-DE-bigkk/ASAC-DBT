@@ -95,7 +95,6 @@ def _manifest_vars(snapshot_run_id: str) -> str:
         {
             "traffic_snapshot_dag_run_id": snapshot_run_id,
             "traffic_flow_snapshot_dag_run_id": snapshot_run_id,
-            "traffic_citydata_crowding_snapshot_id": 1,
         }
     )
 

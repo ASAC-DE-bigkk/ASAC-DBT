@@ -13,7 +13,6 @@ REPOSITORY_ROOT = PROJECT_ROOT.parents[1]
 SELECTORS = PROJECT_ROOT / "selectors.yml"
 
 FLOW_SCOPE = "ask_seoul_traffic_transform_flow_gold_scope"
-COMMERCE_SCOPE = "ask_seoul_traffic_transform_commerce_gold_scope"
 SILVER_EXECUTION_TAG = "ask_seoul_traffic_transform_silver"
 INCIDENT_SILVER = "ask_seoul_traffic_transform_incident_silver"
 INCIDENT_PREFLIGHT = "ask_seoul_traffic_transform_incident_preflight_contracts"
@@ -26,36 +25,14 @@ INCIDENT_FULL_TESTS = "ask_seoul_traffic_transform_gold_incident_full_tests"
 INCIDENT_HOT_BUILD = "ask_seoul_traffic_transform_incident_hot_build"
 FLOW_HOT_BUILD = "ask_seoul_traffic_transform_flow_hot_build"
 GOLD_HOT_BUILD = "ask_seoul_traffic_transform_gold_hot_build"
-GOLD_INCIDENT_HOT_BUILD = (
-    "ask_seoul_traffic_transform_gold_incident_hot_build"
-)
+CORE_GOLD_HOT_BUILD = "ask_seoul_traffic_transform_core_gold_hot_build"
+CORE_GOLD_INCIDENT_HOT_BUILD = "ask_seoul_traffic_transform_core_gold_incident_hot_build"
+CROSS_DOMAIN_GOLD_HOT_BUILD = "ask_seoul_traffic_transform_cross_domain_gold_hot_build"
 
 FULL_GOLD_MODELS = "ask_seoul_traffic_transform_gold_models"
 FULL_GATE_TESTS = "ask_seoul_traffic_transform_gold_gate_tests"
 FULL_HOURLY_TESTS = "ask_seoul_traffic_transform_gold_hourly_tests"
 FULL_FULL_TESTS = "ask_seoul_traffic_transform_gold_full_tests"
-FULL_MODELS_NO_COMMERCE = "ask_seoul_traffic_transform_gold_models_without_commerce"
-FULL_GATE_TESTS_NO_COMMERCE = (
-    "ask_seoul_traffic_transform_gold_gate_tests_without_commerce"
-)
-FULL_HOURLY_TESTS_NO_COMMERCE = (
-    "ask_seoul_traffic_transform_gold_hourly_tests_without_commerce"
-)
-FULL_FULL_TESTS_NO_COMMERCE = (
-    "ask_seoul_traffic_transform_gold_full_tests_without_commerce"
-)
-INCIDENT_MODELS_NO_COMMERCE = (
-    "ask_seoul_traffic_transform_gold_incident_models_without_commerce"
-)
-INCIDENT_GATE_TESTS_NO_COMMERCE = (
-    "ask_seoul_traffic_transform_gold_incident_gate_tests_without_commerce"
-)
-INCIDENT_HOURLY_TESTS_NO_COMMERCE = (
-    "ask_seoul_traffic_transform_gold_incident_hourly_tests_without_commerce"
-)
-INCIDENT_FULL_TESTS_NO_COMMERCE = (
-    "ask_seoul_traffic_transform_gold_incident_full_tests_without_commerce"
-)
 
 EXPECTED_FLOW_MODELS = {
     "gold_traffic_flow_link_latest",
@@ -82,38 +59,26 @@ EXPECTED_INCIDENT_SILVER_MODELS = {
 }
 EXPECTED_D1_HOT_MODELS = {
     "gold_traffic_incident_current_by_admin_dong_hourly",
-    "gold_traffic_incident_x_weather_current_hourly",
     *EXPECTED_FLOW_MODELS,
 }
 EXPECTED_INCIDENT_MODELS = {
-    "gold_traffic_incident_active_latest",
-    "gold_traffic_incident_clearance_horizon_latest",
-    "gold_traffic_incident_clearance_watchlist",
     "gold_traffic_incident_collection_coverage_5m",
     "gold_traffic_incident_current_by_admin_dong_hourly",
     "gold_traffic_incident_expected_clearance_profile_by_admin_dong_daily",
     "gold_traffic_incident_spatial_mapping_quality_daily",
     "gold_traffic_incident_summary",
-    "gold_traffic_incident_type_mix_latest",
-    "gold_traffic_incident_x_citydata_crowding_current_hourly",
-    "gold_traffic_incident_x_citydata_live_context_current",
-    "gold_traffic_incident_x_commerce_business_exposure_current",
-    "gold_traffic_incident_x_culture_activity_daily",
-    "gold_traffic_incident_x_culture_event_schedule_daily",
     "gold_traffic_incident_x_flow",
-    "gold_traffic_incident_x_transit_hourly",
     "gold_traffic_incident_x_weather_current_hourly",
 }
-EXPECTED_GOLD_MODEL_COUNT = 22
+EXPECTED_GOLD_MODEL_COUNT = 12
 EXPECTED_INCIDENT_TEST_COUNTS = {
-    INCIDENT_GATE_TESTS: 117,
-    INCIDENT_HOURLY_TESTS: 137,
-    INCIDENT_FULL_TESTS: 167,
+    INCIDENT_GATE_TESTS: 79,
+    INCIDENT_HOURLY_TESTS: 99,
+    INCIDENT_FULL_TESTS: 129,
 }
 SELECTOR_PARSE_VARS = {
     "traffic_snapshot_dag_run_id": "ci__traffic_gold_trigger_selectors",
     "traffic_flow_snapshot_dag_run_id": "ci__traffic_gold_trigger_selectors",
-    "traffic_citydata_crowding_snapshot_id": 1,
     "weather_snapshot_dag_run_id": "ci__traffic_gold_trigger_selectors",
 }
 
@@ -300,7 +265,7 @@ def test_incident_gold_selectors_resolve_exact_model_and_test_sets(
     assert flow_models == EXPECTED_FLOW_MODELS
     assert incident_models == EXPECTED_INCIDENT_MODELS
     assert incident_models == full_gold_models - flow_models
-    assert len(incident_models) == 17
+    assert len(incident_models) == 7
 
     flow_tests = _resolved_names(resolved_selector_project, FLOW_SCOPE, "test")
     for incident_selector, full_selector in {
@@ -428,79 +393,25 @@ def test_hot_build_selectors_resolve_exact_models_and_compound_receipts(
         resolved_selector_project, FLOW_HOT_BUILD, "test"
     ) == {"assert_traffic_flow_silver_publication_receipt"}
     assert _resolved_names(
-        resolved_selector_project, GOLD_HOT_BUILD, "model"
+        resolved_selector_project, CORE_GOLD_HOT_BUILD, "model"
     ) == EXPECTED_D1_HOT_MODELS
     assert _resolved_names(
-        resolved_selector_project, GOLD_HOT_BUILD, "test"
-    ) == {"assert_traffic_gold_serving_publication_receipt"}
+        resolved_selector_project, CORE_GOLD_HOT_BUILD, "test"
+    ) == {"assert_traffic_core_gold_serving_publication_receipt"}
     assert _resolved_names(
-        resolved_selector_project, GOLD_INCIDENT_HOT_BUILD, "model"
+        resolved_selector_project, CORE_GOLD_INCIDENT_HOT_BUILD, "model"
+    ) == {
+        "gold_traffic_incident_current_by_admin_dong_hourly",
+    }
+    assert _resolved_names(
+        resolved_selector_project, CORE_GOLD_INCIDENT_HOT_BUILD, "test"
+    ) == {"assert_traffic_core_gold_serving_publication_receipt"}
+    assert _resolved_names(
+        resolved_selector_project, CROSS_DOMAIN_GOLD_HOT_BUILD, "model"
     ) == {
         "gold_traffic_incident_current_by_admin_dong_hourly",
         "gold_traffic_incident_x_weather_current_hourly",
     }
     assert _resolved_names(
-        resolved_selector_project, GOLD_INCIDENT_HOT_BUILD, "test"
+        resolved_selector_project, CROSS_DOMAIN_GOLD_HOT_BUILD, "test"
     ) == {"assert_traffic_gold_serving_publication_receipt"}
-
-
-def test_scheduled_gold_without_commerce_reuses_existing_contracts():
-    selectors = _selectors()
-
-    assert selectors[COMMERCE_SCOPE] == {
-        "union": [
-            {
-                "method": "fqn",
-                "value": "gold_traffic_incident_x_commerce_business_exposure_current",
-                "children": True,
-            }
-        ]
-    }
-    for selector, parent in {
-        FULL_MODELS_NO_COMMERCE: FULL_GOLD_MODELS,
-        FULL_GATE_TESTS_NO_COMMERCE: FULL_GATE_TESTS,
-        FULL_HOURLY_TESTS_NO_COMMERCE: FULL_HOURLY_TESTS,
-        FULL_FULL_TESTS_NO_COMMERCE: FULL_FULL_TESTS,
-        INCIDENT_MODELS_NO_COMMERCE: INCIDENT_MODELS,
-        INCIDENT_GATE_TESTS_NO_COMMERCE: INCIDENT_GATE_TESTS,
-        INCIDENT_HOURLY_TESTS_NO_COMMERCE: INCIDENT_HOURLY_TESTS,
-        INCIDENT_FULL_TESTS_NO_COMMERCE: INCIDENT_FULL_TESTS,
-    }.items():
-        assert selectors[selector] == {
-            "intersection": [
-                {"method": "selector", "value": parent},
-                {"exclude": [{"method": "selector", "value": COMMERCE_SCOPE}]},
-            ]
-        }
-
-
-def test_scheduled_gold_without_commerce_resolves_exact_differences(
-    resolved_selector_project: tuple[Path, dict[str, str]],
-):
-    commerce_models = _resolved_names(
-        resolved_selector_project, COMMERCE_SCOPE, "model"
-    )
-    commerce_tests = _resolved_names(resolved_selector_project, COMMERCE_SCOPE, "test")
-    full_models = _resolved_names(resolved_selector_project, FULL_GOLD_MODELS, "model")
-    incident_models = _resolved_names(
-        resolved_selector_project, INCIDENT_MODELS, "model"
-    )
-
-    assert commerce_models == {
-        "gold_traffic_incident_x_commerce_business_exposure_current"
-    }
-    assert len(commerce_tests) == 2
-    assert _resolved_names(
-        resolved_selector_project, FULL_MODELS_NO_COMMERCE, "model"
-    ) == full_models - commerce_models
-    assert _resolved_names(
-        resolved_selector_project, INCIDENT_MODELS_NO_COMMERCE, "model"
-    ) == incident_models - commerce_models
-
-    for selector, parent in {
-        FULL_FULL_TESTS_NO_COMMERCE: FULL_FULL_TESTS,
-        INCIDENT_FULL_TESTS_NO_COMMERCE: INCIDENT_FULL_TESTS,
-    }.items():
-        assert _resolved_names(
-            resolved_selector_project, selector, "test"
-        ) == _resolved_names(resolved_selector_project, parent, "test") - commerce_tests

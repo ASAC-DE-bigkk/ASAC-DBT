@@ -16,7 +16,6 @@ APPROVED_PRODUCTS = {
 SUMMARY_MODEL = "gold_traffic_incident_summary"
 CROSS_DOMAIN_GOLD_PRODUCTS = {
     "gold_traffic_incident_x_weather_current_hourly",
-    "gold_traffic_incident_x_citydata_crowding_current_hourly",
 }
 
 
