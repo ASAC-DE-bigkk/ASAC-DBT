@@ -130,14 +130,14 @@ models:
                 FROM gold_culture_activity_by_dong
                 WHERE admin_dong = :dong AND event_date BETWEEN :from AND :to
                 ORDER BY event_date DESC LIMIT :n
-        display:
-          title: 행정동별 일자 문화활동량
-          summary: 서울 426개 행정동에 대해 하루 단위로 문화활동이 몇 건 열리는지 집계했습니다. 공연·행사·전시·세종문화회관·국립문화기관 5개 출처별 건수와 함께, 축제·무료·교육체험 행사 건수를 따로 제공합니다.
-          caveat: 전체 건수는 중복을 제거한 값이라 유형별 건수를 더한 값과 다를 수 있습니다 — 축제는 공연과 같은 출처(KOPIS)의 같은 공연이고, 무료·교육체험·축제 행사는 행사 건수 안에 포함됩니다. 총계가 필요하면 전체 건수를 그대로 쓰십시오. 행사가 없는 동도 0으로 채워져 있어 지도나 시계열에 그대로 얹을 수 있습니다. 좌표가 없어 행정동을 확정하지 못한 활동은 빠집니다(전체의 2.3%, 전시는 17.5%·국립문화기관은 12.8%로 편차가 큽니다 — 구 단위 집계가 필요하면 별도 제품을 쓰십시오). 날짜는 최근 90일부터 향후 1년까지만 담습니다.
-          use_cases:
-            - 생활권 문화 인프라 격차 분석
-            - 부동산·상권 리포트의 생활편의 지표
-            - 동 단위 문화 히트맵
+          display:
+            title: 행정동별 일자 문화활동량
+            summary: 서울 426개 행정동에 대해 하루 단위로 문화활동이 몇 건 열리는지 집계했습니다. 공연·행사·전시·세종문화회관·국립문화기관 5개 출처별 건수와 함께, 축제·무료·교육체험 행사 건수를 따로 제공합니다.
+            caveat: 전체 건수는 중복을 제거한 값이라 유형별 건수를 더한 값과 다를 수 있습니다 — 축제는 공연과 같은 출처(KOPIS)의 같은 공연이고, 무료·교육체험·축제 행사는 행사 건수 안에 포함됩니다. 총계가 필요하면 전체 건수를 그대로 쓰십시오. 행사가 없는 동도 0으로 채워져 있어 지도나 시계열에 그대로 얹을 수 있습니다. 좌표가 없어 행정동을 확정하지 못한 활동은 빠집니다(전체의 2.3%, 전시는 17.5%·국립문화기관은 12.8%로 편차가 큽니다 — 구 단위 집계가 필요하면 별도 제품을 쓰십시오). 날짜는 최근 90일부터 향후 1년까지만 담습니다.
+            use_cases:
+              - 생활권 문화 인프라 격차 분석
+              - 부동산·상권 리포트의 생활편의 지표
+              - 동 단위 문화 히트맵
     tests:
       # 서빙 계약 PK 근거(#346) — validator 가 yml 선언만 인정(싱귤러는 불변식 겸용으로 별도 유지)
       - dbt_utils.unique_combination_of_columns:
@@ -290,14 +290,14 @@ models:
                                  WHERE x.genre = b.genre
                                  ORDER BY x.best_rank ASC, x.days_on_chart DESC LIMIT 1)
                 ORDER BY best_rank ASC LIMIT :n
-        display:
-          title: 공연별 인기 궤적 요약
-          summary: 공연 한 편이 예매 순위에 언제 진입해 며칠 머물렀고 최고 몇 위까지 올랐는지를 한 행으로 요약했습니다. 진입 순위와 마지막 순위가 함께 있어 상승세인지 하락세인지 바로 판단할 수 있습니다.
-          caveat: 순위 기반 지표만 제공합니다. 원천에 예매율·판매 좌석 수·매진 여부가 없고, 순위 50위 밖에 있던 기간은 집계되지 않습니다.
-          use_cases:
-            - 공연 마케팅 성과 벤치마킹
-            - 흥행 예측 모델 입력
-            - 장르별 인기 수명주기 비교
+          display:
+            title: 공연별 인기 궤적 요약
+            summary: 공연 한 편이 예매 순위에 언제 진입해 며칠 머물렀고 최고 몇 위까지 올랐는지를 한 행으로 요약했습니다. 진입 순위와 마지막 순위가 함께 있어 상승세인지 하락세인지 바로 판단할 수 있습니다.
+            caveat: 순위 기반 지표만 제공합니다. 원천에 예매율·판매 좌석 수·매진 여부가 없고, 순위 50위 밖에 있던 기간은 집계되지 않습니다.
+            use_cases:
+              - 공연 마케팅 성과 벤치마킹
+              - 흥행 예측 모델 입력
+              - 장르별 인기 수명주기 비교
     columns:
       - name: performance_id
         description: KOPIS 공연 식별자(mt20id) — 공연 한 편당 하나, 이 표의 기본 키
@@ -427,14 +427,14 @@ models:
                 WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM gold_culture_boxoffice_daily)
                   AND is_new_entry = 1
                 ORDER BY rank_no LIMIT :n
-        display:
-          title: 공연 예매 랭킹 (일별)
-          summary: 공연 예매 순위를 매일 한 번 찍어 쌓은 데이터입니다. 3일 전 순위와의 변동폭, 차트 체류 일수, 신규 진입 여부까지 계산돼 있어 "요즘 뜨는 공연"을 바로 뽑을 수 있습니다.
-          caveat: 원천이 순위만 제공합니다. 예매율·판매 좌석 수·매출액은 포함되지 않습니다.
-          use_cases:
-            - 인기 공연 큐레이션
-            - 장르별 흥행 추이 리포트
-            - 공연 추천 모델의 인기도 피처
+          display:
+            title: 공연 예매 랭킹 (일별)
+            summary: 공연 예매 순위를 매일 한 번 찍어 쌓은 데이터입니다. 3일 전 순위와의 변동폭, 차트 체류 일수, 신규 진입 여부까지 계산돼 있어 "요즘 뜨는 공연"을 바로 뽑을 수 있습니다.
+            caveat: 원천이 순위만 제공합니다. 예매율·판매 좌석 수·매출액은 포함되지 않습니다.
+            use_cases:
+              - 인기 공연 큐레이션
+              - 장르별 흥행 추이 리포트
+              - 공연 추천 모델의 인기도 피처
     tests:
       # 서빙 계약 PK 근거(#346) — 그레인은 모델 선언(snapshot_date × rank_no) 그대로
       - dbt_utils.unique_combination_of_columns:
@@ -610,13 +610,13 @@ models:
                 FROM gold_culture_calendar_density
                 WHERE event_date BETWEEN :from AND :to
                 GROUP BY gu ORDER BY events DESC LIMIT :n
-        display:
-          title: 자치구 일자별 문화행사 밀도
-          summary: 자치구마다 하루에 행사가 몇 건 열리고 그중 한 유형에 얼마나 몰리는지를 요약했습니다. 볼거리가 많은 날을 찾는 쪽과, 행사를 새로 열 때 경쟁을 피할 날을 고르는 쪽 모두가 같은 표를 씁니다.
-          use_cases:
-            - 행사 개최일 선정
-            - 이번 주 볼거리 많은 자치구 콘텐츠
-            - 지역별 문화 공급 편차 분석
+          display:
+            title: 자치구 일자별 문화행사 밀도
+            summary: 자치구마다 하루에 행사가 몇 건 열리고 그중 한 유형에 얼마나 몰리는지를 요약했습니다. 볼거리가 많은 날을 찾는 쪽과, 행사를 새로 열 때 경쟁을 피할 날을 고르는 쪽 모두가 같은 표를 씁니다.
+            use_cases:
+              - 행사 개최일 선정
+              - 이번 주 볼거리 많은 자치구 콘텐츠
+              - 지역별 문화 공급 편차 분석
     tests:
       # 서빙 계약 PK 근거(#346)
       - dbt_utils.unique_combination_of_columns:
@@ -765,14 +765,14 @@ models:
                 FROM gold_culture_event_crowd
                 WHERE day_of_week = :dow AND hour_of_day = :hour
                 ORDER BY avg_congest_score DESC LIMIT :n
-        display:
-          title: 행사 지역 요일·시간대 혼잡도
-          summary: 문화행사가 열리는 자치구가 요일과 시간대별로 평소 얼마나 붐비는지에 대한 기준선입니다. 서울시 실시간 도시데이터의 인구·혼잡 관측을 요일×시간 칸으로 모아 평균 인구와 대표 혼잡 등급을 계산했습니다.
-          caveat: 특정 행사 당일의 증가분이 아니라 평상시 패턴입니다. 서울시가 관측하는 주요 지점 기준이라 자치구 전역을 대표하지는 않습니다.
-          use_cases:
-            - 방문 시간대 추천
-            - 행사 운영 인력·안전 배치 계획
-            - 한적한 관람 시간 안내
+          display:
+            title: 행사 지역 요일·시간대 혼잡도
+            summary: 문화행사가 열리는 자치구가 요일과 시간대별로 평소 얼마나 붐비는지에 대한 기준선입니다. 서울시 실시간 도시데이터의 인구·혼잡 관측을 요일×시간 칸으로 모아 평균 인구와 대표 혼잡 등급을 계산했습니다.
+            caveat: 특정 행사 당일의 증가분이 아니라 평상시 패턴입니다. 서울시가 관측하는 주요 지점 기준이라 자치구 전역을 대표하지는 않습니다.
+            use_cases:
+              - 방문 시간대 추천
+              - 행사 운영 인력·안전 배치 계획
+              - 한적한 관람 시간 안내
     tests:
       # 서빙 계약 PK 근거(#346)
       - dbt_utils.unique_combination_of_columns:
@@ -939,14 +939,14 @@ models:
                 FROM gold_culture_event_schedule
                 WHERE gu = :gu AND event_start_date <= :today AND event_end_date >= :today
                 ORDER BY event_start_date DESC LIMIT :n
-        display:
-          title: 서울 문화행사 통합 일정
-          summary: 서울에서 열리는 공연·전시·축제·체험 행사를 한 행에 하나씩 모은 통합 일정표입니다. 시작일과 종료일, 장소 이름과 좌표, 자치구·행정동, 유·무료 표기가 함께 들어 있어 "이번 주말 성동구 행사" 같은 조회를 이 데이터셋 하나로 끝낼 수 있습니다.
-          caveat: 6개 출처를 합치면서 같은 행사가 중복되지 않도록 정리했습니다. 분류(category) 값은 출처마다 체계가 달라 통합 분류가 아닙니다.
-          use_cases:
-            - 주말 나들이 추천 서비스의 행사 목록
-            - 지역 문화 소식 뉴스레터
-            - 행사 밀집 지역 분석
+          display:
+            title: 서울 문화행사 통합 일정
+            summary: 서울에서 열리는 공연·전시·축제·체험 행사를 한 행에 하나씩 모은 통합 일정표입니다. 시작일과 종료일, 장소 이름과 좌표, 자치구·행정동, 유·무료 표기가 함께 들어 있어 "이번 주말 성동구 행사" 같은 조회를 이 데이터셋 하나로 끝낼 수 있습니다.
+            caveat: 6개 출처를 합치면서 같은 행사가 중복되지 않도록 정리했습니다. 분류(category) 값은 출처마다 체계가 달라 통합 분류가 아닙니다.
+            use_cases:
+              - 주말 나들이 추천 서비스의 행사 목록
+              - 지역 문화 소식 뉴스레터
+              - 행사 밀집 지역 분석
     columns:
       - name: event_ref
         description: 행사 고유 키. 출처 접두어가 붙는다(예 performance:12345)
@@ -1656,14 +1656,14 @@ models:
                   AND culture_events_pctl >= :culture_min
                   AND dining_stock_pctl <= :dining_max
                 ORDER BY culture_events_pctl DESC LIMIT :n
-        display:
-          title: 문화·미식 동반 추천 지수
-          summary: 동네마다 앞으로 90일간 예정된 문화행사량과 영업 중인 음식점 규모를 나란히 점수화했습니다. 두 값이 모두 높은 동네일수록 점수가 높아 "공연 보고 밥 먹기 좋은 동네" 정렬에 그대로 쓸 수 있습니다.
-          caveat: 음식점 데이터가 연결된 동은 426곳 중 219곳입니다. 나머지 동은 문화 지표만 채워지고 점수는 비어 있습니다(has_dining_data 로 구분).
-          use_cases:
-            - 데이트·나들이 코스 추천
-            - 상권 입지 검토
-            - 지역 관광 코스 설계
+          display:
+            title: 문화·미식 동반 추천 지수
+            summary: 동네마다 앞으로 90일간 예정된 문화행사량과 영업 중인 음식점 규모를 나란히 점수화했습니다. 두 값이 모두 높은 동네일수록 점수가 높아 "공연 보고 밥 먹기 좋은 동네" 정렬에 그대로 쓸 수 있습니다.
+            caveat: 음식점 데이터가 연결된 동은 426곳 중 219곳입니다. 나머지 동은 문화 지표만 채워지고 점수는 비어 있습니다(has_dining_data 로 구분).
+            use_cases:
+              - 데이트·나들이 코스 추천
+              - 상권 입지 검토
+              - 지역 관광 코스 설계
     columns:
       - name: admin_dong_code
         description: 행정동 코드 — 행정안전부 표준 10자리. 이 표의 기본 키
