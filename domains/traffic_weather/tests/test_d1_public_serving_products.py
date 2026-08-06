@@ -40,7 +40,7 @@ EXPECTED_PUBLIC_PROJECTIONS = {
         "product_row_id", "place_id", "window_start_at", "window_end_at",
     ],
     "weather_place_risk_window": [
-        "product_row_id", "place_id", "forecast_at", "risk_labels",
+        "product_row_id", "place_id", "forecast_at", "risk_labels", "forecast_collected_at_max",
     ],
     "weather_place_forecast_change_daily": [
         "product_row_id", "place_id", "forecast_date", "latest_issued_at", "change_state",
@@ -94,6 +94,7 @@ EXPECTED_PUBLIC_PROJECTION_VERSIONS = {
     for product_id in EXPECTED_PRODUCTS
 }
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_forecast_change_daily"] = "1.1.0"
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_risk_window"] = "1.1.0"
 
 EXPECTED_PUBLIC_PROJECTION_HASHES = {
     "traffic_flow_anomaly_current": "5973ee5d82abc24c34f3854976a0814bdbf94945233e2b9d790c038b74d509ef",
@@ -105,7 +106,7 @@ EXPECTED_PUBLIC_PROJECTION_HASHES = {
     "weather_place_current_outlook": "62db82904ff1b66450676f3b64adc4d42c8729849f9e0ae83a9f8ec41ddef07b",
     "weather_place_forecast_change_daily": "75ae5336e3b826cf9352ce474b61c247915d921aad481da4f589b3e63ceb23cd",
     "weather_place_precipitation_window": "dc72be1fb400b38fd6389527b5e322fea374f043a54810690b13d685be5a8818",
-    "weather_place_risk_window": "607ea68ba39584686ec2c13d321c4e55ec6e32b207a425f24cd72b928666a37a",
+    "weather_place_risk_window": "38e704cf51a5d743fd688a0a4dfd4191079ca3745fb328ee79afcd0dffc90282",
 }
 
 INTERNAL_PUBLIC_FIELD_FRAGMENTS = {
