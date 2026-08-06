@@ -182,11 +182,11 @@ models:
     columns:
       - name: event_date
         data_type: date
-        description: 집계 날짜 (event_at의 KST 날짜) — grain 축
+        description: 집계 날짜 (event_at의 KST 날짜)
         tests: [not_null]
       - name: area_code
         data_type: varchar
-        description: 장소 코드 (POI###) — grain 축
+        description: 장소 코드 (POI###)
         tests: [not_null]
       - name: area_name
         data_type: varchar
@@ -312,11 +312,11 @@ models:
     columns:
       - name: time_bucket
         data_type: timestamp(6)
-        description: 시간 버킷 (KST, date_trunc hour) — grain 축
+        description: 시간 버킷 (KST)
         tests: [not_null]
       - name: area_cd
         data_type: varchar
-        description: 장소 코드 (POI###) — grain 축
+        description: 장소 코드 (POI###)
         tests: [not_null]
       - name: area_nm
         data_type: varchar
@@ -444,11 +444,11 @@ models:
     columns:
       - name: event_date
         data_type: date
-        description: 집계 날짜 (KST) — grain 축
+        description: 집계 날짜 (KST)
         tests: [not_null]
       - name: area_cd
         data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
+        description: 장소 코드 (POI###)
         tests: [not_null]
       - name: area_nm
         data_type: varchar
@@ -581,12 +581,12 @@ models:
     columns:
       - name: event_date
         data_type: date
-        description: 집계 날짜 (KST) — grain 축
+        description: 집계 날짜 (KST)
         config: {meta: {semantic_role: event_date, nullable: false, null_meaning: not_applicable, unit: date}}
         tests: [not_null]
       - name: area_cd
         data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
+        description: 장소 코드 (POI###)
         config: {meta: {semantic_role: entity_id, nullable: false, null_meaning: not_applicable, unit: code}}
         tests: [not_null]
       - name: area_nm
@@ -768,11 +768,11 @@ models:
     columns:
       - name: event_date
         data_type: date
-        description: 집계 날짜 (KST) — grain 축
+        description: 집계 날짜 (KST)
         tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
-        description: 행안부 행정동 코드 10자리 — grain 축·조인 키
+        description: 행안부 행정동 코드 10자리·조인 키
         tests: [not_null]
       - name: admin_dong
         data_type: varchar
@@ -893,11 +893,11 @@ models:
     columns:
       - name: time_bucket
         data_type: timestamp(6)
-        description: 시간 버킷 (KST, date_trunc hour) — grain 축
+        description: 시간 버킷 (KST)
         tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
-        description: 행안부 행정동 코드 10자리 — grain 축·조인 키
+        description: 행안부 행정동 코드 10자리·조인 키
         tests: [not_null]
       - name: admin_dong
         data_type: varchar
@@ -1015,11 +1015,11 @@ models:
     columns:
       - name: time_bucket
         data_type: timestamp(6)
-        description: 시간 버킷 (KST, date_trunc hour) — grain 축
+        description: 시간 버킷 (KST)
         tests: [not_null]
       - name: admin_dong_code
         data_type: varchar
-        description: 행안부 행정동 코드 10자리 — grain 축·조인 키
+        description: 행안부 행정동 코드 10자리·조인 키
         tests: [not_null]
       - name: admin_dong
         data_type: varchar
@@ -1139,7 +1139,7 @@ models:
     columns:
       - name: area_cd
         data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
+        description: 장소 코드 (POI###)
         tests: [not_null]
       - name: area_nm
         data_type: varchar
@@ -1161,19 +1161,19 @@ models:
         description: 장소 중심점 위도 (WGS84)
       - name: dow
         data_type: bigint
-        description: 요일 (Trino day_of_week — 1=월 … 6=토 … 7=일, grain 축)
+        description: 요일 (Trino day_of_week — 1=월 … 6=토 … 7=일)
         tests: [not_null]
       - name: hour
         data_type: bigint
-        description: 시각 (0~23, KST event_at 기준, grain 축)
+        description: 시각 (0~23, KST event_at 기준)
         tests: [not_null]
       - name: segment_type
         data_type: varchar
-        description: 세그먼트 차원 — gender | age (grain 축)
+        description: 세그먼트 차원 — gender | age
         tests: [not_null]
       - name: segment
         data_type: varchar
-        description: 세그먼트 값 — gender=male/female, age=0/10/…/70(대) (grain 축)
+        description: 세그먼트 값 — gender=male/female, age=0/10/…/70(대)
         tests: [not_null]
       - name: avg_rate_pct
         data_type: decimal(6,2)
@@ -1269,7 +1269,7 @@ models:
     columns:
       - name: area_cd
         data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
+        description: 장소 코드 (POI###)
         tests: [not_null]
       - name: area_nm
         data_type: varchar
@@ -1279,7 +1279,7 @@ models:
         description: 자치구명
       - name: gu_code
         data_type: varchar
-        description: 자치구 코드 (#48 공간축)
+        description: 자치구 코드
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -1291,11 +1291,11 @@ models:
         description: 장소 카테고리
       - name: dow
         data_type: bigint
-        description: 요일 (1=월 … 7=일, Trino day_of_week, grain 축)
+        description: 요일 (1=월 … 7=일, Trino day_of_week)
         tests: [not_null]
       - name: hr
         data_type: bigint
-        description: 시간 (0~23, grain 축)
+        description: 시간 (0~23)
         tests: [not_null]
       - name: avg_ppltn
         data_type: integer
@@ -1391,7 +1391,7 @@ models:
     columns:
       - name: area_cd
         data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
+        description: 장소 코드 (POI###)
         tests: [not_null]
       - name: area_nm
         data_type: varchar
@@ -1401,7 +1401,7 @@ models:
         description: 자치구명
       - name: gu_code
         data_type: varchar
-        description: 자치구 코드 (#48 공간축)
+        description: 자치구 코드
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -1413,11 +1413,11 @@ models:
         description: 장소 카테고리
       - name: dow
         data_type: bigint
-        description: 요일 (1=월 … 7=일, Trino day_of_week, grain 축)
+        description: 요일 (1=월 … 7=일, Trino day_of_week)
         tests: [not_null]
       - name: hr
         data_type: bigint
-        description: 시간 (0~23, grain 축)
+        description: 시간 (0~23)
         tests: [not_null]
       - name: avg_bikes_available
         data_type: integer
@@ -1512,7 +1512,7 @@ models:
     columns:
       - name: area_cd
         data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
+        description: 장소 코드 (POI###)
         tests: [not_null]
       - name: area_nm
         data_type: varchar
@@ -1522,7 +1522,7 @@ models:
         description: 자치구명
       - name: gu_code
         data_type: varchar
-        description: 자치구 코드 (#48 공간축)
+        description: 자치구 코드
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -1534,7 +1534,7 @@ models:
         description: 장소 카테고리
       - name: event_date
         data_type: date
-        description: 관측 일자 (KST, grain 축)
+        description: 관측 일자 (KST)
         tests: [not_null]
       - name: avg_pm10
         data_type: integer
@@ -1631,7 +1631,7 @@ models:
     columns:
       - name: area_cd
         data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
+        description: 장소 코드 (POI###)
         tests: [not_null]
       - name: area_nm
         data_type: varchar
@@ -1641,7 +1641,7 @@ models:
         description: 자치구명
       - name: gu_code
         data_type: varchar
-        description: 자치구 코드 (#48 공간축)
+        description: 자치구 코드
       - name: admin_dong
         data_type: varchar
         description: 행정동명
@@ -1653,11 +1653,11 @@ models:
         description: 장소 카테고리
       - name: dow
         data_type: bigint
-        description: 요일 (1=월 … 7=일, Trino day_of_week, grain 축)
+        description: 요일 (1=월 … 7=일, Trino day_of_week)
         tests: [not_null]
       - name: hr
         data_type: bigint
-        description: 시간 (0~23, grain 축)
+        description: 시간 (0~23)
         tests: [not_null]
       - name: avg_available_pct
         data_type: double

@@ -215,7 +215,7 @@ models:
             status: active
     columns:
       - name: product_row_id
-        description: anchor(gold_traffic_incident_current_by_admin_dong_hourly)에서 그대로 승계한 결정적 제품 행 식별자입니다.
+        description: 결정적 제품 행 식별자입니다.
         data_type: varchar
         tests:
           - not_null:
@@ -227,7 +227,7 @@ models:
         config:
           meta: {semantic_role: primary_key, nullable: false, null_meaning: '제품 기본 키이므로 null을 허용하지 않습니다.', unit: not_applicable}
       - name: admin_dong_code
-        description: anchor에서 승계한 행안부 10자리 정본 행정동 코드입니다.
+        description: 행안부 10자리 정본 행정동 코드입니다.
         data_type: varchar
         tests:
           - not_null:
@@ -236,7 +236,7 @@ models:
         config:
           meta: {semantic_role: join_key, nullable: false, null_meaning: 'natural grain과 정본 공간 조인에 필수이므로 null을 허용하지 않습니다.', unit: not_applicable}
       - name: hour_at
-        description: anchor에서 승계한 서울 기준 snapshot 평가 시간입니다.
+        description: 서울 기준 snapshot 평가 시간입니다.
         data_type: timestamp(6)
         tests:
           - not_null:
@@ -245,7 +245,7 @@ models:
         config:
           meta: {semantic_role: timestamp, nullable: false, null_meaning: '모든 행정동 cell이 공유하는 평가 시간 grain이므로 null을 허용하지 않습니다.', time_role: evaluation_bucket, timezone: Asia/Seoul, unit: not_applicable}
       - name: admin_dong
-        description: anchor에서 승계한 정본 행정동명입니다.
+        description: 정본 행정동명입니다.
         data_type: varchar
         tests:
           - not_null:
@@ -254,7 +254,7 @@ models:
         config:
           meta: {semantic_role: spatial_stamp, nullable: false, null_meaning: '정본 행정동명이 없는 후보는 공개하지 않습니다.', unit: not_applicable}
       - name: gu_code
-        description: anchor에서 승계한 행안부 자치구 5자리 코드입니다.
+        description: 행안부 자치구 5자리 코드입니다.
         data_type: varchar
         tests:
           - not_null:
@@ -267,7 +267,7 @@ models:
             null_meaning: 정본 자치구 코드가 없는 후보는 공개하지 않습니다.
             unit: not_applicable
       - name: gu
-        description: anchor에서 승계한 자치구명입니다.
+        description: 자치구명입니다.
         data_type: varchar
         tests:
           - not_null:
@@ -280,7 +280,7 @@ models:
             null_meaning: 정본 자치구명이 없는 후보는 공개하지 않습니다.
             unit: not_applicable
       - name: admin_dong_revision_date
-        description: anchor에서 승계한 승인 공통 행정동 revision입니다.
+        description: 승인 공통 행정동 revision입니다.
         data_type: date
         tests:
           - not_null:
@@ -293,7 +293,7 @@ models:
             null_meaning: 정본 개정일이 없는 후보는 공개하지 않습니다.
             unit: not_applicable
       - name: incident_count
-        description: anchor에서 그대로 승계한 현재 돌발 건수입니다. null은 anchor의 quality가 건수를 지지하지 못했다는 뜻이며 날씨 결합으로 재작성되지 않습니다.
+        description: 그 행정동의 현재 돌발 건수입니다. 값이 비어 있으면 원천 품질이 건수를 확정할 만큼 갖춰지지 않은 것이며, 날씨를 붙이면서 임의로 채우지 않습니다.
         data_type: bigint
         config:
           meta:
@@ -304,7 +304,7 @@ models:
             null_meaning: anchor의 snapshot 완전성이나 공간 정합성을 확인할 근거가 부족한 상태입니다.
             aggregation_behavior: passthrough
       - name: has_incident
-        description: anchor에서 그대로 승계한 현재 돌발 존재 플래그입니다.
+        description: 현재 돌발 존재 플래그입니다.
         data_type: boolean
         config:
           meta:
@@ -313,7 +313,7 @@ models:
             null_meaning: anchor의 quality가 boolean을 지지하지 못한 상태입니다.
             unit: not_applicable
       - name: quality_state
-        description: anchor에서 그대로 승계한 Traffic snapshot 품질 상태입니다.
+        description: Traffic snapshot 품질 상태입니다.
         data_type: varchar
         tests:
           - not_null:
@@ -326,7 +326,7 @@ models:
             null_meaning: 공개 제품은 quality_state 없는 행을 게시하지 않습니다.
             unit: not_applicable
       - name: snapshot_as_of_at
-        description: anchor에서 승계한 complete publishable run의 최신 request audit 수집 시각입니다.
+        description: 이 스냅샷의 원천을 마지막으로 수집한 시각(KST)입니다.
         data_type: timestamp(6)
         config:
           meta:
@@ -337,7 +337,7 @@ models:
             timezone: Asia/Seoul
             unit: not_applicable
       - name: status_observed_at
-        description: anchor에서 승계한 상태 관측 시각이며 날씨 no-hindsight cutoff로도 사용됩니다.
+        description: 상태 관측 시각이며 날씨 no-hindsight cutoff로도 사용됩니다.
         data_type: timestamp(6)
         tests:
           - not_null:
@@ -352,7 +352,7 @@ models:
             timezone: Asia/Seoul
             unit: not_applicable
       - name: published_at
-        description: anchor에서 승계한 게시 시각입니다.
+        description: 게시 시각입니다.
         data_type: timestamp(6)
         tests:
           - not_null:
@@ -367,7 +367,7 @@ models:
             timezone: Asia/Seoul
             unit: not_applicable
       - name: snapshot_dag_run_id
-        description: anchor에서 승계한 snapshot DAG 실행 식별자입니다.
+        description: snapshot DAG 실행 식별자입니다.
         data_type: varchar
         tests:
           - not_null:
@@ -379,7 +379,7 @@ models:
             nullable: false
             null_meaning: 실행으로 역추적할 수 없는 행은 공개하지 않습니다.
       - name: source_id
-        description: anchor에서 승계한 Traffic 원천 식별자입니다.
+        description: Traffic 원천 식별자입니다.
         data_type: varchar
         tests:
           - not_null:

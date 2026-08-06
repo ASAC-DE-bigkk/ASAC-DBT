@@ -80,8 +80,8 @@ models:
       - name: src_collected_at
         data_type: timestamp(6)
         description: >-
-          이 행을 만든 빌드가 반영한 silver 워터마크(silver_license_entity 의 max(collected_at)).
-          다음 증분 빌드는 이 값 이후 변경분이 건드린 기간만 재계산해 교체한다(#603).
+          이 행을 만든 빌드가 반영한 원천 수집 시각.
+          다음 갱신은 이 시각 이후 바뀐 기간만 다시 계산해 바꿔 넣습니다.
       - name: event_type_ko
         data_type: varchar
         description: 이벤트 유형 한글(개업/폐업)
@@ -1539,8 +1539,8 @@ models:
       - name: src_collected_at
         data_type: timestamp(6)
         description: >-
-          이 행을 만든 빌드가 반영한 silver 워터마크(silver_license_entity 의 max(collected_at)).
-          다음 증분 빌드는 이 값 이후 변경분이 건드린 기간만 재계산해 교체한다(#603).
+          이 행을 만든 빌드가 반영한 원천 수집 시각.
+          다음 갱신은 이 시각 이후 바뀐 기간만 다시 계산해 바꿔 넣습니다.
       - name: event_type_ko
         data_type: varchar
         description: 이벤트 유형 한글(개업/폐업)
@@ -1826,8 +1826,8 @@ models:
       - name: src_collected_at
         data_type: timestamp(6)
         description: >-
-          이 행을 만든 빌드가 반영한 silver 워터마크(silver_license_entity 의 max(collected_at)).
-          다음 증분 빌드는 이 값 이후 변경분이 건드린 기간만 재계산해 교체한다(#603).
+          이 행을 만든 빌드가 반영한 원천 수집 시각.
+          다음 갱신은 이 시각 이후 바뀐 기간만 다시 계산해 바꿔 넣습니다.
       - name: event_type_ko
         data_type: varchar
         description: 이벤트 유형 한글(개업/폐업)

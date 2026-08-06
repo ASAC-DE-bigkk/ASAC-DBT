@@ -315,7 +315,7 @@ models:
             timezone: Asia/Seoul
             unit: not_applicable
       - name: snapshot_as_of_hour
-        description: 이 모델 빌드가 현재 예보를 선택할 때 사용한 서울 기준 시간 단위 내부 anchor입니다.
+        description: 현재 예보를 고를 때 기준으로 삼은 시각(KST, 시간 단위)입니다.
         data_type: timestamp(6)
         tests: [not_null]
         config:
