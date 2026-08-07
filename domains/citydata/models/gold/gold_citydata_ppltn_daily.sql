@@ -1,6 +1,6 @@
 -- gold(일자별): silver를 소비해 **장소별 하루 혼잡 인사이트**를 만든다.
 -- "이 장소, 이 날: 평균 얼마나 붐볐고 / 언제 최고였고 / 붐빈 비율은?" 를 답한다.
--- grain = (event_date, area_code). 시간대별(gold_citydata_ppltn_by_time)의 일 단위 롤업.
+-- grain = (event_date, area_code). silver 5분 시계열의 일 단위 롤업.
 --
 -- 공간축: silver는 코드·좌표(area_cd·admin_dong_code·gu_code·lon·lat)만 담고, 이름
 -- (area_nm/gu/admin_dong 등)은 dim_seoul_area 조인으로 붙인다(#115 정규화).
