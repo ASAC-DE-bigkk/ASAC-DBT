@@ -20,6 +20,22 @@ GOLD = (
     / "gold"
     / "gold_weather_place_forecast_change_daily.sql"
 )
+SERVING_PLACE_FORECAST = (
+    PROJECT_DIR
+    / "models"
+    / "weather"
+    / "transform"
+    / "place_mart"
+    / "gold_weather_forecast_by_place_serving.sql"
+)
+HOURLY_OUTLOOK = (
+    PROJECT_DIR
+    / "models"
+    / "weather"
+    / "transform"
+    / "gold"
+    / "gold_weather_place_hourly_outlook.sql"
+)
 
 
 def test_serving_working_set_is_partitioned_and_bounded_before_fanout() -> None:
@@ -40,3 +56,13 @@ def test_public_forecast_change_reads_the_bounded_serving_relation() -> None:
 
     assert "ref('silver_weather_forecast_by_admin_dong_serving')" in sql
     assert "ref('silver_weather_forecast_by_admin_dong')" not in sql
+
+
+def test_other_weather_d1_products_use_the_same_bounded_working_set() -> None:
+    serving_place_forecast = SERVING_PLACE_FORECAST.read_text(encoding="utf-8")
+    hourly_outlook = HOURLY_OUTLOOK.read_text(encoding="utf-8")
+
+    assert "ref('silver_weather_forecast_by_admin_dong_serving')" in serving_place_forecast
+    assert "ref('silver_weather_forecast_by_admin_dong')" not in serving_place_forecast
+    assert "ref('gold_weather_forecast_by_place_serving')" in hourly_outlook
+    assert "ref('gold_weather_forecast_by_place')" not in hourly_outlook

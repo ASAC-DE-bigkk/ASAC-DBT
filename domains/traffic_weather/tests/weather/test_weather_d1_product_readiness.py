@@ -193,6 +193,22 @@ def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() ->
     dbt_project = yaml.safe_load(DBT_PROJECT_PATH.read_text(encoding="utf-8"))
 
     assert "ask_seoul_weather_transform_gold" in selector_names
+    serving_selector = next(
+        selector
+        for selector in selectors
+        if selector["name"] == "ask_seoul_weather_transform_serving_gold"
+    )
+    serving_paths = {
+        entry["value"]
+        for entry in serving_selector["definition"]["union"]
+        if entry["method"] == "path"
+    }
+    assert {
+        "tests/weather/transform/gold/assert_gold_weather_place_current_outlook_readiness.sql",
+        "tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_valid_empty.sql",
+        "tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_non_overlapping.sql",
+        "tests/weather/transform/gold/assert_gold_weather_place_forecast_change_daily_consistent.sql",
+    } <= serving_paths
     assert dbt_project["data_tests"]["asac_seoul"]["weather"]["transform"]["gold"]["+tags"] == [
         "ask_seoul_weather_transform_gold"
     ]

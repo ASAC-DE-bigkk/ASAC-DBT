@@ -312,6 +312,20 @@ selectors:
         - {method: path, value: models/weather/transform/place_mart/silver_weather_forecast_by_admin_dong_serving.sql, indirect_selection: cautious}
         - {method: path, value: tests/weather/transform/place_mart/assert_silver_weather_admin_dong_serving_grain_unique.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/place_mart/assert_silver_weather_admin_dong_serving_retention_window.sql, indirect_selection: empty}
+  - name: ask_seoul_weather_transform_serving_gold
+    description: Weather D1 네 상품과 그 직접 계약만 선택하며 Citydata 교차 분석 Gold는 포함하지 않는다.
+    definition:
+      union:
+        - {method: path, value: models/weather/transform/place_mart/gold_weather_forecast_by_place_serving.sql, indirect_selection: cautious}
+        - {method: path, value: models/weather/transform/gold/gold_weather_place_hourly_outlook.sql, indirect_selection: cautious}
+        - {method: path, value: models/weather/transform/gold/gold_weather_place_current_outlook.sql, indirect_selection: cautious}
+        - {method: path, value: models/weather/transform/gold/gold_weather_place_precipitation_window.sql, indirect_selection: cautious}
+        - {method: path, value: models/weather/transform/gold/gold_weather_place_risk_window.sql, indirect_selection: cautious}
+        - {method: path, value: models/weather/transform/gold/gold_weather_place_forecast_change_daily.sql, indirect_selection: cautious}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_current_outlook_readiness.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_valid_empty.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_non_overlapping.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_forecast_change_daily_consistent.sql, indirect_selection: empty}
   - name: ask_seoul_weather_w1_inputs
     description: Weather W1 bridge가 요구하는 공통축과 Weather seed만 선택한다.
     definition: {method: tag, value: ask_seoul_weather_w1_inputs, indirect_selection: cautious}
