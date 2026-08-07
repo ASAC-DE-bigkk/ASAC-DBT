@@ -312,6 +312,46 @@ models:
           # dong_now 75분(내재지연 실측 보정, #475)과 같은 논리로 한 사이클 여유를 더해 180분.
           freshness_slo_minutes: 180
           shape: rollup
+          # source_evidence — source_id는 원천 source 노드명과 일치시킨다(parking_full_risk 관례).
+          # dbt 계보 기준: 실시간 3종(subway_arrival·parking·bus_position) + 각 silver/dim 이 읽는
+          # 마스터 1종(park_info_master). 좌표→행정동 배정에 쓰는 공통 공간축(asac_axes)은
+          # citydata·traffic 선례대로 제품 원천 목록에 넣지 않는다(원천 데이터만 선언).
+          source_evidence:
+            - source_id: subway_arrival
+              source_url: https://data.seoul.go.kr/dataList/OA-12764/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: subway_station_master
+              source_url: https://data.seoul.go.kr/dataList/OA-21232/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: bus_position
+              source_url: https://www.data.go.kr/data/15000332/openapi.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: parking
+              source_url: https://data.seoul.go.kr/dataList/OA-21709/A/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: park_info_master
+              source_url: https://data.seoul.go.kr/dataList/OA-13122/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
           # usage_patterns 3건(DBT#434 기준: 외부 유지 제품은 예시 3건 이상). hour_at 은
           # 포맷 혼재(마이크로초 유무)라 시각 축 추출은 strftime 대신 substr 로 고정.
           usage_patterns:
@@ -566,6 +606,51 @@ models:
           # 30분은 내재지연 오탐, 실측+여유 75분 (프로토타입 STALE_THRESHOLD_MIN 승계).
           freshness_slo_minutes: 75
           shape: wide
+          # source_evidence — dong_hourly 와 같은 실시간 3종·주차 마스터에 더해, dong_15min 이
+          # 읽는 dim_transit_bus_route_tier 의 원천(bus_route_master)까지 선언한다(*_t1 컬럼 근거).
+          source_evidence:
+            - source_id: subway_arrival
+              source_url: https://data.seoul.go.kr/dataList/OA-12764/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: subway_station_master
+              source_url: https://data.seoul.go.kr/dataList/OA-21232/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: bus_position
+              source_url: https://www.data.go.kr/data/15000332/openapi.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: bus_route_master
+              source_url: https://www.data.go.kr/data/15000193/openapi.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: parking
+              source_url: https://data.seoul.go.kr/dataList/OA-21709/A/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: park_info_master
+              source_url: https://data.seoul.go.kr/dataList/OA-13122/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
           # usage_patterns — 파일럿 2건(#384)에 DBT#434 기준(3건 이상·verified 필수)으로
           # requires·verified_rows·verified_at 를 채우고 단건 조회 축 1건 추가.
           usage_patterns:
@@ -1032,6 +1117,75 @@ models:
             schedule_cron: "40 8 * * *"     # 3-tier daily 주기 승계 (ASAC-DAG#475)
           # event_time 없음 — 명부성 제품(신선도를 잴 시간축 없음, 계약 v1.1 면제 사유 그대로).
           shape: wide
+          # source_evidence — 교차 도메인 제품이라 두 갈래를 다 적는다(#88 B 규칙).
+          #  1) transit 몫: dim(주차장·역) 마스터 2종 + parking_profile 이 타고 오는 실시간 주차 1종.
+          #  2) culture 몫: source('culture','gold_culture_event_schedule') 의 원천 6종 —
+          #     상대 도메인이 이미 선언한 값(ASAC-DBT#443, _culture_gold__models.yml)을 그대로 인용한다.
+          #     rights_checked_at 도 culture 가 확인한 날짜 그대로 둔다(확인 주체가 culture).
+          source_evidence:
+            - source_id: park_info_master
+              source_url: https://data.seoul.go.kr/dataList/OA-13122/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: parking
+              source_url: https://data.seoul.go.kr/dataList/OA-21709/A/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: subway_station_master
+              source_url: https://data.seoul.go.kr/dataList/OA-21232/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+            - source_id: kopis_open_api
+              source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
+              license: KOPIS Open API 2차 가공 집계의 외부 API 재배포·출처표시 허용
+              license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
+              redistribution: allowed_with_attribution
+              attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
+            - source_id: seoul_cultural_event
+              source_url: https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-04"
+            - source_id: sema_exhibition
+              source_url: https://data.seoul.go.kr/dataList/OA-15323/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울시립미술관
+              rights_checked_at: "2026-08-04"
+            - source_id: sejong_performance
+              source_url: https://data.seoul.go.kr/dataList/OA-2708/S/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 세종문화회관, 각 컨텐츠주체
+              rights_checked_at: "2026-08-04"
+            - source_id: kcisa_culture_info
+              source_url: https://www.data.go.kr/data/15138937/openapi.do
+              license: 이용허락범위 제한 없음
+              license_url: https://www.data.go.kr/data/15138937/openapi.do
+              redistribution: allowed_with_attribution
+              attribution: 한국문화정보원
+              rights_checked_at: "2026-08-04"
+            - source_id: national_data_office_admin_dong_link
+              source_url: https://www.data.go.kr/data/15136368/fileData.do
+              license: 공공저작물 제3유형(출처표시·변경금지) — 2차 가공 집계 외부 API 재배포 승인
+              license_url: https://www.kogl.or.kr/info/licenseType3.do
+              redistribution: allowed_with_attribution
+              attribution: 국가데이터처
+              rights_checked_at: "2026-08-04"
           # usage_patterns 3건(DBT#434 기준). 행사 조회는 결과가 비는 게 정상인 질의라
           # 전건 allow_empty — 소비 측은 0행을 '조건에 맞는 행사 없음'으로 해석한다.
           usage_patterns:

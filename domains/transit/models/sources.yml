@@ -18,6 +18,20 @@ sources:
       - name: subway_station_master
         identifier: bronze_subway_station_master
         description: 서울 지하철 역사 마스터(bldn_id·bldn_nm·route·lat·lot + 계보). #162 적재.
+        # 원천 권리(#406 C4 · ASK-Seoul-Serving#88 B). 데이터셋 대조: 열린데이터광장 '서울시
+        # 역사마스터 정보'(OA-21232, 역사ID·역사명·호선명·좌표) ↔ subwayStationMaster 실호출
+        # 784행/BLDN_ID·BLDN_NM·ROUTE·LAT·LOT 로 동일 확인(2026-08-07).
+        meta:
+          source_rights:
+            source_name: 서울시 역사마스터 정보
+            dataset_id: OA-21232
+            source_url: https://data.seoul.go.kr/dataList/OA-21232/S/1/datasetView.do
+            api_service: subwayStationMaster
+            license: 공공누리 제1유형(출처표시)
+            attribution: 서울특별시
+            commercial_use: true
+            redistribution: true
+            verified_at: "2026-08-07"
         loaded_at_field: collected_at
         freshness: null  # 주1회(@weekly) 참조 마스터 — 분 단위 신선도 게이트 비대상(소스 공통 기준 상속 차단)
         columns:
@@ -56,6 +70,19 @@ sources:
           버스 노선 마스터(getBusRouteList 주간 스냅샷, ASAC-DAG #471) — bus_route_id·
           bus_route_nm·route_type·tier + 계보. tier 는 수집 정책(BUS_TIER1_TYPES)으로
           DAG 에서 계산됨(간선3·광역6=1, 그 외=2). dim_transit_bus_route_tier 가 소비.
+        # 원천 권리(#406 C4 · ASK-Seoul-Serving#88 B). 서울 TOPIS 버스 API(ws.bus.go.kr)는
+        # 공공데이터포털 등록본이 정본 — getBusRouteList 는 '노선정보조회 서비스' 오퍼레이션.
+        meta:
+          source_rights:
+            source_name: 서울특별시_노선정보조회 서비스
+            dataset_id: "15000193"
+            source_url: https://www.data.go.kr/data/15000193/openapi.do
+            api_service: busRouteInfo/getBusRouteList
+            license: 공공누리 제1유형(출처표시)
+            attribution: 서울특별시
+            commercial_use: true
+            redistribution: true
+            verified_at: "2026-08-07"
         loaded_at_field: collected_at
         freshness: null  # 주1회 참조 마스터 — 분 단위 신선도 게이트 비대상
         columns:
@@ -135,6 +162,18 @@ sources:
         description: >
           지하철 실시간 도착정보. 1행 = 도착예측 1건, 페이로드는 raw(JSON) 컬럼.
           핵심 키 statnId/ordkey/recptnDt, 노선 subwayId, 역명 statnNm.
+        # 원천 권리(#406 C4 · ASK-Seoul-Serving#88 B). 원천은 서울시 교통정보과[TOPIS] 제공분.
+        meta:
+          source_rights:
+            source_name: 서울시 지하철 실시간 도착정보
+            dataset_id: OA-12764
+            source_url: https://data.seoul.go.kr/dataList/OA-12764/F/1/datasetView.do
+            api_service: realtimeStationArrival
+            license: 공공누리 제1유형(출처표시)
+            attribution: 서울특별시
+            commercial_use: true
+            redistribution: true
+            verified_at: "2026-08-07"
         columns:
           - name: raw
             description: 도착예측 1건 JSON 페이로드.
@@ -184,6 +223,20 @@ sources:
         description: >
           버스 실시간 위치(getBusPosByRtid). 1행 = 노선 1회 호출 응답, raw 는 XML(<itemList> 다건).
           Trino xpath 부재로 regexp_extract_all + UNNEST 로 파싱(vehId/dataTm/gpsX/gpsY).
+        # 원천 권리(#406 C4 · ASK-Seoul-Serving#88 B). ws.bus.go.kr 직호출이지만 정본은
+        # 공공데이터포털 등록본 — 우리가 쓰는 buspos/getBusPosByRtid 는 등록 오퍼레이션
+        # getBusPosByRtidList 와 같은 서비스(버스위치정보조회)의 노선 단위 조회다.
+        meta:
+          source_rights:
+            source_name: 서울특별시_버스위치정보조회 서비스
+            dataset_id: "15000332"
+            source_url: https://www.data.go.kr/data/15000332/openapi.do
+            api_service: buspos/getBusPosByRtid
+            license: 공공누리 제1유형(출처표시)
+            attribution: 서울특별시
+            commercial_use: true
+            redistribution: true
+            verified_at: "2026-08-07"
         columns:
           - name: raw
             description: ServiceResult XML(다수 itemList 포함).
