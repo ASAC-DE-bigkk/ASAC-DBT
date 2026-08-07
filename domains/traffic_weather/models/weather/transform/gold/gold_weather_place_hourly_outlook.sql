@@ -24,7 +24,7 @@ with forecast_long as (
         cast(raw_object_key as varchar) as raw_object_key,
         cast(payload_hash as varchar) as payload_hash,
         cast(dag_run_id as varchar) as dag_run_id
-    from {{ ref('gold_weather_forecast_by_place') }}
+    from {{ ref('gold_weather_forecast_by_place_serving') }}
 ),
 
 pivoted as (

@@ -181,7 +181,7 @@ models:
                   unchanged: 비교 가능한 핵심 예보 값이 직전 발표와 모두 같은 상태입니다.
           lineage:
             source_relations:
-              - model.asac_seoul.silver_weather_forecast_by_admin_dong
+              - model.asac_seoul.silver_weather_forecast_by_admin_dong_serving
             identifiers:
               as_of:
                 columns:
