@@ -6,7 +6,7 @@ version: 2
 models:
   - name: gold_citydata_ppltn_daily
     config:
-      tags: ['slow']
+      tags: ['daily']  # #467: leaf + 하루 1회 서빙이라 slow(10분,47/일) → daily(1/일). 재빌드 47배 절감
       meta:
         serving:
           enabled: true
@@ -268,7 +268,7 @@ models:
             combination_of_columns: [time_bucket, area_cd]
   - name: gold_citydata_cmrcl_daily
     config:
-      tags: ['slow']
+      tags: ['daily']  # #467: leaf + 하루 1회 서빙이라 slow → daily. 재빌드 47배 절감
       meta:
         serving:
           enabled: true
@@ -397,7 +397,7 @@ models:
             combination_of_columns: [event_date, area_cd]
   - name: gold_citydata_purchasing_power_daily
     config:
-      tags: ['slow']
+      tags: ['daily']  # #467: leaf + 하루 1회 서빙이라 slow → daily. 재빌드 47배 절감
       meta:
         serving:
           enabled: true
@@ -557,7 +557,7 @@ models:
             combination_of_columns: [event_date, area_cd]
   - name: gold_citydata_ppltn_x_culture_daily
     config:
-      tags: ['slow']
+      tags: ['daily']  # #467: leaf + 하루 1회 서빙이라 slow → daily. 재빌드 47배 절감
       meta:
         serving:
           enabled: true
