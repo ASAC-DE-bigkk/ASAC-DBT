@@ -630,6 +630,93 @@ def test_culture_activity_source_evidence_covers_all_six_lineages_with_approved_
     assert result.ok, [finding.as_dict() for finding in result.findings]
 
 
+def test_transit_external_products_declare_evidence_for_every_lineage_source():
+    """Every externally served transit product names the sources its dbt lineage actually reads.
+
+    The gateway rights gate (ASK-Seoul-Serving#88) reads only `d1_catalog_sources`, so an
+    external product with no evidence is served today and fails closed at stage 2. Pinning the
+    per-product source_id set here keeps a lineage change (a new dim, a dropped join) from
+    silently leaving the published evidence behind.
+    """
+    models = load_models_from_yaml([REPO_ROOT / "domains/transit/models/schema.yml"])
+    by_name = {model.name: model for model in models}
+    external = {
+        name: model for name, model in by_name.items() if model.serving.get("external") is True
+    }
+    assert set(external) == {
+        "gold_transit_dong_hourly",
+        "gold_transit_dong_now",
+        "gold_transit_event_access",
+        "gold_transit_parking_full_risk",
+    }
+
+    source_ids = {
+        name: [source["source_id"] for source in model.serving["source_evidence"]]
+        for name, model in external.items()
+    }
+    # dong_now adds bus_route_master because gold_transit_dong_15min joins
+    # dim_transit_bus_route_tier for the tier1 columns; dong_hourly reads the silvers directly.
+    assert source_ids["gold_transit_dong_hourly"] == [
+        "subway_arrival",
+        "subway_station_master",
+        "bus_position",
+        "parking",
+        "park_info_master",
+    ]
+    assert source_ids["gold_transit_dong_now"] == [
+        "subway_arrival",
+        "subway_station_master",
+        "bus_position",
+        "bus_route_master",
+        "parking",
+        "park_info_master",
+    ]
+    assert source_ids["gold_transit_event_access"] == [
+        "park_info_master",
+        "parking",
+        "subway_station_master",
+        "kopis_open_api",
+        "seoul_cultural_event",
+        "sema_exhibition",
+        "sejong_performance",
+        "kcisa_culture_info",
+        "national_data_office_admin_dong_link",
+    ]
+    assert source_ids["gold_transit_parking_full_risk"] == ["park_info_master", "parking"]
+
+    for name, model in external.items():
+        redistribution = {
+            source["redistribution"] for source in model.serving["source_evidence"]
+        }
+        assert redistribution == {"allowed_with_attribution"}, name
+
+    result = validate(list(external.values()))
+    assert result.ok, [finding.as_dict() for finding in result.findings]
+
+
+def test_transit_event_access_quotes_culture_evidence_verbatim():
+    """The cross-domain half of event_access must stay byte-identical to culture's declaration.
+
+    #88 B requires a cross-domain product to quote the counterpart domain's declared rights
+    rather than restate them, so this pins the quotation to culture's own contract file. If
+    culture re-verifies or corrects a source, this fails until transit re-quotes it.
+    """
+    models = load_models_from_yaml(
+        [
+            REPO_ROOT / "domains/transit/models/schema.yml",
+            REPO_ROOT / "domains/culture/models/gold/_culture_gold__models.yml",
+        ]
+    )
+    by_name = {model.name: model for model in models}
+    transit = by_name["gold_transit_event_access"].serving["source_evidence"]
+    culture = by_name["gold_culture_event_schedule"].serving["source_evidence"]
+
+    quoted = [source for source in transit if source["source_id"] not in {
+        "park_info_master", "parking", "subway_station_master",
+    }]
+    assert quoted == culture
+
+
 def test_projection_identity_hash_preserves_order_and_ignores_descriptions():
     from serving_contract.projection_identity import canonical_projection_bytes, projection_schema_hash
 
