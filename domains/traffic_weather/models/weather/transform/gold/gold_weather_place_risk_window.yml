@@ -168,12 +168,30 @@ models:
                 ORDER BY risk_candidate_count DESC, place_id
                 LIMIT :n
           public_projection:
-            schema_version: "1.1.0"
+            schema_version: "1.2.0"
             columns:
               - product_row_id
               - place_id
+              - place_name
+              - admin_dong_code
+              - admin_dong
+              - gu_code
+              - gu
               - forecast_at
+              - temp_c
+              - wind_ms
+              - precip_prob_pct
+              - pty_code
+              - pcp_mm
+              - sno_cm
+              - heat_risk
+              - cold_risk
+              - heavy_rain_risk
+              - snow_risk
+              - wind_risk
               - risk_labels
+              - forecast_issued_at_min
+              - forecast_issued_at_max
               - forecast_collected_at_max
     columns:
       - name: product_row_id
@@ -196,6 +214,56 @@ models:
             nullable: false
             null_meaning: place_id 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
             unit: not_applicable
+      - name: place_name
+        description: 장소명입니다(장소 매핑에서 승계).
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: descriptive_attribute
+            nullable: false
+            null_meaning: 매핑된 장소는 이름을 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
+      - name: admin_dong_code
+        description: 이 장소가 속한 행정동 10자리 코드입니다(장소 매핑에서 승계, 별도 공간 계약 없음).
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_reference
+            nullable: false
+            null_meaning: 매핑된 장소는 행정동 코드를 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
+      - name: admin_dong
+        description: 행정동명입니다(장소 매핑에서 승계).
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_reference
+            nullable: false
+            null_meaning: 매핑된 장소는 행정동명을 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
+      - name: gu_code
+        description: 자치구 5자리 코드입니다(장소 매핑에서 승계).
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_reference
+            nullable: false
+            null_meaning: 매핑된 장소는 자치구 코드를 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
+      - name: gu
+        description: 자치구명입니다(장소 매핑에서 승계). 같은 행정동명이 여러 자치구에 있을 때 구분에 사용합니다.
+        data_type: varchar
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: spatial_reference
+            nullable: false
+            null_meaning: 매핑된 장소는 자치구명을 보존하므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: forecast_at
         description: 후보 위험이 적용되는 KST 예보 시각입니다.
         data_type: timestamp(6)
@@ -206,6 +274,109 @@ models:
             nullable: false
             null_meaning: forecast_at 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
             unit: not_applicable
+      - name: temp_c
+        description: 이 예보시각의 기온입니다. 폭염·한파 후보 판정의 근거값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 해당 장소·예보시각에 TMP 카테고리가 없어 결측된 경우입니다.
+            unit: celsius
+      - name: wind_ms
+        description: 이 예보시각의 풍속입니다. 강풍 후보 판정의 근거값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 해당 장소·예보시각에 WSD 카테고리가 없어 결측된 경우입니다.
+            unit: meter_per_second
+      - name: precip_prob_pct
+        description: 이 예보시각의 강수확률입니다. 위험 후보 판정에는 쓰지 않는 참고 근거값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 해당 장소·예보시각에 POP 카테고리가 없어 결측된 경우입니다.
+            unit: percent
+      - name: pty_code
+        description: KMA 강수형태 코드입니다. 호우 후보 판정의 근거값입니다.
+        data_type: varchar
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['0', '1', '2', '3', '4', '5', '6', '7']
+        config:
+          meta:
+            semantic_role: categorical_value
+            nullable: true
+            null_meaning: 해당 장소·예보시각에 PTY 카테고리가 없어 결측된 경우입니다.
+            unit: not_applicable
+      - name: pcp_mm
+        description: PCP 원문에서 숫자로 파싱 가능했던 강수량(mm)입니다. 호우 후보 판정의 근거값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: PCP 카테고리가 없거나 원문이 숫자로 파싱되지 않는 표현(범위·없음 등)인 경우입니다.
+            unit: millimeter
+      - name: sno_cm
+        description: SNO 원문에서 숫자로 파싱 가능했던 적설량(cm)입니다. 대설 후보 판정의 근거값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: SNO 카테고리가 없거나 원문이 숫자로 파싱되지 않는 표현(범위·없음 등)인 경우입니다.
+            unit: centimeter
+      - name: heat_risk
+        description: temp_c가 33도 이상인지 나타내는 폭염 후보 플래그입니다. 공식 폭염특보가 아닙니다.
+        data_type: boolean
+        config:
+          meta:
+            semantic_role: derived_flag
+            nullable: true
+            null_meaning: temp_c가 결측이면 임계값을 판정하지 않고 null로 둡니다.
+            unit: not_applicable
+      - name: cold_risk
+        description: temp_c가 영하 12도 이하인지 나타내는 한파 후보 플래그입니다. 공식 한파특보가 아닙니다.
+        data_type: boolean
+        config:
+          meta:
+            semantic_role: derived_flag
+            nullable: true
+            null_meaning: temp_c가 결측이면 임계값을 판정하지 않고 null로 둡니다.
+            unit: not_applicable
+      - name: heavy_rain_risk
+        description: pty_code가 비 계열(1·4·5)이고 pcp_mm이 15mm 이상인지 나타내는 호우 후보 플래그입니다. 공식 호우특보가 아닙니다.
+        data_type: boolean
+        config:
+          meta:
+            semantic_role: derived_flag
+            nullable: true
+            null_meaning: pty_code가 결측이면 임계값을 판정하지 않고 null로 둡니다.
+            unit: not_applicable
+      - name: snow_risk
+        description: sno_cm이 1cm 이상인지 나타내는 대설 후보 플래그입니다. 공식 대설특보가 아닙니다.
+        data_type: boolean
+        config:
+          meta:
+            semantic_role: derived_flag
+            nullable: false
+            null_meaning: sno_cm 결측은 0으로 보정해 판정하므로 null이 발생하지 않습니다.
+            unit: not_applicable
+      - name: wind_risk
+        description: wind_ms가 초속 14m 이상인지 나타내는 강풍 후보 플래그입니다. 공식 강풍특보가 아닙니다.
+        data_type: boolean
+        config:
+          meta:
+            semantic_role: derived_flag
+            nullable: true
+            null_meaning: wind_ms가 결측이면 임계값을 판정하지 않고 null로 둡니다.
+            unit: not_applicable
       - name: risk_labels
         description: 자체 임계값을 만족한 설명용 후보 목록이며 공식 특보가 아닙니다.
         data_type: varchar
@@ -215,6 +386,30 @@ models:
             semantic_role: descriptive_attribute
             nullable: false
             null_meaning: risk_labels 값이 없는 행은 이 공개 제품 계약에서 허용하지 않습니다.
+            unit: not_applicable
+      - name: forecast_issued_at_min
+        description: 이 예보시각을 구성하는 카테고리들의 KMA 발표시각 중 가장 이른 값입니다.
+        data_type: timestamp(6)
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 발표시각이 없는 행은 최신 예보를 결정할 수 없습니다.
+            time_role: issue_min
+            timezone: Asia/Seoul
+            unit: not_applicable
+      - name: forecast_issued_at_max
+        description: 이 예보시각을 구성하는 카테고리들의 KMA 발표시각 중 가장 늦은 값입니다.
+        data_type: timestamp(6)
+        tests: [not_null]
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: false
+            null_meaning: 발표시각이 없는 행은 최신 예보를 결정할 수 없습니다.
+            time_role: issue_max
+            timezone: Asia/Seoul
             unit: not_applicable
       - name: forecast_collected_at_max
         description: 이 위험 후보 행을 구성한 원천 예보 중 가장 늦은 수집 시각입니다. 예보 대상 시각과 별도의 서빙 freshness 축입니다.
