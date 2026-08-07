@@ -1825,6 +1825,17 @@ models:
                 SELECT dow, hr, dst_type, alert_count, reliable
                 FROM gold_citydata_dst_dow_hour
                 ORDER BY alert_count DESC LIMIT :n
+            - pattern_id: "dst_busy_dow"
+              question_ko: 어느 요일에 재난 경보가 가장 잦나?
+              axes: 요일 집계·랭킹 — 요일별 합계 DESC
+              requires: [select_columns, aggregate, group_by, sort]
+              insight_sample_ko: 재난 경보는 주중(평일)에 몰리고 주말엔 상대적으로 적다.
+              sql: |
+                -- (전체 요일 비교)
+                SELECT dow, sum(alert_count) AS total_alerts, sum(active_days) AS active_days
+                FROM gold_citydata_dst_dow_hour
+                GROUP BY dow
+                ORDER BY total_alerts DESC
           display:
             title: 재난 경보 요일·시간 패턴
             summary: 재난 경보(폭염·호우 등)가 주로 무슨 요일 몇 시에 발령되는지 패턴을 집계했습니다.
