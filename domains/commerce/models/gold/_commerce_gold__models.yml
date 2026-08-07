@@ -20,6 +20,14 @@ models:
           external: false             # enabled=false 제품은 external 불가(#478 모순 규칙)
           serving_tier: iceberg_api   # D1 금지(원장 약 290만행) — Iceberg(Trino) 직조회 서빙(§1.1)
           product_id: commerce_flow_daily   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 서울 인허가 개·폐업 흐름(일별)
+            summary: 서울시 인허가 자료에서 매일 몇 곳이 새로 열고 닫았는지를 업종 3단계와 자치구·행정동 축으로 집계했습니다.
+            caveat: 완결된 날짜만 담아 당일 자료는 빠지고, 소급 신고가 들어온 날은 다음 수집에서 다시 계산됩니다.
+            use_cases:
+              - 일 단위 상권 모니터링
+              - 개·폐업 급증 구간 탐지
+              - 월·연 집계의 원장 대조
           contract_version: v1
           product_question: 개·폐업 흐름 추이(일)
           grain: 일×이벤트×업종×지역3축
@@ -1471,6 +1479,14 @@ models:
                 ORDER BY i.opened DESC
               requires: [select_columns, sort, aggregate, group_by, join, subquery, filter_range]
           product_id: commerce_flow_monthly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 서울 인허가 개·폐업 흐름(월별)
+            summary: 달마다 업종별·지역별로 몇 곳이 문을 열고 닫았는지 집계했습니다. 상권 증감 추이를 볼 때 기본으로 쓰는 해상도입니다.
+            caveat: 완결된 달만 담아 이번 달은 빠집니다.
+            use_cases:
+              - 자치구별 상권 증감 추이
+              - 업종 경기 흐름 비교
+              - 창업 시점 판단
           contract_version: v1
           product_question: 개·폐업 흐름 추이(월)
           grain: 월×이벤트×업종×지역3축
@@ -1768,6 +1784,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_flow_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 서울 인허가 개·폐업 흐름(연도별)
+            summary: 연도 단위로 업종·지역별 개업과 폐업 건수를 집계했습니다. 수십 년치가 쌓여 있어 장기 추세를 봅니다.
+            caveat: 완결된 연도만 담아 올해는 빠집니다.
+            use_cases:
+              - 업종 장기 성장·쇠퇴 추세
+              - 지역 상권 구조 변화
+              - 정책 효과 전후 비교
           contract_version: v1
           product_question: 개·폐업 흐름 추이(연)
           grain: 연×이벤트×업종×지역3축
@@ -1863,6 +1887,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_seasonality   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 개·폐업이 몰리는 달
+            summary: 최근 10년 자료로 업종마다 1~12월 중 어느 달에 개업과 폐업이 몰리는지 집계했습니다.
+            caveat: 연도를 구분하지 않고 합쳐 본 값이라 특정 해의 사정은 드러나지 않습니다.
+            use_cases:
+              - 개업 시기 결정
+              - 업종별 성수기·비수기 파악
+              - 계절 마케팅 기획
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "peak_months_top_n"
               question_ko: "개업(또는 폐업)이 가장 몰리는 달 top-N은?"
@@ -2290,6 +2322,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_churn_yearly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 상권 역동성(교체율·신생비)
+            summary: 연도별로 업종과 자치구마다 개업·폐업·순증을 묶어 교체율과 신생비를 냈습니다. 상권이 커지는 중인지 주인만 바뀌는 중인지 갈라 봅니다.
+            caveat: 최근 20개 완결연도만 담습니다.
+            use_cases:
+              - 순증형·교체형 상권 진단
+              - 자치구 상권 건전성 비교
+              - 진입 위험도 평가
           contract_version: v1
           product_question: 연별 교체율·신생비는?
           grain: 연×업종3단×자치구
@@ -2372,6 +2412,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_lifespan   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 업종별 영업 수명
+            summary: 폐업까지 간 업소들이 개업 후 며칠을 버텼는지 업종과 자치구별로 분포를 냈습니다. 1년 안에 닫은 비율도 함께 있습니다.
+            caveat: 폐업한 업소만 세기 때문에 아직 영업 중인 곳이 빠져 실제 수명보다 짧게 보입니다.
+            use_cases:
+              - 업종 진입 위험 평가
+              - 조기 폐업률 비교
+              - 사업계획 손익분기 가정
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "lifespan_ecr_worst_topn"
               question_ko: "조기폐업률(1년 내 폐업)이 가장 높은 업종 top 10은?"
@@ -2612,6 +2660,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_cohort_survival   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 창업 코호트 생존율
+            summary: 같은 해에 문을 연 업소들이 1년·2년·3년 뒤 몇 %나 살아남았는지 업종별로 계산했습니다.
+            caveat: 관측이 가능한 연차까지만 계산하며 연 단위 근사입니다.
+            use_cases:
+              - 업종별 생존 곡선 비교
+              - 창업 3년 고비 확인
+              - 투자·대출 심사 참고
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "survival_top_ranking"
               question_ko: "최근 창업 코호트 기준 k년차 생존율이 가장 높은 업종 top-N은?"
@@ -2873,6 +2929,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_status_duration   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 인허가 상태 지속기간
+            summary: 영업·휴업·폐업 같은 상태에 업소가 얼마나 오래 머무는지 업종과 상태군별로 요약했습니다.
+            caveat: 이력이 쌓이는 중인 씨앗 지표라 표본이 적습니다.
+            use_cases:
+              - 휴업 후 재개 시점 가늠
+              - 상태 전환 대기시간 파악
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "pause_longest_topn"
               question_ko: "지금 휴업 중인 업소들이 가장 오래 쉬고 있는 업종은? (랭킹 top-N)"
@@ -3158,6 +3221,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_status_transition   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 인허가 상태 전이 경로
+            summary: 업소가 어떤 상태에서 어떤 상태로 옮겨가는지(영업에서 휴업, 휴업에서 폐업 등) 업종별 전이 건수를 표로 만들었습니다.
+            caveat: 이력이 쌓이는 중인 씨앗 지표라 절대 건수보다 상대 비중으로 읽어야 합니다.
+            use_cases:
+              - 휴업의 결말 분석
+              - 폐업 선행 신호 탐색
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rank_transition_paths"
               question_ko: "서울 인허가 업소의 상태 전이는 어떤 경로가 가장 많은가?"
@@ -3343,6 +3413,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_dong_summary   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 행정동별 상권 요약
+            summary: 행정동마다 업소가 몇 곳이고 그중 영업 중은 몇 곳인지, 업종은 몇 가지인지 한 줄로 정리했습니다.
+            use_cases:
+              - 동네 상권 규모 비교
+              - 지도 위 상권 요약 표시
+              - 입지 후보 1차 선별
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "dong-open-top"
               question_ko: "서울에서 영업 중 업소가 가장 많은 동(상권 최대 동)은 어디인가?"
@@ -3604,6 +3681,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_dong_category_matrix   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 행정동별 업종 구성
+            summary: 행정동마다 어떤 업종이 몇 곳씩 있는지, 최근 1년 신규 개업은 얼마나 되는지 교차 집계했습니다.
+            use_cases:
+              - 동네 업종 프로파일 작성
+              - 경쟁 밀도 확인
+              - 미진출 업종 탐색
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "dong-category-profile"
               question_ko: "이 동네(:dong)엔 무슨 업종이 많나? (구성비 포함)"
@@ -3858,6 +3942,23 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_geo_grid   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 상권 밀집 격자(개요)
+            summary: 서울을 약 500m 격자로 나눠 격자마다 영업 중인 업소 수와 최근 신규 개업 수를 셌습니다.
+            caveat: 좌표가 있는 업소만 격자에 담겨 전체의 약 84%를 반영합니다.
+            use_cases:
+              - 지도 히트맵
+              - 상권 핫스팟 탐색
+              - 배후 수요 추정
+          d1_display:                   # commerce 확장 — 한 모델이 여러 D1 제품을 낳을 때 제품별 덮어쓰기
+            d1_geo_grid_detail:
+              title: 상권 밀집 격자(업종별)
+              summary: 500m 격자를 업종까지 쪼개 격자마다 업종별 영업 업소 수와 최근 신규 개업 수를 담았습니다.
+              caveat: 좌표가 있는 업소만 격자에 담겨 전체의 약 84%를 반영합니다.
+              use_cases:
+                - 업종별 지도 히트맵
+                - 격자 단위 경쟁 밀도 확인
+                - 출점 후보지 선별
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "hotspot-top-grids"
               d1_table: d1_geo_grid_overview
@@ -4326,6 +4427,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_gu_specialization   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 자치구 업종 특화지수
+            summary: 자치구마다 어떤 업종이 서울 평균보다 밀집해 있는지 특화지수(LQ)와 구성비로 나타냈습니다. 1보다 크면 평균보다 많다는 뜻입니다.
+            use_cases:
+              - 자치구 상권 성격 규정
+              - 특화 업종 발굴
+              - 지역 브랜딩 근거
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "gu_top_specialized"
               question_ko: "이 자치구는 어떤 업종에 특화됐나? (:gu 단면, LQ 랭킹)"
@@ -4534,6 +4642,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_age_band   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 업력 구간별 업소 분포
+            summary: 영업 중인 업소를 1년 미만부터 20년 이상까지 업력 구간으로 나눠 업종·자치구별 비중을 냈습니다.
+            use_cases:
+              - 신상 상권·노포 상권 구분
+              - 상권 성숙도 비교
+              - 세대교체 진행도 파악
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rank_gu_new_share_top"
               question_ko: "'신상 상권'은 어디? — 1년 미만 새 가게 비중이 높은 자치구 top-N"
@@ -4842,6 +4957,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_area_profile   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 업종별 영업장 면적 분포
+            summary: 업종과 자치구마다 영업장 면적의 평균·중앙값·상위 10% 값과 소형·대형 비중을 냈습니다.
+            caveat: 면적이 기재된 업소만 계산에 넣습니다.
+            use_cases:
+              - 출점 규모 기준 잡기
+              - 임대 면적 협상 근거
+              - 업종별 공간 수요 추정
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rank_top_avg_area_by_dataset"
               question_ko: "서울에서 매장이 가장 큰 업종 top 10은? (가중 평균 면적 랭킹)"
@@ -5055,6 +5178,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_uptae_rollup   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 업종 속 세부 업태 구성
+            summary: 같은 업종 안에서 세부 업태가 어떻게 나뉘는지 구성비와 증감을 담았습니다. 일반음식점 안의 한식·커피숍 같은 구분입니다.
+            caveat: 숙박업은 제외했습니다.
+            use_cases:
+              - 업태 단위 경쟁 구도 파악
+              - 세분 시장 규모 추정
+              - 업태 전환 검토
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "uptae_top_ranking"
               question_ko: "서울에서 활성 업소가 가장 많은 세부 업태 top-N은?"
@@ -5270,6 +5401,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_multi_site   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 업종별 다점포 운영 비율
+            summary: 같은 전화번호를 여러 지점이 함께 쓰는 경우를 다점포로 보고 업종별 비율을 냈습니다.
+            caveat: 전화번호가 있는 업소가 44%뿐이고 번호 공유 잡음이 섞여 근사값입니다.
+            use_cases:
+              - 체인화 정도 비교
+              - 프랜차이즈 침투 업종 탐색
+              - 독립 점포 경쟁 환경 파악
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "top_multi_site_ratio"
               question_ko: "다점포(체인)화 비율이 가장 높은 업종 top-N은?"
@@ -5508,6 +5647,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_change_activity   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 업소 정보 변경 활발도
+            summary: 업소마다 정보가 몇 번 바뀌었는지, 상호 변경과 이전이 얼마나 잦은지 업종별로 냈습니다.
+            caveat: 이력이 쌓이는 초기라 절대값보다 업종 간 상대 순위로 읽어야 합니다.
+            use_cases:
+              - 간판 교체가 잦은 업종 파악
+              - 업소 안정성 비교
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "rename-ratio-top"
               question_ko: "간판(상호)을 가장 자주 바꾸는 업종은? (개명률 top-N)"
@@ -5769,6 +5915,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_address_succession   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 폐업 자리의 후속 업종
+            summary: 어떤 업소가 닫힌 자리에 1년 안에 어떤 업종이 들어섰는지 업종 쌍으로 집계했습니다.
+            caveat: 도로명주소가 같으면 같은 자리로 보는 건물 단위 근사입니다.
+            use_cases:
+              - 자리 대물림 패턴 분석
+              - 입지별 적합 업종 추정
+              - 상권 전환 방향 예측
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "top-succession-pairs"
               question_ko: "폐업→개업 업종 승계에서 가장 흔한 전이쌍 top-N은?"
@@ -6045,6 +6199,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_phone_succession   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 전화번호 승계 창업 전환
+            summary: 같은 전화번호가 폐업 뒤 다른 주소에서 다시 나타나는 경우를 모아 어떤 업종에서 어떤 업종으로 옮겨갔는지 집계했습니다.
+            caveat: 전화번호가 있는 업소가 44%뿐이라 연쇄 창업의 일부만 잡힙니다.
+            use_cases:
+              - 재창업 업종 전환 경로 분석
+              - 연쇄 창업자 행태 파악
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "top-succession-pairs"
               question_ko: "폐업→재창업 전환이 가장 많은 업종 조합 top-N은?"
@@ -6295,6 +6456,13 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_data_quality   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 인허가 데이터 품질 커버리지
+            summary: 원천 API마다 전화·좌표·행정동·주소·폐업일·상호가 얼마나 채워져 있는지 비율로 정리했습니다.
+            use_cases:
+              - 분석 전 결측 확인
+              - 수집 보완 우선순위 결정
+              - 지표 신뢰도 판단
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "worst_phone_rate_topn"
               question_ko: "전화번호 결측이 가장 심한 데이터셋(API)은 어디인가? (보유율 기준, 소형셋 제외)"
@@ -6553,6 +6721,14 @@ models:
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
           product_id: commerce_env_facility_operation   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
+          display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
+            title: 자치구별 환경 배출시설 가동
+            summary: 대기·수질 배출시설이 자치구마다 연간 며칠, 몇 시간 가동했는지 집계했습니다.
+            caveat: 수질 시설은 가동 필드 결측이 커서 대기 시설보다 신뢰도가 낮습니다.
+            use_cases:
+              - 자치구 환경 부하 비교
+              - 배출시설 밀집 지역 파악
+              - 환경 점검 우선순위
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
             - pattern_id: "air-operating-days-top-gu"
               question_ko: "대기오염 배출시설을 연중 가장 오래 가동하는 자치구는 어디인가?"
