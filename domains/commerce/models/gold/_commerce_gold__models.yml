@@ -2189,48 +2189,52 @@ models:
               question_ko: "특정 연도에 교체율(폐업 회전)이 가장 높은 자치구 top-N은? (축반전 쌍 A-1: 연도 고정 → 자치구 랭킹)"
               axes: "gu_code(랭킹) × 전업종 합산 @ y 고정 — 비율은 SUM 재산출"
               verified_rows: 10
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2025년 교체율 1위는 서대문구(11410) 0.1077로, 상위 10개 구 중 유일하게 순감(-80). 양천(0.0979)·강서(0.0974)가 뒤를 잇지만 이들은 순증 유지."
               sql: |
-                SELECT gu_code, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, SUM(stock_start) AS stock_start, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, ROUND(1.0*SUM(opened)/SUM(stock_start),4) AS birth_rate FROM d1_churn_yearly WHERE y='2025' /* :y */ AND gu_code<>'UNK' GROUP BY gu_code ORDER BY churn_rate DESC LIMIT 10 /* :n */
+                -- :y='2025', :n=10
+                SELECT gu_code, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, SUM(stock_start) AS stock_start, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, ROUND(1.0*SUM(opened)/SUM(stock_start),4) AS birth_rate FROM d1_churn_yearly WHERE y = :y AND gu_code<>'UNK' GROUP BY gu_code ORDER BY churn_rate DESC LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, filter_range]
             - pattern_id: "gu_yearly_timeseries"
               question_ko: "특정 자치구의 20년 개업·폐업·교체율 추이는? (축반전 쌍 A-2: 자치구 고정 → 연도 시계열)"
               axes: "y(시계열) × 전업종 합산 @ gu_code 고정"
               verified_rows: 20
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "강남구(11680) 교체율은 2006년 0.1297에서 2025년 0.0725로 장기 하락. 2025년에도 순증 +3,857로 서울 최대 순증 유지."
               sql: |
-                SELECT y, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, ROUND(1.0*SUM(opened)/SUM(stock_start),4) AS birth_rate FROM d1_churn_yearly WHERE gu_code='11680' /* :gu_code 강남구 */ GROUP BY y ORDER BY y
+                -- :gu_code='11680' (강남구)
+                SELECT y, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, ROUND(1.0*SUM(opened)/SUM(stock_start),4) AS birth_rate FROM d1_churn_yearly WHERE gu_code = :gu_code GROUP BY y ORDER BY y
               requires: [select_columns, sort, aggregate, group_by]
             - pattern_id: "category_rank_in_gu"
               question_ko: "특정 자치구 안에서 어느 업종이 가장 고회전인가? (축반전 쌍 B-1: 구 고정 → 업종 랭킹)"
               axes: "category(랭킹) @ y·gu_code 고정 — 소형 스톡 노이즈 차단용 HAVING stock_start>=100"
               verified_rows: 11
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2025년 강남구에서 food 교체율 0.1932(순감 -196)로 압도적 1위 — 2위 hygiene_beauty(0.099)의 2배. culture는 0.0345로 안정적 순증(+554)."
               sql: |
-                SELECT category, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, SUM(stock_start) AS stock_start, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate FROM d1_churn_yearly WHERE y='2025' /* :y */ AND gu_code='11680' /* :gu_code */ GROUP BY category HAVING SUM(stock_start)>=100 ORDER BY churn_rate DESC
+                -- :y='2025', :gu_code='11680'
+                SELECT category, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, SUM(stock_start) AS stock_start, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate FROM d1_churn_yearly WHERE y = :y AND gu_code = :gu_code GROUP BY category HAVING SUM(stock_start)>=100 ORDER BY churn_rate DESC
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
             - pattern_id: "gu_rank_in_category"
               question_ko: "특정 업종에서 어느 자치구가 가장 고회전인가? (축반전 쌍 B-2: 업종 고정 → 구 랭킹)"
               axes: "gu_code(랭킹) @ y·category 고정 — (y,category,gu_code)가 유일키라 GROUP BY 불필요, 행 그대로 사용"
               verified_rows: 10
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2025년 음식점(food) 교체율 1위는 양천구(11470) 0.2575 — 서울 어디서나 4곳 중 1곳이 1년 새 회전. 상위 10개 구 전부 순감(net_change 음수)."
               sql: |
-                SELECT gu_code, opened, closed, net_change, stock_start, ROUND(churn_rate,4) AS churn_rate, ROUND(birth_rate,4) AS birth_rate FROM d1_churn_yearly WHERE y='2025' /* :y */ AND category='food' /* :category */ AND gu_code<>'UNK' AND stock_start>=100 ORDER BY churn_rate DESC LIMIT 10 /* :n */
+                -- :y='2025', :category='food', :n=10
+                SELECT gu_code, opened, closed, net_change, stock_start, ROUND(churn_rate,4) AS churn_rate, ROUND(birth_rate,4) AS birth_rate FROM d1_churn_yearly WHERE y = :y AND category = :category AND gu_code<>'UNK' AND stock_start>=100 ORDER BY churn_rate DESC LIMIT :n
               requires: [select_columns, sort, aggregate, filter_range]
             - pattern_id: "seoul_macro_timeseries"
               question_ko: "서울 전체의 연도별 창업·폐업 체력 변화는? (시계열 매크로)"
               axes: "y(시계열) × 서울 전체 합산 — 필터 없음"
               verified_rows: 20
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "서울 신생비는 2006년 0.1564에서 2025년 0.0958로 20년간 지속 하락 — 진입 활력 둔화. 순증은 2024년 17,141로 급감했다가 2025년 18,522로 소폭 반등."
               sql: |
                 SELECT y, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, SUM(stock_start) AS stock_start, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, ROUND(1.0*SUM(opened)/SUM(stock_start),4) AS birth_rate FROM d1_churn_yearly GROUP BY y ORDER BY y
@@ -2239,48 +2243,52 @@ models:
               question_ko: "특정 연도에 업종×자치구 교차 셀 중 교체율이 가장 높은 핫셀은? (두 축 교차)"
               axes: "category × gu_code 교차 셀(랭킹) @ y 고정 — stock_start>=200으로 유의 셀만"
               verified_rows: 15
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2025년 교체율 상위 15개 셀이 전부 food — 최고는 food×양천(0.2575), food×강서(0.2162). 고회전 문제는 사실상 음식점업 단일 이슈."
               sql: |
-                SELECT category, gu_code, opened, closed, stock_start, ROUND(churn_rate,4) AS churn_rate FROM d1_churn_yearly WHERE y='2025' /* :y */ AND gu_code<>'UNK' AND stock_start>=200 ORDER BY churn_rate DESC LIMIT 15 /* :n */
+                -- :y='2025', :n=15
+                SELECT category, gu_code, opened, closed, stock_start, ROUND(churn_rate,4) AS churn_rate FROM d1_churn_yearly WHERE y = :y AND gu_code<>'UNK' AND stock_start>=200 ORDER BY churn_rate DESC LIMIT :n
               requires: [select_columns, sort, aggregate, filter_range]
             - pattern_id: "slice_gu_category_series"
               question_ko: "특정 자치구×업종 한 단면의 20년 원장(개업·폐업·비율)은? (:param 단면 — 행 그대로)"
               axes: "y(시계열) @ gu_code·category 고정 — 테이블 그레인 그대로, 집계 불필요"
               verified_rows: 20
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "마포구 food는 2024년 교체율 0.2157로 20년 최고치, 순감 -759. 2025년에도 0.1931·-471로 수축 지속 — 2023년(+285)에서 추세 반전."
               sql: |
-                SELECT y, opened, closed, net_change, stock_start, ROUND(churn_rate,4) AS churn_rate, ROUND(birth_rate,4) AS birth_rate FROM d1_churn_yearly WHERE gu_code='11440' /* :gu_code 마포구 */ AND category='food' /* :category */ ORDER BY y
+                -- :gu_code='11440' (마포구), :category='food'
+                SELECT y, opened, closed, net_change, stock_start, ROUND(churn_rate,4) AS churn_rate, ROUND(birth_rate,4) AS birth_rate FROM d1_churn_yearly WHERE gu_code = :gu_code AND category = :category ORDER BY y
               requires: [select_columns, sort, aggregate]
             - pattern_id: "category_yoy_momentum"
               question_ko: "최근 연도에 개업이 급증/급감한 업종은? (전년 대비 모멘텀, 윈도우 함수)"
               axes: "category(랭킹) × YoY 증감률 @ y 고정 — LAG 윈도우로 전년 결합"
               verified_rows: 11
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2025년 개업 모멘텀 1위는 lodging +63.9%(72→118건). 반면 environment -30.6%, health_medical -20.2%(4,690→3,744)로 급랭."
               sql: |
-                WITH s AS (SELECT y, category, SUM(opened) AS op FROM d1_churn_yearly GROUP BY y, category), d AS (SELECT y, category, op, LAG(op) OVER (PARTITION BY category ORDER BY y) AS prev_op FROM s) SELECT category, op AS opened_cur, prev_op AS opened_prev, op-prev_op AS diff, ROUND(100.0*(op-prev_op)/prev_op,1) AS pct FROM d WHERE y='2025' /* :y */ AND prev_op>0 ORDER BY pct DESC
+                -- :y='2025'
+                WITH s AS (SELECT y, category, SUM(opened) AS op FROM d1_churn_yearly GROUP BY y, category), d AS (SELECT y, category, op, LAG(op) OVER (PARTITION BY category ORDER BY y) AS prev_op FROM s) SELECT category, op AS opened_cur, prev_op AS opened_prev, op-prev_op AS diff, ROUND(100.0*(op-prev_op)/prev_op,1) AS pct FROM d WHERE y = :y AND prev_op>0 ORDER BY pct DESC
               requires: [select_columns, sort, aggregate, group_by, subquery, window, filter_range]
             - pattern_id: "gu_regime_diagnosis"
               question_ko: "각 자치구는 순증형 성장인가, 고회전 소모전인가? (순증×교체율 4분면 진단 — 모델 설계 취지)"
               axes: "gu_code × (net_change, churn_rate) 2지표 4분면 @ y 고정 — 임계값은 그 해 서울 평균 교체율(서브쿼리)"
               verified_rows: 25
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2025년 25개 구 중 강남(+3,857)·서초(+1,923)는 낮은 교체율의 growth_stable, 서대문은 유일 순감+최고 교체율(0.1077)의 shrink_high_turnover — 같은 '활발함'도 체질이 다름."
               sql: |
-                SELECT gu_code, SUM(net_change) AS net_change, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, CASE WHEN SUM(net_change)>=0 AND 1.0*SUM(closed)/SUM(stock_start) >= (SELECT 1.0*SUM(closed)/SUM(stock_start) FROM d1_churn_yearly WHERE y='2025') THEN 'growth_high_turnover' WHEN SUM(net_change)>=0 THEN 'growth_stable' WHEN 1.0*SUM(closed)/SUM(stock_start) >= (SELECT 1.0*SUM(closed)/SUM(stock_start) FROM d1_churn_yearly WHERE y='2025') THEN 'shrink_high_turnover' ELSE 'shrink_stable' END AS regime FROM d1_churn_yearly WHERE y='2025' /* :y — 서브쿼리 안 y도 동일 값으로 치환 */ AND gu_code<>'UNK' GROUP BY gu_code ORDER BY net_change DESC
+                -- :y='2025' — 서브쿼리(서울 평균 임계값) 안 y 도 같은 :y 로 바인딩
+                SELECT gu_code, SUM(net_change) AS net_change, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, CASE WHEN SUM(net_change)>=0 AND 1.0*SUM(closed)/SUM(stock_start) >= (SELECT 1.0*SUM(closed)/SUM(stock_start) FROM d1_churn_yearly WHERE y = :y) THEN 'growth_high_turnover' WHEN SUM(net_change)>=0 THEN 'growth_stable' WHEN 1.0*SUM(closed)/SUM(stock_start) >= (SELECT 1.0*SUM(closed)/SUM(stock_start) FROM d1_churn_yearly WHERE y = :y) THEN 'shrink_high_turnover' ELSE 'shrink_stable' END AS regime FROM d1_churn_yearly WHERE y = :y AND gu_code<>'UNK' GROUP BY gu_code ORDER BY net_change DESC
               requires: [select_columns, sort, aggregate, group_by, filter_range]
             - pattern_id: "inv_lowest_churn_gu"
               question_ko: "폐업률이 가장 낮은(안정적인) 자치구는? (높은 폐업률 랭킹의 반전)"
               axes: "자치구 랭킹 — churn_rate ASC"
               verified_rows: 10
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2024년 폐업률 최저는 중구(11140) 6.44% — 재고 54,351곳 대비 3,499곳 폐업."
               sql: |
                 -- :y='2024', :n=10
@@ -2294,8 +2302,8 @@ models:
               question_ko: "신규 진입률(birth rate)이 가장 높은 업종은? (폐업률 관점의 반전)"
               axes: "업종 랭킹 — birth_rate 관점(churn 관점의 반전)"
               verified_rows: 11
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2024년 신규 진입률 1위는 식품 16.17%(재고 242,351 대비 개업 39,192)."
               sql: |
                 -- :y='2024'
@@ -2309,8 +2317,8 @@ models:
               question_ko: "특정 연도에 순감이 가장 심했던 업종×구 조합은?"
               axes: "연도 고정(:y) → 업종×구 교차 랭킹 net ASC"
               verified_rows: 10
-              verified_at: "2026-07-31T15:12:23Z"
-              verified_publication_id: "5a812c712c904b79a22035ad00b86389"
+              verified_at: "2026-08-07T16:14:15Z"
+              verified_publication_id: "eb461a98e9cb462cb8b986e7eb5a6a6c"
               insight_sample_ko: "2024년 최악 조합은 강서구(11500) 식품 -1,034곳(개업 1,933 vs 폐업 2,967)."
               sql: |
                 -- :y='2024', :n=10
@@ -3421,7 +3429,7 @@ models:
               - 지도 위 상권 요약 표시
               - 입지 후보 1차 선별
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
-            - pattern_id: "dong-open-top"
+            - pattern_id: "dong_open_top"
               question_ko: "서울에서 영업 중 업소가 가장 많은 동(상권 최대 동)은 어디인가?"
               axes: "dong → 영업 업소 수 랭킹(top-N, desc)"
               verified_rows: 10
@@ -3435,7 +3443,7 @@ models:
                 ORDER BY business_open_count DESC
                 LIMIT :n; -- :n 예시 10
               requires: [select_columns, sort, aggregate]
-            - pattern_id: "gu-open-rollup"
+            - pattern_id: "gu_open_rollup"
               question_ko: "자치구별로 영업 업소 규모와 영업 비중은 어떻게 다른가?"
               axes: "반전 쌍A-1: dong → gu 롤업(차원 상향 교환)"
               verified_rows: 25
@@ -3450,9 +3458,9 @@ models:
                 GROUP BY gu
                 ORDER BY open_total DESC; -- 25개 구 전체
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "gu-dong-breakdown"
+            - pattern_id: "gu_dong_breakdown"
               question_ko: "특정 구 안에서는 어느 동이 상권이 큰가?"
-              axes: "반전 쌍A-2: gu → dong 분해(차원 하향 교환, gu-open-rollup 의 역방향) + :gu 파라미터 단면"
+              axes: "반전 쌍A-2: gu → dong 분해(차원 하향 교환, gu_open_rollup 의 역방향) + :gu 파라미터 단면"
               verified_rows: 21
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e5f7ab4bbd8b4fbc8db7fc0f8fa54eac"
@@ -3464,7 +3472,7 @@ models:
                 WHERE gu = :gu -- 예시 '강남구'
                 ORDER BY business_open_count DESC;
               requires: [select_columns, sort, aggregate]
-            - pattern_id: "dong-closed-share-top"
+            - pattern_id: "dong_closed_share_top"
               question_ko: "누적 대비 폐업 비중이 가장 높은(상권 물갈이가 심했던) 동은 어디인가?"
               axes: "반전 쌍B-1: 폐업 관점 · 비중(절대값 아님) · desc"
               verified_rows: 10
@@ -3479,9 +3487,9 @@ models:
                 ORDER BY closed_pct DESC
                 LIMIT :n; -- 예시 10
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "dong-open-share-top"
+            - pattern_id: "dong_open_share_top"
               question_ko: "누적 대비 영업 비중이 가장 높은(살아있는 가게 비율이 높은) 동은 어디인가?"
-              axes: "반전 쌍B-2: 영업(생존) 관점 — dong-closed-share-top 의 관점 반전"
+              axes: "반전 쌍B-2: 영업(생존) 관점 — dong_closed_share_top 의 관점 반전"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e5f7ab4bbd8b4fbc8db7fc0f8fa54eac"
@@ -3494,7 +3502,7 @@ models:
                 ORDER BY open_pct DESC
                 LIMIT :n; -- 예시 10
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "dong-profile-lookup"
+            - pattern_id: "dong_profile_lookup"
               question_ko: "우리 동네(특정 동)의 상권 프로필과 구 내 순위는?"
               axes: "단일 dong 단면(:dong 파라미터) + 구 내 순위 파생"
               verified_rows: 2
@@ -3512,7 +3520,7 @@ models:
                 FROM d1_dong_summary s1
                 WHERE admin_dong LIKE :dong; -- 예시 '역삼%' (동명 중복 주의 — gu 필터 병용 권장)
               requires: [select_columns, aggregate, filter_set]
-            - pattern_id: "dong-geocode-coverage-bottom"
+            - pattern_id: "dong_geocode_coverage_bottom"
               question_ko: "지도에 못 찍히는 업소가 많은(좌표 커버리지 최저) 동은 어디인가?"
               axes: "정렬 반전(asc — 최저 커버리지) · 데이터 품질 관점"
               verified_rows: 10
@@ -3527,7 +3535,7 @@ models:
                 ORDER BY geocoded_pct ASC
                 LIMIT :n; -- 예시 10
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "freshness-by-collected-date"
+            - pattern_id: "freshness_by_collected_date"
               question_ko: "동별 데이터가 언제 수집분인가 — 얼마나 신선한가?"
               axes: "시간축(수집일) 분포 — 스냅샷 테이블의 유일한 시간 단면"
               verified_rows: 16
@@ -3540,7 +3548,7 @@ models:
                 GROUP BY collected_date
                 ORDER BY collected_date;
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "diversity-vs-size-rank-cross"
+            - pattern_id: "diversity_vs_size_rank_cross"
               question_ko: "업종 다양성이 규모 대비 두드러지는 동은 어디인가?"
               axes: "두 축 교차: 업종 다양성 rank × 규모 rank (윈도우 함수 — D1 지원 확인)"
               verified_rows: 10
@@ -3555,7 +3563,7 @@ models:
                 ORDER BY dataset_count DESC
                 LIMIT :n; -- 예시 10
               requires: [select_columns, sort, window]
-            - pattern_id: "size-quartile-open-rate"
+            - pattern_id: "size_quartile_open_rate"
               question_ko: "동 규모(누적 업소 수) 구간별로 영업 비중과 업종 다양성이 어떻게 다른가?"
               axes: "두 축 교차: 규모 4분위 × 영업 비중/다양성 평균"
               verified_rows: 4
@@ -3689,7 +3697,7 @@ models:
               - 경쟁 밀도 확인
               - 미진출 업종 탐색
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
-            - pattern_id: "dong-category-profile"
+            - pattern_id: "dong_category_profile"
               question_ko: "이 동네(:dong)엔 무슨 업종이 많나? (구성비 포함)"
               axes: "dong→category (특정 단면 파라미터 + 동네 내 비중) — 반전쌍 A의 정방향"
               verified_rows: 11
@@ -3703,9 +3711,9 @@ models:
                 WHERE admin_dong = :dong  -- 예: '역삼1동' (동명 중복 시 AND gu = :gu 병행, 예: '신사동')
                 ORDER BY active_cnt DESC;
               requires: [select_columns, sort, aggregate, window]
-            - pattern_id: "category-top-dongs"
+            - pattern_id: "category_top_dongs"
               question_ko: "이 업종(:category_ko)이 가장 많은 동네는 어디인가? (top-N)"
-              axes: "category→dong (축 반전: dong-category-profile 과 차원 교환 쌍 A) + 랭킹 top-N (수정: 파라미터명을 :category_ko 로 명시 — 한글 라벨 컬럼과 비교함을 소비 측에 드러냄)"
+              axes: "category→dong (축 반전: dong_category_profile 과 차원 교환 쌍 A) + 랭킹 top-N (수정: 파라미터명을 :category_ko 로 명시 — 한글 라벨 컬럼과 비교함을 소비 측에 드러냄)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e409c92341914477aad70dd86a8e5efa"
@@ -3718,7 +3726,7 @@ models:
                 ORDER BY active_cnt DESC
                 LIMIT 10;
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "vital-dongs-top"
+            - pattern_id: "vital_dongs_top"
               question_ko: "최근 1년 개업이 가장 활발한(뜨는) 동네는 어디인가?"
               axes: "dong 랭킹(활력 desc) — 반전쌍 B의 정방향(활발)"
               verified_rows: 10
@@ -3734,7 +3742,7 @@ models:
                 ORDER BY opened_1y DESC
                 LIMIT 10;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-            - pattern_id: "dormant-dongs"
+            - pattern_id: "dormant_dongs"
               question_ko: "상권 규모는 있는데 신규 개업이 끊긴(침체) 동네는 어디인가?"
               axes: "정렬·관점 반전(쌍 B): 개업 최다 desc ↔ 개업률 최저 asc(활발↔침체)"
               verified_rows: 10
@@ -3751,7 +3759,7 @@ models:
                 ORDER BY open_rate_pct ASC
                 LIMIT 10;
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
-            - pattern_id: "category-survival-stock"
+            - pattern_id: "category_survival_stock"
               question_ko: "어떤 업종이 많이 사라졌나 — 업종별 영업 잔존율과 소멸 스톡은?"
               axes: "관점 반전(쌍 C): 영업 스톡 ↔ 소멸 스톡(누적-현재), 비중 ↔ 절대값 병기 — 서울 전체 총량이므로 UNK 포함이 정확"
               verified_rows: 11
@@ -3766,7 +3774,7 @@ models:
                 GROUP BY category_ko
                 ORDER BY alive_pct ASC;  -- DESC 로 바꾸면 '가장 오래 남는 업종'
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "gu-category-cross"
+            - pattern_id: "gu_category_cross"
               question_ko: "두 자치구(:gu_a vs :gu_b)의 업종 구성은 어떻게 다른가?"
               axes: "두 축 교차 비교(gu × category) + 구내 비중 — 동 미상(UNK) 행도 gu 는 유효해 구 단위는 커버리지 완전"
               verified_rows: 22
@@ -3781,7 +3789,7 @@ models:
                 GROUP BY gu, category_ko
                 ORDER BY category_ko, gu;
               requires: [select_columns, sort, aggregate, group_by, window, filter_set]
-            - pattern_id: "dong-signature-category"
+            - pattern_id: "dong_signature_category"
               question_ko: "서울 각 동네의 '대표(1위) 업종'은 무엇이 가장 흔한가?"
               axes: "dong→category 를 다시 category 로 접는 2단 축(동별 1위 업종의 도시 분포) — 윈도우 함수 D1 동작 검증됨"
               verified_rows: 7
@@ -3801,9 +3809,9 @@ models:
                 GROUP BY category_ko
                 ORDER BY dong_cnt DESC;
               requires: [select_columns, sort, aggregate, group_by, subquery, window]
-            - pattern_id: "gu-category-concentration"
+            - pattern_id: "gu_category_concentration"
               question_ko: "이 업종(:category_ko)은 어느 자치구에 집중돼 있나? (서울 점유율)"
-              axes: "category→gu 집중도(절대값 + 도시 점유율 비중 병기) — category-top-dongs 의 구 스케일판 (수정: 파라미터명을 :category_ko 로 명시 — 한글 라벨 컬럼과 비교함을 소비 측에 드러냄)"
+              axes: "category→gu 집중도(절대값 + 도시 점유율 비중 병기) — category_top_dongs 의 구 스케일판 (수정: 파라미터명을 :category_ko 로 명시 — 한글 라벨 컬럼과 비교함을 소비 측에 드러냄)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e409c92341914477aad70dd86a8e5efa"
@@ -3819,7 +3827,7 @@ models:
                 ORDER BY active_cnt DESC
                 LIMIT 10;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-            - pattern_id: "category-openings-rank"
+            - pattern_id: "category_openings_rank"
               question_ko: "최근 1년 어떤 업종이 가장 많이 새로 생겼나? (규모와 개업률)"
               axes: "category 랭킹(신규 유입 절대값 desc ↔ 영업 대비 개업률로 관점 전환 가능) — 서울 전체 총량이므로 UNK 포함"
               verified_rows: 11
@@ -3835,7 +3843,7 @@ models:
               requires: [select_columns, sort, aggregate, group_by]
             - pattern_id: "inv_category_fixed_dong_rank"
               question_ko: "이 업종이 가장 많은 동은? (동 고정→업종 구성의 차원 교환)"
-              axes: "업종 고정(:category) → 동 랭킹 — dong-category-profile 의 역방향"
+              axes: "업종 고정(:category) → 동 랭킹 — dong_category_profile 의 역방향"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e409c92341914477aad70dd86a8e5efa"
@@ -3960,7 +3968,7 @@ models:
                 - 격자 단위 경쟁 밀도 확인
                 - 출점 후보지 선별
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
-            - pattern_id: "hotspot-top-grids"
+            - pattern_id: "hotspot_top_grids"
               d1_table: d1_geo_grid_overview
               question_ko: "서울에서 업소가 가장 밀집한 500m 격자는 어디인가? (전 업종 합산 top-N)"
               axes: "grid(격자)→랭킹 desc, major 합산 소거 — top-N 기본형"
@@ -3978,10 +3986,10 @@ models:
                 ORDER BY active_total DESC
                 LIMIT 10
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "major-top-grids"
+            - pattern_id: "major_top_grids"
               d1_table: d1_geo_grid_overview
               question_ko: "특정 대분류(예: 문화) 업소가 가장 밀집한 격자는 어디인가?"
-              axes: "major→grid (대분류 고정, 격자 랭킹) — point-major-mix 와 축 반전 쌍"
+              axes: "major→grid (대분류 고정, 격자 랭킹) — point_major_mix 와 축 반전 쌍"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "8c9c130654024b498d911507566ab12a"
@@ -3994,10 +4002,10 @@ models:
                 ORDER BY active_cnt DESC
                 LIMIT 10
               requires: [select_columns, sort]
-            - pattern_id: "point-major-mix"
+            - pattern_id: "point_major_mix"
               d1_table: d1_geo_grid_overview
               question_ko: "특정 지점(좌표)의 격자에는 어떤 대분류가 얼마나 있나? (상권 구성)"
-              axes: "grid(지점)→major 구성 — major-top-grids 의 차원 교환(반전) 쌍"
+              axes: "grid(지점)→major 구성 — major_top_grids 의 차원 교환(반전) 쌍"
               verified_rows: 4
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "8c9c130654024b498d911507566ab12a"
@@ -4013,7 +4021,7 @@ models:
                 GROUP BY major
                 ORDER BY active_cnt DESC
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-            - pattern_id: "rising-grids-new-ratio"
+            - pattern_id: "rising_grids_new_ratio"
               d1_table: d1_geo_grid_overview
               question_ko: "최근 1년 신규 개업 비율이 가장 높은 '뜨는' 격자는 어디인가?"
               axes: "grid→신규율(비중) desc — stagnant-grids 와 정렬·관점 반전 쌍(뜨는↔정체, 절대값 아닌 비율)"
@@ -4033,7 +4041,7 @@ models:
                 ORDER BY new_ratio DESC
                 LIMIT 10
               requires: [select_columns, sort, aggregate, group_by, having]
-            - pattern_id: "stagnant-grids-new-ratio"
+            - pattern_id: "stagnant_grids_new_ratio"
               d1_table: d1_geo_grid_overview
               question_ko: "규모는 있는데 신규 유입이 끊긴 '정체' 격자는 어디인가?"
               axes: "grid→신규율 asc — rising-grids 의 desc↔asc 반전(뜨는↔정체)"
@@ -4053,7 +4061,7 @@ models:
                 ORDER BY new_ratio ASC
                 LIMIT 10
               requires: [select_columns, sort, aggregate, group_by, having]
-            - pattern_id: "bbox-viewport-heatmap"
+            - pattern_id: "bbox_viewport_heatmap"
               d1_table: d1_geo_grid_overview
               question_ko: "지도 화면(bbox) 안에서 특정 대분류 업소가 많은 격자는? (뷰포트 히트맵 단면)"
               axes: "공간 bbox + major 파라미터 단면 — /api/geo/heatmap/overview 대응"
@@ -4071,7 +4079,7 @@ models:
                 ORDER BY active_cnt DESC
                 LIMIT 50
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "citywide-major-summary"
+            - pattern_id: "citywide_major_summary"
               d1_table: d1_geo_grid_overview
               question_ko: "서울 전체에서 대분류별 규모(절대)와 신규 유입률(비중)은 어떻게 다른가?"
               axes: "major 단일 축 전체 단면 — 절대값(active_total)과 비율(new_ratio) 동시 제시"
@@ -4088,7 +4096,7 @@ models:
                 GROUP BY major
                 ORDER BY active_total DESC
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "grid-major-crosstab"
+            - pattern_id: "grid_major_crosstab"
               d1_table: d1_geo_grid_overview
               question_ko: "밀집 상위 격자의 업종(대분류) 구성은 어떻게 다른가? (격자×대분류 교차)"
               axes: "grid × major 두 축 교차(피벗) — 행=격자, 열=대분류"
@@ -4109,7 +4117,7 @@ models:
                 ORDER BY active_total DESC
                 LIMIT 5
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "top1pct-concentration"
+            - pattern_id: "top1pct_concentration"
               d1_table: d1_geo_grid_overview
               question_ko: "서울 상권은 얼마나 소수 격자에 집중돼 있나? (상위 1% 셀 점유율)"
               axes: "grid 랭킹 → 전체 대비 비중(집중도) 스칼라 — 절대↔비중 관점 전환"
@@ -4129,7 +4137,7 @@ models:
                        ROUND(CAST((SELECT SUM(a) FROM (SELECT a FROM g ORDER BY a DESC LIMIT :top_n)) AS REAL)
                              / (SELECT SUM(a) FROM g), 3) AS top_share
               requires: [select_columns, sort, aggregate, group_by, subquery]
-            - pattern_id: "per-major-argmax-grid"
+            - pattern_id: "per_major_argmax_grid"
               d1_table: d1_geo_grid_overview
               question_ko: "대분류마다 최대 밀집 격자(1위 상권)는 각각 어디인가?"
               axes: "major별 그룹 내 grid argmax(윈도우) — 4개 대분류를 한 번에 비교"
@@ -4148,10 +4156,10 @@ models:
                 WHERE rn <= :k
                 ORDER BY active_cnt DESC
               requires: [select_columns, sort, window, filter_range]
-            - pattern_id: "category-top-grids"
+            - pattern_id: "category_top_grids"
               d1_table: d1_geo_grid_detail
               question_ko: "특정 업종이 서울에서 가장 밀집한 500m 격자는 어디인가? (top-N 랭킹)"
-              axes: "category→grid 랭킹 (반전쌍 A: point-area-category-mix 와 차원 교환)"
+              axes: "category→grid 랭킹 (반전쌍 A: point_area_category_mix 와 차원 교환)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "ce0411c469c045bb9bd08b641cd47fea"
@@ -4164,10 +4172,10 @@ models:
                 ORDER BY active_cnt DESC
                 LIMIT 10;
               requires: [select_columns, sort, aggregate]
-            - pattern_id: "point-area-category-mix"
+            - pattern_id: "point_area_category_mix"
               d1_table: d1_geo_grid_detail
               question_ko: "특정 좌표 주변(±0.005도, 약 반경 500m+) 상권의 업종 구성과 비중은?"
-              axes: "grid(좌표)→category 구성 — 반전쌍 A: category-top-grids 의 차원 교환(X별 Y ↔ Y별 X). 좌표 등호 대신 BETWEEN(부동소수 함정 회피)"
+              axes: "grid(좌표)→category 구성 — 반전쌍 A: category_top_grids 의 차원 교환(X별 Y ↔ Y별 X). 좌표 등호 대신 BETWEEN(부동소수 함정 회피)"
               verified_rows: 11
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "ce0411c469c045bb9bd08b641cd47fea"
@@ -4182,7 +4190,7 @@ models:
                 GROUP BY major, category
                 ORDER BY active_cnt DESC;
               requires: [select_columns, sort, aggregate, group_by, window, filter_range]
-            - pattern_id: "growth-hotspots-new-open-share"
+            - pattern_id: "growth_hotspots_new_open_share"
               d1_table: d1_geo_grid_detail
               question_ko: "최근 1년 신규 개업 비중이 가장 높은(뜨는) 상권 격자는 어디인가?"
               axes: "grid→신규비중 desc — 반전쌍 B의 정방향(뜨는 상권). 시간축 없는 스냅샷이라 opened_last_365d 비중이 추이 대용"
@@ -4200,7 +4208,7 @@ models:
                 ORDER BY new_open_share_pct DESC
                 LIMIT 10;
               requires: [select_columns, sort, aggregate, group_by, having]
-            - pattern_id: "stable-low-turnover-zones"
+            - pattern_id: "stable_low_turnover_zones"
               d1_table: d1_geo_grid_detail
               question_ko: "신규 유입이 가장 적은(정착·저회전) 상권 격자는 어디인가?"
               axes: "반전쌍 B의 역방향: growth-hotspots 와 정렬 반전(desc↔asc) = 관점 반전(뜨는↔정착)"
@@ -4218,7 +4226,7 @@ models:
                 ORDER BY new_open_share_pct ASC
                 LIMIT 10;
               requires: [select_columns, sort, aggregate, group_by, having]
-            - pattern_id: "bbox-heatmap-slice"
+            - pattern_id: "bbox_heatmap_slice"
               d1_table: d1_geo_grid_detail
               question_ko: "지도 화면 영역(bbox) 안에서 특정 업종 히트맵 셀을 밀도순으로 보여줘 (canonical 히트맵 질의)"
               axes: "bbox+category 파라미터 단면 조회 (설계 문서의 /api/geo/heatmap 과 동일 축)"
@@ -4237,7 +4245,7 @@ models:
                 ORDER BY active_cnt DESC
                 LIMIT 100;
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "top-grid-per-category"
+            - pattern_id: "top_grid_per_category"
               d1_table: d1_geo_grid_detail
               question_ko: "업종마다 서울 1위 밀집 격자는 각각 어디인가? (업종×격자 교차)"
               axes: "두 축 교차: category별 grid 1위 (윈도우 함수 PARTITION BY category)"
@@ -4253,7 +4261,7 @@ models:
                 WHERE rn = 1
                 ORDER BY active_cnt DESC;
               requires: [select_columns, sort, aggregate, window]
-            - pattern_id: "category-spatial-concentration"
+            - pattern_id: "category_spatial_concentration"
               d1_table: d1_geo_grid_detail
               question_ko: "어떤 업종이 공간적으로 집중돼 있고 어떤 업종이 전역에 분산돼 있나? (top10 격자 점유율 비교)"
               axes: "category→공간 집중도 지표(파생) — 격자 랭킹의 관점 반전(어디가 최대 ↔ 얼마나 쏠렸나)"
@@ -4274,10 +4282,10 @@ models:
                 FROM ranked GROUP BY category
                 ORDER BY top10_share_pct DESC;
               requires: [select_columns, sort, aggregate, group_by, subquery, window]
-            - pattern_id: "densest-grids-dominant-category"
+            - pattern_id: "densest_grids_dominant_category"
               d1_table: d1_geo_grid_detail
               question_ko: "실점포 기준(무점포 성격의 industry 제외) 서울 최대 상권 격자 top10과 각 격자의 지배 업종은?"
-              axes: "grid(전 업종 합)→dominant category — category-top-grids 의 축 반전(업종별 최대 격자 ↔ 격자별 최대 업종)"
+              axes: "grid(전 업종 합)→dominant category — category_top_grids 의 축 반전(업종별 최대 격자 ↔ 격자별 최대 업종)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "ce0411c469c045bb9bd08b641cd47fea"
@@ -4296,7 +4304,7 @@ models:
                          ORDER BY d.active_cnt DESC LIMIT 1) AS dominant_category
                 FROM g ORDER BY g.total_active DESC;
               requires: [select_columns, sort, aggregate, group_by, subquery, filter_range]
-            - pattern_id: "category-coverage-breadth"
+            - pattern_id: "category_coverage_breadth"
               d1_table: d1_geo_grid_detail
               question_ko: "업종별로 서울에 얼마나 넓게 퍼져 있나? (존재 격자 수와 셀당 평균 밀도)"
               axes: "category→커버리지(격자 수)·평균 밀도 — 절대 밀집(top-N) 관점의 반전(퍼짐 vs 쏠림)"
@@ -4343,7 +4351,7 @@ models:
             - pattern_id: "inv_category_fixed_grid_rank"
               d1_table: d1_geo_grid_detail
               question_ko: "이 업종이 가장 밀집한 격자 좌표는? (격자 고정→업종 구성의 차원 교환)"
-              axes: "업종 고정(:category) → 격자 랭킹 — point-area-category-mix 의 역방향"
+              axes: "업종 고정(:category) → 격자 랭킹 — point_area_category_mix 의 역방향"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "ce0411c469c045bb9bd08b641cd47fea"
@@ -5655,7 +5663,7 @@ models:
               - 간판 교체가 잦은 업종 파악
               - 업소 안정성 비교
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
-            - pattern_id: "rename-ratio-top"
+            - pattern_id: "rename_ratio_top"
               question_ko: "간판(상호)을 가장 자주 바꾸는 업종은? (개명률 top-N)"
               axes: "dataset→rename_ratio desc (랭킹 top-N, 모수 하한 필터)"
               verified_rows: 10
@@ -5671,9 +5679,9 @@ models:
                 ORDER BY rename_ratio DESC, businesses DESC
                 LIMIT :top_n
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "rename-volume-top"
+            - pattern_id: "rename_volume_top"
               question_ko: "개명 절대 건수가 가장 많은 업종은? (비율이 아닌 절대값 관점)"
-              axes: "rename-ratio-top 의 관점 반전: 비중(rename_ratio)↔절대(with_rename)"
+              axes: "rename_ratio_top 의 관점 반전: 비중(rename_ratio)↔절대(with_rename)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "f29e096f59d640c3801767583c6b6c8d"
@@ -5685,9 +5693,9 @@ models:
                 ORDER BY with_rename DESC, businesses DESC
                 LIMIT 10
               requires: [select_columns, sort, aggregate]
-            - pattern_id: "relocation-ratio-top"
+            - pattern_id: "relocation_ratio_top"
               question_ko: "자리를 가장 자주 옮기는(주소 변경) 업종은? (이전율 top-N)"
-              axes: "rename-ratio-top 의 관점 반전: 개명(rename)↔이전(relocation)"
+              axes: "rename_ratio_top 의 관점 반전: 개명(rename)↔이전(relocation)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "f29e096f59d640c3801767583c6b6c8d"
@@ -5701,7 +5709,7 @@ models:
                 ORDER BY relocation_ratio DESC, businesses DESC
                 LIMIT 10
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "version-activity-top"
+            - pattern_id: "version_activity_top"
               question_ko: "업소 정보 갱신(버전 축적)이 가장 활발한 업종은?"
               axes: "dataset→avg_versions desc"
               verified_rows: 10
@@ -5716,9 +5724,9 @@ models:
                 ORDER BY avg_versions DESC, businesses DESC
                 LIMIT 10
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "static-large-industries"
+            - pattern_id: "static_large_industries"
               question_ko: "모수가 큰데도 정보 변경이 거의 없는 정적 업종은?"
-              axes: "version-activity-top 의 정렬 반전: desc↔asc (최다 갱신↔무변경 대형)"
+              axes: "version_activity_top 의 정렬 반전: desc↔asc (최다 갱신↔무변경 대형)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "f29e096f59d640c3801767583c6b6c8d"
@@ -5731,9 +5739,9 @@ models:
                 ORDER BY avg_versions ASC, businesses DESC
                 LIMIT 10
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "category-change-rollup"
+            - pattern_id: "category_change_rollup"
               question_ko: "중분류(11종) 단위로 보면 어느 분야가 개명·이전이 활발한가?"
-              axes: "rename-ratio-top 의 차원 교환: dataset(업종 3단)↔category(중분류 rollup, 가중 집계)"
+              axes: "rename_ratio_top 의 차원 교환: dataset(업종 3단)↔category(중분류 rollup, 가중 집계)"
               verified_rows: 11
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "f29e096f59d640c3801767583c6b6c8d"
@@ -5748,7 +5756,7 @@ models:
                 GROUP BY category, category_ko, major_ko
                 ORDER BY rename_pct DESC
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "industry-keyword-profile"
+            - pattern_id: "industry_keyword_profile"
               question_ko: "특정 업종(한글 키워드)의 변경 활동 프로필은? — 파라미터 단면 조회"
               axes: "파라미터 단면: :keyword→dataset_ko LIKE (전 지표 프로필)"
               verified_rows: 4
@@ -5764,7 +5772,7 @@ models:
                 WHERE dataset_ko LIKE '%' || :keyword || '%'
                 ORDER BY businesses DESC
               requires: [select_columns, sort, aggregate, filter_set]
-            - pattern_id: "rename-vs-relocation-tilt"
+            - pattern_id: "rename_vs_relocation_tilt"
               question_ko: "개명 성향 업종 vs 이전 성향 업종 — 두 변경 축을 교차하면?"
               axes: "두 축 교차: rename_ratio × relocation_ratio → 성향 분류(tilt)"
               verified_rows: 15
@@ -5784,7 +5792,7 @@ models:
                 ORDER BY (rename_ratio + relocation_ratio) DESC
                 LIMIT 15
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "major-change-summary"
+            - pattern_id: "major_change_summary"
               question_ko: "대분류(보건/문화/산업/환경) 수준의 변경 활동 총괄은?"
               axes: "차원 교환: dataset↔major(최상위 rollup, 4행 요약)"
               verified_rows: 4
@@ -5924,7 +5932,7 @@ models:
               - 입지별 적합 업종 추정
               - 상권 전환 방향 예측
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
-            - pattern_id: "top-succession-pairs"
+            - pattern_id: "top_succession_pairs"
               question_ko: "폐업→개업 업종 승계에서 가장 흔한 전이쌍 top-N은?"
               axes: "(closed_category × opened_category) 쌍 → successions DESC (ASC 반전: 희귀 전이)"
               verified_rows: 10
@@ -5937,9 +5945,9 @@ models:
                 ORDER BY successions DESC
                 LIMIT :n; -- :n 예시 10
               requires: [select_columns, sort]
-            - pattern_id: "category-stickiness"
+            - pattern_id: "category_stickiness"
               question_ko: "어떤 업종의 자리가 같은 업종으로 다시 채워지나(자리의 업종 고착률)?"
-              axes: "closed_category → 동일업종 재입점 비율 / 정렬 반전 가능(고착 최강↔최약), conversion-top 과 관점 반전쌍(고착↔전환)"
+              axes: "closed_category → 동일업종 재입점 비율 / 정렬 반전 가능(고착 최강↔최약), conversion_top 과 관점 반전쌍(고착↔전환)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e112ff3e9e464ac6ac8a0acdb69e0e97"
@@ -5951,9 +5959,9 @@ models:
                 GROUP BY 1,2
                 ORDER BY same_pct DESC; -- ASC 반전: 자리 정체성이 약해 타업종에 넘어가는 업종부터
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "what-opens-after-close"
+            - pattern_id: "what_opens_after_close"
               question_ko: "특정 업종이 폐업한 자리에는 무엇이 들어오나? (:closed_category 단면)"
-              axes: "폐업 업종 고정 → 개업 업종 분포 (what-closed-before-open 과 차원 교환 반전쌍)"
+              axes: "폐업 업종 고정 → 개업 업종 분포 (what_closed_before_open 과 차원 교환 반전쌍)"
               verified_rows: 11
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e112ff3e9e464ac6ac8a0acdb69e0e97"
@@ -5965,9 +5973,9 @@ models:
                 WHERE closed_category = :closed_category -- 예시 'food' (코드: food|industry|health_medical|culture|hygiene_beauty|livestock|pharmacy|animal|environment|optical_dental)
                 ORDER BY successions DESC;
               requires: [select_columns, sort, aggregate, window]
-            - pattern_id: "what-closed-before-open"
+            - pattern_id: "what_closed_before_open"
               question_ko: "특정 업종이 새로 들어온 자리는 원래 무엇이 폐업했던 자리인가? (:opened_category 단면 — 역방향)"
-              axes: "개업 업종 고정 → 폐업 업종 분포 (what-opens-after-close 의 차원 교환 반전)"
+              axes: "개업 업종 고정 → 폐업 업종 분포 (what_opens_after_close 의 차원 교환 반전)"
               verified_rows: 8
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e112ff3e9e464ac6ac8a0acdb69e0e97"
@@ -5980,9 +5988,9 @@ models:
                 ORDER BY successions DESC
                 LIMIT 8;
               requires: [select_columns, sort, aggregate, window]
-            - pattern_id: "fastest-turnover-pairs"
+            - pattern_id: "fastest_turnover_pairs"
               question_ko: "공실 없이 가장 빨리 채워지는 승계 전이는?"
-              axes: "전이쌍 → p50_gap_days ASC (longest-vacancy-pairs 와 정렬 반전쌍)"
+              axes: "전이쌍 → p50_gap_days ASC (longest_vacancy_pairs 와 정렬 반전쌍)"
               verified_rows: 8
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e112ff3e9e464ac6ac8a0acdb69e0e97"
@@ -5994,9 +6002,9 @@ models:
                 ORDER BY p50_gap_days ASC
                 LIMIT :n; -- :n 예시 8
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "longest-vacancy-pairs"
+            - pattern_id: "longest_vacancy_pairs"
               question_ko: "가장 오래 비어 있다가 채워지는 승계 전이는?"
-              axes: "전이쌍 → p50_gap_days DESC (fastest-turnover-pairs 의 정렬 반전)"
+              axes: "전이쌍 → p50_gap_days DESC (fastest_turnover_pairs 의 정렬 반전)"
               verified_rows: 8
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e112ff3e9e464ac6ac8a0acdb69e0e97"
@@ -6008,7 +6016,7 @@ models:
                 ORDER BY p50_gap_days DESC
                 LIMIT :n; -- :n 예시 8
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "fast-succession-rate"
+            - pattern_id: "fast_succession_rate"
               question_ko: "90일 이내 승계 비율(회전율)이 높은 전이는?"
               axes: "전이쌍 → within_90d/successions 비율 (절대건수 within_90d 의 비중 관점 전환, 정렬 반전 가능)"
               verified_rows: 8
@@ -6023,7 +6031,7 @@ models:
                 ORDER BY within_90d_pct DESC -- ASC 반전: 가장 더디게 채워지는 전이
                 LIMIT :n; -- :n 예시 8
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "major-cross-matrix"
+            - pattern_id: "major_cross_matrix"
               question_ko: "대분류(보건/문화/산업/환경) 간 승계 매트릭스 — 규모와 공실 속도는?"
               axes: "closed_major × opened_major 두 축 교차(16셀) → 건수 + 가중평균 공실"
               verified_rows: 16
@@ -6037,9 +6045,9 @@ models:
                 GROUP BY 1,2
                 ORDER BY s DESC;
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "conversion-top"
+            - pattern_id: "conversion_top"
               question_ko: "업종이 바뀌는 승계(전환)만 보면 어디서 어디로 가장 많이 넘어가나?"
-              axes: "동일업종 제외 전이쌍 → successions DESC (category-stickiness 와 관점 반전: 고착↔전환)"
+              axes: "동일업종 제외 전이쌍 → successions DESC (category_stickiness 와 관점 반전: 고착↔전환)"
               verified_rows: 8
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "e112ff3e9e464ac6ac8a0acdb69e0e97"
@@ -6051,7 +6059,7 @@ models:
                 ORDER BY successions DESC
                 LIMIT :n; -- :n 예시 8
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "category-net-flow"
+            - pattern_id: "category_net_flow"
               question_ko: "승계 시장에서 자리를 흡수하는 업종 vs 내주는 업종은? (폐업측 합계↔개업측 합계 순유입)"
               axes: "category 하나의 축을 폐업측·개업측 양방향 합산으로 반전 대조 → 순유입 DESC/ASC"
               verified_rows: 11
@@ -6069,7 +6077,7 @@ models:
                 GROUP BY 1,2
                 ORDER BY net DESC; -- ASC 반전: 자리를 내주는(순유출) 업종부터
               requires: [select_columns, sort, aggregate, group_by, subquery]
-            - pattern_id: "pair-cell-lookup"
+            - pattern_id: "pair_cell_lookup"
               question_ko: "특정 전이쌍(예: 식품→위생·미용)의 승계 규모·공실·회전율 상세는?"
               axes: "두 파라미터 단면(:closed_category, :opened_category) → 단일 셀 전체 지표"
               verified_rows: 1
@@ -6207,7 +6215,7 @@ models:
               - 재창업 업종 전환 경로 분석
               - 연쇄 창업자 행태 파악
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
-            - pattern_id: "top-succession-pairs"
+            - pattern_id: "top_succession_pairs"
               question_ko: "폐업→재창업 전환이 가장 많은 업종 조합 top-N은?"
               axes: "closed_category×opened_category → successions desc (top-N 랭킹)"
               verified_rows: 10
@@ -6221,9 +6229,9 @@ models:
                 ORDER BY successions DESC
                 LIMIT :top_n; -- 예: 10
               requires: [select_columns, sort, aggregate]
-            - pattern_id: "destinations-after-closing"
+            - pattern_id: "destinations_after_closing"
               question_ko: "특정 업종을 폐업한 사장님은 어떤 업종으로 재창업하나? (행선지 분포)"
-              axes: "폐업 업종 단면(:closed_category) → 개업 업종 분포 / 반전쌍: origins-before-opening (유출→유입 차원 교환)"
+              axes: "폐업 업종 단면(:closed_category) → 개업 업종 분포 / 반전쌍: origins_before_opening (유출→유입 차원 교환)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "0f7222b296d54d09bcf81ab89d8ba566"
@@ -6236,9 +6244,9 @@ models:
                 WHERE closed_category = :closed_category -- 예: 'food' (영문 코드)
                 ORDER BY successions DESC;
               requires: [select_columns, sort, aggregate, window]
-            - pattern_id: "origins-before-opening"
+            - pattern_id: "origins_before_opening"
               question_ko: "특정 업종으로 개업한 재도전자는 어떤 업종 폐업 출신인가? (출신지 분포)"
-              axes: "개업 업종 단면(:opened_category) → 폐업 업종 분포 / destinations-after-closing의 차원·관점 반전(유입←유출)"
+              axes: "개업 업종 단면(:opened_category) → 폐업 업종 분포 / destinations_after_closing의 차원·관점 반전(유입←유출)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "0f7222b296d54d09bcf81ab89d8ba566"
@@ -6251,7 +6259,7 @@ models:
                 WHERE opened_category = :opened_category -- 예: 'food' (영문 코드)
                 ORDER BY successions DESC;
               requires: [select_columns, sort, aggregate, window]
-            - pattern_id: "same-category-retention-rate"
+            - pattern_id: "same_category_retention_rate"
               question_ko: "폐업 후 같은 업종으로 다시 도전하는 비율(동일업종 유지율)이 높은/낮은 업종은?"
               axes: "closed_category → 동일업종 유지율 / 관점 반전: 유지(same_cat_pct)↔전환(100-same_cat_pct), desc↔asc"
               verified_rows: 10
@@ -6267,9 +6275,9 @@ models:
                 GROUP BY 1
                 ORDER BY same_cat_pct DESC; -- 반전: ASC = 업종 갈아타기 비율 랭킹
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "fastest-reentry-pairs"
+            - pattern_id: "fastest_reentry_pairs"
               question_ko: "재개업이 가장 빠른(중앙값 간격 최단) 업종 전환 조합은?"
-              axes: "업종쌍 → p50_gap_days asc / 반전쌍: slowest-reentry-pairs (asc↔desc)"
+              axes: "업종쌍 → p50_gap_days asc / 반전쌍: slowest_reentry_pairs (asc↔desc)"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "0f7222b296d54d09bcf81ab89d8ba566"
@@ -6281,9 +6289,9 @@ models:
                 ORDER BY p50_gap_days ASC
                 LIMIT :top_n; -- 예: 10
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "slowest-reentry-pairs"
+            - pattern_id: "slowest_reentry_pairs"
               question_ko: "재개업까지 가장 오래 걸리는 업종 전환 조합은?"
-              axes: "업종쌍 → p50_gap_days desc / fastest-reentry-pairs의 정렬 반전"
+              axes: "업종쌍 → p50_gap_days desc / fastest_reentry_pairs의 정렬 반전"
               verified_rows: 10
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "0f7222b296d54d09bcf81ab89d8ba566"
@@ -6295,7 +6303,7 @@ models:
                 ORDER BY p50_gap_days DESC
                 LIMIT :top_n; -- 예: 10
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "major-cross-matrix"
+            - pattern_id: "major_cross_matrix"
               question_ko: "대분류 4종 간 폐업→재창업 흐름 매트릭스(어느 대분류에서 어느 대분류로)는?"
               axes: "closed_major×opened_major 두 축 교차(4×4 매트릭스) + 가중평균 간격"
               verified_rows: 16
@@ -6310,7 +6318,7 @@ models:
                 GROUP BY 1, 2
                 ORDER BY successions DESC;
               requires: [select_columns, sort, aggregate, group_by]
-            - pattern_id: "within-1y-urgency-ranking"
+            - pattern_id: "within_1y_urgency_ranking"
               question_ko: "폐업 후 1년 내 재도전 비율이 가장 높은 업종 조합은?"
               axes: "업종쌍 → 1년 내 재도전율 desc (비율 관점 — successions 절대값 랭킹의 관점 반전)"
               verified_rows: 10
@@ -6325,7 +6333,7 @@ models:
                 ORDER BY within_1y_pct DESC -- 반전: ASC = 1년 내 복귀가 가장 드문 조합
                 LIMIT :top_n; -- 예: 10
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "category-net-flow"
+            - pattern_id: "category_net_flow"
               question_ko: "재도전 흐름에서 순유입(들어오는 재창업 > 나가는 폐업) 업종과 순유출 업종은?"
               axes: "category → inflow↔outflow 관점 반전(같은 테이블을 개업축·폐업축 양방향 집계 후 순흐름)"
               verified_rows: 10
@@ -6342,7 +6350,7 @@ models:
                 FROM outf o FULL OUTER JOIN inf i ON i.cat = o.cat
                 ORDER BY net_flow DESC;
               requires: [select_columns, sort, aggregate, group_by, join, subquery]
-            - pattern_id: "avg-vs-median-gap-skew"
+            - pattern_id: "avg_vs_median_gap_skew"
               question_ko: "평균 간격이 중앙값보다 크게 부풀려진(장기 지연 꼬리가 긴) 전환 조합은?"
               axes: "업종쌍 → (avg-p50) 괴리 desc — 평균↔중앙값 지표 함정 탐지"
               verified_rows: 5
@@ -6730,9 +6738,9 @@ models:
               - 배출시설 밀집 지역 파악
               - 환경 점검 우선순위
           usage_patterns:   # MCP/API 핸드오프 — D1 실행 검증 질의 패턴(export 가 d1_usage_patterns 로 게시)
-            - pattern_id: "air-operating-days-top-gu"
+            - pattern_id: "air_operating_days_top_gu"
               question_ko: "대기오염 배출시설을 연중 가장 오래 가동하는 자치구는 어디인가?"
-              axes: "metric(연간 가동일수)→gu 랭킹, DESC (반전쌍: air-operating-days-bottom-gu)"
+              axes: "metric(연간 가동일수)→gu 랭킹, DESC (반전쌍: air_operating_days_bottom_gu)"
               verified_rows: 5
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "2782a3846709488f811b1af7e08a32b1"
@@ -6745,7 +6753,7 @@ models:
                 ORDER BY avg_operating_days_per_year DESC
                 LIMIT :n;
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "air-operating-days-bottom-gu"
+            - pattern_id: "air_operating_days_bottom_gu"
               question_ko: "대기오염 배출시설 가동일수가 가장 짧게 기록된 자치구는 어디인가?"
               axes: "metric(연간 가동일수)→gu 랭킹, ASC — 최장↔최단 정렬 반전"
               verified_rows: 5
@@ -6760,9 +6768,9 @@ models:
                 ORDER BY avg_operating_days_per_year ASC
                 LIMIT :n;
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "gu-facility-scale-top"
+            - pattern_id: "gu_facility_scale_top"
               question_ko: "환경 배출시설(대기+수질)이 가장 많이 가동 중인 자치구는 어디인가?"
-              axes: "절대 규모(시설 수)→gu 랭킹, DESC (관점 반전쌍: air-days-coverage-low-gu 의 '비중')"
+              axes: "절대 규모(시설 수)→gu 랭킹, DESC (관점 반전쌍: air_days_coverage_low_gu 의 '비중')"
               verified_rows: 5
               verified_at: "2026-07-31T15:12:23Z"
               verified_publication_id: "2782a3846709488f811b1af7e08a32b1"
@@ -6776,7 +6784,7 @@ models:
                 ORDER BY active_facilities DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-            - pattern_id: "air-days-coverage-low-gu"
+            - pattern_id: "air_days_coverage_low_gu"
               question_ko: "가동일수 기록 보유율(커버리지)이 가장 낮은 자치구는 어디인가 — 데이터가 부실한 구는?"
               axes: "비중(기재율 %)→gu 랭킹, ASC — '절대 시설 수' 랭킹과 절대↔비중 관점 반전, ASC↔DESC 정렬 반전 겸용"
               verified_rows: 5
@@ -6792,7 +6800,7 @@ models:
                 ORDER BY days_coverage_pct ASC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "gu-operation-profile"
+            - pattern_id: "gu_operation_profile"
               question_ko: "특정 자치구의 대기·수질 배출시설 가동 현황은 어떤가? (단면 조회)"
               axes: "gu 고정 → dataset×지표 단면 — 랭킹 패턴(지표→구)과 차원 교환(구→지표)"
               verified_rows: 2
@@ -6807,7 +6815,7 @@ models:
                 FROM d1_env_facility_operation
                 WHERE gu = :gu;
               requires: [select_columns]
-            - pattern_id: "air-vs-water-facility-cross"
+            - pattern_id: "air_vs_water_facility_cross"
               question_ko: "자치구별로 대기 배출시설과 수질 배출시설 중 어느 쪽이 우세한가?"
               axes: "두 축 교차(dataset×gu 피벗) + 대기 우세↔수질 우세 관점 반전(DESC↔ASC)"
               verified_rows: 5
@@ -6825,7 +6833,7 @@ models:
                 ORDER BY air_per_water DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, join, filter_range]
-            - pattern_id: "air-avg-p50-skew"
+            - pattern_id: "air_avg_p50_skew"
               question_ko: "평균과 중앙값 가동일수 괴리가 큰(분포가 왜곡된) 자치구는 어디인가?"
               axes: "파생 metric(avg−p50 괴리)→gu 랭킹 — 대표값 신뢰도 진단 축"
               verified_rows: 5
@@ -6841,7 +6849,7 @@ models:
                 ORDER BY ABS(avg_operating_days_per_year - p50_operating_days) DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, filter_range]
-            - pattern_id: "air-operating-hours-top-gu"
+            - pattern_id: "air_operating_hours_top_gu"
               question_ko: "대기 배출시설의 하루 가동시간이 가장 긴 자치구는 어디인가?"
               axes: "metric(시간/일)→gu 랭킹, DESC — 가동일수 랭킹과 지표 교환(일수↔시간)"
               verified_rows: 5
@@ -6856,7 +6864,7 @@ models:
                 ORDER BY avg_operating_hours DESC
                 LIMIT :n;
               requires: [select_columns, sort, filter_range]
-            - pattern_id: "dataset-quality-rollup"
+            - pattern_id: "dataset_quality_rollup"
               question_ko: "데이터셋(대기 vs 수질)별로 가동 기록의 커버리지와 가중평균 가동일수는 얼마나 다른가?"
               axes: "차원 교환: 구별 랭킹 → 데이터셋별 전체 롤업(거버넌스/품질 관점)"
               verified_rows: 2
