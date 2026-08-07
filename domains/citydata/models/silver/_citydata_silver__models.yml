@@ -414,3 +414,36 @@ models:
         description: 상태 갱신 시각 (STATUPDDT, KST) — grain 축
       - name: collected_at
         description: 수집 시각 (KST, dedup 최신 판단 기준)
+
+  - name: silver_citydata_dst_message
+    config:
+      tags: ['slow']
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [area_cd, event_at, dst_type]
+    description: >
+      bronze LIVE_DST_MESSAGE 블록(배열)을 UNNEST해 재난문자(폭염·호우·대설 등)를 개별 필드로
+      분해하고 (area_cd, event_at, dst_type) 기준 최신 1건으로 중복 제거한 정제 테이블. 평시엔
+      재난이 없어 행이 없고(정상 0건), 재난기에만 채워진다. incremental(delete+insert).
+    columns:
+      - name: area_cd
+        description: 장소 코드 (POI###) — grain 축
+      - name: admin_dong_code
+        description: 행안부 행정동 코드 10자리 (canonical) — dim_seoul_area 조인
+      - name: gu_code
+        description: 행안부 자치구 코드 5자리
+      - name: longitude
+        description: 장소 중심점 경도 (WGS84, dim 조인)
+      - name: latitude
+        description: 장소 중심점 위도 (WGS84, dim 조인)
+      - name: dst_type
+        description: 재난 유형 (폭염·호우·대설·정전 등) — grain 축
+      - name: emrg_step
+        description: 긴급 단계 (안전안내·주의보·경보 등)
+      - name: msg_cn
+        description: 재난문자 본문
+      - name: event_at
+        description: 발령 시각 (CRT_DT, KST) — grain 축
+      - name: collected_at
+        description: 수집 시각 (KST, dedup 최신 판단 기준)

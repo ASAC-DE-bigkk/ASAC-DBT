@@ -1675,3 +1675,189 @@ models:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [area_cd, dow, hr]
+
+  - name: gold_citydata_dst_daily
+    config:
+      tags: ['daily']
+      meta:
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_dst_daily
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+          product_question: 서울에 어떤 재난 경보(폭염·호우 등)가 언제 얼마나 발령됐습니까?
+          grain: (event_date, dst_type, emrg_step) 마다 한 행 — 일·재난유형·긴급단계 발령 집계.
+          primary_key: [event_date, dst_type, emrg_step]
+          publication_mode: append
+          zero_policy: retain_last_good
+          event_time: event_date
+          freshness_slo_minutes: 1560
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
+          usage_patterns:
+            - pattern_id: "dst_alerts_over_time"
+              question_ko: 최근 며칠간 어떤 재난 경보가 며칠에 얼마나 발령됐나?
+              axes: 날짜 시계열 — event_date ASC
+              requires: [select_columns, filter_range, sort]
+              insight_sample_ko: 폭염 안전안내가 7월 말부터 매일 발령되고 있다.
+              sql: |
+                -- :from=2026-07-25, :to=2026-08-07
+                SELECT event_date, dst_type, emrg_step, alert_count, affected_areas
+                FROM gold_citydata_dst_daily
+                WHERE event_date BETWEEN :from AND :to
+                ORDER BY event_date ASC
+            - pattern_id: "dst_by_type"
+              question_ko: 특정 재난유형이 발령된 날과 규모는?
+              axes: 날짜 필터 + 유형 고정 — event_date ASC
+              requires: [select_columns, filter_set, filter_range, sort]
+              insight_sample_ko: 호우 안전안내는 8/7 한 차례 국지적으로 발령됐다.
+              sql: |
+                -- :type=호우, :from=2026-07-25, :to=2026-08-07
+                SELECT event_date, emrg_step, alert_count, affected_areas, last_alert_at
+                FROM gold_citydata_dst_daily
+                WHERE dst_type = :type AND event_date BETWEEN :from AND :to
+                ORDER BY event_date ASC
+            - pattern_id: "dst_worst_days"
+              question_ko: 최근 재난 경보가 가장 많이/광범위하게 발령된 날은?
+              axes: 날짜 랭킹 — affected_areas DESC
+              requires: [select_columns, filter_range, sort]
+              insight_sample_ko: 폭염 경보가 서울 전역(120개소)에 걸린 날은 8/5·8/6이었다.
+              sql: |
+                -- :from=2026-07-25, :to=2026-08-07, :n=10
+                SELECT event_date, dst_type, alert_count, affected_areas
+                FROM gold_citydata_dst_daily
+                WHERE event_date BETWEEN :from AND :to
+                ORDER BY affected_areas DESC LIMIT :n
+          display:
+            title: 일별 재난 경보 현황
+            summary: 서울에 발령된 재난 경보(폭염·호우·대설 등)를 날짜·유형별로 얼마나, 어느 범위에 걸쳐 발령됐는지 집계했습니다.
+            caveat: 평상시엔 재난이 없어 해당 날짜 행이 없습니다(정상). affected_areas가 120에 가까우면 서울 전역, 소수면 국지 경보입니다.
+            use_cases:
+              - 요즘 무슨 재난 경보가 발령 중인가
+              - 폭염·호우 경보가 언제 얼마나 있었나
+      contract: {enforced: true}
+    description: >
+      일별 재난 경보 현황 — 서울에 발령된 재난 경보(폭염·호우·대설 등)를 날짜·유형별로 집계했습니다.
+    columns:
+      - name: event_date
+        data_type: date
+        description: 발령일 (KST, grain 축)
+        tests: [not_null]
+      - name: dst_type
+        data_type: varchar
+        description: 재난 유형 (폭염·호우·대설·정전 등, grain 축)
+        tests: [not_null]
+      - name: emrg_step
+        data_type: varchar
+        description: 긴급 단계 (안전안내·주의보·경보 등, grain 축)
+        tests: [not_null]
+      - name: alert_count
+        data_type: bigint
+        description: 그 날 서로 다른 발령시각 수 (경보 건수)
+      - name: affected_areas
+        data_type: bigint
+        description: 영향 지역 수 (광역≈120, 국지=소수)
+      - name: first_alert_at
+        data_type: timestamp(6)
+        description: 그 날 첫 발령 시각 (KST)
+      - name: last_alert_at
+        data_type: timestamp(6)
+        description: 그 날 마지막 발령 시각 (KST)
+      - name: latest_message
+        data_type: varchar
+        description: 가장 최근 발령 메시지 본문
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [event_date, dst_type, emrg_step]
+
+  - name: gold_citydata_dst_dow_hour
+    config:
+      tags: ['daily']
+      meta:
+        serving:
+          enabled: true
+          external: true
+          product_id: citydata_dst_dow_hour
+          source_evidence:
+            - source_id: seoul_citydata
+              source_url: https://data.seoul.go.kr/dataList/OA-21285/F/1/datasetView.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-07"
+          product_question: 재난 경보는 주로 무슨 요일 몇 시에 발령됩니까?
+          grain: (dow, hr, dst_type) 마다 한 행 — 요일·시간·재난유형 발령 패턴.
+          primary_key: [dow, hr, dst_type]
+          publication_mode: snapshot
+          zero_policy: retain_last_good
+          publication_trigger:
+            schedule_cron: 30 0 * * *
+          shape: rollup
+          usage_patterns:
+            - pattern_id: "dst_when_by_type"
+              question_ko: 특정 재난유형은 주로 몇 시에 발령되나?
+              axes: 시간 분포 — hr ASC (유형 고정)
+              requires: [select_columns, filter_set, sort]
+              insight_sample_ko: 폭염 안전안내는 오전 11시·오후 2시에 집중 발령된다.
+              sql: |
+                -- :type=폭염
+                SELECT dow, hr, alert_count, active_days, reliable
+                FROM gold_citydata_dst_dow_hour
+                WHERE dst_type = :type
+                ORDER BY hr ASC
+            - pattern_id: "dst_peak_slots"
+              question_ko: 재난 경보가 가장 잦은 요일·시간대는?
+              axes: 요일·시간 랭킹 — alert_count DESC
+              requires: [select_columns, sort]
+              insight_sample_ko: 재난 경보는 평일 낮 시간대(11~14시)에 가장 잦다.
+              sql: |
+                -- :n=10
+                SELECT dow, hr, dst_type, alert_count, reliable
+                FROM gold_citydata_dst_dow_hour
+                ORDER BY alert_count DESC LIMIT :n
+          display:
+            title: 재난 경보 요일·시간 패턴
+            summary: 재난 경보(폭염·호우 등)가 주로 무슨 요일 몇 시에 발령되는지 패턴을 집계했습니다.
+            caveat: 재난은 드물어 셀당 표본이 얇습니다. reliable=false 셀은 참고용입니다.
+            use_cases:
+              - 재난 경보가 주로 언제 오나
+              - 폭염 경보 시간대 패턴
+      contract: {enforced: true}
+    description: >
+      재난 경보 요일·시간 패턴 — 재난 경보가 주로 무슨 요일 몇 시에 발령되는지 집계했습니다.
+    columns:
+      - name: dow
+        data_type: bigint
+        description: 요일 (1=월 … 7=일, grain 축)
+        tests: [not_null]
+      - name: hr
+        data_type: bigint
+        description: 시간 (0~23, grain 축)
+        tests: [not_null]
+      - name: dst_type
+        data_type: varchar
+        description: 재난 유형 (폭염·호우 등, grain 축)
+        tests: [not_null]
+      - name: alert_count
+        data_type: bigint
+        description: 그 요일·시간대 발령 수 (광역 중복 제거한 distinct 발령)
+      - name: active_days
+        data_type: bigint
+        description: 발령된 날 수
+      - name: reliable
+        data_type: boolean
+        description: 표본 충분 여부 (alert_count>=5) — false 셀은 참고용
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [dow, hr, dst_type]
