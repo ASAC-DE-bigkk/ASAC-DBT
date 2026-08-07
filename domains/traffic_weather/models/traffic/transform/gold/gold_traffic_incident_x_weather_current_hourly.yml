@@ -16,6 +16,11 @@ models:
           enabled: true
           external: true
           product_id: traffic_incident_x_weather_current_hourly
+          display:
+            title: 행정동별 교통 돌발과 날씨 맥락
+            summary: 행정동별 교통 돌발 현황에 같은 평가 시각의 기상 예보 맥락을 함께 보여줍니다.
+            caveat: 날씨는 돌발 원인이 아니라 같은 시각에 이용 가능한 예보 맥락입니다.
+            use_cases: ["날씨 조건별 교통 돌발 맥락 분석"]
           product_question: 돌발이 있는(또는 없는) 서울 행정동의 같은 평가 시간 KMA 예보 맥락은 무엇입니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1

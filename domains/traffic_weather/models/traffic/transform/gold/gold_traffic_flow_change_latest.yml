@@ -11,6 +11,11 @@ models:
           external: true
           contract_version: v1
           product_id: traffic_flow_change_latest
+          display:
+            title: 도로 링크별 교통 흐름 변화
+            summary: 도로 링크마다 최신 관측값과 직전 관측값의 속도·통행시간 변화를 보여줍니다.
+            caveat: 직전 관측값이 없으면 변화량을 비교할 수 없습니다.
+            use_cases: ["교통 흐름 급변 링크 파악"]
           product_question: 각 도로 링크의 최신 속도와 통행시간은 직전 관측보다 어떻게 바뀌었습니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
