@@ -37,7 +37,7 @@ issue_daily as (
         -- product contract exposes collection time in its canonical KST axis;
         -- normalize before the freshness field is published to D1.
         max(cast({{ asac_axes.utc_to_kst('forecast.collected_at') }} as timestamp(6))) as collected_at_max
-    from {{ ref('silver_weather_forecast_by_admin_dong') }} as forecast
+    from {{ ref('silver_weather_forecast_by_admin_dong_serving') }} as forecast
     cross join kst_today
     where cast(forecast.forecast_at as date) >= kst_today.today
     group by 1, 2, 3

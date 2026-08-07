@@ -304,6 +304,14 @@ selectors:
   - name: ask_seoul_weather_transform_place_mart
     description: Weather place mart model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_place_mart, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_serving_place_mart
+    description: Public Weather forecast-change용 bounded serving working set과 계약 test만 선택한다.
+    definition:
+      union:
+        - {method: path, value: models/weather/transform/place_mart/dim_weather_place.sql, indirect_selection: cautious}
+        - {method: path, value: models/weather/transform/place_mart/silver_weather_forecast_by_admin_dong_serving.sql, indirect_selection: cautious}
+        - {method: path, value: tests/weather/transform/place_mart/assert_silver_weather_admin_dong_serving_grain_unique.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/place_mart/assert_silver_weather_admin_dong_serving_retention_window.sql, indirect_selection: empty}
   - name: ask_seoul_weather_w1_inputs
     description: Weather W1 bridge가 요구하는 공통축과 Weather seed만 선택한다.
     definition: {method: tag, value: ask_seoul_weather_w1_inputs, indirect_selection: cautious}

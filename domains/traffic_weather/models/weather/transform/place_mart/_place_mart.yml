@@ -1,6 +1,19 @@
 version: 2
 
 models:
+  - name: silver_weather_forecast_by_admin_dong_serving
+    description: Public Weather forecast-change product가 읽는 최근 예보 working set이다. 기존 full-history legacy Silver는 보존하고, KST 기준 어제 이후 예보만 Iceberg forecast_at 일자 파티션으로 유지한다.
+    columns:
+      - name: place_id
+        tests: [not_null]
+      - name: issued_at
+        tests: [not_null]
+      - name: forecast_at
+        tests: [not_null]
+      - name: category
+        tests: [not_null]
+      - name: collected_at
+        tests: [not_null]
   - name: silver_weather_forecast_by_admin_dong
     description: 기존 Grid 호환 Silver를 legacy place mapping으로 fan-out한 장소 단위 호환 Silver이며 canonical W1 bridge 경로가 아니다.
     columns:

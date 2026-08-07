@@ -153,7 +153,7 @@ def test_forecast_change_declares_public_gold_semantic_contract() -> None:
     assert all(change_state["state_explanations"].values())
 
     assert public_gold["lineage"]["source_relations"] == [
-        "model.asac_seoul.silver_weather_forecast_by_admin_dong"
+        "model.asac_seoul.silver_weather_forecast_by_admin_dong_serving"
     ]
     assert "실측" in public_gold["do_not_use_for"]
 
