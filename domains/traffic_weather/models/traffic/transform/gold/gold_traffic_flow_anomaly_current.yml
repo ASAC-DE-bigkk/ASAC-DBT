@@ -11,6 +11,11 @@ models:
           external: true
           contract_version: v1
           product_id: traffic_flow_anomaly_current
+          display:
+            title: 도로 링크별 교통 흐름 이상 징후
+            summary: 도로 링크의 최신 속도를 같은 요일·시간대의 과거 관측과 비교해 평소와 다른 흐름을 보여줍니다.
+            caveat: 과거 관측 표본이 부족하면 이상 여부가 낮은 신뢰도로 표시됩니다.
+            use_cases: ["이상 정체 구간 탐지"]
           product_question: 각 도로 링크의 최신 속도는 같은 요일·시간대의 평소 범위와 비교해 어떻습니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1

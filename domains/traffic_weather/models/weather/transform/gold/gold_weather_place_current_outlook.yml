@@ -12,6 +12,11 @@ models:
           enabled: true
           external: true
           product_id: weather_place_current_outlook
+          display:
+            title: 장소별 현재 날씨 전망
+            summary: 서울의 장소별로 현재 시점에 가장 가까운 기상 예보를 보여줍니다.
+            caveat: 기상청 예보이며 실제 관측값이나 기상특보가 아닙니다.
+            use_cases: ["장소 방문 전 날씨 확인"]
           product_question: 지금 이 장소의 가장 가까운 기상 예보는 무엇입니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1

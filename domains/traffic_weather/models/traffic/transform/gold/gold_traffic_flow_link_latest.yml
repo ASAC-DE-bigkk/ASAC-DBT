@@ -12,6 +12,11 @@ models:
           enabled: true
           external: true
           product_id: traffic_flow_link_latest
+          display:
+            title: 도로 링크별 최신 교통 흐름
+            summary: 도로 링크마다 가장 최근에 관측된 속도와 통행시간을 보여줍니다.
+            caveat: 관측값이 없는 링크는 결과에 포함되지 않습니다.
+            use_cases: ["도로 링크별 현재 흐름 조회"]
           product_question: 각 도로 링크의 가장 최근 속도와 통행시간은 무엇입니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
