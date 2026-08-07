@@ -4,113 +4,6 @@ version: 2
 # silver 는 silver/_citydata_silver__models.yml · sources 는 models/sources.yml.
 
 models:
-  - name: gold_citydata_ppltn_by_time
-    config:
-      tags: ['fast']
-      meta:
-        serving_tier: hold
-        refresh: '5분'
-        display:
-          title: 장소 혼잡 5분 시계열
-          summary: 서울 주요 장소의 인구 혼잡을 5분 단위로 쌓은 원자료입니다. 서울시는 실시간만 제공하지만 우리가 누적 보관해 과거 특정 시점의 혼잡을 재구성할 수 있습니다.
-          caveat: 연 1천만 행급 대용량이라 기간을 좁혀 조회하세요. 요약이 필요하면 일별·시간별·요일×시간 롤업 골드를 쓰세요.
-          use_cases:
-            - 특정 시점 혼잡 재구성
-            - 시계열 이상·패턴 분석
-            - 커스텀 집계용 원자료
-      contract: {enforced: true}  # 컬럼·타입 빌드 시점 강제 (7/13 회고 계약안)
-    data_tests:
-      - unique_grain:
-          arguments:
-            columns: [event_at, area_cd]
-    description: >
-      장소 혼잡 5분 시계열 — 서울 주요 장소의 인구 혼잡을 5분 단위로 쌓은 원자료입니다. 서울시는 실시간만 제공하지만 우리가 누적 보관해 과거 특정 시점의 혼잡을 재구성할 수 있습니다.
-    columns:
-      - name: event_at
-        data_type: timestamp(6)
-        description: 대표 측정 시각 (KST timestamp, grain 축)
-      - name: area_cd
-        data_type: varchar
-        description: 장소 코드 (POI###, grain 축)
-      - name: sido
-        data_type: varchar
-        description: 시도명 (서울)
-      - name: area_nm
-        data_type: varchar
-        description: 장소명
-      - name: gu
-        data_type: varchar
-        description: 자치구명
-      - name: admin_dong
-        data_type: varchar
-        description: 행정동명
-      - name: gu_code
-        data_type: varchar
-        description: 행안부 자치구 코드 5자리
-      - name: admin_dong_code
-        data_type: varchar
-        description: 행안부 행정동 코드 10자리 (동 단위 조인 키)
-      - name: area_category
-        data_type: varchar
-        description: 장소 분류
-      - name: longitude
-        data_type: double
-        description: 장소 중심점 경도 (WGS84)
-      - name: latitude
-        data_type: double
-        description: 장소 중심점 위도 (WGS84)
-      - name: area_congest_lvl
-        data_type: varchar
-        description: 혼잡도 수준
-      - name: area_ppltn_min
-        data_type: integer
-        description: 추정 최소 인구
-      - name: area_ppltn_max
-        data_type: integer
-        description: 추정 최대 인구
-      - name: avg_ppltn
-        data_type: integer
-        description: 평균 추정 인구 ((min + max) / 2)
-      - name: male_ppltn_rate
-        data_type: decimal(5,2)
-        description: 남성 인구 비율(%)
-      - name: female_ppltn_rate
-        data_type: decimal(5,2)
-        description: 여성 인구 비율(%)
-      - name: ppltn_rate_0
-        data_type: decimal(5,2)
-        description: 0~9세 인구 비율(%)
-      - name: ppltn_rate_10
-        data_type: decimal(5,2)
-        description: 10대 인구 비율(%)
-      - name: ppltn_rate_20
-        data_type: decimal(5,2)
-        description: 20대 인구 비율(%)
-      - name: ppltn_rate_30
-        data_type: decimal(5,2)
-        description: 30대 인구 비율(%)
-      - name: ppltn_rate_40
-        data_type: decimal(5,2)
-        description: 40대 인구 비율(%)
-      - name: ppltn_rate_50
-        data_type: decimal(5,2)
-        description: 50대 인구 비율(%)
-      - name: ppltn_rate_60
-        data_type: decimal(5,2)
-        description: 60대 인구 비율(%)
-      - name: ppltn_rate_70
-        data_type: decimal(5,2)
-        description: 70대 이상 인구 비율(%)
-      - name: resnt_ppltn_rate
-        data_type: decimal(5,2)
-        description: 상주 인구 비율(%)
-      - name: non_resnt_ppltn_rate
-        data_type: decimal(5,2)
-        description: 비상주(유동) 인구 비율(%)
-      - name: collected_at
-        data_type: timestamp(6)
-        description: 수집 시각
-
   - name: gold_citydata_ppltn_daily
     config:
       tags: ['slow']
@@ -1258,7 +1151,7 @@ models:
           display:
             title: 요일·시간 혼잡 패턴
             summary: 장소마다 무슨 요일 몇 시가 붐비고 한산한지 요일×시간으로 요약했습니다. 실검 수요가 가장 많은 축입니다.
-            caveat: 2주 데이터라 셀당 표본이 얇습니다(base_n·reliable 동봉). reliable=false 셀은 참고용입니다.
+            caveat: 관측 주수가 아직 적어 셀당 표본이 얇습니다(base_n·reliable 동봉). reliable=false 셀은 참고용입니다.
             use_cases:
               - 무슨 요일 붐벼 응답
               - 요일별 방문 계획
@@ -1311,10 +1204,10 @@ models:
         description: 그 셀 최빈 혼잡도 (여유/보통/약간 붐빔/붐빔)
       - name: base_n
         data_type: bigint
-        description: 이 (장소·요일·시간) 셀의 표본 수 — 신뢰도 지표
+        description: 이 (장소·요일·시간) 셀의 시간 관측 수(≈관측 주수) — 신뢰도 지표
       - name: reliable
         data_type: boolean
-        description: 표본 충분 여부 (base_n>=30). 초기엔 false 많음 — 소비측 캐비앳용
+        description: 표본 충분 여부 (base_n>=3 = 3주+ 관측). 초기엔 false 많음 — 소비측 캐비앳용
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
