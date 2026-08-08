@@ -18,7 +18,7 @@ models:
             summary: 장소별 일자 예보를 최신 발표와 직전 발표로 비교해 바뀐 내용을 보여줍니다.
             caveat: 발표 시각이 바뀌면 이전 예보와 비교 결과도 달라질 수 있습니다.
             use_cases: ["날씨 전망 변경 내용 확인"]
-          product_question: 특정 장소의 일별 예보는 직전 KMA 발표보다 어떻게 바뀌었습니까?
+          product_question: 서울 주요 장소의 일별 예보는 직전 KMA 발표보다 어떻게 달라졌습니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
             operation:
@@ -83,7 +83,7 @@ models:
           cross_domain_usage_examples:
             - 강수 대응 서비스에서 최신 발표와 직전 발표의 강수확률 변화를 함께 확인합니다.
             - 행사 운영 분석에서 장소별 최고·최저기온 예보가 발표 사이에 얼마나 바뀌었는지 확인합니다.
-          product_question: 특정 장소의 일별 예보는 직전 KMA 발표보다 어떻게 바뀌었습니까?
+          product_question: 서울 주요 장소의 일별 예보는 직전 KMA 발표보다 어떻게 달라졌습니까?
           row_meaning: >-
             최신 기상청 발표와 그 직전 발표를 비교한 장소(place_id)·예보일(forecast_date)별
             예보 변화 1건입니다.

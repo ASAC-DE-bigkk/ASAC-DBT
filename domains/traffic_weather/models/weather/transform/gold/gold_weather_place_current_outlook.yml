@@ -17,7 +17,7 @@ models:
             summary: 서울의 장소별로 현재 시점에 가장 가까운 기상 예보를 보여줍니다.
             caveat: 기상청 예보이며 실제 관측값이나 기상특보가 아닙니다.
             use_cases: ["장소 방문 전 날씨 확인"]
-          product_question: 지금 이 장소의 가장 가까운 기상 예보는 무엇입니까?
+          product_question: 지금 서울 주요 장소의 가장 가까운 기상 예보는 어떻습니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
             operation:
@@ -68,7 +68,7 @@ models:
           cross_domain_usage_examples:
             - 특정 장소를 지금 방문 예정인 이용자에게 가장 가까운 예보 한 줄을 보여줄 때 사용합니다.
             - 문화나 상권 등 장소 기반 도메인과 place_id로 결합해 지금 시각의 날씨 맥락을 보조 설명 변수로 사용합니다.
-          product_question: 지금 이 장소의 가장 가까운 기상 예보는 무엇입니까?
+          product_question: 지금 서울 주요 장소의 가장 가까운 기상 예보는 어떻습니까?
           row_meaning: 한 장소의 현재(다음) 예보 대상 시각 한 행입니다.
           grain: place_id마다 정확히 한 행입니다.
           anchor_universe: gold_weather_place_hourly_outlook에서 빌드 시점 KST 현재 시 이상 예보가 존재하는 place_id 집합입니다. 매핑된 적 없는 장소는 포함되지 않습니다.

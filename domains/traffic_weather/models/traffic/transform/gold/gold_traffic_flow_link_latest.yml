@@ -17,7 +17,7 @@ models:
             summary: 도로 링크마다 가장 최근에 관측된 속도와 통행시간을 보여줍니다.
             caveat: 관측값이 없는 링크는 결과에 포함되지 않습니다.
             use_cases: ["도로 링크별 현재 흐름 조회"]
-          product_question: 각 도로 링크의 가장 최근 속도와 통행시간은 무엇입니까?
+          product_question: 서울 도로 링크별 가장 최근 속도와 통행시간은 무엇입니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
             operation:
@@ -188,7 +188,7 @@ models:
           cross_domain_usage_examples:
             - 특정 도로 구간의 현재 소통 상태를 외부 API로 조회할 때 사용합니다.
             - 혼잡 구간 대시보드에서 링크별 최신 속도를 지도에 표시할 때 사용합니다.
-          product_question: 각 도로 링크의 가장 최근 속도와 통행시간은 무엇입니까?
+          product_question: 서울 도로 링크별 가장 최근 속도와 통행시간은 무엇입니까?
           row_meaning: 도로 링크 한 곳의 가장 최근 관측 속도·통행시간 한 행입니다.
           grain: link_id마다 정확히 한 행입니다.
           anchor_universe: silver_seoul_traffic_flow에서 지금까지 관측된 적이 있는 전체 link_id 집합입니다. 관측된 적 없는 링크는 포함되지 않습니다.
