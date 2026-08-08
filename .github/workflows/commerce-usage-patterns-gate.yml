@@ -1,0 +1,35 @@
+name: Commerce usage-patterns gate
+
+# commerce usage_patterns 표기·보안 규약 린트 (ASAC-DBT#471, Serving#178·#179 재발 방지).
+# 정본 규약: domains/commerce/docs/DB/gold/usage-patterns-convention.md
+# 검사: pattern_id 슬러그 / (d1_table, pattern_id) 유일 / SELECT·WITH 단일문 /
+#       금지 토큰 / 선언 밖 테이블 참조 / 값 박힘 표식(/* :name */) / LIMIT 파라미터 이름.
+# traffic-weather 게이트와 같은 방식의 도메인 스코프 워크플로 — 타 도메인 경로 무접촉.
+
+on:
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - "domains/commerce/models/gold/_commerce_gold__models.yml"
+      - "domains/commerce/scripts/lint_usage_patterns.py"
+      - ".github/workflows/commerce-usage-patterns-gate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  usage-patterns-lint:
+    name: lint-usage-patterns
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pyyaml>=6"
+      - name: Lint usage_patterns (notation + table-scope security)
+        run: python domains/commerce/scripts/lint_usage_patterns.py
