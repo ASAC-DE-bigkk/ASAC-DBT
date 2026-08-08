@@ -1,0 +1,56 @@
+version: 2
+
+sources:
+  - name: collection_state_bronze
+    description: |
+      ASAC-DAG collection-slot materializer가 R2 receipt를 검증한 뒤 기록하는
+      공통 Iceberg control evidence입니다. expected는 계획의 정본이고 event는
+      append-only 관측·복구 이력입니다. dbt는 이 source를 읽기만 합니다.
+    database: "{{ target.database }}"
+    schema: "{{ env_var('ASK_SEOUL_SCHEMA', 'ask_seoul') }}"
+    tables:
+      - name: collection_expected_slot
+        identifier: bronze_collection_expected_slot
+        description: 한 expected_slot_id의 계획·스케줄·복구 경계 정본입니다.
+        columns:
+          - name: expected_slot_id
+            description: 결정적 expected slot 식별자입니다.
+            tests: [not_null, unique]
+          - name: domain
+            description: collection contract를 소유하는 도메인입니다.
+            tests: [not_null]
+          - name: source_id
+            description: API 또는 수집 원천 식별자입니다.
+            tests: [not_null]
+          - name: collection_slot_at
+            description: 수집 슬롯 기준 시각입니다.
+            tests: [not_null]
+          - name: is_scheduled
+            description: 해당 슬롯이 실제 스케줄 대상인지 나타냅니다.
+            tests: [not_null]
+          - name: declared_at
+            description: expected receipt가 선언된 시각입니다.
+            tests: [not_null]
+
+      - name: collection_slot_event
+        identifier: bronze_collection_slot_event
+        description: expected slot에 대한 관측·복구 상태를 보존하는 append-only 이벤트입니다.
+        columns:
+          - name: event_id
+            description: 결정적 event 식별자입니다.
+            tests: [not_null, unique]
+          - name: expected_slot_id
+            description: 이벤트가 참조하는 expected slot 식별자입니다.
+            tests: [not_null]
+          - name: collection_state
+            description: 수집 관측 상태입니다.
+            tests: [not_null]
+          - name: recovery_state
+            description: 복구 처리 상태입니다.
+            tests: [not_null]
+          - name: recovery_class
+            description: 적용된 복구 전략 분류입니다.
+            tests: [not_null]
+          - name: event_at
+            description: 상태 이벤트가 기록된 UTC 시각입니다.
+            tests: [not_null]

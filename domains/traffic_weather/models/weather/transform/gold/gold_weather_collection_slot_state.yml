@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: gold_weather_collection_slot_state
+    description: |
+      Weather expected-slot 계획과 append-only event의 최신 상태를 deterministic하게
+      투영한 운영 품질 Gold입니다. collection_state와 recovery_state를 분리하며,
+      event가 없는 scheduled slot은 missing_unknown/pending으로 보존합니다.
+    config:
+      meta:
+        collection_state_product: true
+        support_only: true
+        serving_publication: false
+    columns:
+      - name: expected_slot_id
+        description: expected-slot 계획의 결정적 식별자입니다.
+        tests: [not_null, unique]
+      - name: domain
+        description: 항상 weather인 도메인 필터입니다.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['weather']
+      - name: source_id
+        description: 수집 원천 식별자입니다.
+        tests: [not_null]
+      - name: collection_state
+        description: 최신 수집 결과 상태입니다.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - observed
+                  - source_empty_valid
+                  - collection_failed
+                  - not_scheduled
+                  - missing_unknown
+      - name: recovery_state
+        description: 최신 복구 결과 상태입니다.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['not_required', 'pending', 'recovered', 'unrecoverable']
+      - name: recovery_class
+        description: 복구 전략 분류입니다.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - raw_replay
+                  - historical_query
+                  - rolling_window
+                  - full_refresh
+                  - next_snapshot_diff
+                  - none
+      - name: event_state_tie_count
+        description: 동일 expected slot과 event_at에 묶인 이벤트 수입니다. 1이 아니면 assertion이 실패합니다.
+        tests: [not_null]
+      - name: gap_reason_code
+        description: 결측·실패 상태의 필수 원인 코드입니다.
+      - name: event_at
+        description: 최신 이벤트 기록 시각입니다.

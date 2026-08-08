@@ -59,7 +59,15 @@ def _portfolio_test_nodes() -> dict[str, dict[str, object]]:
             nodes[unique_id] = _test_node(
                 unique_id,
                 path=f"tests/traffic/transform/{prefix}/{prefix}_{index:03d}.sql",
-                tags=[] if tag is None else [tag],
+                tags=(
+                    []
+                    if tag is None
+                    else (
+                        ["ask_seoul_traffic_transform_gold", tag]
+                        if prefix.startswith("gold_")
+                        else [tag]
+                    )
+                ),
                 owner_unique_ids=owners,
                 generic=generic and index != 1,
             )
@@ -225,11 +233,50 @@ def validator():
 
 
 def test_valid_inventory_matches_manifest(validator) -> None:
-    validator.validate_inventory(
-        _manifest(),
-        _inventory(),
-        selector_counts=validator.EXPECTED_SELECTOR_COUNTS,
-    )
+    validator.validate_inventory(_manifest(), _inventory())
+
+
+def test_manifest_selector_counts_match_exact_cadence_unions(validator) -> None:
+    assert validator.manifest_selector_counts(_manifest()) == {
+        "ask_seoul_traffic_transform_gold_gate_tests": 125,
+        "ask_seoul_traffic_transform_gold_hourly_tests": 145,
+        "ask_seoul_traffic_transform_gold_full_tests": 175,
+    }
+
+
+def test_manifest_selector_counts_deduplicate_union_and_ignore_models(validator) -> None:
+    manifest = {
+        "nodes": {
+            "test.asac_seoul.shared": {
+                "resource_type": "test",
+                "tags": [
+                    "ask_seoul_traffic_transform_gold",
+                    "traffic_gold_gate",
+                    "traffic_gold_hourly_extension",
+                ],
+            },
+            "test.asac_seoul.daily": {
+                "resource_type": "test",
+                "tags": [
+                    "ask_seoul_traffic_transform_gold",
+                    "traffic_gold_daily_extension",
+                ],
+            },
+            "model.asac_seoul.not_a_test": {
+                "resource_type": "model",
+                "tags": [
+                    "ask_seoul_traffic_transform_gold",
+                    "traffic_gold_gate",
+                ],
+            },
+        }
+    }
+
+    assert validator.manifest_selector_counts(manifest) == {
+        "ask_seoul_traffic_transform_gold_gate_tests": 1,
+        "ask_seoul_traffic_transform_gold_hourly_tests": 1,
+        "ask_seoul_traffic_transform_gold_full_tests": 2,
+    }
 
 
 def test_missing_manifest_test_fails(validator) -> None:
@@ -363,16 +410,14 @@ def test_cadence_total_mismatch_fails(validator) -> None:
         validator.validate_inventory(_manifest(), inventory)
 
 
-def test_selector_count_mismatch_fails(validator) -> None:
+def test_manifest_selector_count_mismatch_fails(validator) -> None:
+    manifest = _manifest()
+    manifest["nodes"]["test.asac_seoul.gold_gate_001"]["tags"].remove(
+        "ask_seoul_traffic_transform_gold"
+    )
+
     with pytest.raises(validator.InventoryError, match="selector counts"):
-        validator.validate_inventory(
-            _manifest(),
-            _inventory(),
-            selector_counts={
-                **validator.EXPECTED_SELECTOR_COUNTS,
-                "ask_seoul_traffic_transform_gold_full_tests": 172,
-            },
-        )
+        validator.validate_inventory(manifest, _inventory())
 
 
 def test_generate_candidate_preserves_multiple_owners(validator) -> None:
@@ -463,15 +508,6 @@ def test_generate_candidate_rejects_manifest_count_drift(validator) -> None:
         validator.generate_candidate(manifest)
 
 
-@pytest.mark.parametrize(
-    "value",
-    ("missing-separator", "=123", "selector=not-an-int", "selector=-1"),
-)
-def test_invalid_selector_count_fails(validator, value: str) -> None:
-    with pytest.raises(validator.InventoryError, match="invalid selector count"):
-        validator.parse_selector_counts([value])
-
-
 def test_cli_reports_pass(tmp_path: Path) -> None:
     manifest_path = tmp_path / "manifest.json"
     inventory_path = tmp_path / "inventory.yml"
@@ -488,12 +524,6 @@ def test_cli_reports_pass(tmp_path: Path) -> None:
             str(manifest_path),
             "--inventory",
             str(inventory_path),
-            "--selector-count",
-            "ask_seoul_traffic_transform_gold_gate_tests=125",
-            "--selector-count",
-            "ask_seoul_traffic_transform_gold_hourly_tests=145",
-            "--selector-count",
-            "ask_seoul_traffic_transform_gold_full_tests=175",
         ],
         cwd=PROJECT_ROOT,
         text=True,

@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Sequence
 
 
 DEFAULT_SNAPSHOT_RUN_ID = "ci__traffic-weather-monoproject-premerge-gate"
@@ -21,11 +21,6 @@ OWNED_PATHS = {
     ".gitignore",
 }
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
-EXACT_SELECTOR_COUNTS = {
-    "ask_seoul_traffic_transform_gold_gate_tests": 125,
-    "ask_seoul_traffic_transform_gold_hourly_tests": 145,
-    "ask_seoul_traffic_transform_gold_full_tests": 175,
-}
 
 
 def _repository_path(path: str) -> str:
@@ -134,88 +129,13 @@ def generate_fresh_manifest(
     return target_path / "manifest.json"
 
 
-def _selector_names(project_dir: Path) -> tuple[str, ...]:
-    import yaml
-
-    document = yaml.safe_load(
-        (project_dir / "selectors.yml").read_text(encoding="utf-8")
-    )
-    selectors = document.get("selectors") if isinstance(document, dict) else None
-    if not isinstance(selectors, list) or not selectors:
-        raise ValueError("selectors.yml must define at least one named selector")
-
-    names: list[str] = []
-    for selector in selectors:
-        name = selector.get("name") if isinstance(selector, dict) else None
-        if not isinstance(name, str) or not name.strip():
-            raise ValueError("every selector must have a non-empty name")
-        names.append(name)
-    if len(set(names)) != len(names):
-        raise ValueError("selector names must be unique")
-    return tuple(names)
-
-
-def validate_named_selectors(
-    *,
-    project_dir: Path,
-    target_path: Path,
-    dbt_bin: str,
-    snapshot_run_id: str,
-    environment: dict[str, str],
-    command_runner: CommandRunner,
-) -> dict[str, int]:
-    """Return selector counts and fail empty or drifted Airflow contracts."""
-    counts: dict[str, int] = {}
-    for selector in _selector_names(project_dir):
-        result = command_runner(
-            [
-                dbt_bin,
-                "ls",
-                "--selector",
-                selector,
-                "--target",
-                "dev",
-                "--target-path",
-                str(target_path),
-                "--vars",
-                _manifest_vars(snapshot_run_id),
-                "--output",
-                "name",
-                "--quiet",
-            ],
-            check=True,
-            cwd=project_dir,
-            env=environment,
-            capture_output=True,
-            text=True,
-        )
-        selected = [line for line in result.stdout.splitlines() if line.strip()]
-        if not selected:
-            raise RuntimeError(f"named selector {selector!r} is empty")
-        counts[selector] = len(selected)
-
-    actual_exact = {name: counts.get(name, 0) for name in EXACT_SELECTOR_COUNTS}
-    if actual_exact != EXACT_SELECTOR_COUNTS:
-        raise RuntimeError(
-            "Traffic Gold selector counts mismatch: "
-            f"expected {EXACT_SELECTOR_COUNTS}, actual {actual_exact}"
-        )
-    return counts
-
-
 def validate_traffic_gold_test_inventory(
     *,
     project_dir: Path,
     manifest_path: Path,
-    selector_counts: Mapping[str, int],
     command_runner: CommandRunner,
 ) -> None:
     """Fail when Traffic Gold cadence inventory differs from the manifest."""
-    selector_count_args = [
-        item
-        for name in EXACT_SELECTOR_COUNTS
-        for item in ("--selector-count", f"{name}={selector_counts[name]}")
-    ]
     command_runner(
         [
             sys.executable,
@@ -230,7 +150,6 @@ def validate_traffic_gold_test_inventory(
             str(manifest_path),
             "--inventory",
             str(project_dir / "contracts" / "traffic_gold_test_cadence.yml"),
-            *selector_count_args,
         ],
         check=True,
         cwd=project_dir,
@@ -271,18 +190,9 @@ def run_premerge_gate(
         environment=environment,
         command_runner=command_runner,
     )
-    selector_counts = validate_named_selectors(
-        project_dir=project_dir,
-        target_path=target_path,
-        dbt_bin=dbt_bin,
-        snapshot_run_id=snapshot_run_id,
-        environment=environment,
-        command_runner=command_runner,
-    )
     validate_traffic_gold_test_inventory(
         project_dir=project_dir,
         manifest_path=manifest_path,
-        selector_counts=selector_counts,
         command_runner=command_runner,
     )
 

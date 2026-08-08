@@ -107,10 +107,22 @@ from projected
 {%- endmacro %}
 
 {# Return violating rows; a valid relation produces zero rows. #}
-{% macro collection_slot_state_assertions(relation) -%}
+{% macro collection_slot_state_assertions(relation, expected_domain) -%}
+with state as (
+    select
+        *,
+        count(*) over (
+            partition by expected_slot_id
+        ) as expected_slot_id_count
+    from {{ relation }}
+)
 select *
-from {{ relation }}
+from state
 where expected_slot_id is null
+   or expected_slot_id_count <> 1
+   or domain is null
+   or domain <> '{{ expected_domain }}'
+   or source_id is null
    or collection_state is null
    or collection_state not in (
           'observed', 'source_empty_valid', 'collection_failed',

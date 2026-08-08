@@ -62,6 +62,7 @@ EXPECTED_D1_HOT_MODELS = {
     *EXPECTED_FLOW_MODELS,
 }
 EXPECTED_INCIDENT_MODELS = {
+    "gold_traffic_collection_slot_state",
     "gold_traffic_incident_collection_coverage_5m",
     "gold_traffic_incident_current_by_admin_dong_hourly",
     "gold_traffic_incident_expected_clearance_profile_by_admin_dong_daily",
@@ -70,7 +71,7 @@ EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_x_flow",
     "gold_traffic_incident_x_weather_current_hourly",
 }
-EXPECTED_GOLD_MODEL_COUNT = 12
+EXPECTED_GOLD_MODEL_COUNT = 13
 EXPECTED_INCIDENT_TEST_COUNTS = {
     INCIDENT_GATE_TESTS: 79,
     INCIDENT_HOURLY_TESTS: 99,
@@ -265,7 +266,7 @@ def test_incident_gold_selectors_resolve_exact_model_and_test_sets(
     assert flow_models == EXPECTED_FLOW_MODELS
     assert incident_models == EXPECTED_INCIDENT_MODELS
     assert incident_models == full_gold_models - flow_models
-    assert len(incident_models) == 7
+    assert len(incident_models) == 8
 
     flow_tests = _resolved_names(resolved_selector_project, FLOW_SCOPE, "test")
     for incident_selector, full_selector in {
