@@ -40,6 +40,8 @@ operations_or_quality_models:
   - gold_traffic_incident_expected_clearance_profile_by_admin_dong_daily
   - gold_traffic_incident_spatial_mapping_quality_daily
   - gold_traffic_incident_summary
+  - gold_traffic_collection_slot_state
   - gold_weather_forecast_completeness_by_admin_dong_hourly
   - gold_weather_forecast_issue_cycle_coverage_daily
   - gold_weather_forecast_summary
+  - gold_weather_collection_slot_state
