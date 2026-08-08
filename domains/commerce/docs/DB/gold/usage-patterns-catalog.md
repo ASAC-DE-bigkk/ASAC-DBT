@@ -4,597 +4,599 @@
 
 패턴 484건 / D1 테이블 22종 / 검증 완료 484건. 각 패턴은 게이트웨이 `run_pattern`(REST `GET /api/v1/patterns/<product>/<pattern>` · MCP `run_pattern`)으로 실행하며, `파라미터` 열의 이름 전부에 값을 줘야 한다(모든 파라미터 필수 — 기본값 없음).
 
+**질문** = 이 패턴이 답하는 물음(`question_ko`), **반환 컬럼** = 실제로 받는 결과의 열(SQL 최종 SELECT 에서 추출 — 손 선언이 아니라 실물 기준), **축** = 집계·랭킹의 축(`axes`).
+
 ## d1_address_succession (`commerce_address_succession`) — 23건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_net_flow` | 승계 시장에서 자리를 흡수하는 업종 vs 내주는 업종은? (폐업측 합계↔개업측 합계 순유입) | 승계 시장에서 자리를 흡수하는 업종 vs 내주는 업종은? (폐업측 합계↔개업측 합계 순유입) | — | — |
-| `category_stickiness` | 어떤 업종의 자리가 같은 업종으로 다시 채워지나(자리의 업종 고착률)? | 어떤 업종의 자리가 같은 업종으로 다시 채워지나(자리의 업종 고착률)? | — | — |
-| `conversion_top` | 업종이 바뀌는 승계(전환)만 보면 어디서 어디로 가장 많이 넘어가나? | 업종이 바뀌는 승계(전환)만 보면 어디서 어디로 가장 많이 넘어가나? | `:n` | — |
-| `cumulative_share_top_pairs` | 상위 전이쌍 누적 점유율 — 승계 시장이 몇 개 쌍에 얼마나 집중돼 있나? | 상위 n개 전이쌍 각각의 전체 대비 점유율과 누적 점유율을 준다. '상위 몇 쌍이 시장의 절반을 차지하나' 류의 집중도 질문에 바로 답한다. | `:n` | — |
-| `fast_succession_rate` | 90일 이내 승계 비율(회전율)이 높은 전이는? | 90일 이내 승계 비율(회전율)이 높은 전이는? | `:min_successions`, `:n` | — |
-| `fastest_turnover_pairs` | 공실 없이 가장 빨리 채워지는 승계 전이는? | 공실 없이 가장 빨리 채워지는 승계 전이는? | `:min_successions`, `:n` | — |
-| `gap_speed_buckets` | 공실 중앙값을 속도 구간(:b1/:b2/:b3일 경계)으로 나누면 승계가 어느 구간에 몰려 있나? | 공실 속도 구간 4개(≤b1일, ≤b2일, ≤b3일, 초과)별로 전이쌍 종류 수·승계 건수·전체 점유율을 준다. 시장 전체의 자리 회전 속도 체감을 한 표로 요약. | `:b1`, `:b2`, `:b3` | — |
-| `inv_within90d_rate_asc` | 같은 자리에 새 업소가 들어오기까지 오래 비는 업종쌍은? (빠른 회전 랭킹의 반전) | 같은 자리에 새 업소가 들어오기까지 오래 비는 업종쌍은? (빠른 회전 랭킹의 반전) | `:min_successions` | — |
-| `long_tail_vacancy_pairs` | 평균 공실이 중앙값보다 훨씬 긴(오른쪽 꼬리) 전이쌍은? — 일부 자리가 유난히 오래 비는 전이 | 전이쌍별 공실 기간의 평균–중앙값 격차를 준다. 격차가 크면 절반은 금방 채워지되 일부 자리가 극단적으로 오래 비는 이중 구조라는 뜻 — 중앙값만 보고 진입 판단하면 위험한 전이를 식별한다. | `:min_successions`, `:n` | — |
-| `longest_vacancy_pairs` | 가장 오래 비어 있다가 채워지는 승계 전이는? | 가장 오래 비어 있다가 채워지는 승계 전이는? | `:min_successions`, `:n` | — |
-| `major_cross_matrix` | 대분류(보건/문화/산업/환경) 간 승계 매트릭스 — 규모와 공실 속도는? | 대분류(보건/문화/산업/환경) 간 승계 매트릭스 — 규모와 공실 속도는? | — | — |
-| `new_same_vs_switch_category` | 같은 업종이 다시 들어오나, 다른 업종으로 바뀌나? (동종/이종 승계 대비) | 같은 업종이 다시 들어오나, 다른 업종으로 바뀌나? (동종/이종 승계 대비) | — | — |
-| `opened_same_origin_rate` | 새로 여는 업종 입장에서, 같은 업종이 떠난 자리를 이어받는 비율은? (category_stickiness 의 개업측 반전) | 개업 업종별로 '동종 폐업 자리 이어받기' 성향(총 개업 승계 건수와 동종 유래 비율)을 준다. 창업 입지 탐색 시 같은 업종 폐업지를 노리는 전략이 유효한 업종인지 판단하는 기초. | `:dir` | — |
-| `pair_cell_lookup` | 특정 전이쌍(예: 식품→위생·미용)의 승계 규모·공실·회전율 상세는? | 특정 전이쌍(예: 식품→위생·미용)의 승계 규모·공실·회전율 상세는? | `:closed_category`, `:opened_category` | — |
-| `pair_direction_asymmetry` | 업종 간 자리 교환은 대칭인가? A→B와 B→A 건수가 가장 크게 어긋나는 업종쌍은? | 업종쌍별 양방향 승계 건수와 순흐름을 준다. 자리가 한 방향으로만 넘어가는 일방통행 쌍을 식별 — 업종 교체 트렌드의 방향성 근거. | `:min_pair_successions`, `:n` | — |
-| `pair_rank_by_metric` | 전이쌍 랭킹을 원하는 지표·방향으로 보면? (:metric ∈ {successions, within90d_pct, p50_gap_days, avg_gap_days}, :dir ∈ {asc, desc}) | 승계 건수·90일내 비율·중앙 공실·평균 공실 네 지표 중 하나와 정렬 방향을 골라 전이쌍 랭킹을 얻는다. 기존 고정 랭킹 패턴들을 한 진입점으로 대체하는 범용 랭커. | `:min_successions`, `:dir`, `:metric`, `:n` | — |
-| `same_switch_by_level` | 동종 승계 vs 업종 전환의 비중·공실 속도를 대분류(:level='major')와 소분류('category') 기준 각각으로 보면? | 동종/전환 승계의 비중과 공실 속도를 대분류·소분류 두 기준으로 준다. 자리의 업종 정체성이 어느 분류 수준에서 유지되는지, 전환 승계가 얼마나 더 느린지 정량화. | `:level` | — |
-| `side_vacancy_profile` | 업종별 공실 프로필 — :side='closed'면 그 업종이 떠난 자리가 얼마나 빨리 채워지는지, 'opened'면 그 업종이 들어간 자리가 얼마나 비어 있었는지 | 업종 하나당 한 행으로 공실 회전 프로필(총 건수·가중평균 공실일·90일 내 승계 비율)을 준다. 폐업측은 '그 자리의 매력도', 개업측은 '그 업종이 입지 잡기까지의 대기 기간'으로 읽는다. | `:side`, `:dir` | — |
-| `top_succession_pairs` | 폐업→개업 업종 승계에서 가장 흔한 전이쌍 top-N은? | 폐업→개업 업종 승계에서 가장 흔한 전이쌍 top-N은? | `:n` | — |
-| `top_successors_per_closed` | 폐업 업종 각각의 최다 승계 업종 1~:top_n위 지도 — 모든 업종의 자리는 주로 무엇으로 채워지나? | 폐업 업종 10종 각각에 대해 상위 top_n개 승계 업종과 그룹 내 점유율을 한 번에 준다. 단면 조회를 업종 수만큼 반복하지 않고 승계 지도 전체를 요약. | `:top_n` | — |
-| `what_closed_before_open` | 특정 업종이 새로 들어온 자리는 원래 무엇이 폐업했던 자리인가? (:opened_category 단면 — 역방향) | 특정 업종이 새로 들어온 자리는 원래 무엇이 폐업했던 자리인가? (:opened_category 단면 — 역방향) | `:opened_category` | — |
-| `what_opens_after_close` | 특정 업종이 폐업한 자리에는 무엇이 들어오나? (:closed_category 단면) | 특정 업종이 폐업한 자리에는 무엇이 들어오나? (:closed_category 단면) | `:closed_category` | — |
-| `x_address_vs_phone_gap` | 자리 회전(주소 승계)은 빠른데 운영자 재도전(연락처 승계)은 느린 업종쌍은? (두 승계 제품 교차) | 자리 회전(주소 승계)은 빠른데 운영자 재도전(연락처 승계)은 느린 업종쌍은? (두 승계 제품 교차) | `:min_successions` | — |
+| `category_net_flow` | 승계 시장에서 자리를 흡수하는 업종 vs 내주는 업종은? (폐업측 합계↔개업측 합계 순유입) | `category`, `category_ko`, `closed_s`, `opened_s`, `net` | — | category 하나의 축을 폐업측·개업측 양방향 합산으로 반전 대조 → 순유입 DESC/ASC |
+| `category_stickiness` | 어떤 업종의 자리가 같은 업종으로 다시 채워지나(자리의 업종 고착률)? | `closed_category`, `closed_category_ko`, `total`, `same_pct` | — | closed_category → 동일업종 재입점 비율 / 정렬 반전 가능(고착 최강↔최약), conversion_top 과 관점 반전쌍(고착↔전환) |
+| `conversion_top` | 업종이 바뀌는 승계(전환)만 보면 어디서 어디로 가장 많이 넘어가나? | `closed_category_ko`, `opened_category_ko`, `successions`, `p50_gap_days` | `:n` | 동일업종 제외 전이쌍 → successions DESC (category_stickiness 와 관점 반전: 고착↔전환) |
+| `cumulative_share_top_pairs` | 상위 전이쌍 누적 점유율 — 승계 시장이 몇 개 쌍에 얼마나 집중돼 있나? | `closed_category_ko`, `opened_category_ko`, `successions`, `share_pct`, `cum_share_pct` | `:n` | 전이쌍 successions DESC 상위 :n → 개별 점유율 + 누적 점유율 (분포 집중도 관점 — top_succession_pairs 에 없는 누적 축) |
+| `fast_succession_rate` | 90일 이내 승계 비율(회전율)이 높은 전이는? | `closed_category_ko`, `opened_category_ko`, `successions`, `within_90d_pct` | `:min_successions`, `:n` | 전이쌍 → within_90d/successions 비율 (절대건수 within_90d 의 비중 관점 전환, 정렬 반전 가능) |
+| `fastest_turnover_pairs` | 공실 없이 가장 빨리 채워지는 승계 전이는? | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days` | `:min_successions`, `:n` | 전이쌍 → p50_gap_days ASC (longest_vacancy_pairs 와 정렬 반전쌍) |
+| `gap_speed_buckets` | 공실 중앙값을 속도 구간(:b1/:b2/:b3일 경계)으로 나누면 승계가 어느 구간에 몰려 있나? | `gap_band`, `pair_kinds`, `successions`, `share_pct` | `:b1`, `:b2`, `:b3` | p50_gap_days 를 4개 속도 구간으로 이산화 → 쌍 종류 수·건수·점유율 (분포 축 — 구간 경계 3개가 임계값 파라미터) |
+| `inv_within90d_rate_asc` | 같은 자리에 새 업소가 들어오기까지 오래 비는 업종쌍은? (빠른 회전 랭킹의 반전) | `closed_category_ko`, `opened_category_ko`, `successions`, `p50_gap_days`, `within90d_pct` | `:min_successions` | 업종쌍 랭킹 — 90일 내 승계 비율 ASC(fast-succession 의 반전) |
+| `long_tail_vacancy_pairs` | 평균 공실이 중앙값보다 훨씬 긴(오른쪽 꼬리) 전이쌍은? — 일부 자리가 유난히 오래 비는 전이 | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days`, `mean_median_gap_days` | `:min_successions`, `:n` | 전이쌍 → avg_gap_days − p50_gap_days DESC (공실 분포의 왜도 관점 — 기존 속도 랭킹 fastest/longest 가 못 보는 축) |
+| `longest_vacancy_pairs` | 가장 오래 비어 있다가 채워지는 승계 전이는? | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days` | `:min_successions`, `:n` | 전이쌍 → p50_gap_days DESC (fastest_turnover_pairs 의 정렬 반전) |
+| `major_cross_matrix` | 대분류(보건/문화/산업/환경) 간 승계 매트릭스 — 규모와 공실 속도는? | `closed_major_ko`, `opened_major_ko`, `s`, `wavg_gap` | — | closed_major × opened_major 두 축 교차(16셀) → 건수 + 가중평균 공실 |
+| `new_same_vs_switch_category` | 같은 업종이 다시 들어오나, 다른 업종으로 바뀌나? (동종/이종 승계 대비) | `kind`, `successions`, `avg_p50_gap_days` | — | 동종 승계 vs 업종 전환 집계 — 관점 이분 |
+| `opened_same_origin_rate` | 새로 여는 업종 입장에서, 같은 업종이 떠난 자리를 이어받는 비율은? (category_stickiness 의 개업측 반전) | `*` | `:dir` | opened_category → 동종 유래 비율 / :dir 정렬 스위치 (category_stickiness 와 방향 반전쌍: 폐업측 고착률 ↔ 개업측 유래율) |
+| `pair_cell_lookup` | 특정 전이쌍(예: 식품→위생·미용)의 승계 규모·공실·회전율 상세는? | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days`, `within_90d`, `within_90d_pct` | `:closed_category`, `:opened_category` | 두 파라미터 단면(:closed_category, :opened_category) → 단일 셀 전체 지표 |
+| `pair_direction_asymmetry` | 업종 간 자리 교환은 대칭인가? A→B와 B→A 건수가 가장 크게 어긋나는 업종쌍은? | `cat_a_ko`, `cat_b_ko`, `a_to_b`, `b_to_a`, `net_a_to_b` | `:min_pair_successions`, `:n` | 무방향 쌍(사전순 A<B로 중복 제거) → 양방향 건수 대조·순흐름 \|A→B − B→A\| DESC (category_net_flow 의 업종 총계 순유입을 쌍 단위로 분해) |
+| `pair_rank_by_metric` | 전이쌍 랭킹을 원하는 지표·방향으로 보면? (:metric ∈ {successions, within90d_pct, p50_gap_days, avg_gap_days}, :dir ∈ {asc, desc}) | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days`, `within90d_pct` | `:min_successions`, `:dir`, `:metric`, `:n` | 전이쌍 → 지표 스위치 × 정렬 방향 스위치 랭킹 + 소표본 임계값 (top_succession_pairs·fastest_turnover_pairs·longest_vacancy_pairs·fast_succession_rate·inv_within90d_rate_asc 5종 고정 랭킹의 파라미터 일반화 상위호환) |
+| `same_switch_by_level` | 동종 승계 vs 업종 전환의 비중·공실 속도를 대분류(:level='major')와 소분류('category') 기준 각각으로 보면? | `kind`, `successions`, `share_pct`, `wavg_gap_days`, `within90d_pct` | `:level` | same/switched 이분(:level 로 대분류/소분류 스위치) → 건수·점유율·가중평균 공실·90일내 비율 (new_same_vs_switch_category 의 차원 스위치 상위호환 + 단순평균을 가중 지표로 교정) |
+| `side_vacancy_profile` | 업종별 공실 프로필 — :side='closed'면 그 업종이 떠난 자리가 얼마나 빨리 채워지는지, 'opened'면 그 업종이 들어간 자리가 얼마나 비어 있었는지 | `*` | `:side`, `:dir` | category 단일 축(:side 로 폐업측/개업측 스위치) → 총 건수·가중평균 공실·90일내 비율, :dir 정렬 스위치 (쌍 단위 지표를 업종 단위 프로필로 접음 — major_cross_matrix 의 소분류·단측 버전) |
+| `top_succession_pairs` | 폐업→개업 업종 승계에서 가장 흔한 전이쌍 top-N은? | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days` | `:n` | (closed_category × opened_category) 쌍 → successions DESC (ASC 반전: 희귀 전이) |
+| `top_successors_per_closed` | 폐업 업종 각각의 최다 승계 업종 1~:top_n위 지도 — 모든 업종의 자리는 주로 무엇으로 채워지나? | `closed_category_ko`, `opened_category_ko`, `successions`, `share_pct`, `rank_in_closed` | `:top_n` | closed_category 전체 × 그룹 내 successions 순위 상위 :top_n → 그룹 내 점유율 (what_opens_after_close 의 단일 단면을 전 업종 일괄 요약으로 확장) |
+| `what_closed_before_open` | 특정 업종이 새로 들어온 자리는 원래 무엇이 폐업했던 자리인가? (:opened_category 단면 — 역방향) | `closed_category_ko`, `successions`, `share_pct`, `p50_gap_days` | `:opened_category` | 개업 업종 고정 → 폐업 업종 분포 (what_opens_after_close 의 차원 교환 반전) |
+| `what_opens_after_close` | 특정 업종이 폐업한 자리에는 무엇이 들어오나? (:closed_category 단면) | `opened_category_ko`, `successions`, `share_pct`, `p50_gap_days` | `:closed_category` | 폐업 업종 고정 → 개업 업종 분포 (what_closed_before_open 과 차원 교환 반전쌍) |
+| `x_address_vs_phone_gap` | 자리 회전(주소 승계)은 빠른데 운영자 재도전(연락처 승계)은 느린 업종쌍은? (두 승계 제품 교차) | `closed_category_ko`, `opened_category_ko`, `addr_gap`, `phone_gap`, `phone_minus_addr` | `:min_successions` | 제품 간 조인 — address_succession × phone_succession p50 간격 비교 |
 
 ## d1_age_band (`commerce_age_band`) — 24건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `band_city_concentration` | 특정 업력 밴드의 서울 전체 물량이 어디에 얼마나 집중돼 있나 — 구(또는 업종)별 점유율과 누적 집중도 | 지정한 업력 밴드(예: 1년 미만 신생) 총량 중 각 구/업종이 차지하는 몫과 상위 누적 몫을 준다. '신생 창업의 몇 %가 상위 몇 개 구에 몰리는가' 같은 집중도 질문에 바로 답한다. | `:dim`, `:age_band`, `:n` | — |
-| `band_dist_flexible` | 서울 전체·특정 구·특정 업종 어느 수준에서든 업력 6밴드 분포(수량+비중)는? — 고정 단면 패턴의 센티널 일반화 | 요청한 범위(서울 전체, 특정 구, 특정 업종, 구×업종)의 업력 분포를 수량과 백분율로 준다. 기존 패턴은 구와 업종을 반드시 둘 다 지정해야 했지만 이 패턴은 'ALL' 센티널로 시 전체·단일 축 프로파일까지 커버한다. | `:gu_code`, `:category` | — |
-| `band_range_share_rank` | 임의의 연속 업력 구간(:band_from~:band_to) 비중이 높은/낮은 자치구 또는 업종 랭킹 — 신생·중견·노포 어느 구간이든 한 패턴으로 | 소비자가 지정한 업력 구간(예: 3~10년 성장기)의 업소 비중을 자치구별 또는 업종별로 서열화해 준다. 극단(신생/노포)에 고정됐던 기존 랭킹을 임의 구간·양방향 정렬로 확장한 진입/정착 분석 기초 자료. | `:dim`, `:band_from`, `:band_to`, `:dir`, `:top_n` | — |
-| `category_age_mix` | 어떤 업종이 젊고 어떤 업종이 늙었나 — 중분류별 신생(3년 미만) vs 노포(20년+) 비중 | 어떤 업종이 젊고 어떤 업종이 늙었나 — 중분류별 신생(3년 미만) vs 노포(20년+) 비중 | — | — |
-| `category_gu_young_rank` | 특정 업종(:category)은 어느 구에서 새로 뜨나 — 업종 고정 후 자치구별 신생 비중 랭킹 | 특정 업종(:category)은 어느 구에서 새로 뜨나 — 업종 고정 후 자치구별 신생 비중 랭킹 | `:category`, `:top_n` | — |
-| `compare_two_profiles` | 두 자치구(또는 두 업종)의 업력 구성 맞비교 — A/B 수량과 비중을 한 표에 | 지정한 두 구(또는 두 업종)의 업력 6밴드 구성을 나란히 준다. 각자의 총량 대비 비중이 함께 나와 규모가 다른 두 대상도 구조로 직접 비교할 수 있다. 입지 후보지 비교, 업종 간 수명 구조 비교에 사용. | `:dim`, `:a`, `:b` | — |
-| `cross_major_band_pivot` | 대분류 × 업력 밴드 크로스탭 — 4개 부문의 연령 구성을 한 표로 | 대분류 × 업력 밴드 크로스탭 — 4개 부문의 연령 구성을 한 표로 | — | — |
-| `dominant_band_by_dim` | 각 자치구(또는 업종)의 최빈 업력 밴드는 무엇이고 얼마나 지배적인가? | 구별/업종별로 '가장 흔한 업력 구간'과 그 점유율을 한 행으로 준다. 평균으로는 안 보이는 쏠림(예: 숙박업의 20년+ 집중)을 드러내 상권 성격 라벨링에 쓸 수 있다. | `:dim` | — |
-| `gu_band_pivot` | 자치구 × 업력 밴드 크로스탭 — 25개 구의 연령 구성을 한 표로 (특정 업종만 좁혀 보기도 가능) | 서울 25개 자치구 각각의 업력 6밴드 절대량과 총량을 한 번에 준다. 'ALL'이면 전 업종, 업종 코드를 주면 해당 업종만의 구별 연령 지형을 보여줘 히트맵/비교표의 원천이 된다. | `:category` | — |
-| `gu_est_mean_age` | 자치구별 '평균 업력' 한 수치로 비교 — 밴드 중앙값 가중 추정 평균 연차 랭킹 | 자치구별 '평균 업력' 한 수치로 비교 — 밴드 중앙값 가중 추정 평균 연차 랭킹 | — | — |
-| `inv_band_fixed_category_rank` | 특정 연령대 업소가 가장 많은 업종은? | 특정 연령대 업소가 가장 많은 업종은? | `:age_band` | — |
-| `inv_band_fixed_gu_rank` | 특정 연령대(예: 20년 이상) 업소가 가장 많은 자치구는? | 특정 연령대(예: 20년 이상) 업소가 가장 많은 자치구는? | `:age_band`, `:n` | — |
-| `inv_gu_fixed_category_age` | 이 자치구에서는 어떤 업종이 젊고 어떤 업종이 노후했나? (업종 고정→구 랭킹의 역방향) | 이 자치구에서는 어떤 업종이 젊고 어떤 업종이 노후했나? (업종 고정→구 랭킹의 역방향) | `:gu_code` | — |
-| `inv_old_share_category_top` | 20년 이상 노포 비중이 가장 높은 업종은? (신규 비중 랭킹의 관점 반전) | 20년 이상 노포 비중이 가장 높은 업종은? (신규 비중 랭킹의 관점 반전) | `:min_active` | — |
-| `new_category_age_profile` | 업종별 연령 분포 전체 모양은? (연령 밴드 피벗) | 업종별 연령 분포 전체 모양은? (연령 밴드 피벗) | — | — |
-| `rank_gu_new_share_top` | '신상 상권'은 어디? — 1년 미만 새 가게 비중이 높은 자치구 top-N | '신상 상권'은 어디? — 1년 미만 새 가게 비중이 높은 자치구 top-N | `:top_n` | — |
-| `rank_gu_old_share_top` | '노포 상권'은 어디? — 20년+ 노포 비중이 높은 자치구 top-N (신상 랭킹의 관점 반전) | '노포 상권'은 어디? — 20년+ 노포 비중이 높은 자치구 top-N (신상 랭킹의 관점 반전) | `:top_n` | — |
-| `screen_cells_band_range` | 규모가 :min_cnt 이상이면서 특정 업력 구간 비중이 :min_pct% 이상인 (자치구×업종) 셀 발굴 — 조건 스크리닝 | '충분히 크면서 신생(또는 노포) 쏠림이 강한 시장'을 구×업종 셀 단위로 찾아 준다. 임계값 두 개로 소표본 노이즈를 거른 발굴 리스트라 진입 후보지 탐색이나 노포 밀집 상권 식별에 바로 쓸 수 있다. | `:band_from`, `:band_to`, `:min_cnt`, `:min_pct`, `:n` | — |
-| `slice_gu_category_band` | 우리 동네 이 업종의 업력 구성은? — (:gu_code, :category) 단면의 6밴드 분포와 비중 | 우리 동네 이 업종의 업력 구성은? — (:gu_code, :category) 단면의 6밴드 분포와 비중 | `:gu_code`, `:category` | — |
-| `top_cells_concentration` | 가장 큰 단일 덩어리는? — (업종×구×밴드) 셀 크기 top-N으로 질량 집중 지점 확인 | 가장 큰 단일 덩어리는? — (업종×구×밴드) 셀 크기 top-N으로 질량 집중 지점 확인 | `:top_n` | — |
-| `unk_coverage_by_dim` | 위치 미상(gu_code='UNK') 업소가 어느 업종/부문에 얼마나 있나 — 지역 분석 신뢰도 점검 | 업종별/부문별로 자치구 미배정 물량의 절대량과 비중을 준다. 구 단위 랭킹·비중을 해석할 때 어느 업종에서 얼마나 누락 왜곡이 생길 수 있는지 판단하는 데이터 품질 지표. | `:dim` | — |
-| `x_age_vs_churn` | 업소 연령대가 젊은 자치구가 폐업률도 높은가? (연령 구성 × 폐업률 교차) | 업소 연령대가 젊은 자치구가 폐업률도 높은가? (연령 구성 × 폐업률 교차) | `:y` | — |
-| `x_stock_survival_outlook` | 업종군별 현재 젊은 스톡 비중에 그 업종의 역사적 :k년차 생존율을 겹치면 — 어느 업종의 현재 스톡이 앞으로 가장 많이 줄어들 것으로 보이나 (전망 결합) | 업종군별 현재 영업 스톡 규모·젊은(3년 미만) 비중과 과거 코호트의 k년차 생존율, 그리고 둘을 곱한 위험 노출 지수(젊은 비중 × 탈락률)를 준다. '지금 젊은 가게가 많고 그 업종의 생존율이 낮으면 향후 스톡 감소 압력이 크다'는 전망형 진단 자료. | `:k`, `:from_y`, `:to_y` | — |
-| `x_young_cell_vs_early_close` | 지금 젊은(업력 3년 미만) 가게가 몰려 있는 자치구×업종군 셀은 역대 조기폐업률도 높은 위험 지대인가 — 현재 스톡의 연령 구성과 누적 수명 이력의 셀 단위 2키 결합 | 구×업종군 셀별로 현재 영업 중 스톡의 젊은(3년 미만) 비중과, 같은 셀에서 역대 폐업한 업소의 1년 내 조기폐업률을 함께 준다. 젊은 비중이 높은데 조기폐업 이력도 높은 셀 = 신규 유입이 소모되는 고위험 상권, 젊은데 조기폐업이 낮은 셀 = 건강한 신흥 상권으로 갈라 읽는 자료. | `:min_active`, `:min_closed`, `:n` | — |
+| `band_city_concentration` | 특정 업력 밴드의 서울 전체 물량이 어디에 얼마나 집중돼 있나 — 구(또는 업종)별 점유율과 누적 집중도 | `dim_value`, `band_cnt`, `city_share_pct`, `cum_share_pct` | `:dim`, `:age_band`, `:n` | 행=:dim 스위치(gu\|category) 상위 :n, 지표=밴드 내 도시 점유율(city_share_pct)·누적 점유율(cum_share_pct) — inv_band_fixed_gu_rank(절대량만)의 상위호환: 윈도 합으로 집중도 곡선 제공 |
+| `band_dist_flexible` | 서울 전체·특정 구·특정 업종 어느 수준에서든 업력 6밴드 분포(수량+비중)는? — 고정 단면 패턴의 센티널 일반화 | `age_band`, `cnt`, `pct` | `:gu_code`, `:category` | 행=age_band(6, 연령 오름차순), 필터=:gu_code·:category 각각 'ALL' 센티널 — slice_gu_category_band(둘 다 고정 필수)의 상위호환: 전체/구만/업종만/둘 다 4가지 수준을 한 패턴으로 |
+| `band_range_share_rank` | 임의의 연속 업력 구간(:band_from~:band_to) 비중이 높은/낮은 자치구 또는 업종 랭킹 — 신생·중견·노포 어느 구간이든 한 패턴으로 | `dim_value`, `total_cnt`, `range_cnt`, `range_pct` | `:dim`, `:band_from`, `:band_to`, `:dir`, `:top_n` | 행=:dim 스위치(gu\|category), 지표=구간 비중(range_pct), 정렬=:dir(asc\|desc) — rank_gu_new_share_top/rank_gu_old_share_top/inv_old_share_category_top 의 파라미터 일반화 상위호환. age_band 사전순=연령순이라 BETWEEN 으로 연속 구간 지정 가능, 기존이 못 덮던 중견(3~10년) 구간도 커버 |
+| `category_age_mix` | 어떤 업종이 젊고 어떤 업종이 늙었나 — 중분류별 신생(3년 미만) vs 노포(20년+) 비중 | `category`, `total_cnt`, `young_pct`, `old_pct` | — | 행=category(11), 지표=신생 비중·노포 비중 — [축반전 쌍 B] category_gu_young_rank 와 차원 교환(업종축↔자치구축) |
+| `category_gu_young_rank` | 특정 업종(:category)은 어느 구에서 새로 뜨나 — 업종 고정 후 자치구별 신생 비중 랭킹 | `gu_code`, `total_cnt`, `young_pct` | `:category`, `:top_n` | 필터=category(:param), 행=gu_code, 지표=3년 미만 비중 — [축반전 쌍 B] category_age_mix 의 차원 교환(업종을 행에서 필터로) |
+| `compare_two_profiles` | 두 자치구(또는 두 업종)의 업력 구성 맞비교 — A/B 수량과 비중을 한 표에 | `age_band`, `a_cnt`, `a_pct`, `b_cnt`, `b_pct` | `:dim`, `:a`, `:b` | 행=age_band(6), 열=A/B 각각 cnt·pct, :dim 스위치(gu\|category)로 비교 축 선택 — 기존엔 단면을 두 번 호출해 수동 비교해야 했던 head-to-head 를 한 방 조회로 |
+| `cross_major_band_pivot` | 대분류 × 업력 밴드 크로스탭 — 4개 부문의 연령 구성을 한 표로 | `major`, `lt1y`, `y1to3`, `y3to5`, `y5to10`, `y10to20`, `ge20y`, `total` | — | 행=major(4), 열=age_band 6종 피벗(CASE 집계) — 두 축 교차 한 방 조회 |
+| `dominant_band_by_dim` | 각 자치구(또는 업종)의 최빈 업력 밴드는 무엇이고 얼마나 지배적인가? | `dim_value`, `dominant_band`, `cnt`, `share_pct` | `:dim` | 행=:dim 스위치(gu\|category) 전체, 지표=최빈 밴드(ROW_NUMBER=1)와 그 점유율 — 분포 6행을 대표 밴드 1행으로 접는 요약, gu_est_mean_age(가중 평균 스칼라)와 달리 분포의 모드를 준다 |
+| `gu_band_pivot` | 자치구 × 업력 밴드 크로스탭 — 25개 구의 연령 구성을 한 표로 (특정 업종만 좁혀 보기도 가능) | `gu_code`, `lt1y`, `y1_3`, `y3_5`, `y5_10`, `y10_20`, `ge20y`, `total` | `:category` | 행=gu_code(25), 열=age_band 6종 피벗(CASE 집계), 필터=:category('ALL'=전체) — cross_major_band_pivot(major축)·new_category_age_profile(category축)의 gu축 결락 보완 + 센티널로 업종 한정 지원 |
+| `gu_est_mean_age` | 자치구별 '평균 업력' 한 수치로 비교 — 밴드 중앙값 가중 추정 평균 연차 랭킹 | `gu_code`, `total_cnt`, `est_mean_age_y` | — | 행=gu_code(25 전체), 지표=추정 평균 업력(년) — 밴드 분포를 스칼라로 접어 구 간 서열화 |
+| `inv_band_fixed_category_rank` | 특정 연령대 업소가 가장 많은 업종은? | `category`, `band_cnt` | `:age_band` | 연령대 고정(:age_band) → 업종 랭킹(위 패턴의 차원 교환) |
+| `inv_band_fixed_gu_rank` | 특정 연령대(예: 20년 이상) 업소가 가장 많은 자치구는? | `gu_code`, `band_cnt` | `:age_band`, `:n` | 연령대 고정(:age_band) → 자치구 랭킹 — 연령축을 필터로 세운 반전 |
+| `inv_gu_fixed_category_age` | 이 자치구에서는 어떤 업종이 젊고 어떤 업종이 노후했나? (업종 고정→구 랭킹의 역방향) | `category`, `active_cnt`, `young_pct`, `old_pct` | `:gu_code` | 자치구 고정(:gu_code) → 업종(category)별 연령 구성 — category_gu_young_rank 의 차원 교환 |
+| `inv_old_share_category_top` | 20년 이상 노포 비중이 가장 높은 업종은? (신규 비중 랭킹의 관점 반전) | `category`, `active_cnt`, `ge20y_pct` | `:min_active` | 업종 랭킹 — 노후 비중 DESC(young 관점의 반전) |
+| `new_category_age_profile` | 업종별 연령 분포 전체 모양은? (연령 밴드 피벗) | `category`, `lt1y`, `y1_3`, `y3_5`, `y5_10`, `y10_20`, `ge20y`, `total` | — | 업종 × 연령밴드 교차 피벗 — 두 축 동시 전개 |
+| `rank_gu_new_share_top` | '신상 상권'은 어디? — 1년 미만 새 가게 비중이 높은 자치구 top-N | `gu_code`, `total_cnt`, `new_cnt`, `new_pct` | `:top_n` | 행=gu_code(25), 지표=1년 미만 비중(new_pct) 내림차순 — [축반전 쌍 A] rank_gu_old_share_top 과 관점 반전 |
+| `rank_gu_old_share_top` | '노포 상권'은 어디? — 20년+ 노포 비중이 높은 자치구 top-N (신상 랭킹의 관점 반전) | `gu_code`, `total_cnt`, `old_cnt`, `old_pct` | `:top_n` | 행=gu_code(25), 지표=20년+ 비중(old_pct) 내림차순 — [축반전 쌍 A] rank_gu_new_share_top 의 반대 극단 |
+| `screen_cells_band_range` | 규모가 :min_cnt 이상이면서 특정 업력 구간 비중이 :min_pct% 이상인 (자치구×업종) 셀 발굴 — 조건 스크리닝 | `gu_code`, `category`, `total_cnt`, `range_cnt`, `range_pct` | `:band_from`, `:band_to`, `:min_cnt`, `:min_pct`, `:n` | 행=(gu_code×category) 셀, 필터=HAVING 이중 임계값(규모·비중), 구간=:band_from~:band_to BETWEEN — 기존 랭킹류가 단일 축이던 것과 달리 두 축 교차 그레인에서 조건 검색 |
+| `slice_gu_category_band` | 우리 동네 이 업종의 업력 구성은? — (:gu_code, :category) 단면의 6밴드 분포와 비중 | `age_band`, `cnt`, `pct` | `:gu_code`, `:category` | 필터=gu_code+category(:param 2개), 행=age_band(연령 오름차순 정렬 보장) |
+| `top_cells_concentration` | 가장 큰 단일 덩어리는? — (업종×구×밴드) 셀 크기 top-N으로 질량 집중 지점 확인 | `major`, `category`, `gu_code`, `age_band`, `active_cnt` | `:top_n` | 행=원본 grain 셀, 정렬=active_cnt 내림차순 — 비중 랭킹(P1~P4)과 달리 절대량 관점 |
+| `unk_coverage_by_dim` | 위치 미상(gu_code='UNK') 업소가 어느 업종/부문에 얼마나 있나 — 지역 분석 신뢰도 점검 | `dim_value`, `total_cnt`, `unk_cnt`, `unk_pct` | `:dim` | 행=:dim 스위치(category\|major), 지표=UNK 수량·비중 내림차순 — 기존 패턴이 전부 UNK 를 제외만 하고 그 크기를 보여주지 않던 관측 사각 해소 |
+| `x_age_vs_churn` | 업소 연령대가 젊은 자치구가 폐업률도 높은가? (연령 구성 × 폐업률 교차) | `gu_code`, `young_pct`, `churn_pct` | `:y` | 제품 간 조인 — age_band(젊은 비중) × churn_yearly(폐업률) |
+| `x_stock_survival_outlook` | 업종군별 현재 젊은 스톡 비중에 그 업종의 역사적 :k년차 생존율을 겹치면 — 어느 업종의 현재 스톡이 앞으로 가장 많이 줄어들 것으로 보이나 (전망 결합) | `category`, `category_ko`, `active_total`, `young_pct`, `survival_k_pct`, `at_risk_index` | `:k`, `:from_y`, `:to_y` | 업종군(category) 랭킹 — age_band(현재 스톡의 3년 미만 비중) ⋈ cohort_survival(:from_y~:to_y 코호트의 k년차 생존율) on category, 1:1. at_risk_index = 젊은 비중 × (1-생존율) |
+| `x_young_cell_vs_early_close` | 지금 젊은(업력 3년 미만) 가게가 몰려 있는 자치구×업종군 셀은 역대 조기폐업률도 높은 위험 지대인가 — 현재 스톡의 연령 구성과 누적 수명 이력의 셀 단위 2키 결합 | `gu_code`, `gu`, `category`, `category_ko`, `active_cnt`, `young_pct`, `early_close_pct` | `:min_active`, `:min_closed`, `:n` | 자치구×업종군 셀 랭킹 — age_band(현재 스톡 스냅샷) ⋈ lifespan(전 기간 누적) on gu_code+category 2키, 1:1. 기존 x_age_vs_churn(구 단독 키 × churn)과 달리 셀 그레인 |
 
 ## d1_area_profile (`commerce_area_profile`) — 23건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_profile_any_major_gu` | 이 대분류(:major) 안 중분류별 면적 프로필은? 특정 구로 좁히면? (:gu='ALL'이면 서울 전체) | 대분류를 골라 중분류별 사업장 수·가중 평균 면적·소형/대형 비중을 주되, :gu 로 특정 자치구로 좁힐 수 있다. 업종 계층 탐색을 서울 전체와 구 단위 양쪽에서 지원한다. | `:major`, `:gu` | — |
-| `category_profile_in_major` | 이 대분류(:major 자리, 예: 보건) 안에서 중분류별 면적 프로필은? | 이 대분류(:major 자리, 예: 보건) 안에서 중분류별 면적 프로필은? | — | — |
-| `cross_major_by_gu` | 대분류별 평균 매장 크기를 25개 구에 걸쳐 교차 비교하면? (구×대분류 매트릭스) | 대분류별 평균 매장 크기를 25개 구에 걸쳐 교차 비교하면? (구×대분류 매트릭스) | — | — |
-| `dataset_gu_concentration` | 이 업종 사업장은 어느 구에 몰려 있나? (사업장 수 점유율 기준) | 특정 업종의 자치구별 사업장 수와 서울 내 점유율(%), 그 구의 중위 면적을 함께 준다. 업종의 지리적 집중도를 보여줘 경쟁 밀집 지역 파악에 쓰인다. | `:dataset`, `:n` | — |
-| `dataset_gu_vs_city` | 특정 구의 특정 업종 매장 면적은 서울 전체 평균 대비 어떤 수준인가? | 한 업종×구 셀의 면적 프로필(표본 수, 중위·평균 면적, 소형 비중)을 그 업종의 서울 전체 가중 평균과 나란히 주고 배율까지 계산한다. '이 동네 이 업종 매장은 서울 평균보다 큰가'에 한 번에 답한다. | `:dataset`, `:gu` | — |
-| `dataset_rank_for_gu` | 이 구(:gu 자리, 예: 강남구)에서는 어떤 업종의 매장이 큰가? [축반전 A-2: 구 고정 → 업종 랭킹] | 이 구(:gu 자리, 예: 강남구)에서는 어떤 업종의 매장이 큰가? [축반전 A-2: 구 고정 → 업종 랭킹] | — | — |
-| `geo_spread_rank_by_dataset` | 같은 업종인데 구에 따라 매장 크기가 가장 크게 달라지는 업종은? (구간 중위 면적 max/min 배율) | 업종별로 자치구 간 중위 면적의 최소·최대와 그 배율을 랭킹해, 지역에 따라 매장 포맷이 크게 달라지는(입지 의존적인) 업종을 식별한다. 배율이 낮으면 서울 어디서나 비슷한 표준 포맷 업종이라는 뜻. | `:min_n`, `:min_gu`, `:n` | — |
-| `gu_business_mix` | 이 구의 상권은 어떤 업종으로 구성돼 있나? (사업장 수 점유율 기준) | 자치구를 지정하면 업종별 사업장 수와 구 내 점유율(%), 중위 면적을 준다. 그 구 상권의 업종 구성(무엇으로 이루어져 있는지)을 정량화한다. | `:gu`, `:n` | — |
-| `gu_pair_dataset_gap` | 두 자치구(:gu_a vs :gu_b)에서 같은 업종의 중위 매장 면적 격차가 가장 큰 업종은? | 두 구를 지정하면 업종별 중위 면적을 나란히 놓고 배율이 큰 순으로 랭킹한다. 상권 성격이 다른 두 지역에서 어떤 업종의 매장 포맷이 가장 크게 달라지는지 보여준다. | `:gu_a`, `:gu_b`, `:min_n`, `:n` | — |
-| `gu_rank_for_dataset` | 이 업종(:dataset 자리, 예: 휴게음식점)은 어느 구에서 매장이 큰가? [축반전 A-1: 업종 고정 → 구 랭킹] | 이 업종(:dataset 자리, 예: 휴게음식점)은 어느 구에서 매장이 큰가? [축반전 A-1: 업종 고정 → 구 랭킹] | — | — |
-| `gu_rank_for_dataset_any` | 이 업종(:dataset)은 어느 구에서 매장이 큰가/작은가? (:dir ∈ {asc, desc}, 표본 :min_n 이상) | 임의 업종에 대해 자치구별 매장 규모 순위(중위·p90·평균 면적, 소형 비중)를 큰 순/작은 순 양방향으로 준다. 업종별 입지 후보 구를 규모 관점에서 좁히는 기초 자료. | `:dataset`, `:min_n`, `:dir`, `:n` | — |
-| `inv_gu_fixed_smallest` | 이 자치구에서 가장 작은 매장 업종은? (구 고정 + 정렬 반전) | 이 자치구에서 가장 작은 매장 업종은? (구 고정 + 정렬 반전) | `:gu`, `:min_n`, `:n` | — |
-| `inv_smallest_area_dataset` | 매장이 가장 작은 업종은? (대형 랭킹의 정렬 반전) | 매장이 가장 작은 업종은? (대형 랭킹의 정렬 반전) | `:min_n`, `:n` | — |
-| `large_store_count_by_gu` | 대형(330㎡ 이상) 매장이 가장 많은 자치구 top 10은? (절대 수 기준) | 대형(330㎡ 이상) 매장이 가장 많은 자치구 top 10은? (절대 수 기준) | — | — |
-| `midsize_share_rank_switch` | 중형(33~330㎡) 매장 비중이 가장 높은 업종/자치구는? (:dim ∈ {gu, dataset}) | 소형도 대형도 아닌 중형(33~330㎡) 매장 비중을 업종 축 또는 자치구 축으로 스위칭해 랭킹한다. 표준 상가 포맷이 지배적인 업종/지역을 식별해 임대 시장 분석에 쓰인다. | `:dim`, `:min_n`, `:n` | — |
-| `new_large_share_by_category` | 대형(330㎡+) 매장 비중이 높은 업종군은? (소형 비중 관점의 반전) | 대형(330㎡+) 매장 비중이 높은 업종군은? (소형 비중 관점의 반전) | — | — |
-| `polarization_p90_over_p50` | 매장 면적 양극화(p90/p50 배율)가 가장 심한 업종×구 조합은? | 매장 면적 양극화(p90/p50 배율)가 가장 심한 업종×구 조합은? | — | — |
-| `rank_top_avg_area_by_dataset` | 서울에서 매장이 가장 큰 업종 top 10은? (가중 평균 면적 랭킹) | 서울에서 매장이 가장 큰 업종 top 10은? (가중 평균 면적 랭킹) | — | — |
-| `small_share_rank_by_dataset` | 소형(33㎡ 미만) 매장 비중이 가장 높은 업종은? [축반전 B-1: 업종 축] | 소형(33㎡ 미만) 매장 비중이 가장 높은 업종은? [축반전 B-1: 업종 축] | — | — |
-| `small_share_rank_by_gu` | 소형 매장 비중이 가장 높은 자치구는? [축반전 B-2: 구 축] | 소형 매장 비중이 가장 높은 자치구는? [축반전 B-2: 구 축] | — | — |
-| `top_dataset_per_gu` | 각 자치구에서 매장이 가장 큰 대표 업종은 무엇인가? (구별 top-1 지도) | 25개 구 각각에 대해 중위 면적이 가장 큰 업종 한 개씩을 뽑아 준다. 구별 대형 포맷 대표 업종 지도를 한 쿼리로 얻는다 — 축 하나를 고정하는 기존 랭킹들로는 불가능한 형태. | `:min_n` | — |
-| `top_p50_combos` | 서울 전체에서 중위 매장 면적이 가장 큰 업종×구 조합은? (표본 :min_n 이상) | 어느 축도 고정하지 않고 업종×구 조합 전체를 중위 면적 순으로 랭킹한다. 서울의 대형 포맷 상권(어느 구의 어느 업종)이 어디인지 한 번에 보여준다. | `:min_n`, `:n` | — |
-| `unk_gu_share_by_dataset` | 자치구 미상(UNK) 사업장 비중이 높은 데이터셋은? (지역 분석 신뢰도 점검) | 데이터셋별로 구 매핑에 실패한(gu_code='UNK') 사업장 수와 비중을 준다. 구 단위 분석 결과를 인용하기 전 해당 업종의 지역 커버리지 신뢰도를 점검하는 용도. | `:n` | — |
+| `category_profile_any_major_gu` | 이 대분류(:major) 안 중분류별 면적 프로필은? 특정 구로 좁히면? (:gu='ALL'이면 서울 전체) | `category`, `category_ko`, `n_biz`, `w_avg_m2`, `pct_lt33`, `pct_ge330` | `:major`, `:gu` | :param 단면(major) + category 드릴다운 + 센티널 gu 필터 — 기존 category_profile_in_major(major 고정·전 구 합산)의 일반화 상위호환 |
+| `category_profile_in_major` | 이 대분류(:major 자리, 예: 보건) 안에서 중분류별 면적 프로필은? | `category`, `category_ko`, `n_biz`, `w_avg_m2`, `pct_lt33` | — | :param 단면(major) + category 드릴다운 — 업종 3단 계층 탐색 |
+| `cross_major_by_gu` | 대분류별 평균 매장 크기를 25개 구에 걸쳐 교차 비교하면? (구×대분류 매트릭스) | `gu`, `health_w_avg`, `industry_w_avg`, `culture_w_avg` | — | 두 축 교차 — gu × major 피벗(조건부 가중 평균) |
+| `dataset_gu_concentration` | 이 업종 사업장은 어느 구에 몰려 있나? (사업장 수 점유율 기준) | `gu`, `n_with_area`, `pct_share`, `p50_m2` | `:dataset`, `:n` | :param 단면(dataset) + gu 분포 — 사업장 수 점유율(window). 규모 랭킹(gu_rank_for_dataset)과 상보인 '양' 관점 |
+| `dataset_gu_vs_city` | 특정 구의 특정 업종 매장 면적은 서울 전체 평균 대비 어떤 수준인가? | `gu`, `dataset_ko`, `n_with_area`, `p50_m2`, `avg_m2`, `pct_small`, `city_w_avg_m2`, `ratio_to_city` | `:dataset`, `:gu` | 단일 셀 단면(dataset×gu) + 서울 전체 가중 평균 벤치마크 비율(subquery) |
+| `dataset_rank_for_gu` | 이 구(:gu 자리, 예: 강남구)에서는 어떤 업종의 매장이 큰가? [축반전 A-2: 구 고정 → 업종 랭킹] | `dataset_ko`, `n_with_area`, `p50_m2`, `avg_m2`, `pct_large` | — | :param 단면(gu) + dataset 랭킹 — 축반전 쌍 A의 역방향 |
+| `geo_spread_rank_by_dataset` | 같은 업종인데 구에 따라 매장 크기가 가장 크게 달라지는 업종은? (구간 중위 면적 max/min 배율) | `dataset_ko`, `n_gu`, `min_p50_m2`, `max_p50_m2`, `max_over_min` | `:min_n`, `:min_gu`, `:n` | dataset 랭킹 — 구간(between-gu) 지역 편차 배율. 셀 내부 양극화(polarization_p90_over_p50)와 구별되는 '지역 간' 편차 |
+| `gu_business_mix` | 이 구의 상권은 어떤 업종으로 구성돼 있나? (사업장 수 점유율 기준) | `dataset_ko`, `n_with_area`, `pct_of_gu`, `p50_m2` | `:gu`, `:n` | :param 단면(gu) + dataset 구성비(window) — 크기 랭킹(dataset_rank_for_gu)과 상보인 '구성' 관점 |
+| `gu_pair_dataset_gap` | 두 자치구(:gu_a vs :gu_b)에서 같은 업종의 중위 매장 면적 격차가 가장 큰 업종은? | `dataset_ko`, `p50_a`, `p50_b`, `ratio_a_over_b` | `:gu_a`, `:gu_b`, `:min_n`, `:n` | 두 단면 교차 비교(gu_a vs gu_b) — dataset 축 격차 랭킹(조건부 피벗), 양쪽 모두 표본 :min_n 이상인 업종만 |
+| `gu_rank_for_dataset` | 이 업종(:dataset 자리, 예: 휴게음식점)은 어느 구에서 매장이 큰가? [축반전 A-1: 업종 고정 → 구 랭킹] | `gu`, `n_with_area`, `p50_m2`, `p90_m2`, `avg_m2`, `pct_small` | — | :param 단면(dataset) + gu 랭킹 — 축반전 쌍 A의 정방향 |
+| `gu_rank_for_dataset_any` | 이 업종(:dataset)은 어느 구에서 매장이 큰가/작은가? (:dir ∈ {asc, desc}, 표본 :min_n 이상) | `gu`, `n_with_area`, `p50_m2`, `p90_m2`, `avg_m2`, `pct_small` | `:dataset`, `:min_n`, `:dir`, `:n` | :param 단면(dataset) + gu 랭킹 — 정렬 방향 스위치. 기존 gu_rank_for_dataset(dataset·방향 고정)의 파라미터 일반화 상위호환 |
+| `inv_gu_fixed_smallest` | 이 자치구에서 가장 작은 매장 업종은? (구 고정 + 정렬 반전) | `dataset_ko`, `n_with_area`, `p50_m2`, `pct_small` | `:gu`, `:min_n`, `:n` | 자치구 고정(:gu) → 업종 랭킹 p50 ASC |
+| `inv_smallest_area_dataset` | 매장이 가장 작은 업종은? (대형 랭킹의 정렬 반전) | `dataset_ko`, `n_biz`, `w_avg_m2` | `:min_n`, `:n` | 업종 랭킹 — 가중 평균 면적 ASC(rank_top_avg_area_by_dataset 의 반전) |
+| `large_store_count_by_gu` | 대형(330㎡ 이상) 매장이 가장 많은 자치구 top 10은? (절대 수 기준) | `gu`, `n_large`, `n_biz`, `pct_large` | — | 랭킹 top-N — gu 축 절대 수(비중 랭킹 P5와 상보) |
+| `midsize_share_rank_switch` | 중형(33~330㎡) 매장 비중이 가장 높은 업종/자치구는? (:dim ∈ {gu, dataset}) | `dim_value`, `n_biz`, `pct_mid_33_330`, `pct_lt33`, `pct_ge330` | `:dim`, `:min_n`, `:n` | 비율 랭킹 — 차원 스위치(gu\|dataset). 기존 소형(lt_33)·대형(ge_330) 비중 패턴이 안 덮는 중형 밴드 |
+| `new_large_share_by_category` | 대형(330㎡+) 매장 비중이 높은 업종군은? (소형 비중 관점의 반전) | `category_ko`, `n_biz`, `pct_large`, `pct_small` | — | 중분류 랭킹 — 대형 비중 DESC(small_share 관점의 반전) |
+| `polarization_p90_over_p50` | 매장 면적 양극화(p90/p50 배율)가 가장 심한 업종×구 조합은? | `dataset_ko`, `gu`, `n_with_area`, `p50_m2`, `p90_m2`, `p90_over_p50` | — | 두 축 교차(dataset×gu) + 파생 지표 랭킹 — 표본 100+ 필터 |
+| `rank_top_avg_area_by_dataset` | 서울에서 매장이 가장 큰 업종 top 10은? (가중 평균 면적 랭킹) | `dataset`, `dataset_ko`, `n_biz`, `w_avg_m2` | — | 랭킹 top-N — dataset(업종) 축, 표본 100+ 필터, 가중 평균 |
+| `small_share_rank_by_dataset` | 소형(33㎡ 미만) 매장 비중이 가장 높은 업종은? [축반전 B-1: 업종 축] | `dataset`, `dataset_ko`, `n_biz`, `pct_lt33` | — | 랭킹 top-N — dataset 축 소형 비중, 축반전 쌍 B의 정방향 |
+| `small_share_rank_by_gu` | 소형 매장 비중이 가장 높은 자치구는? [축반전 B-2: 구 축] | `gu`, `n_biz`, `pct_lt33`, `pct_ge330` | — | 랭킹 전체 25구 — gu 축 소형/대형 비중, 축반전 쌍 B의 역방향 |
+| `top_dataset_per_gu` | 각 자치구에서 매장이 가장 큰 대표 업종은 무엇인가? (구별 top-1 지도) | `gu`, `dataset_ko`, `n_with_area`, `p50_m2` | `:min_n` | 그룹별 top-1 — gu 파티션 window(ROW_NUMBER), 표본 :min_n 이상 셀만 |
+| `top_p50_combos` | 서울 전체에서 중위 매장 면적이 가장 큰 업종×구 조합은? (표본 :min_n 이상) | `dataset_ko`, `gu`, `n_with_area`, `p50_m2`, `p90_m2` | `:min_n`, `:n` | 전역 교차 랭킹(dataset×gu) — 절대 중위 면적 기준. 비율 기반 양극화 랭킹(polarization)과 상보 |
+| `unk_gu_share_by_dataset` | 자치구 미상(UNK) 사업장 비중이 높은 데이터셋은? (지역 분석 신뢰도 점검) | `dataset_ko`, `n_unk`, `n_total`, `pct_unk` | `:n` | 비율 랭킹 — dataset 축 데이터 품질(UNK 커버리지) |
 
 ## d1_change_activity (`commerce_change_activity`) — 21건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `above_avg_multiple` | 서울 전체 평균 개명률(또는 이전율)의 몇 배 이상인 과열 업종은 어디이고, 평균의 몇 배인가? | 서울 전체 가중 평균 개명률/이전율을 기준선으로 계산해, 그 :factor배를 넘는 업종을 배수 순으로 준다. '높다'를 절대 순위가 아니라 평균 대비 배수로 정량화해 과열 정도를 비교할 수 있다. | `:metric`, `:min_biz`, `:factor`, `:n` | — |
-| `category_change_rollup` | 중분류(11종) 단위로 보면 어느 분야가 개명·이전이 활발한가? | 중분류(11종) 단위로 보면 어느 분야가 개명·이전이 활발한가? | — | — |
-| `category_concentration_share` | 특정 중분류(또는 서울 전체) 안에서 업소 수와 변경 이벤트가 어느 업종에 얼마나 집중돼 있나? | 선택한 중분류(ALL이면 전체) 안에서 각 업종이 업소 수의 몇 %, 개명+이전 이벤트의 몇 %를 차지하는지 준다. 모수 점유율과 변경 이벤트 점유율의 괴리로 '덩치 대비 유난히 변화가 잦은 업종'을 찾는 기초 자료. | `:category`, `:n` | — |
-| `industry_keyword_profile` | 특정 업종(한글 키워드)의 변경 활동 프로필은? — 파라미터 단면 조회 | 특정 업종(한글 키워드)의 변경 활동 프로필은? — 파라미터 단면 조회 | `:keyword` | — |
-| `industry_rank_position` | 특정 업종(한글 키워드)의 개명률·이전율·갱신활동은 전체 152개 업종 중 몇 위인가? | 키워드로 찾은 업종의 개명률·이전율·평균버전 각각이 전체 152개 업종 중 몇 위인지 준다. 절대 수치만으로는 알 수 없는 '이 업종이 유난한 편인지 평범한 편인지'를 바로 판정할 수 있다. | `:keyword` | — |
-| `inv_rename_ratio_asc` | 상호 변경이 가장 드문(간판이 안 바뀌는) 업종은? | 상호 변경이 가장 드문(간판이 안 바뀌는) 업종은? | `:min_biz`, `:n` | — |
-| `major_change_summary` | 대분류(보건/문화/산업/환경) 수준의 변경 활동 총괄은? | 대분류(보건/문화/산업/환경) 수준의 변경 활동 총괄은? | — | — |
-| `metric_dir_rank_generic` | 지표(개명률/이전율/평균버전/업소수)와 정렬 방향을 골라 업종 랭킹을 뽑으려면? — 통합 랭킹 스위치 | 네 가지 변경 지표 중 하나를 골라 오름/내림 어느 방향으로든 업종 top-N을 뽑는다. 고정 랭킹 패턴 5종을 하나로 대체하며, 어떤 지표를 골라도 나머지 지표 값이 함께 나와 비교 맥락을 유지한다. | `:metric`, `:min_biz`, `:dir`, `:n` | — |
-| `new_max_versions_extreme` | 이력 변경이 가장 많이 쌓인 업종은? (평균 대신 최대값 지표) | 이력 변경이 가장 많이 쌓인 업종은? (평균 대신 최대값 지표) | `:n` | — |
-| `new_reloc_vs_rename_gap` | 간판만 바꾸는 업종 vs 자리를 옮기는 업종의 차이는? (두 관점 교차) | 간판만 바꾸는 업종 vs 자리를 옮기는 업종의 차이는? (두 관점 교차) | `:min_biz`, `:n` | — |
-| `relocation_ratio_top` | 자리를 가장 자주 옮기는(주소 변경) 업종은? (이전율 top-N) | 자리를 가장 자주 옮기는(주소 변경) 업종은? (이전율 top-N) | `:min_businesses` | — |
-| `rename_ratio_top` | 간판(상호)을 가장 자주 바꾸는 업종은? (개명률 top-N) | 간판(상호)을 가장 자주 바꾸는 업종은? (개명률 top-N) | `:min_businesses`, `:top_n` | — |
-| `rename_volume_top` | 개명 절대 건수가 가장 많은 업종은? (비율이 아닌 절대값 관점) | 개명 절대 건수가 가장 많은 업종은? (비율이 아닌 절대값 관점) | — | — |
-| `rename_vs_relocation_tilt` | 개명 성향 업종 vs 이전 성향 업종 — 두 변경 축을 교차하면? | 개명 성향 업종 vs 이전 성향 업종 — 두 변경 축을 교차하면? | `:min_businesses` | — |
-| `silent_update_rank` | 개명도 이전도 없는데 이력 갱신은 쌓이는 업종은? — 상호·주소 외 정보만 바뀌는 업종 | 상호·주소 변경 없이 버전만 축적된 업종을 갱신 강도순으로 준다. 개명·이전 외의 항목(대표자, 면적, 상태 등)이 움직이는 업종을 식별해, 변경 이벤트 지표 2종이 놓치는 갱신 활동을 드러낸다. | `:min_avg`, `:n` | — |
-| `size_band_change_profile` | 업종 규모(업소 수 구간)가 클수록 개명·이전·정보 갱신이 더 잦은가? | 업종을 업소 수 100 미만/100~999/1,000~9,999/10,000 이상 네 구간으로 묶어 구간별 업종 수, 총 업소 수, 가중 개명률·이전율·평균 버전을 준다. 규모와 변경 활동의 상관을 한 번에 확인하는 분포 뷰. | — | — |
-| `static_large_industries` | 모수가 큰데도 정보 변경이 거의 없는 정적 업종은? | 모수가 큰데도 정보 변경이 거의 없는 정적 업종은? | `:min_businesses` | — |
-| `top_per_category_metric` | 11개 중분류 각각에서 개명률(또는 이전율)이 가장 높은 업종을 한 번에 보려면? — 그룹별 top-N | 중분류마다 선택 지표 상위 :n개 업종을 뽑아 한 번에 준다. 전체 랭킹에서는 특정 분야에 밀려 안 보이는 각 분야의 '변화 챔피언'을 분야 누락 없이 비교할 수 있다. | `:metric`, `:min_biz`, `:n` | — |
-| `version_activity_top` | 업소 정보 갱신(버전 축적)이 가장 활발한 업종은? | 업소 정보 갱신(버전 축적)이 가장 활발한 업종은? | `:min_businesses` | — |
-| `version_depth_distribution` | 업소 이력 버전은 최대 몇 겹까지 쌓였고, 깊이별로 업종이 어떻게 분포하나? | 이력 버전 깊이(max_versions)별로 업종 수, 총 업소 수, 그 깊이의 최대 모수 대표 업종을 준다. 이력 축적이 소수 업종에 몰린 구조인지 전반적인지 한눈에 보여주는 데이터 품질·활동성 분포 뷰. | — | — |
-| `zero_change_overview` | 개명·이전 이벤트가 전혀 없는 업종은 몇 개이고, 업소 수 기준으로는 얼마나 되나? | 개명 0건, 이전 0건, 둘 다 0건인 업종 수와 전체 대비 비중, 그리고 완전 무변경 업종들의 업소 수 비중을 준다. 변경 이벤트 데이터의 커버리지(어디까지가 실제로 움직이는 시장인지)를 판단하는 기준선. | — | — |
+| `above_avg_multiple` | 서울 전체 평균 개명률(또는 이전율)의 몇 배 이상인 과열 업종은 어디이고, 평균의 몇 배인가? | `dataset_ko`, `category_ko`, `businesses`, `metric_pct`, `seoul_avg_pct`, `vs_avg_multiple` | `:metric`, `:min_biz`, `:factor`, `:n` | 비율 벤치마크: 가중 전체 평균(서브쿼리) 대비 :factor 배 임계 + :metric ∈ {rename, relocation} 스위치 — top-N 절대 랭킹과 달리 기준선·배수를 함께 반환 |
+| `category_change_rollup` | 중분류(11종) 단위로 보면 어느 분야가 개명·이전이 활발한가? | `category`, `category_ko`, `major_ko`, `datasets`, `businesses`, `rename_pct`, `relocation_pct`, `w_avg_versions` | — | rename_ratio_top 의 차원 교환: dataset(업종 3단)↔category(중분류 rollup, 가중 집계) |
+| `category_concentration_share` | 특정 중분류(또는 서울 전체) 안에서 업소 수와 변경 이벤트가 어느 업종에 얼마나 집중돼 있나? | `dataset_ko`, `category_ko`, `businesses`, `biz_share_pct`, `change_events`, `change_share_pct` | `:category`, `:n` | 단면+분포: :category 센티널 필터 안에서 window 합계 대비 업종별 점유율(업소 수 vs 변경 이벤트) |
+| `industry_keyword_profile` | 특정 업종(한글 키워드)의 변경 활동 프로필은? — 파라미터 단면 조회 | `dataset`, `dataset_ko`, `major_ko`, `category_ko`, `businesses`, `avg_versions`, `max_versions`, `with_rename`, `rename_pct`, `with_relocation`, `relocation_pct` | `:keyword` | 파라미터 단면: :keyword→dataset_ko LIKE (전 지표 프로필) |
+| `industry_rank_position` | 특정 업종(한글 키워드)의 개명률·이전율·갱신활동은 전체 152개 업종 중 몇 위인가? | `dataset_ko`, `category_ko`, `businesses`, `rename_pct`, `rename_rank`, `reloc_pct`, `reloc_rank`, `avg_versions`, `versions_rank`, `total_industries` | `:keyword` | 단면+랭킹 교차: :keyword 단면 조회에 상관 서브쿼리로 전체 대비 순위 3종 부여 — industry_keyword_profile(절대치 프로필)의 상대 위치 확장 |
+| `inv_rename_ratio_asc` | 상호 변경이 가장 드문(간판이 안 바뀌는) 업종은? | `dataset_ko`, `businesses`, `rename_pct`, `reloc_pct` | `:min_biz`, `:n` | 업종 랭킹 — rename_ratio ASC(변경 활발 랭킹의 반전) |
+| `major_change_summary` | 대분류(보건/문화/산업/환경) 수준의 변경 활동 총괄은? | `major`, `major_ko`, `datasets`, `businesses`, `with_rename`, `with_relocation`, `rename_pct`, `relocation_pct` | — | 차원 교환: dataset↔major(최상위 rollup, 4행 요약) |
+| `metric_dir_rank_generic` | 지표(개명률/이전율/평균버전/업소수)와 정렬 방향을 골라 업종 랭킹을 뽑으려면? — 통합 랭킹 스위치 | `dataset_ko`, `category_ko`, `businesses`, `rename_pct`, `reloc_pct`, `avg_versions`, `metric_value` | `:metric`, `:min_biz`, `:dir`, `:n` | 랭킹 일반화: :metric ∈ {rename, relocation, versions, businesses} × :dir ∈ {asc, desc} + 모수 하한 — 기존 고정 랭킹(rename_ratio_top·relocation_ratio_top·version_activity_top·static_large_industries·inv_rename_ratio_asc)의 파라미터 상위호환 |
+| `new_max_versions_extreme` | 이력 변경이 가장 많이 쌓인 업종은? (평균 대신 최대값 지표) | `dataset_ko`, `businesses`, `avg_versions`, `max_versions` | `:n` | 업종 랭킹 — max_versions(avg_versions 관점의 지표 반전) |
+| `new_reloc_vs_rename_gap` | 간판만 바꾸는 업종 vs 자리를 옮기는 업종의 차이는? (두 관점 교차) | `dataset_ko`, `businesses`, `rename_pct`, `reloc_pct`, `reloc_minus_rename` | `:min_biz`, `:n` | 업종 랭킹 — 이전율-개명율 격차(두 변경 관점 대비) |
+| `relocation_ratio_top` | 자리를 가장 자주 옮기는(주소 변경) 업종은? (이전율 top-N) | `dataset`, `dataset_ko`, `category_ko`, `businesses`, `with_relocation`, `relocation_pct` | `:min_businesses` | rename_ratio_top 의 관점 반전: 개명(rename)↔이전(relocation) |
+| `rename_ratio_top` | 간판(상호)을 가장 자주 바꾸는 업종은? (개명률 top-N) | `dataset`, `dataset_ko`, `category_ko`, `businesses`, `with_rename`, `rename_pct` | `:min_businesses`, `:top_n` | dataset→rename_ratio desc (랭킹 top-N, 모수 하한 필터) |
+| `rename_volume_top` | 개명 절대 건수가 가장 많은 업종은? (비율이 아닌 절대값 관점) | `dataset`, `dataset_ko`, `businesses`, `with_rename`, `rename_pct` | — | rename_ratio_top 의 관점 반전: 비중(rename_ratio)↔절대(with_rename) |
+| `rename_vs_relocation_tilt` | 개명 성향 업종 vs 이전 성향 업종 — 두 변경 축을 교차하면? | `dataset`, `dataset_ko`, `businesses`, `rename_pct`, `relocation_pct`, `tilt` | `:min_businesses` | 두 축 교차: rename_ratio × relocation_ratio → 성향 분류(tilt) |
+| `silent_update_rank` | 개명도 이전도 없는데 이력 갱신은 쌓이는 업종은? — 상호·주소 외 정보만 바뀌는 업종 | `dataset_ko`, `category_ko`, `businesses`, `avg_versions`, `max_versions` | `:min_avg`, `:n` | 교차: with_rename=0 ∧ with_relocation=0 ∧ avg_versions>:min_avg → 기타 항목 갱신 성향 랭킹 (static_large_industries 의 역질문) |
+| `size_band_change_profile` | 업종 규모(업소 수 구간)가 클수록 개명·이전·정보 갱신이 더 잦은가? | `size_band`, `datasets`, `total_businesses`, `rename_pct`, `reloc_pct`, `w_avg_versions` | — | 분포: businesses 4구간 밴드 → 구간별 가중 개명률·이전율·평균버전 집계 |
+| `static_large_industries` | 모수가 큰데도 정보 변경이 거의 없는 정적 업종은? | `dataset`, `dataset_ko`, `businesses`, `avg_versions`, `with_rename`, `with_relocation` | `:min_businesses` | version_activity_top 의 정렬 반전: desc↔asc (최다 갱신↔무변경 대형) |
+| `top_per_category_metric` | 11개 중분류 각각에서 개명률(또는 이전율)이 가장 높은 업종을 한 번에 보려면? — 그룹별 top-N | `category_ko`, `dataset_ko`, `businesses`, `rename_pct`, `reloc_pct` | `:metric`, `:min_biz`, `:n` | 랭킹×그룹: ROW_NUMBER() PARTITION BY category + :metric ∈ {rename, relocation} 스위치 — 전체 top-N 이 아닌 중분류별 대표 추출 |
+| `version_activity_top` | 업소 정보 갱신(버전 축적)이 가장 활발한 업종은? | `dataset`, `dataset_ko`, `businesses`, `avg_versions`, `max_versions` | `:min_businesses` | dataset→avg_versions desc |
+| `version_depth_distribution` | 업소 이력 버전은 최대 몇 겹까지 쌓였고, 깊이별로 업종이 어떻게 분포하나? | `max_versions`, `datasets`, `total_businesses`, `top_dataset_ko` | — | 분포: max_versions 히스토그램(깊이별 업종 수·업소 수·대표 업종) — new_max_versions_extreme(top-N 리스트)의 분포 관점 전환 |
+| `zero_change_overview` | 개명·이전 이벤트가 전혀 없는 업종은 몇 개이고, 업소 수 기준으로는 얼마나 되나? | `total_industries`, `no_rename`, `no_relocation`, `fully_static`, `fully_static_pct`, `static_businesses`, `static_biz_pct` | — | 단면 요약: 무변경(개명 0·이전 0) 업종 수·비중과 그 업소 수 비중을 한 행으로 |
 
 ## d1_churn_yearly (`commerce_churn_yearly`) — 22건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_gu_cross_hotcells` | 특정 연도에 업종×자치구 교차 셀 중 교체율이 가장 높은 핫셀은? (두 축 교차) | 특정 연도에 업종×자치구 교차 셀 중 교체율이 가장 높은 핫셀은? (두 축 교차) | `:y`, `:n` | — |
-| `category_rank_in_gu` | 특정 자치구 안에서 어느 업종이 가장 고회전인가? (축반전 쌍 B-1: 구 고정 → 업종 랭킹) | 특정 자치구 안에서 어느 업종이 가장 고회전인가? (축반전 쌍 B-1: 구 고정 → 업종 랭킹) | `:y`, `:gu_code` | — |
-| `category_yoy_momentum` | 최근 연도에 개업이 급증/급감한 업종은? (전년 대비 모멘텀, 윈도우 함수) | 최근 연도에 개업이 급증/급감한 업종은? (전년 대비 모멘텀, 윈도우 함수) | `:y` | — |
-| `closure_spike_dim` | 특정 연도에 폐업이 전년 대비 가장 급증한 자치구/업종은? (위기 신호 탐지, :dim ∈ {gu, category}) | 특정 연도에 폐업 건수가 전년 대비 가장 급증한 자치구/업종과 증가율. 개업 모멘텀(기존 패턴)의 반대편인 위기 신호 탐지. | `:dim`, `:y`, `:n` | — |
-| `dim_value_timeseries` | 특정 업종(소분류) 또는 대분류의 서울 전체 20년 개업·폐업·폐업률 추이는? (:dim ∈ {category, major}) | 특정 소분류 업종 또는 대분류의 서울 전체 20년 개업·폐업·순증·폐업률 추이. 기존 구 단위 시계열이 못 주던 업종/대분류 축의 장기 궤적을 준다. | `:dim`, `:val` | — |
-| `growth_cell_screen` | 특정 연도에 진입률·재고·순증 조건을 만족하는 성장 유망 업종×구 셀은? (임계값 스크리닝: :min_stock, :min_birth) | 진입률·재고·순증 임계값을 만족하는 성장 유망 업종×구 셀 목록. 쇠퇴 셀 랭킹(기존)의 반대 극성인 기회 스크리닝. | `:y`, `:min_stock`, `:min_birth`, `:n` | — |
-| `gu_churn_rank_topn` | 특정 연도에 교체율(폐업 회전)이 가장 높은 자치구 top-N은? (축반전 쌍 A-1: 연도 고정 → 자치구 랭킹) | 특정 연도에 교체율(폐업 회전)이 가장 높은 자치구 top-N은? (축반전 쌍 A-1: 연도 고정 → 자치구 랭킹) | `:y`, `:n` | — |
-| `gu_rank_in_category` | 특정 업종에서 어느 자치구가 가장 고회전인가? (축반전 쌍 B-2: 업종 고정 → 구 랭킹) | 특정 업종에서 어느 자치구가 가장 고회전인가? (축반전 쌍 B-2: 업종 고정 → 구 랭킹) | `:y`, `:category`, `:n` | — |
-| `gu_regime_diagnosis` | 각 자치구는 순증형 성장인가, 고회전 소모전인가? (순증×교체율 4분면 진단 — 모델 설계 취지) | 각 자치구는 순증형 성장인가, 고회전 소모전인가? (순증×교체율 4분면 진단 — 모델 설계 취지) | `:y` | — |
-| `gu_yearly_timeseries` | 특정 자치구의 20년 개업·폐업·교체율 추이는? (축반전 쌍 A-2: 자치구 고정 → 연도 시계열) | 특정 자치구의 20년 개업·폐업·교체율 추이는? (축반전 쌍 A-2: 자치구 고정 → 연도 시계열) | `:gu_code` | — |
-| `inv_birth_rate_top` | 신규 진입률(birth rate)이 가장 높은 업종은? (폐업률 관점의 반전) | 신규 진입률(birth rate)이 가장 높은 업종은? (폐업률 관점의 반전) | `:y` | — |
-| `inv_lowest_churn_gu` | 폐업률이 가장 낮은(안정적인) 자치구는? (높은 폐업률 랭킹의 반전) | 폐업률이 가장 낮은(안정적인) 자치구는? (높은 폐업률 랭킹의 반전) | `:y`, `:n` | — |
-| `new_year_fixed_net_asc` | 특정 연도에 순감이 가장 심했던 업종×구 조합은? | 특정 연도에 순감이 가장 심했던 업종×구 조합은? | `:y`, `:n` | — |
-| `period_cum_net_rank` | 임의 기간(:from~:to) 동안 누적 순증이 가장 큰(또는 가장 심하게 순감한) 자치구/업종 top-N은? (:dim ∈ {gu, category}, :dir ∈ {asc, desc}) | 임의 기간 창에서 자치구 또는 업종별 누적 개업·폐업·순증과 기간 가중 폐업률 랭킹. 단년 스냅샷이 아닌 구간 성적표로 성장/쇠퇴 지역·업종을 가른다. | `:dim`, `:from`, `:to`, `:dir`, `:n` | — |
-| `seoul_macro_timeseries` | 서울 전체의 연도별 창업·폐업 체력 변화는? (시계열 매크로) | 서울 전체의 연도별 창업·폐업 체력 변화는? (시계열 매크로) | — | — |
-| `slice_gu_category_series` | 특정 자치구×업종 한 단면의 20년 원장(개업·폐업·비율)은? (:param 단면 — 행 그대로) | 특정 자치구×업종 한 단면의 20년 원장(개업·폐업·비율)은? (:param 단면 — 행 그대로) | `:gu_code`, `:category` | — |
-| `stock_composition_share` | 특정 연도 서울 재고와 폐업은 어떤 업종/자치구/대분류에 몰려 있나? (점유율 구성, :dim ∈ {gu, category, major}) | 특정 연도 서울 재고·폐업의 차원별 점유율 구성. 재고 비중 대비 폐업 비중이 과대한 차원(취약 구성)을 드러낸다. | `:dim`, `:y` | — |
-| `top_category_per_gu` | 특정 연도에 25개 자치구 각각에서 폐업률이 가장 높은 업종은 무엇인가? (구별 최고 회전 업종 맵) | 특정 연도에 25개 자치구 각각의 최고 회전(폐업률 1위) 업종 한 장 맵. 구별로 어떤 업종이 가장 위험한지 한 번의 질의로 답한다. | `:y` | — |
-| `two_year_churn_delta` | 두 연도(:y1 vs :y2) 사이 폐업률이 가장 악화된 자치구/업종은? (코로나 전후 등 이벤트 비교, :dim ∈ {gu, category}) | 두 연도 사이 자치구별(또는 업종별) 폐업률 변화폭 랭킹. 코로나 전후 같은 이벤트 전·후 회복/악화 비교의 표준 질의. | `:dim`, `:y1`, `:y2`, `:n` | — |
-| `x_gu_churn_vs_lifespan` | 특정 연도(:y)에 폐업 회전율이 높은 자치구는 역대 폐업 업소의 수명 체질도 취약한가 — 그 해 회전율(churn)과 누적 수명 프로필(평균 수명·조기폐업률)의 자치구 결합 진단 | 자치구별로 특정 연도의 폐업 회전율(그 해 폐업/기초 스톡)과, 그 구에서 역대 폐업한 업소들의 가중평균 수명·1년 내 조기폐업률을 한 행에 준다. '회전이 빠른 구가 원래 수명도 짧은 체질인지, 그 해만 이례적인지'를 가르는 진입 위험 진단 자료. | `:y`, `:n` | — |
-| `x_gu_churn_vs_lq` | 특정 연도·업종에서 자치구별 폐업 회전율과 업종 특화도(LQ)를 함께 보면? — 특화가 방어력이 되는 구 vs 특화 없이 고회전인 구 진단 | 특정 연도·업종의 자치구별 폐업률·진입률·순증(원장)과 그 구의 현재 특화도(LQ)·구내 비중을 한 행에 준다. 특화 지역이 회전도 낮은지(방어력), 특화 없이 소모전만 도는 구는 어딘지 진입 위험 진단의 기초 자료. | `:y`, `:category`, `:n` | — |
-| `year_extreme_rank` | 임의 단면(서울 전체·특정 구·특정 업종·그 교차)에서 폐업률이 가장 높았던(또는 낮았던) 연도 top-N은? (:gu_code/:category 센티널 'ALL', :dir ∈ {asc, desc}) | 임의 단면에서 폐업률 기준 최악/최선 연도 top-N. 위기 연도와 안정 연도를 시계열 전체를 훑지 않고 바로 짚어준다. | `:gu_code`, `:category`, `:dir`, `:n` | — |
+| `category_gu_cross_hotcells` | 특정 연도에 업종×자치구 교차 셀 중 교체율이 가장 높은 핫셀은? (두 축 교차) | `category`, `gu_code`, `opened`, `closed`, `stock_start`, `churn_rate` | `:y`, `:n` | category × gu_code 교차 셀(랭킹) @ y 고정 — stock_start>=200으로 유의 셀만 |
+| `category_rank_in_gu` | 특정 자치구 안에서 어느 업종이 가장 고회전인가? (축반전 쌍 B-1: 구 고정 → 업종 랭킹) | `category`, `opened`, `closed`, `net_change`, `stock_start`, `churn_rate` | `:y`, `:gu_code` | category(랭킹) @ y·gu_code 고정 — 소형 스톡 노이즈 차단용 HAVING stock_start>=100 |
+| `category_yoy_momentum` | 최근 연도에 개업이 급증/급감한 업종은? (전년 대비 모멘텀, 윈도우 함수) | `category`, `opened_cur`, `opened_prev`, `diff`, `pct` | `:y` | category(랭킹) × YoY 증감률 @ y 고정 — LAG 윈도우로 전년 결합 |
+| `closure_spike_dim` | 특정 연도에 폐업이 전년 대비 가장 급증한 자치구/업종은? (위기 신호 탐지, :dim ∈ {gu, category}) | `dim_value`, `closed_cur`, `closed_prev`, `diff`, `pct` | `:dim`, `:y`, `:n` | gu_code\|category(랭킹) × 폐업 YoY 증감률 @ :y — LAG 윈도우, 기존 개업 모멘텀 패턴의 폐업(위기) 극성 대응물 |
+| `dim_value_timeseries` | 특정 업종(소분류) 또는 대분류의 서울 전체 20년 개업·폐업·폐업률 추이는? (:dim ∈ {category, major}) | `y`, `opened`, `closed`, `net_change`, `stock_start`, `churn_rate`, `birth_rate` | `:dim`, `:val` | y(시계열) × 서울 전체 합산 @ :dim∈{category,major} 값(:val) 고정 — 기존 구 단위 시계열의 업종/대분류 축 대응물 |
+| `growth_cell_screen` | 특정 연도에 진입률·재고·순증 조건을 만족하는 성장 유망 업종×구 셀은? (임계값 스크리닝: :min_stock, :min_birth) | `gu_code`, `category`, `opened`, `closed`, `net_change`, `stock_start`, `birth_rate`, `churn_rate` | `:y`, `:min_stock`, `:min_birth`, `:n` | category × gu_code 교차 셀(스크리닝) @ :y — birth_rate·stock_start 임계값 + 순증>0, 쇠퇴 셀 랭킹(기존)의 반대 극성 |
+| `gu_churn_rank_topn` | 특정 연도에 교체율(폐업 회전)이 가장 높은 자치구 top-N은? (축반전 쌍 A-1: 연도 고정 → 자치구 랭킹) | `gu_code`, `opened`, `closed`, `net_change`, `stock_start`, `churn_rate`, `birth_rate` | `:y`, `:n` | gu_code(랭킹) × 전업종 합산 @ y 고정 — 비율은 SUM 재산출 |
+| `gu_rank_in_category` | 특정 업종에서 어느 자치구가 가장 고회전인가? (축반전 쌍 B-2: 업종 고정 → 구 랭킹) | `gu_code`, `opened`, `closed`, `net_change`, `stock_start`, `churn_rate`, `birth_rate` | `:y`, `:category`, `:n` | gu_code(랭킹) @ y·category 고정 — (y,category,gu_code)가 유일키라 GROUP BY 불필요, 행 그대로 사용 |
+| `gu_regime_diagnosis` | 각 자치구는 순증형 성장인가, 고회전 소모전인가? (순증×교체율 4분면 진단 — 모델 설계 취지) | `gu_code`, `net_change`, `churn_rate`, `regime` | `:y` | gu_code × (net_change, churn_rate) 2지표 4분면 @ y 고정 — 임계값은 그 해 서울 평균 교체율(서브쿼리) |
+| `gu_yearly_timeseries` | 특정 자치구의 20년 개업·폐업·교체율 추이는? (축반전 쌍 A-2: 자치구 고정 → 연도 시계열) | `y`, `opened`, `closed`, `net_change`, `churn_rate`, `birth_rate` | `:gu_code` | y(시계열) × 전업종 합산 @ gu_code 고정 |
+| `inv_birth_rate_top` | 신규 진입률(birth rate)이 가장 높은 업종은? (폐업률 관점의 반전) | `category`, `opened`, `stock`, `birth_pct` | `:y` | 업종 랭킹 — birth_rate 관점(churn 관점의 반전) |
+| `inv_lowest_churn_gu` | 폐업률이 가장 낮은(안정적인) 자치구는? (높은 폐업률 랭킹의 반전) | `gu_code`, `stock`, `closed`, `churn_pct` | `:y`, `:n` | 자치구 랭킹 — churn_rate ASC |
+| `new_year_fixed_net_asc` | 특정 연도에 순감이 가장 심했던 업종×구 조합은? | `gu_code`, `category`, `opened`, `closed`, `net_change` | `:y`, `:n` | 연도 고정(:y) → 업종×구 교차 랭킹 net ASC |
+| `period_cum_net_rank` | 임의 기간(:from~:to) 동안 누적 순증이 가장 큰(또는 가장 심하게 순감한) 자치구/업종 top-N은? (:dim ∈ {gu, category}, :dir ∈ {asc, desc}) | `dim_value`, `opened_total`, `closed_total`, `net_change_total`, `period_churn_rate` | `:dim`, `:from`, `:to`, `:dir`, `:n` | gu_code\|category(랭킹) × 기간 누적 합산 @ :from~:to 창 — 단년 스냅샷 패턴들의 기간 창 상위호환 |
+| `seoul_macro_timeseries` | 서울 전체의 연도별 창업·폐업 체력 변화는? (시계열 매크로) | `y`, `opened`, `closed`, `net_change`, `stock_start`, `churn_rate`, `birth_rate` | — | y(시계열) × 서울 전체 합산 — 필터 없음 |
+| `slice_gu_category_series` | 특정 자치구×업종 한 단면의 20년 원장(개업·폐업·비율)은? (:param 단면 — 행 그대로) | `y`, `opened`, `closed`, `net_change`, `stock_start`, `churn_rate`, `birth_rate` | `:gu_code`, `:category` | y(시계열) @ gu_code·category 고정 — 테이블 그레인 그대로, 집계 불필요 |
+| `stock_composition_share` | 특정 연도 서울 재고와 폐업은 어떤 업종/자치구/대분류에 몰려 있나? (점유율 구성, :dim ∈ {gu, category, major}) | `dim_value`, `stock_start`, `stock_share_pct`, `closed`, `closed_share_pct` | `:dim`, `:y` | gu_code\|category\|major(분포) × 재고·폐업 점유율 @ :y — 서브쿼리 분모로 구성비 산출, 기존 패턴에 없던 분포 축 |
+| `top_category_per_gu` | 특정 연도에 25개 자치구 각각에서 폐업률이 가장 높은 업종은 무엇인가? (구별 최고 회전 업종 맵) | `gu_code`, `category`, `stock_start`, `churn_rate` | `:y` | gu_code × 그룹내 1위 category(교차 맵) @ :y — ROW_NUMBER 그룹별 top-1, stock_start>=100으로 소형 스톡 노이즈 차단 |
+| `two_year_churn_delta` | 두 연도(:y1 vs :y2) 사이 폐업률이 가장 악화된 자치구/업종은? (코로나 전후 등 이벤트 비교, :dim ∈ {gu, category}) | `dim_value`, `churn_rate_a`, `churn_rate_b`, `churn_delta` | `:dim`, `:y1`, `:y2`, `:n` | gu_code\|category(랭킹) × 두 연도 폐업률 델타 @ :y1·:y2 — 조건부 집계로 두 시점을 한 행에 결합 |
+| `x_gu_churn_vs_lifespan` | 특정 연도(:y)에 폐업 회전율이 높은 자치구는 역대 폐업 업소의 수명 체질도 취약한가 — 그 해 회전율(churn)과 누적 수명 프로필(평균 수명·조기폐업률)의 자치구 결합 진단 | `gu_code`, `gu`, `churn_pct`, `closed_y`, `avg_days_w`, `early_close_pct`, `closed_alltime` | `:y`, `:n` | 자치구 랭킹 — churn_yearly(:y 연도 단면, 전업종 합산) ⋈ lifespan(전 기간 누적, 전업종 가중 합산) on gu_code, 1:1 |
+| `x_gu_churn_vs_lq` | 특정 연도·업종에서 자치구별 폐업 회전율과 업종 특화도(LQ)를 함께 보면? — 특화가 방어력이 되는 구 vs 특화 없이 고회전인 구 진단 | `gu_code`, `gu`, `lq`, `share_pct`, `stock_start`, `opened`, `closed`, `net_change`, `churn_rate`, `birth_rate` | `:y`, `:category`, `:n` | gu_code 랭킹(churn_rate DESC) @ y·category 고정 — churn(y×category×gu 원장) ⋈ spec(gu×category 현재 스냅샷), 조인 키 gu_code+category, 1:1(양쪽 모두 해당 그레인 유일키)이라 팬아웃 없음. 부수 효과: churn 단일 테이블이 못 주던 자치구 한글명(s.gu)도 함께 반환 |
+| `year_extreme_rank` | 임의 단면(서울 전체·특정 구·특정 업종·그 교차)에서 폐업률이 가장 높았던(또는 낮았던) 연도 top-N은? (:gu_code/:category 센티널 'ALL', :dir ∈ {asc, desc}) | `y`, `opened`, `closed`, `net_change`, `stock_start`, `churn_rate` | `:gu_code`, `:category`, `:dir`, `:n` | y(랭킹) @ 임의 단면 — gu_code·category 센티널 'ALL' 필터 + 정렬 방향 스위치, 시계열 패턴들의 '순위' 반전 |
 
 ## d1_cohort_survival (`commerce_cohort_survival`) — 22건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_k_matrix` | (두 축 교차) 업종 × 경과연차(1/3/5/10년) 생존율 매트릭스 — 어느 업종이 어느 구간에서 무너지나? | (두 축 교차) 업종 × 경과연차(1/3/5/10년) 생존율 매트릭스 — 어느 업종이 어느 구간에서 무너지나? | `:from_y`, `:to_y` | — |
-| `category_pair_curve_gap` | (교차 비교) 임의의 두 업종 A/B의 생존곡선을 나란히 놓으면 격차가 몇 년차에 얼마나 벌어지나? | 사용자가 고른 두 업종의 코호트 가중 생존곡선을 같은 연차 축에 나란히 놓고 격차(rate_a-rate_b)를 준다. 두 업종이 모두 관측된 연차만 반환. 업종 전환·비교 의사결정의 기초 자료. | `:cat_a`, `:cat_b`, `:from_y`, `:to_y`, `:max_k` | — |
-| `category_ranking_by_cohort` | (반전) 특정 개업연도 코호트 하나를 고정하면, 그 해 창업자들은 업종별로 k년 뒤 얼마나 살아남았나? | (반전) 특정 개업연도 코호트 하나를 고정하면, 그 해 창업자들은 업종별로 k년 뒤 얼마나 살아남았나? | `:cohort_y`, `:k` | — |
-| `closure_volume_rank` | (볼륨 랭킹) 비율 말고 절대 수로 — k년 안에 문 닫은 업소가 가장 많은 업종은 어디인가? | 코호트 창에서 k년 내 폐업한 업소의 절대 수(closed_within_k)가 많은 업종 순위를 개업 수·폐업률과 함께 준다. 비율이 낮아도 모수가 크면 시장 충격이 큰 업종을 짚는다 — 공실·중고설비 시장 규모 추정 등 볼륨 기반 판단용. | `:k`, `:from_y`, `:to_y`, `:n` | — |
-| `cohort_trend_by_category` | (시계열) 특정 업종의 k년차 생존율이 개업연도 세대에 따라 어떻게 변했나 — 언제 창업한 세대가 강했나? | (시계열) 특정 업종의 k년차 생존율이 개업연도 세대에 따라 어떻게 변했나 — 언제 창업한 세대가 강했나? | `:category`, `:k` | — |
-| `cohort_yoy_delta_rank` | (변화폭 랭킹) k년차 생존율이 전년 개업 코호트 대비 가장 급변한(악화 또는 개선) 개업연도는 언제인가? | 고정 연차 생존율의 전년 코호트 대비 변화폭(delta_vs_prev)을 계산해 급변한 해를 랭킹한다. :dir='asc'는 악화 상위, 'desc'는 개선 상위. 창업 환경이 구조적으로 바뀐 시점 탐지용. | `:k`, `:from_y`, `:to_y`, `:dir`, `:n` | — |
-| `early_vs_late_attrition` | (조건부 분해) 어떤 업종이 초기(:k_early년차)에 무너지고, 어떤 업종이 초기를 버틴 뒤 장기(:k_late년차)에 소모되나? | 업종별 초기 생존율(개업→:k_early년차)과, 초기 생존자 중 :k_late년차까지 버티는 조건부 생존율을 분해해 준다. '초기 탈락형'(early 낮음)과 '장기 소모형'(early 높고 late_conditional 낮음) 업종을 구분한다. | `:k_early`, `:k_late`, `:from_y`, `:to_y` | — |
-| `entry_volume_trend` | (시계열) 연간 신규 개업(창업) 규모는 어떻게 변해 왔나 — 대분류별 기여 포함? | (시계열) 연간 신규 개업(창업) 규모는 어떻게 변해 왔나 — 대분류별 기여 포함? | `:from_y`, `:to_y` | — |
-| `era_survival_compare` | (시대 비교) 예전 세대(A 창)와 요즘 세대(B 창)를 비교하면 k년차 생존율이 가장 개선/악화된 업종은? | 두 코호트 시대(예: 2005~2009 vs 2015~2019)의 k년차 생존율을 업종별로 나란히 놓고 개선/악화 폭(delta_b_minus_a)을 랭킹한다. :dir='desc'는 개선 상위, 'asc'는 악화 상위. 세대 간 구조 변화 탐지용. | `:a_from`, `:a_to`, `:b_from`, `:b_to`, `:k`, `:dir`, `:n` | — |
-| `first_year_below_threshold` | (임계값 일반화) 업종별로 누적 생존율이 :threshold 아래로 처음 떨어지는 연차는 언제인가 — 반감기(0.5 고정) 패턴의 임계 자유화판? | 업종별로 코호트 가중 생존율이 지정 임계값 아래로 처음 떨어지는 연차를 준다. 반감기(0.5)뿐 아니라 투자 회수선·손익분기 유지선(예: 0.7) 등 임의 기준을 걸 수 있다. 미출현 업종은 :max_k년 내 임계 하회 없음으로 해석. | `:from_y`, `:to_y`, `:max_k`, `:threshold` | — |
-| `half_life_by_category` | (관점 반전) 생존율을 고정하고 시간을 묻는다 — 몇 년차에 절반이 사라지나(업종별 반감기)? | (관점 반전) 생존율을 고정하고 시간을 묻는다 — 몇 년차에 절반이 사라지나(업종별 반감기)? | `:from_y`, `:to_y`, `:max_k` | — |
-| `interval_hazard_curve` | (파생지표) 특정 업종(또는 전체)은 몇 년차 구간에서 탈락이 집중되나 — 연차별 조건부 탈락률(hazard) 곡선은? | 특정 업종(:category, 'ALL'이면 전체)의 연차별 생존율과 함께, 직전 연차 생존자 대비 그 해에 사라진 비율(조건부 탈락률 hazard_rate)을 준다. 누적 곡선으로는 안 보이는 '몇 년차 고비'를 짚어 주는 리스크 시점 판단 자료. | `:category`, `:from_y`, `:to_y`, `:max_k` | — |
-| `inv_worst_survival` | 5년 생존율이 가장 낮은 업종은? (높은 생존율 랭킹의 반전) | 5년 생존율이 가장 낮은 업종은? (높은 생존율 랭킹의 반전) | `:years_elapsed`, `:min_n` | — |
-| `major_survival_curves` | 대분류 4개의 생존곡선을 겹쳐 그리면 어디서 갈라지나? | 대분류 4개의 생존곡선을 겹쳐 그리면 어디서 갈라지나? | `:from_y`, `:to_y`, `:max_k` | — |
-| `new_cohort_fixed_curve` | 특정 연도에 개업한 업소들의 생존 곡선은? (코호트 고정 단면) | 특정 연도에 개업한 업소들의 생존 곡선은? (코호트 고정 단면) | `:cohort_y` | — |
-| `new_cohort_year_compare` | 개업 연도별로 3년 생존율이 좋아지고 있나 나빠지고 있나? (코호트 간 추이) | 개업 연도별로 3년 생존율이 좋아지고 있나 나빠지고 있나? (코호트 간 추이) | `:years_elapsed`, `:min_n` | — |
-| `survival_bottom_ranking` | (반전) k년차 생존율이 가장 낮은 — 가장 빨리 사라지는 업종은? (소형 업종 노이즈 제거) | (반전) k년차 생존율이 가장 낮은 — 가장 빨리 사라지는 업종은? (소형 업종 노이즈 제거) | `:k`, `:from_y`, `:to_y`, `:min_n`, `:n` | — |
-| `survival_curve_slice` | (:param 단면) 특정 업종·특정 개업연도의 생존곡선 전체 — 몇 년차에 얼마나 남나? | (:param 단면) 특정 업종·특정 개업연도의 생존곡선 전체 — 몇 년차에 얼마나 남나? | `:category`, `:cohort_y` | — |
-| `survival_top_ranking` | 최근 창업 코호트 기준 k년차 생존율이 가장 높은 업종 top-N은? | 최근 창업 코호트 기준 k년차 생존율이 가장 높은 업종 top-N은? | `:k`, `:from_y`, `:to_y`, `:n` | — |
-| `survival_volatility_rank` | (분포) 같은 업종이라도 개업 시점에 따라 k년차 생존율이 얼마나 출렁였나 — 타이밍 민감도(변동성)가 큰 업종은? | 업종별로 개업연도에 따른 k년차 생존율의 최저·최고·산포(spread)·평균을 준다. spread가 크면 '언제 개업했느냐'가 생사를 가르는 타이밍 민감 업종, 작으면 시점 불문 안정/불안정 업종. | `:k`, `:from_y`, `:to_y`, `:min_n`, `:n` | — |
-| `survivor_share_composition` | (구성비) 코호트 창에서 k년을 버틴 생존 업소들의 업종 구성비는 — '살아남은 시장'은 어떤 모습인가? | 코호트 창 기준 k년차 생존 업소 수와 전체 생존자 중 업종별 점유율(share_pct)을 준다. 개업 시점 구성(entry_volume_trend)이 아니라 생존 후 시장의 실제 구성을 보여준다. | `:k`, `:from_y`, `:to_y` | — |
-| `x_entry_boom_vs_survival` | 개업 붐이 컸던 해에 진입한 코호트는 생존율이 낮은가 — 특정 개업연도(:cohort_y)의 업종군별 진입률(그 해 birth rate)과 같은 코호트의 :k년차 생존율 결합 | 같은 개업연도에 대해 업종군별 '그 해 진입률(개업/기초 스톡)'과 '그 코호트의 k년 뒤 생존율'을 나란히 준다. 진입 과열(높은 birth rate)이 낮은 생존율로 이어졌는지 — 붐을 따라 들어간 창업의 실제 성적표를 확인하는 자료. | `:cohort_y`, `:k` | — |
+| `category_k_matrix` | (두 축 교차) 업종 × 경과연차(1/3/5/10년) 생존율 매트릭스 — 어느 업종이 어느 구간에서 무너지나? | `category_ko`, `major_ko`, `cohort_total`, `y1`, `y3`, `y5`, `y10` | `:from_y`, `:to_y` | 두 축 교차 (업종 × 연차 피벗, 조건부 가중 집계) |
+| `category_pair_curve_gap` | (교차 비교) 임의의 두 업종 A/B의 생존곡선을 나란히 놓으면 격차가 몇 년차에 얼마나 벌어지나? | `years_elapsed`, `rate_a`, `rate_b`, `gap_a_minus_b` | `:cat_a`, `:cat_b`, `:from_y`, `:to_y`, `:max_k` | 교차 비교 (두 업종 파라미터 × 연차 축, 격차 컬럼) — 멀티라인 2선 비교 차트용 |
+| `category_ranking_by_cohort` | (반전) 특정 개업연도 코호트 하나를 고정하면, 그 해 창업자들은 업종별로 k년 뒤 얼마나 살아남았나? | `category`, `category_ko`, `major_ko`, `cohort_n`, `survivors`, `survival_rate` | `:cohort_y`, `:k` | 축 반전쌍 2/2 — 차원 교환: 시계열(연도 가변)을 단면(연도 고정×업종 가변)으로 반전 |
+| `closure_volume_rank` | (볼륨 랭킹) 비율 말고 절대 수로 — k년 안에 문 닫은 업소가 가장 많은 업종은 어디인가? | `category`, `category_ko`, `major_ko`, `opened`, `closed_within_k`, `closure_rate` | `:k`, `:from_y`, `:to_y`, `:n` | 랭킹 top-N (업종 × 폐업 절대 규모 DESC) — 비율 랭킹(inv_worst_survival)의 볼륨 관점 보완 |
+| `cohort_trend_by_category` | (시계열) 특정 업종의 k년차 생존율이 개업연도 세대에 따라 어떻게 변했나 — 언제 창업한 세대가 강했나? | `cohort_y`, `cohort_n`, `survivors`, `survival_rate` | `:category`, `:k` | 시계열 (코호트연도 축, 업종·연차 고정) — category_ranking_by_cohort와 차원 교환쌍 |
+| `cohort_yoy_delta_rank` | (변화폭 랭킹) k년차 생존율이 전년 개업 코호트 대비 가장 급변한(악화 또는 개선) 개업연도는 언제인가? | `cohort_y`, `survival_rate`, `delta_vs_prev` | `:k`, `:from_y`, `:to_y`, `:dir`, `:n` | 랭킹 (코호트 연도 축 × 전년 대비 변화폭, 윈도우 LAG, 정렬 스위치) |
+| `early_vs_late_attrition` | (조건부 분해) 어떤 업종이 초기(:k_early년차)에 무너지고, 어떤 업종이 초기를 버틴 뒤 장기(:k_late년차)에 소모되나? | `category`, `category_ko`, `major_ko`, `early_survival`, `late_conditional_survival` | `:k_early`, `:k_late`, `:from_y`, `:to_y` | 단면 교차 (업종 × 두 체크포인트, 조건부 생존율 분해) — 누적 생존율을 초기/후기 구간으로 분리 |
+| `entry_volume_trend` | (시계열) 연간 신규 개업(창업) 규모는 어떻게 변해 왔나 — 대분류별 기여 포함? | `cohort_y`, `new_total`, `health_n`, `industry_n`, `culture_n`, `environment_n` | `:from_y`, `:to_y` | 시계열 (연도 축 × 대분류 조건부 피벗) — 생존율이 아닌 cohort_n 자체를 지표로 쓰는 보조 관점 |
+| `era_survival_compare` | (시대 비교) 예전 세대(A 창)와 요즘 세대(B 창)를 비교하면 k년차 생존율이 가장 개선/악화된 업종은? | `category`, `category_ko`, `era_a_rate`, `era_b_rate`, `delta_b_minus_a` | `:a_from`, `:a_to`, `:b_from`, `:b_to`, `:k`, `:dir`, `:n` | 교차 비교 (업종 × 두 코호트 시대 창, 델타 랭킹, 정렬 스위치) — 단일 시계열 패턴들의 두 창 압축판 |
+| `first_year_below_threshold` | (임계값 일반화) 업종별로 누적 생존율이 :threshold 아래로 처음 떨어지는 연차는 언제인가 — 반감기(0.5 고정) 패턴의 임계 자유화판? | `category`, `category_ko`, `first_below_year` | `:from_y`, `:to_y`, `:max_k`, `:threshold` | 관점 반전 랭킹 (생존율 임계 고정 → 도달 연차) — half_life_by_category의 파라미터 일반화 상위호환 |
+| `half_life_by_category` | (관점 반전) 생존율을 고정하고 시간을 묻는다 — 몇 년차에 절반이 사라지나(업종별 반감기)? | `category`, `category_ko`, `half_life_years` | `:from_y`, `:to_y`, `:max_k` | 관점 반전 — 랭킹류(k 고정→생존율)를 뒤집어 생존율 50% 고정→도달 연차. 미출현 업종 = :max_k년 내 반감 없음 |
+| `interval_hazard_curve` | (파생지표) 특정 업종(또는 전체)은 몇 년차 구간에서 탈락이 집중되나 — 연차별 조건부 탈락률(hazard) 곡선은? | `years_elapsed`, `survivors`, `survival_rate`, `hazard_rate` | `:category`, `:from_y`, `:to_y`, `:max_k` | 시계열 + 파생지표 (연차 축, 직전 연차 생존자 대비 탈락률) — 누적 생존율 곡선의 미분 관점 |
+| `inv_worst_survival` | 5년 생존율이 가장 낮은 업종은? (높은 생존율 랭킹의 반전) | `category_ko`, `cohort_n`, `survivors`, `survival_pct` | `:years_elapsed`, `:min_n` | 업종 랭킹 — 생존율 ASC(생존 top 관점의 반전) |
+| `major_survival_curves` | 대분류 4개의 생존곡선을 겹쳐 그리면 어디서 갈라지나? | `major_ko`, `years_elapsed`, `survival_rate` | `:from_y`, `:to_y`, `:max_k` | 두 축 교차 (대분류 × 연차, long 포맷) — 멀티라인 생존곡선 차트용 |
+| `new_cohort_fixed_curve` | 특정 연도에 개업한 업소들의 생존 곡선은? (코호트 고정 단면) | `years_elapsed`, `cohort_n`, `survivors`, `survival_pct` | `:cohort_y` | 코호트 고정(:cohort_y) → 경과연수 전개(시계열 성격) |
+| `new_cohort_year_compare` | 개업 연도별로 3년 생존율이 좋아지고 있나 나빠지고 있나? (코호트 간 추이) | `cohort_y`, `cohort_n`, `survival_pct` | `:years_elapsed`, `:min_n` | 코호트 연도 시계열 — 경과연수 고정(:years_elapsed) 단면 |
+| `survival_bottom_ranking` | (반전) k년차 생존율이 가장 낮은 — 가장 빨리 사라지는 업종은? (소형 업종 노이즈 제거) | `category`, `category_ko`, `major_ko`, `cohort_total`, `survival_k` | `:k`, `:from_y`, `:to_y`, `:min_n`, `:n` | 축 반전쌍 1/2 — survival_top_ranking의 정렬 반전(ASC) + HAVING 최소표본 |
+| `survival_curve_slice` | (:param 단면) 특정 업종·특정 개업연도의 생존곡선 전체 — 몇 년차에 얼마나 남나? | `years_elapsed`, `cohort_n`, `survivors`, `survival_rate` | `:category`, `:cohort_y` | :param 단면 조회 (업종+연도 고정 → 연차 축 곡선) — 차트용 원자재 |
+| `survival_top_ranking` | 최근 창업 코호트 기준 k년차 생존율이 가장 높은 업종 top-N은? | `category`, `category_ko`, `major_ko`, `cohort_total`, `survival_k` | `:k`, `:from_y`, `:to_y`, `:n` | 랭킹 top-N (업종 × 고정 연차, 코호트 가중 합산, DESC) |
+| `survival_volatility_rank` | (분포) 같은 업종이라도 개업 시점에 따라 k년차 생존율이 얼마나 출렁였나 — 타이밍 민감도(변동성)가 큰 업종은? | `category`, `category_ko`, `n_cohorts`, `worst_rate`, `best_rate`, `spread`, `avg_rate` | `:k`, `:from_y`, `:to_y`, `:min_n`, `:n` | 분포 (업종별 코호트 간 생존율 산포: 최저/최고/spread/평균 랭킹) |
+| `survivor_share_composition` | (구성비) 코호트 창에서 k년을 버틴 생존 업소들의 업종 구성비는 — '살아남은 시장'은 어떤 모습인가? | `category`, `category_ko`, `major_ko`, `survivors_k`, `share_pct` | `:k`, `:from_y`, `:to_y` | 비율/구성 (k년차 생존자 업종 점유율, 윈도우 전체합 분모) |
+| `x_entry_boom_vs_survival` | 개업 붐이 컸던 해에 진입한 코호트는 생존율이 낮은가 — 특정 개업연도(:cohort_y)의 업종군별 진입률(그 해 birth rate)과 같은 코호트의 :k년차 생존율 결합 | `category`, `category_ko`, `birth_pct_that_year`, `cohort_n`, `survival_k_pct` | `:cohort_y`, `:k` | 업종군(category) 랭킹 — cohort_survival(cohort_y·k 고정) ⋈ churn_yearly(같은 해, 구 합산 → category 그레인) on category + 연도, 1:1. y(TEXT)↔cohort_y(INT)는 CAST로 정합 |
 
 ## d1_data_quality (`commerce_data_quality`) — 20건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `active_ratio_rank_switch` | 등록 대비 실제 영업 중 비율이 가장 낮은(또는 높은) 데이터셋은? (폐업 이력 아카이브형 vs 현행 목록형 API 판별) | 총 등록 대비 영업 중 비율 랭킹. 비율이 낮으면 폐업 이력 아카이브 성격, 높으면 현행 영업 목록 성격 — 분석 목적에 맞는 API인지 판별하는 기초 자료다. | `:min_rows`, `:dir`, `:n` | — |
-| `category_cross_weighted_coverage` | 대분류×중분류 업종 축에서 커버리지(행수 가중)는 어떻게 갈리나? | 대분류×중분류 업종 축에서 커버리지(행수 가중)는 어떻게 갈리나? | — | — |
-| `category_drilldown_datasets` | 특정 중분류 안에서 어떤 데이터셋이 커버리지를 깎아먹고 있나? | 특정 중분류 안에서 어떤 데이터셋이 커버리지를 깎아먹고 있나? | `:category` | — |
-| `category_worst_dataset_picker` | 각 중분류에서 종합 품질이 가장 나쁜 데이터셋은 무엇인가? (분류별 개선 1순위 목록) | 중분류마다 합성 품질점수(변별력 있는 4지표 평균) 최하위 데이터셋을 1개씩 준다. 전역 최악 랭킹(composite_score_worst_topn)이 특정 분류에 쏠리는 문제를 보완해 분류별로 고르게 개선 우선순위를 뽑을 때 쓴다. | `:min_rows`, `:n` | — |
-| `close_date_anomaly_audit` | 폐업일 지표가 깨진(1 초과 또는 NULL) 데이터셋은 어디인가? (원천 상태코드 운용 이상 감지) | 폐업일 지표가 깨진(1 초과 또는 NULL) 데이터셋은 어디인가? (원천 상태코드 운용 이상 감지) | `:n` | — |
-| `composite_score_best_topn` | 종합 품질이 가장 좋은(그대로 믿고 쓸 수 있는) 데이터셋은? | 종합 품질이 가장 좋은(그대로 믿고 쓸 수 있는) 데이터셋은? | `:min_rows`, `:n` | — |
-| `composite_score_worst_topn` | 종합 품질 점수가 가장 낮은 데이터셋은? (수집 개선 우선순위) | 종합 품질 점수가 가장 낮은 데이터셋은? (수집 개선 우선순위) | `:min_rows`, `:n` | — |
-| `coverage_band_distribution` | 선택한 커버리지 지표의 분포는? 품질 문제가 전반적인가, 소수 데이터셋에 편중돼 있나? | 선택 지표의 커버리지를 5개 구간(0-25/25-50/50-75/75-95/95-100%)으로 나눠 각 구간의 데이터셋 수와 행수 합을 준다. 품질 문제의 구조(전반적 저조 vs 소수 편중)를 한눈에 보여준다. | `:metric` | — |
-| `coverage_metric_rank_switch` | 선택한 커버리지 지표(phone/geo/admin_dong/name) 기준 최악·최상 데이터셋은? (전체 또는 특정 중분류, 소형셋 제외) | 4개 커버리지 지표 중 하나를 골라 데이터셋 랭킹을 양방향으로 준다. 중분류 필터(ALL=전체)와 최소 행수 임계 포함 — 지표별 최악/최상 목록을 한 패턴으로 커버한다. | `:metric`, `:min_rows`, `:category`, `:dir`, `:n` | — |
-| `dataset_profile_lookup` | 이 데이터셋 하나의 품질 프로파일 전체는? (분석 전 신뢰도 사전점검) | 이 데이터셋 하나의 품질 프로파일 전체는? (분석 전 신뢰도 사전점검) | `:dataset` | — |
-| `dataset_search_ko` | 한글 키워드로 데이터셋을 찾으면? (dataset 코드를 모를 때 품질 프로파일 진입점) | 데이터셋 한글명 부분일치 검색으로 코드·분류·규모·핵심 커버리지를 준다. dataset 코드를 모르는 AI/API 소비자의 진입점으로, dataset_profile_lookup(정확 코드 조회)의 전단계다. | `:kw`, `:n` | — |
-| `inv_geo_coverage_asc` | 좌표 커버리지가 가장 낮은 업종은? (양호 랭킹의 반전) | 좌표 커버리지가 가장 낮은 업종은? (양호 랭킹의 반전) | `:min_rows`, `:n` | — |
-| `inventory_rollup_switch` | 대분류/중분류별 등록·영업 업소 인벤토리 규모와 현행성(영업 비율)은? | 선택 차원(대분류 또는 중분류)별 데이터셋 수, 총 등록·영업 행수, 영업 비율 롤업. 커버리지가 아닌 인벤토리 규모·현행성 관점의 축 요약으로, 어느 분류에 업소 데이터가 몰려 있는지 준다. | `:dim` | — |
-| `missing_volume_rank_switch` | 선택한 지표(phone/geo/admin_dong/name)의 결측 '건수'가 가장 많은 데이터셋은? (개선 시 회수량이 큰 곳) | 비율이 아닌 절대 결측 행수 기준 랭킹. 어느 데이터셋을 고치면 몇 행이 회수되는지, 개선 작업의 기대 효과 크기를 지표 선택형으로 준다. | `:metric`, `:n` | — |
-| `new_geo_vs_phone_gap` | 주소는 있는데 연락처가 비어 있는 업종은? (두 커버리지 지표 교차) | 주소는 있는데 연락처가 비어 있는 업종은? (두 커버리지 지표 교차) | `:min_rows`, `:n` | — |
-| `quality_safe_row_share` | 품질 게이트(좌표·행정동 커버리지 임계)를 통과하는 데이터는 전체 행의 몇 %인가? (지도·동 단위 분석 가용 데이터 비중) | 임계 통과 데이터셋 수·행수와 전체 대비 행 비중을 1행으로 요약한다. '지도 분석에 안전한 데이터가 전체의 몇 %인가'라는 거버넌스 KPI를 준다. | `:geo_min`, `:dong_min` | — |
-| `reliable_large_datasets` | 품질 게이트(좌표·행정동 커버리지 임계)를 통과한 대형 데이터셋은? (지도·동 단위 분석에 안전한 API 선별) | 품질 게이트(좌표·행정동 커버리지 임계)를 통과한 대형 데이터셋은? (지도·동 단위 분석에 안전한 API 선별) | `:geo_min`, `:dong_min`, `:n` | — |
-| `worst_phone_missing_volume_topn` | 전화번호 결측 '건수'가 가장 많은 데이터셋은? (개선 시 회수량이 큰 곳) | 전화번호 결측 '건수'가 가장 많은 데이터셋은? (개선 시 회수량이 큰 곳) | `:n` | — |
-| `worst_phone_rate_topn` | 전화번호 결측이 가장 심한 데이터셋(API)은 어디인가? (보유율 기준, 소형셋 제외) | 전화번호 결측이 가장 심한 데이터셋(API)은 어디인가? (보유율 기준, 소형셋 제외) | `:min_rows`, `:n` | — |
-| `x_quality_vs_area` | 데이터 커버리지가 낮은 업종은 매장 규모도 특이한가? (품질 × 면적 프로필 교차) | 데이터 커버리지가 낮은 업종은 매장 규모도 특이한가? (품질 × 면적 프로필 교차) | `:min_rows` | — |
+| `active_ratio_rank_switch` | 등록 대비 실제 영업 중 비율이 가장 낮은(또는 높은) 데이터셋은? (폐업 이력 아카이브형 vs 현행 목록형 API 판별) | `dataset`, `dataset_ko`, `category_ko`, `total_rows`, `active_rows`, `active_ratio` | `:min_rows`, `:dir`, `:n` | dataset 랭킹 \| active_rows/total_rows 비율 \| 정렬 스위치(:dir) × 최소행수 임계 |
+| `category_cross_weighted_coverage` | 대분류×중분류 업종 축에서 커버리지(행수 가중)는 어떻게 갈리나? | `major_ko`, `category_ko`, `dataset_cnt`, `total_rows`, `phone_w`, `geo_w`, `admin_dong_w` | — | 두 축 교차(major×category) \| 행수 가중 평균 3지표 — [반전쌍 B-1: 업종 롤업 관점] |
+| `category_drilldown_datasets` | 특정 중분류 안에서 어떤 데이터셋이 커버리지를 깎아먹고 있나? | `dataset`, `dataset_ko`, `total_rows`, `phone_coverage`, `geo_coverage`, `admin_dong_coverage` | `:category` | category 고정 :param → dataset 상세 — [반전쌍 B-2: 롤업↔드릴다운 차원 교환] |
+| `category_worst_dataset_picker` | 각 중분류에서 종합 품질이 가장 나쁜 데이터셋은 무엇인가? (분류별 개선 1순위 목록) | `category_ko`, `dataset`, `dataset_ko`, `total_rows`, `quality_score` | `:min_rows`, `:n` | 그룹별 극값(윈도우) \| 중분류마다 합성점수 최하위 1개 \| 최소행수 임계 |
+| `close_date_anomaly_audit` | 폐업일 지표가 깨진(1 초과 또는 NULL) 데이터셋은 어디인가? (원천 상태코드 운용 이상 감지) | `dataset`, `dataset_ko`, `total_rows`, `close_date_coverage_of_closed` | `:n` | 이상치 필터(>1 또는 NULL) \| 진단 전용 랭킹 |
+| `composite_score_best_topn` | 종합 품질이 가장 좋은(그대로 믿고 쓸 수 있는) 데이터셋은? | `dataset`, `dataset_ko`, `total_rows`, `quality_score` | `:min_rows`, `:n` | dataset 랭킹 \| 합성점수 DESC — [반전쌍 C-2: 정렬 반전] |
+| `composite_score_worst_topn` | 종합 품질 점수가 가장 낮은 데이터셋은? (수집 개선 우선순위) | `dataset`, `dataset_ko`, `total_rows`, `quality_score` | `:min_rows`, `:n` | dataset 랭킹 \| 합성점수 ASC — [반전쌍 C-1: 최악 정렬] |
+| `coverage_band_distribution` | 선택한 커버리지 지표의 분포는? 품질 문제가 전반적인가, 소수 데이터셋에 편중돼 있나? | `coverage_band`, `dataset_cnt`, `rows_in_band` | `:metric` | 분포 \| 커버리지 5구간 밴드별 데이터셋 수·행수 합 \| 지표 스위치(:metric) |
+| `coverage_metric_rank_switch` | 선택한 커버리지 지표(phone/geo/admin_dong/name) 기준 최악·최상 데이터셋은? (전체 또는 특정 중분류, 소형셋 제외) | `dataset`, `dataset_ko`, `category_ko`, `total_rows`, `metric_value` | `:metric`, `:min_rows`, `:category`, `:dir`, `:n` | dataset 랭킹 \| 지표 스위치(:metric) × 정렬 스위치(:dir) × 카테고리 센티널(:category='ALL') × 최소행수 임계 — worst_phone_rate_topn·inv_geo_coverage_asc·category_drilldown_datasets 의 파라미터 일반화 상위호환 |
+| `dataset_profile_lookup` | 이 데이터셋 하나의 품질 프로파일 전체는? (분석 전 신뢰도 사전점검) | `*` | `:dataset` | :param 단면 조회 \| dataset 1행 전 지표 |
+| `dataset_search_ko` | 한글 키워드로 데이터셋을 찾으면? (dataset 코드를 모를 때 품질 프로파일 진입점) | `dataset`, `dataset_ko`, `category_ko`, `total_rows`, `active_rows`, `phone_coverage`, `geo_coverage`, `admin_dong_coverage` | `:kw`, `:n` | 단면 검색 \| dataset_ko 부분일치(LIKE) \| 규모순 정렬 |
+| `inv_geo_coverage_asc` | 좌표 커버리지가 가장 낮은 업종은? (양호 랭킹의 반전) | `dataset_ko`, `total_rows`, `geo_pct`, `dong_pct` | `:min_rows`, `:n` | 업종 랭킹 — geo_coverage ASC |
+| `inventory_rollup_switch` | 대분류/중분류별 등록·영업 업소 인벤토리 규모와 현행성(영업 비율)은? | `dim_ko`, `dataset_cnt`, `total_rows_sum`, `active_rows_sum`, `active_ratio` | `:dim` | 롤업 집계 \| 차원 스위치(:dim ∈ major/category) \| 데이터셋 수·행수 합·영업 비율 — category_cross_weighted_coverage(커버리지 롤업)와 달리 인벤토리 규모 관점 |
+| `missing_volume_rank_switch` | 선택한 지표(phone/geo/admin_dong/name)의 결측 '건수'가 가장 많은 데이터셋은? (개선 시 회수량이 큰 곳) | `dataset`, `dataset_ko`, `category_ko`, `total_rows`, `coverage_rate`, `missing_rows` | `:metric`, `:n` | dataset 랭킹 \| 절대 결측건수 DESC \| 지표 스위치(:metric) — worst_phone_missing_volume_topn 의 지표 일반화 상위호환 |
+| `new_geo_vs_phone_gap` | 주소는 있는데 연락처가 비어 있는 업종은? (두 커버리지 지표 교차) | `dataset_ko`, `total_rows`, `addr_pct`, `phone_pct`, `addr_minus_phone` | `:min_rows`, `:n` | 업종 랭킹 — address_coverage 대비 phone_coverage 격차 |
+| `quality_safe_row_share` | 품질 게이트(좌표·행정동 커버리지 임계)를 통과하는 데이터는 전체 행의 몇 %인가? (지도·동 단위 분석 가용 데이터 비중) | `datasets_total`, `datasets_pass`, `rows_total`, `rows_pass`, `row_share_pass` | `:geo_min`, `:dong_min` | 비율/집계 단면 \| 임계 게이트 통과 데이터셋 수·행수·행 비중 1행 요약 — reliable_large_datasets(통과 목록)의 집계 요약 관점 |
+| `reliable_large_datasets` | 품질 게이트(좌표·행정동 커버리지 임계)를 통과한 대형 데이터셋은? (지도·동 단위 분석에 안전한 API 선별) | `dataset`, `dataset_ko`, `total_rows`, `active_rows`, `active_ratio`, `geo_coverage`, `admin_dong_coverage` | `:geo_min`, `:dong_min`, `:n` | :param 임계 게이트 × 규모 랭킹 \| 커버리지·규모 두 축 교차 |
+| `worst_phone_missing_volume_topn` | 전화번호 결측 '건수'가 가장 많은 데이터셋은? (개선 시 회수량이 큰 곳) | `dataset`, `dataset_ko`, `total_rows`, `phone_coverage`, `phone_missing_rows` | `:n` | dataset 랭킹 \| 절대 결측건수 DESC — [반전쌍 A-2: 비율→볼륨 관점 반전, A-1과 목록이 완전히 다름] |
+| `worst_phone_rate_topn` | 전화번호 결측이 가장 심한 데이터셋(API)은 어디인가? (보유율 기준, 소형셋 제외) | `dataset`, `dataset_ko`, `category_ko`, `total_rows`, `phone_coverage` | `:min_rows`, `:n` | dataset 랭킹 \| phone_coverage ASC \| 최소행수 필터 — [반전쌍 A-1: 비율 관점] |
+| `x_quality_vs_area` | 데이터 커버리지가 낮은 업종은 매장 규모도 특이한가? (품질 × 면적 프로필 교차) | `dataset_ko`, `total_rows`, `geo_pct`, `n_area`, `w_avg_m2` | `:min_rows` | 제품 간 조인 — data_quality(geo 커버리지) × area_profile(면적) |
 
 ## d1_dong_category_matrix (`commerce_dong_category_matrix`) — 24건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_lq_dongs` | 이 업종(:category_ko)이 '상대적으로' 특화된 동네는 어디인가? (절대 개수가 아니라 동 내 비중 ÷ 서울 평균 비중 = LQ) | 동 크기 효과를 제거한 업종 특화도(LQ) 순위. 절대 개수 상위와 달리 '작지만 그 업종 동네'를 찾는다. :min_cat 로 소표본 노이즈를 거른다(소규모 동은 LQ 가 과장될 수 있음). | `:category_ko`, `:min_cat`, `:n` | — |
-| `category_open_rate_dongs` | 이 업종(:category_ko) 기준 최근 1년 개업률이 가장 높은(뜨는)/낮은(정체) 동네는? (:category_ko='ALL'=전 업종, :dir ∈ {desc,asc}) | 특정 업종(또는 전 업종)의 최근 1년 개업률 상/하위 동네와 그 재고 규모. '이 업종은 지금 어느 동네에서 생기고 어느 동네에서 멈췄나'를 바로 묻는다. :min_active 로 소표본을 거른다. | `:category_ko`, `:min_active`, `:dir`, `:n` | — |
-| `category_openings_rank` | 최근 1년 어떤 업종이 가장 많이 새로 생겼나? (규모와 개업률) | 최근 1년 어떤 업종이 가장 많이 새로 생겼나? (규모와 개업률) | — | — |
-| `category_pair_dongs` | 두 업종(:cat_a, :cat_b)이 함께 몰린 동네는 어디이고, 두 업종의 짝 비율은? (예: 의료 대비 약국) | 두 업종의 동 단위 동반 규모(a_active, b_active)와 짝 비율(b_per_a)을 합계 상위 순으로 준다. 보완 업종 입지 탐색(예: 의료기관 대비 약국이 적은 동네)의 기초 자료. | `:cat_a`, `:cat_b`, `:n` | — |
-| `category_survival_stock` | 어떤 업종이 많이 사라졌나 — 업종별 영업 잔존율과 소멸 스톡은? | 어떤 업종이 많이 사라졌나 — 업종별 영업 잔존율과 소멸 스톡은? | — | — |
-| `category_top_dongs` | 이 업종(:category_ko)이 가장 많은 동네는 어디인가? (top-N) | 이 업종(:category_ko)이 가장 많은 동네는 어디인가? (top-N) | `:category_ko` | — |
-| `dong_category_profile` | 이 동네(:dong)엔 무슨 업종이 많나? (구성비 포함) | 이 동네(:dong)엔 무슨 업종이 많나? (구성비 포함) | `:dong` | — |
-| `dong_diversity_rank` | 한 업종에 편중된 동네와 업종이 고르게 다양한 동네는 어디인가? (:dir='desc'=편중, 'asc'=다양) | 각 동의 보유 업종 수(categories_present)와 1위 업종 비중(top_share_pct), 그 1위 업종명을 준다. desc=단일 업종 특화 상권(예: 전문시장), asc=업종 균형 상권. :min_active 로 군소 동을 거른다. | `:min_active`, `:dir`, `:n` | — |
-| `dong_mapping_coverage` | 동 매핑 실패(UNK) 비중이 큰 업종/자치구는 어디인가 — 동 단위 분석 결과를 얼마나 믿을 수 있나? (:dim ∈ {category,gu}) | 동 미상(UNK) 활성 스톡이 업종별/자치구별로 얼마나 되는지(unk_pct)를 준다. 동 단위 랭킹 패턴 결과의 신뢰 범위 판단에 필수 — 예컨대 산업은 93%가 동 미상이라 동 단위 해석이 불가함을 사전에 알려준다. | `:dim` | — |
-| `dong_signature_category` | 서울 각 동네의 '대표(1위) 업종'은 무엇이 가장 흔한가? | 서울 각 동네의 '대표(1위) 업종'은 무엇이 가장 흔한가? | — | — |
-| `dong_survival_rank` | 누적 인허가 대비 살아남은 비율(잔존율)이 가장 낮은/높은 동네는 어디인가? (:category_ko='ALL'=전 업종, :dir ∈ {asc,desc}) | 동 단위 누적 잔존율과 소멸 스톡(gone_cnt) 순위를 업종 전체('ALL') 또는 특정 업종으로 좁혀 준다. 장기 생존 관점의 진입 위험 비교 — 최근 개업률 기반 dormant_dongs 와 상보적. | `:category_ko`, `:min_total`, `:dir`, `:n` | — |
-| `dormant_dongs` | 상권 규모는 있는데 신규 개업이 끊긴(침체) 동네는 어디인가? | 상권 규모는 있는데 신규 개업이 끊긴(침체) 동네는 어디인가? | `:min_active` | — |
-| `gu_category_concentration` | 이 업종(:category_ko)은 어느 자치구에 집중돼 있나? (서울 점유율) | 이 업종(:category_ko)은 어느 자치구에 집중돼 있나? (서울 점유율) | `:category_ko` | — |
-| `gu_category_cross` | 두 자치구(:gu_a vs :gu_b)의 업종 구성은 어떻게 다른가? | 두 자치구(:gu_a vs :gu_b)의 업종 구성은 어떻게 다른가? | `:gu_a`, `:gu_b` | — |
-| `gu_dong_rank` | 이 자치구(:gu) 안에서 상권이 가장 큰 동네는 어디이고, 구 상권이 그 동에 얼마나 몰려 있나? | 특정 자치구 내부의 동별 상권 규모 순위와 개업 활력, 그리고 구 상권(동 매핑분)이 상위 동에 얼마나 집중돼 있는지(share_in_gu_pct)를 준다. | `:gu`, `:n` | — |
-| `gu_overview_rank` | 서울 25개 자치구를 원하는 지표(:metric ∈ {active,opened,open_rate,alive})와 방향(:dir ∈ {asc,desc})으로 줄 세우면 어떤 순서인가? | 자치구 25곳의 영업 재고·최근 1년 개업·개업률·누적 잔존율을 한 줄에 주고, 그중 원하는 지표·방향으로 순위를 뽑는다. 구 단위 시장 규모/활력/생존 비교의 출발점. | `:dir`, `:metric`, `:n` | — |
-| `inv_category_fixed_dong_rank` | 이 업종이 가장 많은 동은? (동 고정→업종 구성의 차원 교환) | 이 업종이 가장 많은 동은? (동 고정→업종 구성의 차원 교환) | `:category`, `:n` | — |
-| `inv_new_share_asc` | 신규 유입이 거의 없는(정체된) 동×업종 조합은? | 신규 유입이 거의 없는(정체된) 동×업종 조합은? | `:min_active`, `:n` | — |
-| `major_breakdown` | 이 대분류(:major_ko)는 어떤 소분류로 구성되나? (규모·신규 유입·잔존율) | 대분류 내부의 소분류별 영업 재고·누적·최근 1년 개업과 대분류 내 비중, 잔존율을 준다. 보건처럼 이질적 소분류(식품·의료·약국·숙박 등)를 묶은 대분류의 내부 구조 파악용. | `:major_ko` | — |
-| `new_hot_new_opening_cells` | 최근 1년 신규 개업이 가장 몰린 동×업종 조합은? (재고 대신 유입 관점) | 최근 1년 신규 개업이 가장 몰린 동×업종 조합은? (재고 대신 유입 관점) | `:n` | — |
-| `vital_dongs_top` | 최근 1년 개업이 가장 활발한(뜨는) 동네는 어디인가? | 최근 1년 개업이 가장 활발한(뜨는) 동네는 어디인가? | — | — |
-| `x_category_dong_health` | 이 업종(:category)이 많은 동네 top-N의 전업종 상권 건강도(영업 비중)는 어떤가? — 업종 집적지가 건강한 상권인지 물갈이 상권인지 | 특정 업종의 재고·최근 1년 개업이 많은 동 순위에, 그 동 전체(전업종)의 누적 규모와 영업 비중을 붙여 준다. 업종 집적지가 살아있는 상권인지 폐업 누적이 큰 소모 상권인지 입지 판단 맥락 제공. | `:category`, `:n` | — |
-| `x_dong_inflow_gu_churn` | 폐업 회전이 심한 자치구(:y 폐업률>=:min_churn) 안에서 그래도 신규 유입이 살아있는 동은 어디인가? — 위험 구 내부의 회복 포켓 탐색 | 폐업률 임계값을 넘는 자치구들 안에서 최근 1년 개업률이 높은 동 순위를 준다. '구가 위험하다'는 거시 신호와 '그 안 어느 동은 유입이 살아있다'는 미시 신호를 결합한 회복 포켓 탐색. | `:y`, `:min_churn`, `:n` | — |
-| `x_gu_spec_dong_hotspot` | 이 자치구의 특화 업종(LQ>=:min_lq)들은 구 안 어느 동에 몰려 있나? — 구 단위 특화의 동 단위 핫스팟 드릴다운 | 자치구의 특화 업종마다 구 전체 재고, 최대 집적 동, 그 동의 구내 점유율을 준다. 구 단위 특화 진단(LQ)을 실제 입지(동)로 내려 주는 드릴다운 — 특화가 한 동 집중형인지 구 전역 분산형인지 판별. | `:gu_code`, `:min_lq` | — |
+| `category_lq_dongs` | 이 업종(:category_ko)이 '상대적으로' 특화된 동네는 어디인가? (절대 개수가 아니라 동 내 비중 ÷ 서울 평균 비중 = LQ) | `admin_dong`, `gu`, `cat_active`, `share_in_dong_pct`, `lq` | `:category_ko`, `:min_cat`, `:n` | category 고정 → dong 랭킹(상대 특화도 LQ) — category_top_dongs(절대 개수)의 비율 관점 반전, 동 크기 효과 제거 |
+| `category_open_rate_dongs` | 이 업종(:category_ko) 기준 최근 1년 개업률이 가장 높은(뜨는)/낮은(정체) 동네는? (:category_ko='ALL'=전 업종, :dir ∈ {desc,asc}) | `admin_dong`, `gu`, `active_cnt`, `opened_1y`, `open_rate_pct` | `:category_ko`, `:min_active`, `:dir`, `:n` | dong 랭킹(개업률) + category 센티널 + 방향 스위치 — vital_dongs_top(전 업종·절대 개업 desc)과 dormant_dongs(전 업종·개업률 asc)를 업종 축으로 일반화한 상위호환 |
+| `category_openings_rank` | 최근 1년 어떤 업종이 가장 많이 새로 생겼나? (규모와 개업률) | `category_ko`, `opened_1y`, `active_cnt`, `open_rate_pct` | — | category 랭킹(신규 유입 절대값 desc ↔ 영업 대비 개업률로 관점 전환 가능) — 서울 전체 총량이므로 UNK 포함 |
+| `category_pair_dongs` | 두 업종(:cat_a, :cat_b)이 함께 몰린 동네는 어디이고, 두 업종의 짝 비율은? (예: 의료 대비 약국) | `admin_dong`, `gu`, `a_active`, `b_active`, `b_per_a` | `:cat_a`, `:cat_b`, `:n` | category×category → dong 교차(두 업종 동반 분포) — 기존 패턴은 모두 단일 업종 또는 전 업종 관점, 업종 짝 비교 부재 |
+| `category_survival_stock` | 어떤 업종이 많이 사라졌나 — 업종별 영업 잔존율과 소멸 스톡은? | `category_ko`, `active_cnt`, `total_cnt`, `gone_cnt`, `alive_pct` | — | 관점 반전(쌍 C): 영업 스톡 ↔ 소멸 스톡(누적-현재), 비중 ↔ 절대값 병기 — 서울 전체 총량이므로 UNK 포함이 정확 |
+| `category_top_dongs` | 이 업종(:category_ko)이 가장 많은 동네는 어디인가? (top-N) | `admin_dong`, `gu`, `active_cnt`, `opened_last_365d` | `:category_ko` | category→dong (축 반전: dong_category_profile 과 차원 교환 쌍 A) + 랭킹 top-N (수정: 파라미터명을 :category_ko 로 명시 — 한글 라벨 컬럼과 비교함을 소비 측에 드러냄) |
+| `dong_category_profile` | 이 동네(:dong)엔 무슨 업종이 많나? (구성비 포함) | `category_ko`, `major_ko`, `active_cnt`, `total_cnt`, `opened_last_365d`, `share_pct` | `:dong` | dong→category (특정 단면 파라미터 + 동네 내 비중) — 반전쌍 A의 정방향 |
+| `dong_diversity_rank` | 한 업종에 편중된 동네와 업종이 고르게 다양한 동네는 어디인가? (:dir='desc'=편중, 'asc'=다양) | `admin_dong`, `gu`, `active_total`, `categories_present`, `top_category_ko`, `top_share_pct` | `:min_active`, `:dir`, `:n` | dong 랭킹(업종 구성의 편중도: 1위 업종 비중) + 1위 업종명 — dong_signature_category(1위 업종의 도시 분포)와 달리 동 자체의 편중 정도를 순위화 |
+| `dong_mapping_coverage` | 동 매핑 실패(UNK) 비중이 큰 업종/자치구는 어디인가 — 동 단위 분석 결과를 얼마나 믿을 수 있나? (:dim ∈ {category,gu}) | `dim_value`, `unk_active`, `active_total`, `unk_pct` | `:dim` | 품질·커버리지 단면 — 차원 스위치(category↔gu)로 UNK 스톡 비중. 기존 패턴들이 일괄 제외하는 UNK 의 크기를 정량화하는 메타 패턴 |
+| `dong_signature_category` | 서울 각 동네의 '대표(1위) 업종'은 무엇이 가장 흔한가? | `category_ko`, `dong_cnt` | — | dong→category 를 다시 category 로 접는 2단 축(동별 1위 업종의 도시 분포) — 윈도우 함수 D1 동작 검증됨 |
+| `dong_survival_rank` | 누적 인허가 대비 살아남은 비율(잔존율)이 가장 낮은/높은 동네는 어디인가? (:category_ko='ALL'=전 업종, :dir ∈ {asc,desc}) | `admin_dong`, `gu`, `active_cnt`, `total_cnt`, `gone_cnt`, `alive_pct` | `:category_ko`, `:min_total`, `:dir`, `:n` | dong 랭킹(누적 잔존율·소멸 스톡) + category 센티널 — category_survival_stock(업종 단위)의 dong 스케일판. dormant_dongs(최근 1년 개업률)와 달리 장기 생존 관점 |
+| `dormant_dongs` | 상권 규모는 있는데 신규 개업이 끊긴(침체) 동네는 어디인가? | `admin_dong`, `gu`, `active_total`, `opened_1y`, `open_rate_pct` | `:min_active` | 정렬·관점 반전(쌍 B): 개업 최다 desc ↔ 개업률 최저 asc(활발↔침체) |
+| `gu_category_concentration` | 이 업종(:category_ko)은 어느 자치구에 집중돼 있나? (서울 점유율) | `gu`, `active_cnt`, `city_share_pct` | `:category_ko` | category→gu 집중도(절대값 + 도시 점유율 비중 병기) — category_top_dongs 의 구 스케일판 (수정: 파라미터명을 :category_ko 로 명시 — 한글 라벨 컬럼과 비교함을 소비 측에 드러냄) |
+| `gu_category_cross` | 두 자치구(:gu_a vs :gu_b)의 업종 구성은 어떻게 다른가? | `gu`, `category_ko`, `active_cnt`, `share_in_gu_pct` | `:gu_a`, `:gu_b` | 두 축 교차 비교(gu × category) + 구내 비중 — 동 미상(UNK) 행도 gu 는 유효해 구 단위는 커버리지 완전 |
+| `gu_dong_rank` | 이 자치구(:gu) 안에서 상권이 가장 큰 동네는 어디이고, 구 상권이 그 동에 얼마나 몰려 있나? | `admin_dong`, `active_total`, `opened_1y`, `open_rate_pct`, `share_in_gu_pct` | `:gu`, `:n` | gu 고정 → dong 랭킹 + 구내 집중도 비중 — 기존 dong 랭킹(vital_dongs_top 등)은 전서울 대상뿐, 구 내부 뷰 부재 |
+| `gu_overview_rank` | 서울 25개 자치구를 원하는 지표(:metric ∈ {active,opened,open_rate,alive})와 방향(:dir ∈ {asc,desc})으로 줄 세우면 어떤 순서인가? | `gu`, `active_total`, `opened_1y`, `open_rate_pct`, `alive_pct` | `:dir`, `:metric`, `:n` | gu 랭킹 — 정렬 기준·방향 파라미터화. 기존 패턴엔 구 단위 종합 순위가 없음(gu_category_cross 는 2개 구 비교, gu_category_concentration 은 업종 고정) |
+| `inv_category_fixed_dong_rank` | 이 업종이 가장 많은 동은? (동 고정→업종 구성의 차원 교환) | `admin_dong`, `gu`, `active_cnt`, `total_cnt`, `opened_last_365d` | `:category`, `:n` | 업종 고정(:category) → 동 랭킹 — dong_category_profile 의 역방향 |
+| `inv_new_share_asc` | 신규 유입이 거의 없는(정체된) 동×업종 조합은? | `admin_dong`, `gu`, `category`, `active_cnt`, `opened_last_365d`, `new_pct` | `:min_active`, `:n` | 동×업종 랭킹 — 신규 비중 ASC(유입 관점의 정렬 반전) |
+| `major_breakdown` | 이 대분류(:major_ko)는 어떤 소분류로 구성되나? (규모·신규 유입·잔존율) | `category_ko`, `active_cnt`, `total_cnt`, `opened_1y`, `share_in_major_pct`, `alive_pct` | `:major_ko` | major→category 드릴다운 — 기존 패턴이 전혀 쓰지 않던 major 축 개방. 특히 보건 대분류는 8개 소분류를 포괄(문화/산업/환경은 1:1) |
+| `new_hot_new_opening_cells` | 최근 1년 신규 개업이 가장 몰린 동×업종 조합은? (재고 대신 유입 관점) | `admin_dong`, `gu`, `category`, `opened_last_365d`, `active_cnt`, `new_pct` | `:n` | 동×업종 교차 랭킹 — opened_last_365d(재고 active_cnt 관점의 반전) |
+| `vital_dongs_top` | 최근 1년 개업이 가장 활발한(뜨는) 동네는 어디인가? | `admin_dong`, `gu`, `active_total`, `opened_1y`, `open_rate_pct` | — | dong 랭킹(활력 desc) — 반전쌍 B의 정방향(활발) |
+| `x_category_dong_health` | 이 업종(:category)이 많은 동네 top-N의 전업종 상권 건강도(영업 비중)는 어떤가? — 업종 집적지가 건강한 상권인지 물갈이 상권인지 | `admin_dong`, `gu`, `category_active_cnt`, `opened_last_365d`, `dong_total_all_industry`, `dong_open_pct` | `:category`, `:n` | matrix(:category 단면 → 동 랭킹 active_cnt DESC) ⋈ dong_summary(동 전업종 프로필), 조인 키 admin_dong_code, category 고정 후 양쪽 모두 동 그레인이라 1:1. matrix 의 UNK 동 행은 inner join 으로 자연 탈락 |
+| `x_dong_inflow_gu_churn` | 폐업 회전이 심한 자치구(:y 폐업률>=:min_churn) 안에서 그래도 신규 유입이 살아있는 동은 어디인가? — 위험 구 내부의 회복 포켓 탐색 | `gu`, `admin_dong`, `active_total`, `opened_1y`, `open_rate_pct`, `gu_churn_rate` | `:y`, `:min_churn`, `:n` | churn(구별 :y 폐업률, HAVING 임계값 통과 구만) ⋈ matrix(동별 전업종 재고·최근 1년 개업률), 조인 키 gu_code. 구→동 1:N 은 의도된 드릴다운(구 지표는 소속 동 행에 반복). 두 CTE 로 각자 그레인에서 먼저 집계해 팬아웃 차단 |
+| `x_gu_spec_dong_hotspot` | 이 자치구의 특화 업종(LQ>=:min_lq)들은 구 안 어느 동에 몰려 있나? — 구 단위 특화의 동 단위 핫스팟 드릴다운 | `category`, `category_ko`, `lq`, `gu_active_cnt`, `top_dong`, `top_dong_cnt`, `top_dong_share_pct` | `:gu_code`, `:min_lq` | spec(:gu_code 단면, LQ 필터) ⋈ matrix(같은 :gu_code 안 동별 재고, ROW_NUMBER 로 업종별 1위 동만), 조인 키 category(+양쪽 동일 :gu_code 재바인딩). 특화 업종당 정확히 1행(top 동)이라 팬아웃 없음 |
 
 ## d1_dong_summary (`commerce_dong_summary`) — 22건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `city_kpi_snapshot` | 서울 전체 상권을 한 줄로 요약하면? (동/구 수, 누적·영업·폐업 규모, 영업·폐업·지오코딩 비율, 수집 기간) | 서울 전체의 상권 규모와 상태 비율, 데이터 수집 기간을 한 행으로 준다. 다른 랭킹·비율 패턴 결과를 해석할 때의 분모(도시 평균 기준선)로 쓰인다. | — | — |
-| `city_open_cum_share` | 상위 N개 동이 서울 전체 영업 업소의 몇 %를 차지하나 — 상권 집중은 얼마나 심한가? | 영업 업소 상위 동들을 내림차순으로 나열하며 각 행까지의 서울 전체 대비 누적 점유율을 준다. '상위 20개 동이 서울 상권의 몇 %인가' 류의 집중도 질문에 바로 답한다. | `:n` | — |
-| `diversity_vs_size_rank_cross` | 업종 다양성이 규모 대비 두드러지는 동은 어디인가? | 업종 다양성이 규모 대비 두드러지는 동은 어디인가? | `:n` | — |
-| `dong_closed_share_top` | 누적 대비 폐업 비중이 가장 높은(상권 물갈이가 심했던) 동은 어디인가? | 누적 대비 폐업 비중이 가장 높은(상권 물갈이가 심했던) 동은 어디인가? | `:min_count`, `:n` | — |
-| `dong_geocode_coverage_bottom` | 지도에 못 찍히는 업소가 많은(좌표 커버리지 최저) 동은 어디인가? | 지도에 못 찍히는 업소가 많은(좌표 커버리지 최저) 동은 어디인가? | `:min_count`, `:n` | — |
-| `dong_metric_rank_switch` | 지표(누적/영업/폐업/업종 다양성/지오코딩/미지오코딩)와 정렬 방향, 자치구 범위를 골라 동 순위를 보면? (:metric ∈ {total, open, closed, diversity, geocoded, ungeocoded}, :dir ∈ {asc, desc}, :gu 는 구 이름 또는 'ALL'=서울 전체) | 6개 지표 중 하나를 골라 서울 전체 또는 특정 구 안에서 동 순위를 양방향으로 뽑아준다. 미지오코딩(ungeocoded)은 파생 지표라 기존 어느 랭킹도 못 주던 절대 백로그 관점을 포함한다. | `:metric`, `:min_count`, `:gu`, `:dir`, `:n` | — |
-| `dong_open_share_top` | 누적 대비 영업 비중이 가장 높은(살아있는 가게 비율이 높은) 동은 어디인가? | 누적 대비 영업 비중이 가장 높은(살아있는 가게 비율이 높은) 동은 어디인가? | `:min_count`, `:n` | — |
-| `dong_open_top` | 서울에서 영업 중 업소가 가장 많은 동(상권 최대 동)은 어디인가? | 서울에서 영업 중 업소가 가장 많은 동(상권 최대 동)은 어디인가? | `:n` | — |
-| `dong_other_status_top` | 영업도 폐업도 아닌 상태(휴업·취소 등)의 업소 비중이 높은 동은 어디인가? | 누적 업소 중 영업·폐업으로 분류되지 않은 잔여 상태 업소의 절대량과 비중이 높은 동 순위를 준다. 상태 데이터 정합성 점검과 휴업 밀집 상권 탐지에 쓰인다. | `:min_count`, `:n` | — |
-| `dong_profile_lookup` | 우리 동네(특정 동)의 상권 프로필과 구 내 순위는? | 우리 동네(특정 동)의 상권 프로필과 구 내 순위는? | `:dong` | — |
-| `freshness_by_collected_date` | 동별 데이터가 언제 수집분인가 — 얼마나 신선한가? | 동별 데이터가 언제 수집분인가 — 얼마나 신선한가? | — | — |
-| `gu_dong_breakdown` | 특정 구 안에서는 어느 동이 상권이 큰가? | 특정 구 안에서는 어느 동이 상권이 큰가? | `:gu` | — |
-| `gu_geocode_quality_rollup` | 자치구별 지오코딩(좌표 확보) 품질은 어떤가 — 어느 구부터 보정해야 하나? (:dir='asc' 최저 커버리지부터, 'desc' 최고부터) | 구 단위 지오코딩 커버리지 비율과 미좌표 업소 절대량, 가장 오래된 수집일을 함께 준다. 지도 서비스 품질 개선의 구 단위 우선순위 자료. | `:dir` | — |
-| `gu_open_rollup` | 자치구별로 영업 업소 규모와 영업 비중은 어떻게 다른가? | 자치구별로 영업 업소 규모와 영업 비중은 어떻게 다른가? | — | — |
-| `gu_select_compare` | 내가 고른 자치구 몇 곳(2곳 이상 임의 개수)을 나란히 비교하면? (:gus 는 구 이름의 JSON 배열 문자열, 예: '["강남구","마포구"]') | 소비자가 지정한 자치구들만 골라 규모·영업/폐업 비율·지오코딩 품질·평균 업종 다양성을 한 표로 비교해 준다. 출점 후보지 A/B/C 비교 질문에 바로 대응. | `:gus` | — |
-| `inv_dataset_count_asc` | 업종 다양성이 가장 낮은(단조로운) 동은? (다양성 top 랭킹의 반전) | 업종 다양성이 가장 낮은(단조로운) 동은? (다양성 top 랭킹의 반전) | `:min_count`, `:n` | — |
-| `new_gu_fixed_closed_share` | 이 자치구 안에서 물갈이(폐업 비중)가 심한 동은? (구 고정 단면 + 폐업 관점) | 이 자치구 안에서 물갈이(폐업 비중)가 심한 동은? (구 고정 단면 + 폐업 관점) | `:gu` | — |
-| `open_pct_histogram` | 서울 동들의 영업 비중(생존율)은 어떻게 분포하나 — 몇 %대 구간에 동이 몰려 있나? | 영업 비중을 10%p 구간으로 나눠 각 구간의 동 수와 평균 규모를 준다. 특정 동의 생존율이 서울 분포에서 어디쯤인지 위치를 잡는 기준 자료. | `:min_count` | — |
-| `size_quartile_open_rate` | 동 규모(누적 업소 수) 구간별로 영업 비중과 업종 다양성이 어떻게 다른가? | 동 규모(누적 업소 수) 구간별로 영업 비중과 업종 다양성이 어떻게 다른가? | — | — |
-| `stale_dong_top` | 수집분이 가장 오래된(재수집이 시급한) 동은 어디이고, 최신 수집 대비 며칠 뒤처졌나? | 수집 시점이 가장 오래된 동 목록과 테이블 내 최신 수집 시점 대비 지연 일수를 준다. 재수집 우선순위 산정과 오래된 수치 해석 주의 표시에 쓰인다. | `:n` | — |
-| `top_dong_concentration_by_gu` | 자치구별로 1위 동이 구 전체 영업 상권을 얼마나 독식하나 — 단일 동 의존이 큰 구는? | 구마다 영업 업소 1위 동의 이름과 그 동이 구 전체 영업 업소에서 차지하는 점유율을 준다. 상권이 한 동에 쏠린 구와 고르게 퍼진 구를 한 번에 비교한다. | `:n` | — |
-| `x_churned_dong_hot_category` | 물갈이가 심했던 동네에서 지금 신규 유입 1위 업종은? (동 이력 × 동×업종 매트릭스 교차) | 물갈이가 심했던 동네에서 지금 신규 유입 1위 업종은? (동 이력 × 동×업종 매트릭스 교차) | `:min_count`, `:n` | — |
+| `city_kpi_snapshot` | 서울 전체 상권을 한 줄로 요약하면? (동/구 수, 누적·영업·폐업 규모, 영업·폐업·지오코딩 비율, 수집 기간) | `dong_cnt`, `gu_cnt`, `total_businesses`, `open_total`, `closed_total`, `open_pct`, `closed_pct`, `geocoded_pct`, `oldest_collected`, `newest_collected` | — | 전시(全市) 단면 — 1행 KPI 롤업. 기존 패턴은 모두 동/구 단위라 서울 총계 자체를 주는 패턴이 없었음 |
+| `city_open_cum_share` | 상위 N개 동이 서울 전체 영업 업소의 몇 %를 차지하나 — 상권 집중은 얼마나 심한가? | `admin_dong`, `gu`, `business_open_count`, `cum_share_pct` | `:n` | 분포/집중 — 영업 업소 랭킹에 전시(全市) 누적 점유율(파레토 곡선) 결합. dong_open_top 이 절대값만 주는 것과 달리 집중도 해석이 붙음 |
+| `diversity_vs_size_rank_cross` | 업종 다양성이 규모 대비 두드러지는 동은 어디인가? | `admin_dong`, `gu`, `dataset_count`, `business_count`, `diversity_rank`, `size_rank` | `:n` | 두 축 교차: 업종 다양성 rank × 규모 rank (윈도우 함수 — D1 지원 확인) |
+| `dong_closed_share_top` | 누적 대비 폐업 비중이 가장 높은(상권 물갈이가 심했던) 동은 어디인가? | `admin_dong`, `gu`, `business_closed_count`, `business_count`, `closed_pct` | `:min_count`, `:n` | 반전 쌍B-1: 폐업 관점 · 비중(절대값 아님) · desc |
+| `dong_geocode_coverage_bottom` | 지도에 못 찍히는 업소가 많은(좌표 커버리지 최저) 동은 어디인가? | `admin_dong`, `gu`, `geocoded_count`, `business_count`, `geocoded_pct` | `:min_count`, `:n` | 정렬 반전(asc — 최저 커버리지) · 데이터 품질 관점 |
+| `dong_metric_rank_switch` | 지표(누적/영업/폐업/업종 다양성/지오코딩/미지오코딩)와 정렬 방향, 자치구 범위를 골라 동 순위를 보면? (:metric ∈ {total, open, closed, diversity, geocoded, ungeocoded}, :dir ∈ {asc, desc}, :gu 는 구 이름 또는 'ALL'=서울 전체) | `admin_dong`, `gu`, `metric_value`, `business_count`, `business_open_count` | `:metric`, `:min_count`, `:gu`, `:dir`, `:n` | 동 랭킹 일반화 — 지표 스위치(6종) × 정렬 방향 스위치 × 구 센티널 단면 × 임계값. dong_open_top·inv_dataset_count_asc 등 고정 랭킹 패턴들의 파라미터 상위호환 |
+| `dong_open_share_top` | 누적 대비 영업 비중이 가장 높은(살아있는 가게 비율이 높은) 동은 어디인가? | `admin_dong`, `gu`, `business_open_count`, `business_count`, `open_pct` | `:min_count`, `:n` | 반전 쌍B-2: 영업(생존) 관점 — dong_closed_share_top 의 관점 반전 |
+| `dong_open_top` | 서울에서 영업 중 업소가 가장 많은 동(상권 최대 동)은 어디인가? | `admin_dong`, `gu`, `business_open_count`, `business_count`, `open_pct` | `:n` | dong → 영업 업소 수 랭킹(top-N, desc) |
+| `dong_other_status_top` | 영업도 폐업도 아닌 상태(휴업·취소 등)의 업소 비중이 높은 동은 어디인가? | `admin_dong`, `gu`, `business_count`, `other_status_count`, `other_pct` | `:min_count`, `:n` | 동 랭킹 — 제3상태(business_count - open - closed) 비중 관점. 기존 패턴이 영업/폐업 두 상태만 다뤄 못 보던 잔여 상태 파생 지표 |
+| `dong_profile_lookup` | 우리 동네(특정 동)의 상권 프로필과 구 내 순위는? | `admin_dong`, `gu`, `business_count`, `business_open_count`, `business_closed_count`, `dataset_count`, `geocoded_count`, `open_pct`, `geocoded_pct`, `latest_collected_at`, `open_rank_in_gu` | `:dong` | 단일 dong 단면(:dong 파라미터) + 구 내 순위 파생 |
+| `freshness_by_collected_date` | 동별 데이터가 언제 수집분인가 — 얼마나 신선한가? | `collected_date`, `dong_cnt` | — | 시간축(수집일) 분포 — 스냅샷 테이블의 유일한 시간 단면 |
+| `gu_dong_breakdown` | 특정 구 안에서는 어느 동이 상권이 큰가? | `admin_dong`, `business_open_count`, `business_count`, `open_pct` | `:gu` | 반전 쌍A-2: gu → dong 분해(차원 하향 교환, gu_open_rollup 의 역방향) + :gu 파라미터 단면 |
+| `gu_geocode_quality_rollup` | 자치구별 지오코딩(좌표 확보) 품질은 어떤가 — 어느 구부터 보정해야 하나? (:dir='asc' 최저 커버리지부터, 'desc' 최고부터) | `gu`, `dong_cnt`, `total_businesses`, `geocoded_total`, `ungeocoded_total`, `geocoded_pct`, `oldest_collected` | `:dir` | gu 롤업 × 데이터 품질 관점 + 정렬 방향 스위치. 기존 지오코딩 패턴(dong_geocode_coverage_bottom)은 동 단위뿐이고, 기존 gu 롤업(gu_open_rollup)은 영업 관점뿐 |
+| `gu_open_rollup` | 자치구별로 영업 업소 규모와 영업 비중은 어떻게 다른가? | `gu`, `dong_cnt`, `open_total`, `total_cnt`, `open_pct` | — | 반전 쌍A-1: dong → gu 롤업(차원 상향 교환) |
+| `gu_select_compare` | 내가 고른 자치구 몇 곳(2곳 이상 임의 개수)을 나란히 비교하면? (:gus 는 구 이름의 JSON 배열 문자열, 예: '["강남구","마포구"]') | `gu`, `dong_cnt`, `total_businesses`, `open_total`, `open_pct`, `closed_pct`, `geocoded_pct`, `avg_dataset_count` | `:gus` | 임의 선택 gu 집합 비교 단면 — JSON 배열 문자열 파라미터를 json_each 로 전개해 배열 IN 을 대체. 전체 25개 구 롤업(gu_open_rollup)과 달리 관심 구만 골라 옆으로 비교 |
+| `inv_dataset_count_asc` | 업종 다양성이 가장 낮은(단조로운) 동은? (다양성 top 랭킹의 반전) | `admin_dong`, `gu`, `dataset_count`, `business_count`, `business_open_count` | `:min_count`, `:n` | 동 랭킹 — dataset_count ASC(다양성 관점의 정렬 반전) |
+| `new_gu_fixed_closed_share` | 이 자치구 안에서 물갈이(폐업 비중)가 심한 동은? (구 고정 단면 + 폐업 관점) | `admin_dong`, `business_count`, `business_closed_count`, `closed_pct` | `:gu` | 자치구 고정(:gu) → 동 랭킹, 폐업 비중 관점 |
+| `open_pct_histogram` | 서울 동들의 영업 비중(생존율)은 어떻게 분포하나 — 몇 %대 구간에 동이 몰려 있나? | `open_pct_bucket`, `dong_cnt`, `avg_business_count` | `:min_count` | 분포 — 영업 비중 10%p 버킷 히스토그램. 기존 패턴은 상/하위 랭킹뿐이라 전체 분포 형태를 주는 패턴이 없었음 |
+| `size_quartile_open_rate` | 동 규모(누적 업소 수) 구간별로 영업 비중과 업종 다양성이 어떻게 다른가? | `size_quartile`, `dongs`, `avg_open_pct`, `avg_dataset_count` | — | 두 축 교차: 규모 4분위 × 영업 비중/다양성 평균 |
+| `stale_dong_top` | 수집분이 가장 오래된(재수집이 시급한) 동은 어디이고, 최신 수집 대비 며칠 뒤처졌나? | `admin_dong`, `gu`, `collected_date`, `days_behind_newest`, `business_count` | `:n` | 시간축 — 최장 미수집 동 랭킹 + 최신 스냅샷 대비 지연일 파생. freshness_by_collected_date 가 날짜별 분포만 주는 것과 달리 대상 동을 지목 |
+| `top_dong_concentration_by_gu` | 자치구별로 1위 동이 구 전체 영업 상권을 얼마나 독식하나 — 단일 동 의존이 큰 구는? | `gu`, `dong_cnt`, `open_total`, `top_dong`, `top_dong_open`, `top_dong_share_pct` | `:n` | 교차 — gu 롤업 × 구내 1위 동 집중도(윈도우). gu_open_rollup(총량)·gu_dong_breakdown(단일 구 분해)이 못 주는 구간 비교 가능한 집중도 지표 |
+| `x_churned_dong_hot_category` | 물갈이가 심했던 동네에서 지금 신규 유입 1위 업종은? (동 이력 × 동×업종 매트릭스 교차) | `admin_dong`, `gu`, `closed_pct`, `hot_category`, `opened_last_365d` | `:min_count`, `:n` | 제품 간 조인 — dong_summary(폐업 비중) × dong_category_matrix(신규 유입) |
 
 ## d1_env_facility_operation (`commerce_env_facility_operation`) — 19건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `air_avg_p50_skew` | 평균과 중앙값 가동일수 괴리가 큰(분포가 왜곡된) 자치구는 어디인가? | 평균과 중앙값 가동일수 괴리가 큰(분포가 왜곡된) 자치구는 어디인가? | `:n` | — |
-| `air_days_coverage_low_gu` | 가동일수 기록 보유율(커버리지)이 가장 낮은 자치구는 어디인가 — 데이터가 부실한 구는? | 가동일수 기록 보유율(커버리지)이 가장 낮은 자치구는 어디인가 — 데이터가 부실한 구는? | `:dataset`, `:n` | — |
-| `air_operating_days_bottom_gu` | 대기오염 배출시설 가동일수가 가장 짧게 기록된 자치구는 어디인가? | 대기오염 배출시설 가동일수가 가장 짧게 기록된 자치구는 어디인가? | `:n` | — |
-| `air_operating_days_top_gu` | 대기오염 배출시설을 연중 가장 오래 가동하는 자치구는 어디인가? | 대기오염 배출시설을 연중 가장 오래 가동하는 자치구는 어디인가? | `:n` | — |
-| `air_operating_hours_top_gu` | 대기 배출시설의 하루 가동시간이 가장 긴 자치구는 어디인가? | 대기 배출시설의 하루 가동시간이 가장 긴 자치구는 어디인가? | `:n` | — |
-| `air_vs_water_facility_cross` | 자치구별로 대기 배출시설과 수질 배출시설 중 어느 쪽이 우세한가? | 자치구별로 대기 배출시설과 수질 배출시설 중 어느 쪽이 우세한가? | `:n` | — |
-| `dataset_quality_rollup` | 데이터셋(대기 vs 수질)별로 가동 기록의 커버리지와 가중평균 가동일수는 얼마나 다른가? | 데이터셋(대기 vs 수질)별로 가동 기록의 커버리지와 가중평균 가동일수는 얼마나 다른가? | — | — |
-| `env_days_band_distribution` | 연간 가동일수 기준으로 자치구들이 고가동/중가동/저가동 구간에 몇 곳씩 분포하는가? | 가동일수 경계값 두 개를 받아 자치구를 high/mid/low 구간으로 나누고 구간별 개수와 명단을 준다. 개별 순위가 아니라 서울 전체의 가동 강도 지형(집중/양극화)을 한 눈에 보여준다. | `:hi`, `:lo`, `:dataset` | — |
-| `env_days_hours_coverage_gap` | 가동일수는 기재하면서 가동시간은 누락하는 — 두 커버리지의 갭이 큰 자치구는 어디인가? | 자치구별 가동일수 기재율과 가동시간 기재율, 그 차이(%p)를 준다. 어느 구의 인허가 기록이 '반쪽짜리'인지 — 시간 정보 보완 우선순위를 정하는 거버넌스 기초 자료. | `:dataset`, `:n` | — |
-| `env_gu_metric_rank_switch` | 가동 강도 지표(연간 가동일수 또는 일 가동시간)를 골라, 데이터셋별로 자치구 top/bottom-N 을 한 패턴으로 뽑으면? | 지표(일수/시간)·데이터셋·정렬 방향·최소 기재건수를 파라미터로 받아 자치구 가동 강도 순위를 준다. 평균·중앙값·기재 건수를 함께 반환해 대표값 신뢰도까지 한 번에 판단할 수 있다. | `:metric`, `:dataset`, `:min_records`, `:dir`, `:n` | — |
-| `env_gu_pair_compare` | 두 자치구의 배출시설 규모·가동 강도·기재율을 나란히 비교하면 어떤가? | 지정한 두 자치구의 활성 시설 수, 평균·중앙값 가동일수/가동시간, 일수 기재율을 한 표로 준다. 입지 후보 두 곳의 환경 규제 환경을 즉시 대조할 수 있다. | `:dataset`, `:gu_a`, `:gu_b` | — |
-| `env_gu_share_of_total` | 서울 전체 환경 배출시설 중 각 자치구가 차지하는 비중(%)은 얼마인가? | 자치구별 활성 시설 수와 서울 전체 대비 점유율(%)을 함께 준다. 'ALL' 센티널로 대기+수질 합산 또는 단일 데이터셋 기준을 선택할 수 있어, 특정 구의 환경 규제 대상 집중도를 정량화한다. | `:dataset`, `:n` | — |
-| `env_gu_vs_seoul_baseline` | 특정 자치구의 배출시설 가동 강도는 서울 전체 가중평균 대비 어느 수준인가? | 지정한 구의 평균 가동일수·가동시간을 서울 전체 가중평균과 나란히 놓고 편차를 준다. '이 구가 많은 편인가'라는 후속 질문을 한 번의 호출로 끝낸다. | `:dataset`, `:gu` | — |
-| `env_min_days_threshold_census` | 연평균 가동일수가 기준값 이상인 자치구는 몇 곳이고 어디인가? (top-N 절단 없는 전수 목록) | 가동일수 기준값과 최소 기재건수를 받아 조건을 넘는 자치구 전체를 내림차순으로 준다. 반환 행수 자체가 '기준 충족 구 개수'라는 답이 된다. | `:dataset`, `:min_records`, `:min_days` | — |
-| `env_unmapped_share` | 자치구 매핑에 실패한(UNK) 시설 행이 데이터셋별로 얼마나 되나 — 구 단위 분석을 믿어도 되나? | 데이터셋별 미매핑(UNK) 행수와 비율(%)을 준다. 구 단위 집계의 모수 손실이 어느 정도인지 — 이 테이블 기반 결론의 신뢰 한계를 정량화한다. | — | — |
-| `gu_facility_scale_top` | 환경 배출시설(대기+수질)이 가장 많이 가동 중인 자치구는 어디인가? | 환경 배출시설(대기+수질)이 가장 많이 가동 중인 자치구는 어디인가? | `:n` | — |
-| `gu_operation_profile` | 특정 자치구의 대기·수질 배출시설 가동 현황은 어떤가? (단면 조회) | 특정 자치구의 대기·수질 배출시설 가동 현황은 어떤가? (단면 조회) | `:gu` | — |
-| `inv_hours_coverage_asc` | 가동시간 정보가 가장 부실한 자치구는? (일수 커버리지 관점의 지표 교환) | 가동시간 정보가 가장 부실한 자치구는? (일수 커버리지 관점의 지표 교환) | `:dataset`, `:n` | — |
-| `new_days_vs_hours_cross` | 연간 가동일수와 일 가동시간을 함께 보면 어느 구가 집약적인가? | 연간 가동일수와 일 가동시간을 함께 보면 어느 구가 집약적인가? | `:dataset` | — |
+| `air_avg_p50_skew` | 평균과 중앙값 가동일수 괴리가 큰(분포가 왜곡된) 자치구는 어디인가? | `gu`, `avg_operating_days_per_year`, `p50_operating_days`, `avg_minus_p50` | `:n` | 파생 metric(avg−p50 괴리)→gu 랭킹 — 대표값 신뢰도 진단 축 |
+| `air_days_coverage_low_gu` | 가동일수 기록 보유율(커버리지)이 가장 낮은 자치구는 어디인가 — 데이터가 부실한 구는? | `gu`, `days_coverage_pct`, `active_facilities` | `:dataset`, `:n` | 비중(기재율 %)→gu 랭킹, ASC — '절대 시설 수' 랭킹과 절대↔비중 관점 반전, ASC↔DESC 정렬 반전 겸용 |
+| `air_operating_days_bottom_gu` | 대기오염 배출시설 가동일수가 가장 짧게 기록된 자치구는 어디인가? | `gu`, `avg_operating_days_per_year`, `p50_operating_days`, `with_operating_days` | `:n` | metric(연간 가동일수)→gu 랭킹, ASC — 최장↔최단 정렬 반전 |
+| `air_operating_days_top_gu` | 대기오염 배출시설을 연중 가장 오래 가동하는 자치구는 어디인가? | `gu`, `avg_operating_days_per_year`, `p50_operating_days`, `with_operating_days` | `:n` | metric(연간 가동일수)→gu 랭킹, DESC (반전쌍: air_operating_days_bottom_gu) |
+| `air_operating_hours_top_gu` | 대기 배출시설의 하루 가동시간이 가장 긴 자치구는 어디인가? | `gu`, `avg_operating_hours`, `p50_operating_hours`, `with_operating_hours` | `:n` | metric(시간/일)→gu 랭킹, DESC — 가동일수 랭킹과 지표 교환(일수↔시간) |
+| `air_vs_water_facility_cross` | 자치구별로 대기 배출시설과 수질 배출시설 중 어느 쪽이 우세한가? | `gu`, `air_facilities`, `water_facilities`, `air_per_water` | `:n` | 두 축 교차(dataset×gu 피벗) + 대기 우세↔수질 우세 관점 반전(DESC↔ASC) |
+| `dataset_quality_rollup` | 데이터셋(대기 vs 수질)별로 가동 기록의 커버리지와 가중평균 가동일수는 얼마나 다른가? | `dataset_ko`, `active_facilities`, `days_coverage_pct`, `hours_coverage_pct`, `weighted_avg_days` | — | 차원 교환: 구별 랭킹 → 데이터셋별 전체 롤업(거버넌스/품질 관점) |
+| `env_days_band_distribution` | 연간 가동일수 기준으로 자치구들이 고가동/중가동/저가동 구간에 몇 곳씩 분포하는가? | `band`, `n_gu`, `gu_list` | `:hi`, `:lo`, `:dataset` | 분포: metric(가동일수)을 파라미터 경계(:hi/:lo)로 3구간 밴딩 → 구간별 자치구 수·명단 — 랭킹 축이 아닌 히스토그램 축(기존 패턴에 부재) |
+| `env_days_hours_coverage_gap` | 가동일수는 기재하면서 가동시간은 누락하는 — 두 커버리지의 갭이 큰 자치구는 어디인가? | `gu`, `days_coverage_pct`, `hours_coverage_pct`, `coverage_gap_pct` | `:dataset`, `:n` | 파생 metric(일수 기재율 − 시간 기재율 갭)→gu 랭킹 — 기존 단일 커버리지 패턴(air_days_coverage_low_gu, inv_hours_coverage_asc) 두 축의 차이를 새 지표로 결합 |
+| `env_gu_metric_rank_switch` | 가동 강도 지표(연간 가동일수 또는 일 가동시간)를 골라, 데이터셋별로 자치구 top/bottom-N 을 한 패턴으로 뽑으면? | `gu`, `avg_value`, `p50_value`, `n_records` | `:metric`, `:dataset`, `:min_records`, `:dir`, `:n` | 일반화 랭킹: dataset × metric(days/hours) × 정렬 방향 스위치 → gu top/bottom-N — 기존 air_operating_days_top_gu/bottom_gu/air_operating_hours_top_gu 3개 고정 패턴의 파라미터 상위호환 |
+| `env_gu_pair_compare` | 두 자치구의 배출시설 규모·가동 강도·기재율을 나란히 비교하면 어떤가? | `gu`, `active_facilities`, `avg_operating_days_per_year`, `p50_operating_days`, `avg_operating_hours`, `p50_operating_hours`, `days_coverage_pct` | `:dataset`, `:gu_a`, `:gu_b` | 2-gu 병렬 단면: 같은 dataset 안에서 지정한 두 구를 지표 전열로 대조 — 단일 gu 단면(gu_operation_profile)의 비교쌍 확장 |
+| `env_gu_share_of_total` | 서울 전체 환경 배출시설 중 각 자치구가 차지하는 비중(%)은 얼마인가? | `gu`, `active_facilities`, `share_pct` | `:dataset`, `:n` | 비율: gu별 시설 수의 서울 전체 대비 점유율 랭킹 — 기존 gu_facility_scale_top(절대 수)의 절대↔비중 관점 전환 + dataset 센티널 |
+| `env_gu_vs_seoul_baseline` | 특정 자치구의 배출시설 가동 강도는 서울 전체 가중평균 대비 어느 수준인가? | `gu`, `gu_avg_days`, `seoul_wavg_days`, `days_diff`, `gu_avg_hours`, `seoul_wavg_hours`, `hours_diff` | `:dataset`, `:gu` | 단면+기준선 비교: gu 고정 단면에 서울 전체 가중평균(기재건수 가중)을 붙여 편차 산출 — 기존 gu_operation_profile(단면만)의 비교 기준선 확장 |
+| `env_min_days_threshold_census` | 연평균 가동일수가 기준값 이상인 자치구는 몇 곳이고 어디인가? (top-N 절단 없는 전수 목록) | `gu`, `avg_operating_days_per_year`, `p50_operating_days`, `with_operating_days` | `:dataset`, `:min_records`, `:min_days` | 임계값 센서스: metric >= 기준값 필터로 전수 반환 — 랭킹(LIMIT 절단)으로는 답할 수 없는 '몇 곳인가' 질문 축 |
+| `env_unmapped_share` | 자치구 매핑에 실패한(UNK) 시설 행이 데이터셋별로 얼마나 되나 — 구 단위 분석을 믿어도 되나? | `dataset_ko`, `unmapped_rows`, `total_rows`, `unmapped_pct` | — | 거버넌스 단면: dataset별 UNK 행수·전체 행수·미매핑 비율 — 기존 dataset_quality_rollup(기재율)이 다루지 않는 지오 매핑 품질 축 |
+| `gu_facility_scale_top` | 환경 배출시설(대기+수질)이 가장 많이 가동 중인 자치구는 어디인가? | `gu`, `active_facilities` | `:n` | 절대 규모(시설 수)→gu 랭킹, DESC (관점 반전쌍: air_days_coverage_low_gu 의 '비중') |
+| `gu_operation_profile` | 특정 자치구의 대기·수질 배출시설 가동 현황은 어떤가? (단면 조회) | `dataset_ko`, `active_facilities`, `with_operating_days`, `avg_operating_days_per_year`, `p50_operating_days`, `with_operating_hours`, `avg_operating_hours`, `p50_operating_hours` | `:gu` | gu 고정 → dataset×지표 단면 — 랭킹 패턴(지표→구)과 차원 교환(구→지표) |
+| `inv_hours_coverage_asc` | 가동시간 정보가 가장 부실한 자치구는? (일수 커버리지 관점의 지표 교환) | `gu`, `facility_rows`, `with_operating_hours`, `hours_coverage_pct` | `:dataset`, `:n` | 자치구 랭킹 — 가동시간 커버리지 ASC(일수 커버리지 관점의 지표 반전) |
+| `new_days_vs_hours_cross` | 연간 가동일수와 일 가동시간을 함께 보면 어느 구가 집약적인가? | `gu`, `p50_operating_days`, `p50_operating_hours`, `annual_hours_est` | `:dataset` | 자치구 × 두 지표 교차(일수 × 시간 → 연간 가동시간 파생) |
 
 ## d1_flow_monthly (`commerce_flow_monthly`) — 25건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_close_ratio` | 업종별 개업 대비 폐업 배율(교체·수축 강도)은? (건수 랭킹의 관점 반전 — 비율 시선) | 업종별 개업 대비 폐업 배율(교체·수축 강도)은? (건수 랭킹의 관점 반전 — 비율 시선) | `:ym_from`, `:ym_to`, `:min_opened` | — |
-| `category_gu_spread` | 특정 업종의 자치구별 개·폐업 분포는? (gu_category_mix의 축 반전 쌍 — 차원 교환: 업종 고정 × 구 전개) | 특정 업종의 자치구별 개·폐업 분포는? (gu_category_mix의 축 반전 쌍 — 차원 교환: 업종 고정 × 구 전개) | `:category`, `:ym_from`, `:ym_to`, `:n` | — |
-| `churn_ratio_by_dim` | 개업 대비 폐업 배율(교체 강도)이 높은 곳은 — 자치구/대분류/업종 어느 축으로든? (category_close_ratio 의 차원 스위치 일반화 상위호환) | 업종 고정이던 폐업/개업 배율을 자치구·대분류 축으로도 계산해, 교체·수축이 심한 지역/부문을 같은 잣대로 비교하게 한다. 개업·폐업 절대량도 같이 줘서 배율의 표본 크기를 확인할 수 있다. | `:dim`, `:ym_from`, `:ym_to`, `:min_opened` | — |
-| `event_share_by_dim` | 기간 내 개업(또는 폐업)에서 각 자치구/대분류/업종이 차지하는 비중(%)은? (:dim ∈ {gu, major, category}) | 절대 건수 랭킹이 아니라 전체 대비 점유율(share_pct)을 준다. 어떤 축이 흐름을 얼마나 독식하는지(집중도) 판단하는 기초 자료로, 기존 패턴엔 비중 시선이 없었다. | `:dim`, `:event_type`, `:ym_from`, `:ym_to` | — |
-| `flow_trend_monthly` | 서울 전체 월별 개업·폐업·순증 추이는? (시계열) | 서울 전체 월별 개업·폐업·순증 추이는? (시계열) | `:ym_from`, `:ym_to` | — |
-| `gu_category_mix` | 특정 자치구의 업종(중분류)별 개·폐업 구성은? (:param 단면 — 구를 고정하고 업종 축 전개) | 특정 자치구의 업종(중분류)별 개·폐업 구성은? (:param 단면 — 구를 고정하고 업종 축 전개) | `:gu_code`, `:ym_from`, `:ym_to` | — |
-| `gu_net_bottom` | 같은 기간 폐업이 개업을 초과(순감)한 자치구는? (gu_open_topn의 축 반전 쌍 — 정렬·관점 반전) | 같은 기간 폐업이 개업을 초과(순감)한 자치구는? (gu_open_topn의 축 반전 쌍 — 정렬·관점 반전) | `:ym_from`, `:ym_to`, `:n` | — |
-| `gu_open_topn` | 최근 N개월 개업이 가장 많은 자치구 top-N은? (랭킹) | 최근 N개월 개업이 가장 많은 자치구 top-N은? (랭킹) | `:ym_from`, `:ym_to`, `:n` | — |
-| `gu_peak_months` | 특정 자치구에서 개업(또는 폐업)이 가장 몰렸던 달 top-N 은 언제인가? | 구 단위로 이벤트가 폭증했던 시점을 짚어 준다. 재개발·정책 시행 등 지역 이벤트와 대조할 타임스탬프 후보를 뽑는 용도. | `:gu_code`, `:event_type`, `:ym_from`, `:n` | — |
-| `inv_closed_seasonality` | 폐업은 몇 월에 몰리나? (개업 계절성의 관점 반전) | 폐업은 몇 월에 몰리나? (개업 계절성의 관점 반전) | `:ym_from`, `:ym_to` | — |
-| `inv_gu_closed_topn` | 최근 N개월 폐업이 가장 많은 자치구는? (개업 랭킹의 관점 반전) | 최근 N개월 폐업이 가장 많은 자치구는? (개업 랭킹의 관점 반전) | `:ym_from`, `:ym_to`, `:n` | — |
-| `inv_gu_net_top` | 순증이 가장 큰 자치구는? (순감 랭킹의 정렬 반전) | 순증이 가장 큰 자치구는? (순감 랭킹의 정렬 반전) | `:ym_from`, `:ym_to`, `:n` | — |
-| `inv_gu_open_bottom` | 개업이 가장 적은 자치구는? (개업 랭킹의 정렬 반전) | 개업이 가장 적은 자치구는? (개업 랭킹의 정렬 반전) | `:ym_from`, `:ym_to`, `:n` | — |
-| `month_fixed_yearly_trend` | 특정 월(예: 3월)만 놓고 보면 개업(또는 폐업)은 해마다 어떻게 변해왔나? (계절성 드릴다운 — 월 고정 연도 추이) | 계절성 패턴(몇 월에 몰리나)에서 한 발 더 들어가, 그 특정 월이 연도별로 커지는지 죽는지를 준다. '3월 개업 러시가 예전만 못한가' 류 질문에 답한다. | `:month`, `:event_type`, `:y_from` | — |
-| `new_category_closed_topn` | 폐업 절대량이 가장 많은 업종(중분류)은? | 폐업 절대량이 가장 많은 업종(중분류)은? | `:ym_from`, `:ym_to` | — |
-| `new_worst_net_months` | 순감이 가장 심했던 달은 언제인가? | 순감이 가장 심했던 달은 언제인가? | `:ym_from`, `:n` | — |
-| `open_seasonality` | 개업은 몇 월에 몰리나? (월중 계절성 — 시계열 파생) | 개업은 몇 월에 몰리나? (월중 계절성 — 시계열 파생) | `:ym_from`, `:ym_to` | — |
-| `rank_by_dim_generic` | 임의 차원(:dim ∈ {gu, major, category})을 임의 지표(:metric ∈ {opened, closed, net})·임의 방향(:dir ∈ {asc, desc})으로 랭킹하면? (고정 랭킹 패턴군의 파라미터 일반화 상위호환) | 기간 내 개업·폐업·순증 세 지표를 함께 붙인 차원별 랭킹을 한 패턴으로 준다. gu_open_topn/inv_gu_closed_topn/inv_gu_open_bottom/gu_net_bottom/inv_gu_net_top/new_category_closed_topn 이 커버하던 조합 전부와, 기존에 없던 major 랭킹·category 순증 랭킹까지 하나로 흡수한다. | `:dim`, `:ym_from`, `:ym_to`, `:dir`, `:metric`, `:n` | — |
-| `record_cells_topn` | 역대 한 달·한 구·한 업종 기준 최다 개업(또는 폐업) 기록은 언제 어디였나? (단일 셀 극값 랭킹) | 집계로 뭉개지 않은 단일 (연월×자치구×업종) 셀의 역대 최대 기록을 준다. 특정 시기·지역·업종에 몰린 이례적 이벤트(대량 인허가·일괄 폐업 등) 탐지의 출발점. | `:event_type`, `:ym_from`, `:n` | — |
-| `top_gu_trend` | 기간 내 개업(또는 폐업) 상위 :n 개 자치구의 월별 추이를 롱 포맷으로 한 번에 보면? (랭킹→시계열 결합) | '상위 구를 먼저 뽑고 그 구들의 추이를 본다'는 2단 질문을 단일 패턴으로 준다. 멀티 시리즈 차트(구별 라인) 데이터를 한 호출로 뽑는 용도. | `:event_type`, `:ym_from`, `:ym_to`, `:n` | — |
-| `trend_filtered_cum` | 특정 자치구(:gu_code, 'ALL'=서울 전체)·특정 업종(:category, 'ALL'=전체)의 월별 개업·폐업·순증 추이와 누적 순증은? (flow_trend_monthly 의 센티널 필터 일반화 + 누적 곡선) | 서울 전체 고정이던 월별 추이를 자치구·업종 아무 조합으로나 좁혀 보여주고, 기간 시작 시점 대비 누적 순증(cum_net)으로 점포 스톡이 언제부터 불어나거나 줄었는지 변곡을 같이 준다. | `:ym_from`, `:ym_to`, `:gu_code`, `:category` | — |
-| `x_inflow_vs_survival` | 최근 개업이 몰린 업종이 실제로 오래 버티는 업종인가? (유입 열기 × 장기 생존율 교차) | 최근 개업이 몰린 업종이 실제로 오래 버티는 업종인가? (유입 열기 × 장기 생존율 교차) | `:ym_from`, `:years_elapsed` | — |
-| `year_major_cross` | 연도별 × 대분류별 개업(또는 폐업) 건수 크로스탭은? (두 축 교차) | 연도별 × 대분류별 개업(또는 폐업) 건수 크로스탭은? (두 축 교차) | `:event_type`, `:ym_from` | — |
-| `ym_gu_slice` | 특정 연월 × 특정 자치구의 개·폐업 상세 내역은? (:param 단면 조회) | 특정 연월 × 특정 자치구의 개·폐업 상세 내역은? (:param 단면 조회) | `:ym`, `:gu_code` | — |
-| `yoy_yearly_growth` | 연도별 개업(또는 폐업) 규모는 전년 대비 몇 % 늘거나 줄었나? — 자치구·업종은 선택('ALL'=전체) | 연 단위 총량과 전년 대비 증감률(yoy_pct)을 함께 줘서 성장·수축의 속도를 읽게 한다. 기존 시계열 패턴들은 절대량만 주고 증감률 파생이 없었다. | `:event_type`, `:y_from`, `:gu_code`, `:category` | — |
+| `category_close_ratio` | 업종별 개업 대비 폐업 배율(교체·수축 강도)은? (건수 랭킹의 관점 반전 — 비율 시선) | `category`, `opened`, `closed`, `close_per_open` | `:ym_from`, `:ym_to`, `:min_opened` | 업종(category) 랭킹, 폐업/개업 비율 관점(절대 건수와 반대 시선) + 소표본 컷(:min_opened) |
+| `category_gu_spread` | 특정 업종의 자치구별 개·폐업 분포는? (gu_category_mix의 축 반전 쌍 — 차원 교환: 업종 고정 × 구 전개) | `gu_code`, `opened`, `closed` | `:category`, `:ym_from`, `:ym_to`, `:n` | 자치구(gu_code) 전개, 업종(category) 고정 단면 |
+| `churn_ratio_by_dim` | 개업 대비 폐업 배율(교체 강도)이 높은 곳은 — 자치구/대분류/업종 어느 축으로든? (category_close_ratio 의 차원 스위치 일반화 상위호환) | `dim_value`, `opened`, `closed`, `close_per_open` | `:dim`, `:ym_from`, `:ym_to`, `:min_opened` | 차원 스위치(gu/major/category) × 비율(closed/opened) 랭킹 + 소표본 컷(:min_opened) |
+| `event_share_by_dim` | 기간 내 개업(또는 폐업)에서 각 자치구/대분류/업종이 차지하는 비중(%)은? (:dim ∈ {gu, major, category}) | `dim_value`, `event_cnt`, `share_pct` | `:dim`, `:event_type`, `:ym_from`, `:ym_to` | 차원 스위치 × 분포(비중 % — 윈도우 전체합 분모) |
+| `flow_trend_monthly` | 서울 전체 월별 개업·폐업·순증 추이는? (시계열) | `ym`, `opened`, `closed`, `net` | `:ym_from`, `:ym_to` | 시간(ym) × 이벤트(opened/closed 피벗 + net 파생) |
+| `gu_category_mix` | 특정 자치구의 업종(중분류)별 개·폐업 구성은? (:param 단면 — 구를 고정하고 업종 축 전개) | `major`, `category`, `opened`, `closed` | `:gu_code`, `:ym_from`, `:ym_to` | 업종(major×category) 전개, 자치구 고정 단면 |
+| `gu_net_bottom` | 같은 기간 폐업이 개업을 초과(순감)한 자치구는? (gu_open_topn의 축 반전 쌍 — 정렬·관점 반전) | `gu_code`, `opened`, `closed`, `net` | `:ym_from`, `:ym_to`, `:n` | 자치구(gu_code) 랭킹, 순증 관점 ASC(개업랭킹의 반대 시선) |
+| `gu_open_topn` | 최근 N개월 개업이 가장 많은 자치구 top-N은? (랭킹) | `gu_code`, `opened_cnt` | `:ym_from`, `:ym_to`, `:n` | 자치구(gu_code) 랭킹, 개업 관점 DESC |
+| `gu_peak_months` | 특정 자치구에서 개업(또는 폐업)이 가장 몰렸던 달 top-N 은 언제인가? | `ym`, `total` | `:gu_code`, `:event_type`, `:ym_from`, `:n` | 자치구 고정 단면 × 시간(ym) 극값 랭킹 — new_worst_net_months(서울 전체·순증)의 구 스코프·이벤트 파라미터판 |
+| `inv_closed_seasonality` | 폐업은 몇 월에 몰리나? (개업 계절성의 관점 반전) | `month_of_year`, `closed_total` | `:ym_from`, `:ym_to` | 월중(month-of-year) × 폐업 — open_seasonality 의 이벤트 관점 반전 |
+| `inv_gu_closed_topn` | 최근 N개월 폐업이 가장 많은 자치구는? (개업 랭킹의 관점 반전) | `gu_code`, `closed_cnt` | `:ym_from`, `:ym_to`, `:n` | 자치구 랭킹 — 폐업 절대량 DESC(gu_open_topn 개업 관점의 반전) |
+| `inv_gu_net_top` | 순증이 가장 큰 자치구는? (순감 랭킹의 정렬 반전) | `gu_code`, `opened`, `closed`, `net` | `:ym_from`, `:ym_to`, `:n` | 자치구 랭킹 — 순증 DESC(gu_net_bottom 의 정렬 반전) |
+| `inv_gu_open_bottom` | 개업이 가장 적은 자치구는? (개업 랭킹의 정렬 반전) | `gu_code`, `opened_cnt` | `:ym_from`, `:ym_to`, `:n` | 자치구 랭킹 — 개업 ASC(gu_open_topn 의 정렬 반전) |
+| `month_fixed_yearly_trend` | 특정 월(예: 3월)만 놓고 보면 개업(또는 폐업)은 해마다 어떻게 변해왔나? (계절성 드릴다운 — 월 고정 연도 추이) | `y`, `total` | `:month`, `:event_type`, `:y_from` | 월중(month-of-year) 고정 단면 × 연(y) 시계열 — open_seasonality 가 접은 연도 축을 다시 편다 |
+| `new_category_closed_topn` | 폐업 절대량이 가장 많은 업종(중분류)은? | `category`, `closed_cnt` | `:ym_from`, `:ym_to` | 업종 랭킹 — 폐업 절대량 DESC(업종 축의 폐업 관점) |
+| `new_worst_net_months` | 순감이 가장 심했던 달은 언제인가? | `ym`, `opened`, `closed`, `net` | `:ym_from`, `:n` | 시간(ym) 랭킹 — 순증 ASC(시계열의 정렬 반전) |
+| `open_seasonality` | 개업은 몇 월에 몰리나? (월중 계절성 — 시계열 파생) | `month_of_year`, `opened_total` | `:ym_from`, `:ym_to` | 월중(month-of-year, substr(ym,6,2)) × 개업 건수 — 연도 축을 접은 계절성 |
+| `rank_by_dim_generic` | 임의 차원(:dim ∈ {gu, major, category})을 임의 지표(:metric ∈ {opened, closed, net})·임의 방향(:dir ∈ {asc, desc})으로 랭킹하면? (고정 랭킹 패턴군의 파라미터 일반화 상위호환) | `dim_value`, `opened`, `closed`, `net` | `:dim`, `:ym_from`, `:ym_to`, `:dir`, `:metric`, `:n` | 차원 스위치(gu/major/category) × 지표 스위치(opened/closed/net) × 방향 스위치 랭킹 |
+| `record_cells_topn` | 역대 한 달·한 구·한 업종 기준 최다 개업(또는 폐업) 기록은 언제 어디였나? (단일 셀 극값 랭킹) | `ym`, `gu_code`, `major`, `category`, `cnt` | `:event_type`, `:ym_from`, `:n` | 원자 행(ym × gu × major × category) 극값 랭킹 — 집계 없이 cnt DESC |
+| `top_gu_trend` | 기간 내 개업(또는 폐업) 상위 :n 개 자치구의 월별 추이를 롱 포맷으로 한 번에 보면? (랭킹→시계열 결합) | `ym`, `gu_code`, `total` | `:event_type`, `:ym_from`, `:ym_to`, `:n` | 서브쿼리 랭킹으로 상위 구 선별 × 시간(ym) 시계열 전개(롱 포맷: ym×gu 행) |
+| `trend_filtered_cum` | 특정 자치구(:gu_code, 'ALL'=서울 전체)·특정 업종(:category, 'ALL'=전체)의 월별 개업·폐업·순증 추이와 누적 순증은? (flow_trend_monthly 의 센티널 필터 일반화 + 누적 곡선) | `ym`, `opened`, `closed`, `net`, `cum_net` | `:ym_from`, `:ym_to`, `:gu_code`, `:category` | 시간(ym) 시계열 × 선택 필터(gu/category 센티널) + 윈도우 누적(net 러닝합) |
+| `x_inflow_vs_survival` | 최근 개업이 몰린 업종이 실제로 오래 버티는 업종인가? (유입 열기 × 장기 생존율 교차) | `category`, `opened`, `survival_pct`, `durability` | `:ym_from`, `:years_elapsed` | 제품 간 조인 — flow_monthly(유입) × cohort_survival(5년 생존율) 사분면 |
+| `year_major_cross` | 연도별 × 대분류별 개업(또는 폐업) 건수 크로스탭은? (두 축 교차) | `y`, `health`, `industry`, `culture`, `environment` | `:event_type`, `:ym_from` | 연(substr(ym,1,4)) × 대분류(major 피벗), 이벤트 고정 |
+| `ym_gu_slice` | 특정 연월 × 특정 자치구의 개·폐업 상세 내역은? (:param 단면 조회) | `event_type`, `major`, `category`, `cnt` | `:ym`, `:gu_code` | 단면(ym×gu_code 고정) → 이벤트×업종 상세 행 |
+| `yoy_yearly_growth` | 연도별 개업(또는 폐업) 규모는 전년 대비 몇 % 늘거나 줄었나? — 자치구·업종은 선택('ALL'=전체) | `y`, `total`, `prev_total`, `yoy_pct` | `:event_type`, `:y_from`, `:gu_code`, `:category` | 연(substr(ym,1,4)) 시계열 × 윈도우 LAG 전년비 + 선택 필터(gu/category 센티널) |
 
 ## d1_flow_yearly (`commerce_flow_yearly`) — 22건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `compare_two_years_by_gu` | 두 시점(:y1 → :y2) 사이 자치구별 개업(또는 폐업) 증감량·증감률은? :dir ∈ {asc, desc} 로 급증/급감 어느 쪽을 앞세울지 고른다. | 임의 두 해를 골라(예: 팬데믹 전후) 자치구별 개업·폐업이 얼마나 늘고 줄었는지 절대 증감과 %증감률로 랭킹한다. 회복 속도가 빠른 구와 침체가 깊은 구를 한 질의로 가려낸다. | `:y1`, `:y2`, `:event_type`, `:dir`, `:n` | — |
-| `composition_share_by_dim` | 특정 연도·이벤트(개업/폐업)의 구성비는? :dim ∈ {major, category, gu} 로 대분류/중분류/자치구 축을 골라 점유율(%)을 본다. | 한 해의 개업(또는 폐업)이 어떤 대분류/업종/자치구에 몇 %씩 쏠려 있는지 전체 대비 점유율로 준다. 절대량 랭킹과 달리 시장 구성의 집중도·편중을 바로 읽을 수 있다. :dim='gu'일 때 UNK는 제외된다. | `:dim`, `:y`, `:event_type` | — |
-| `cross_gu_category_net` | 특정 연도·대분류에서 자치구×업종 교차로 어느 조합이 가장 수축/성장했나? | 특정 연도·대분류에서 자치구×업종 교차로 어느 조합이 가장 수축/성장했나? | `:y`, `:major`, `:n` | — |
-| `cumulative_net_by_gu` | 특정 자치구의 순증(개업-폐업)을 기간 시작점부터 누적하면 얼마나 쌓였나? (플로우를 스톡 근사로 변환한 누적 곡선) | 연도별 순증에 더해 기간 시작점 기준 누적 순증을 준다. 상권 규모가 구간 동안 실질적으로 몇 건 불었는지/줄었는지를 곡선으로 보여 확장 국면과 수축 국면의 전환점을 짚는다. 누적 기준점은 :y_from이다. | `:gu_code`, `:y_from`, `:y_to` | — |
-| `decade_longrun_flow` | 10년 단위로 본 서울 인허가 개업·폐업의 장기(1900~2025) 물결은? | 10년 단위로 본 서울 인허가 개업·폐업의 장기(1900~2025) 물결은? | — | — |
-| `inv_closed_yearly_top` | 연도별 폐업이 가장 많았던 해는? (개업 관점의 반전) | 연도별 폐업이 가장 많았던 해는? (개업 관점의 반전) | `:n` | — |
-| `new_yoy_growth` | 전년 대비 개업 증가율이 가장 높았던 해는? (절대량 대신 증감률) | 전년 대비 개업 증가율이 가장 높았던 해는? (절대량 대신 증감률) | `:y_from` | — |
-| `peak_year_by_gu` | 지정 기간 안에서 각 자치구의 개업(또는 폐업)이 정점이었던 해는 언제이고 그때 규모는? (구별 전성기/최악기 지도) | 자치구 25곳 각각의 이벤트 정점 연도와 그 해 건수를 한 줄씩 준다. 어느 구가 언제 확장 전성기(또는 폐업 최악기)를 지났는지 비교해 상권 사이클 위상차를 읽는다. | `:event_type`, `:y_from`, `:y_to` | — |
-| `rank_category_closure_pressure` | 특정 연도(선택적으로 특정 자치구 안)에서 개업 대비 폐업 압력(폐업/개업 비율)이 가장 높은 업종은? :gu_code='ALL'이면 서울 전체, 자치구 코드를 주면 그 구 안에서만. :min_opened 미만 소표본 업종은 제외. | 업종별 폐업/개업 비율로 어느 업종의 교체 압력이 높은지 알려준다. 자치구 센티널로 서울 전체와 특정 구를 같은 질의로 오가며, 개업 임계값으로 소표본 왜곡을 걸러 업종 진입 위험도 비교에 쓴다. | `:y`, `:gu_code`, `:min_opened`, `:n` | — |
-| `rank_category_net_bottom` | 특정 연도에 순감(폐업 초과)이 가장 심한 업종은? (rank_category_net_top의 정렬 반전) | 특정 연도에 순감(폐업 초과)이 가장 심한 업종은? (rank_category_net_top의 정렬 반전) | `:y`, `:n` | — |
-| `rank_category_net_top` | 특정 연도에 순증(개업-폐업)이 가장 큰 업종은? | 특정 연도에 순증(개업-폐업)이 가장 큰 업종은? | `:y`, `:n` | — |
-| `rank_gu_by_event_year` | 특정 연도에 개업(또는 폐업)이 가장 많았던 자치구 top-N은? | 특정 연도에 개업(또는 폐업)이 가장 많았던 자치구 top-N은? | `:y`, `:event_type`, `:n` | — |
-| `rank_gu_closure_pressure` | 특정 연도에 개업 대비 폐업 압력(폐업/개업 비율)이 가장 높은 자치구는? (개업량 랭킹의 관점 반전) | 특정 연도에 개업 대비 폐업 압력(폐업/개업 비율)이 가장 높은 자치구는? (개업량 랭킹의 관점 반전) | `:y`, `:n` | — |
-| `rank_gu_event_in_category` | 특정 연도·특정 업종(중분류)에서 개업(또는 폐업)이 가장 많았던 자치구 top-N은? (업종 내 자치구 경쟁 구도) | 한 업종의 이벤트 볼륨이 어느 자치구에 몰리는지 랭킹으로 준다. '2024년 음식점 개업 최다 구'처럼 업종 단위 입지 경쟁 구도를 바로 답한다. | `:y`, `:event_type`, `:category`, `:n` | — |
-| `rank_net_by_dim_window` | 특정 기간(:y_from~:y_to) 누적 순증(개업-폐업)이 가장 크거나(:dir='desc') 가장 작은(:dir='asc') 축값은? :dim ∈ {gu, category, major} 로 자치구/중분류/대분류 축을 선택한다. | 임의 기간을 합산해 어느 자치구/업종/대분류가 누적으로 성장·수축했는지 한 번에 랭킹한다. 단일 연도 노이즈를 기간 합산으로 눌러 구조적 추세를 보는 용도이며, 기존 4개 고정 패턴(업종 top/bottom 등)을 하나로 덮는다. | `:dim`, `:y_from`, `:y_to`, `:dir`, `:n` | — |
-| `slice_flow_cell` | 특정 연도×자치구×업종 한 단면의 개업·폐업 원값은? (:param 단면 조회) | 특정 연도×자치구×업종 한 단면의 개업·폐업 원값은? (:param 단면 조회) | `:y`, `:gu_code`, `:category` | — |
-| `timeseries_category_flow` | 특정 업종의 연도별 개업·폐업·순증 시계열은? (변곡점 탐지) | 특정 업종의 연도별 개업·폐업·순증 시계열은? (변곡점 탐지) | `:category`, `:y_from`, `:y_to` | — |
-| `trend_gu_category_flow` | 특정 자치구×업종(중분류) 조합의 연도별 개업·폐업·순증 추이는? (기존 구-전체/업종-전체 시계열이 못 보는 두 축 동시 고정) | 특정 자치구 안에서 특정 업종만 떼어 본 연도별 개업·폐업·순증 흐름을 준다. '강남구 음식점'처럼 국지 상권×업종 단위의 성장/수축 변곡점 탐지가 가능하다. | `:gu_code`, `:category`, `:y_from`, `:y_to` | — |
-| `trend_gu_share_of_city` | 특정 자치구의 개업(또는 폐업)이 서울 전체에서 차지하는 점유율은 연도별로 커지고 있나 줄고 있나? | 구의 절대 건수와 서울 전체 건수, 점유율(%)을 연도별로 함께 준다. 절대량이 늘어도 점유율이 줄면 상대적 위상 하락 — 구의 시장 내 무게 변화를 추적한다. 전체 분모에는 UNK가 포함된다. | `:gu_code`, `:event_type`, `:y_from`, `:y_to` | — |
-| `trend_one_gu_yearly` | 특정 자치구의 연도별 개업·폐업·순증 추이는? (rank_gu_by_event_year의 축 반전: 구 고정→연도 나열) | 특정 자치구의 연도별 개업·폐업·순증 추이는? (rank_gu_by_event_year의 축 반전: 구 고정→연도 나열) | `:gu_code`, `:y_from`, `:y_to` | — |
-| `unk_share_yearly` | 연도별로 자치구 미상(gu_code='UNK') 레코드가 전체에서 차지하는 비중은? (지역 축 분석의 신뢰 구간 진단) | 자치구를 특정할 수 없는 레코드의 건수와 비중(%)을 연도별로 준다. 자치구 축 분석 결과를 인용하기 전 그 해의 지역 결측이 무시 가능한 수준인지 소비자가 직접 판정할 수 있게 한다. | `:y_from`, `:y_to` | — |
-| `x_flow_open_vs_surviving_stock` | 임의 기간(:y_from~:y_to) 개업 유입이 많았는데 현존 재고가 그에 못 미치는 구×업종 조합은? — 유입 대비 잔존(소모전) 셀 랭킹 | 기간 내 개업 유입량과 현재 살아남은 재고의 비율로 구×업종 조합의 소모도를 랭킹한다. 유입은 큰데 재고가 안 쌓이는(교체만 도는) 셀과 유입이 자산으로 축적되는 셀을 가른다. | `:y_from`, `:y_to`, `:min_opened`, `:n` | — |
+| `compare_two_years_by_gu` | 두 시점(:y1 → :y2) 사이 자치구별 개업(또는 폐업) 증감량·증감률은? :dir ∈ {asc, desc} 로 급증/급감 어느 쪽을 앞세울지 고른다. | `gu_code`, `gu`, `y1_cnt`, `y2_cnt`, `diff`, `pct_change` | `:y1`, `:y2`, `:event_type`, `:dir`, `:n` | 두 연도 단면 비교 → 자치구 랭킹(증감량·증감률). 연속 시계열(new_yoy_growth, 서울 전체)과 달리 임의 두 시점을 자치구 축으로 대조 |
+| `composition_share_by_dim` | 특정 연도·이벤트(개업/폐업)의 구성비는? :dim ∈ {major, category, gu} 로 대분류/중분류/자치구 축을 골라 점유율(%)을 본다. | `dim_value`, `total_cnt`, `share_pct` | `:dim`, `:y`, `:event_type` | 연도·이벤트 고정 → 선택 차원 구성비(점유율 %) 단면. 기존 랭킹 패턴은 절대량만 주고 전체 대비 비중은 없음 |
+| `cross_gu_category_net` | 특정 연도·대분류에서 자치구×업종 교차로 어느 조합이 가장 수축/성장했나? | `gu_code`, `gu`, `category`, `opened`, `closed`, `net` | `:y`, `:major`, `:n` | 연도·대분류 고정 → 자치구 × 중분류 두 축 교차(셀 랭킹) |
+| `cumulative_net_by_gu` | 특정 자치구의 순증(개업-폐업)을 기간 시작점부터 누적하면 얼마나 쌓였나? (플로우를 스톡 근사로 변환한 누적 곡선) | `y`, `opened`, `closed`, `net`, `cum_net` | `:gu_code`, `:y_from`, `:y_to` | 자치구 고정 → 연도 시계열 + 누적 합(러닝 토탈). 연도별 플로우(trend_one_gu_yearly)와 달리 누적 스톡 관점 |
+| `decade_longrun_flow` | 10년 단위로 본 서울 인허가 개업·폐업의 장기(1900~2025) 물결은? | `decade`, `opened`, `closed` | — | 시간축 재버킷(연→10년대) 장기 시계열 |
+| `inv_closed_yearly_top` | 연도별 폐업이 가장 많았던 해는? (개업 관점의 반전) | `y`, `closed_cnt` | `:n` | 연도 랭킹 — 폐업 DESC |
+| `new_yoy_growth` | 전년 대비 개업 증가율이 가장 높았던 해는? (절대량 대신 증감률) | `y`, `opened`, `prev`, `yoy_pct` | `:y_from` | 연도 시계열 — YoY 증감률(절대량 관점의 파생 반전) |
+| `peak_year_by_gu` | 지정 기간 안에서 각 자치구의 개업(또는 폐업)이 정점이었던 해는 언제이고 그때 규모는? (구별 전성기/최악기 지도) | `gu_code`, `gu`, `peak_year`, `peak_cnt` | `:event_type`, `:y_from`, `:y_to` | 자치구별 극값 연도 탐지(윈도우 랭킹) — 기존 패턴엔 없는 '축값별 argmax' 형태 |
+| `rank_category_closure_pressure` | 특정 연도(선택적으로 특정 자치구 안)에서 개업 대비 폐업 압력(폐업/개업 비율)이 가장 높은 업종은? :gu_code='ALL'이면 서울 전체, 자치구 코드를 주면 그 구 안에서만. :min_opened 미만 소표본 업종은 제외. | `category`, `opened`, `closed`, `close_per_open` | `:y`, `:gu_code`, `:min_opened`, `:n` | 연도(±자치구) 고정 → 업종 랭킹(비율 지표). 기존 rank_gu_closure_pressure(자치구 축)의 업종 축 대응 + 소표본 컷 |
+| `rank_category_net_bottom` | 특정 연도에 순감(폐업 초과)이 가장 심한 업종은? (rank_category_net_top의 정렬 반전) | `major`, `category`, `opened`, `closed`, `net` | `:y`, `:n` | 연도 고정 → 업종 랭킹, 순증 오름차순(순감 우선). 축 반전쌍 B의 역방향(정렬 반전) |
+| `rank_category_net_top` | 특정 연도에 순증(개업-폐업)이 가장 큰 업종은? | `major`, `category`, `opened`, `closed`, `net` | `:y`, `:n` | 연도 고정 → 업종(중분류) 랭킹, 순증 내림차순. 축 반전쌍 B의 정방향 |
+| `rank_gu_by_event_year` | 특정 연도에 개업(또는 폐업)이 가장 많았던 자치구 top-N은? | `gu_code`, `gu`, `cnt` | `:y`, `:event_type`, `:n` | 연도·이벤트 고정 → 자치구 랭킹(top-N). 축 반전쌍 A의 정방향(trend_one_gu_yearly와 차원 교환) |
+| `rank_gu_closure_pressure` | 특정 연도에 개업 대비 폐업 압력(폐업/개업 비율)이 가장 높은 자치구는? (개업량 랭킹의 관점 반전) | `gu_code`, `gu`, `opened`, `closed`, `close_per_open` | `:y`, `:n` | 연도 고정 → 자치구 랭킹(절대량 아닌 비율 지표 — 볼륨 랭킹의 관점 반전) |
+| `rank_gu_event_in_category` | 특정 연도·특정 업종(중분류)에서 개업(또는 폐업)이 가장 많았던 자치구 top-N은? (업종 내 자치구 경쟁 구도) | `gu_code`, `gu`, `cnt_sum` | `:y`, `:event_type`, `:category`, `:n` | 연도·업종·이벤트 고정 → 자치구 랭킹. rank_gu_by_event_year는 전 업종 합산이라 업종별 자치구 판도를 못 봄, cross_gu_category_net은 대분류 고정 net 셀 랭킹이라 상이 |
+| `rank_net_by_dim_window` | 특정 기간(:y_from~:y_to) 누적 순증(개업-폐업)이 가장 크거나(:dir='desc') 가장 작은(:dir='asc') 축값은? :dim ∈ {gu, category, major} 로 자치구/중분류/대분류 축을 선택한다. | `dim_value`, `opened`, `closed`, `net` | `:dim`, `:y_from`, `:y_to`, `:dir`, `:n` | 기간 창 합산 → 선택 차원 랭킹(순증 기준, 정렬 방향 선택). 기존 단일 연도 고정 랭킹(rank_category_net_top/bottom)의 기간·차원·방향 일반화 상위호환 |
+| `slice_flow_cell` | 특정 연도×자치구×업종 한 단면의 개업·폐업 원값은? (:param 단면 조회) | `y`, `event_type`, `major`, `category`, `gu_code`, `cnt` | `:y`, `:gu_code`, `:category` | y×gu_code×category 전축 고정 → event_type 2행 단면(저장 grain 그대로) |
+| `timeseries_category_flow` | 특정 업종의 연도별 개업·폐업·순증 시계열은? (변곡점 탐지) | `y`, `opened`, `closed`, `net` | `:category`, `:y_from`, `:y_to` | 업종 고정 → 연도 시계열(시간축 y) |
+| `trend_gu_category_flow` | 특정 자치구×업종(중분류) 조합의 연도별 개업·폐업·순증 추이는? (기존 구-전체/업종-전체 시계열이 못 보는 두 축 동시 고정) | `y`, `opened`, `closed`, `net` | `:gu_code`, `:category`, `:y_from`, `:y_to` | 자치구×업종 두 축 고정 → 연도 시계열(개업/폐업/순증). trend_one_gu_yearly(구만 고정)와 timeseries_category_flow(업종만 고정)의 교차 결측 지점 |
+| `trend_gu_share_of_city` | 특정 자치구의 개업(또는 폐업)이 서울 전체에서 차지하는 점유율은 연도별로 커지고 있나 줄고 있나? | `y`, `gu_cnt`, `city_cnt`, `share_pct` | `:gu_code`, `:event_type`, `:y_from`, `:y_to` | 자치구 고정 → 연도 시계열(전체 대비 점유율 %). 절대량 시계열(trend_one_gu_yearly)의 비중 관점 반전 |
+| `trend_one_gu_yearly` | 특정 자치구의 연도별 개업·폐업·순증 추이는? (rank_gu_by_event_year의 축 반전: 구 고정→연도 나열) | `y`, `opened`, `closed`, `net` | `:gu_code`, `:y_from`, `:y_to` | 자치구 고정 → 연도 시계열(개업/폐업/순증). 축 반전쌍 A의 역방향(차원 교환) |
+| `unk_share_yearly` | 연도별로 자치구 미상(gu_code='UNK') 레코드가 전체에서 차지하는 비중은? (지역 축 분석의 신뢰 구간 진단) | `y`, `total_cnt`, `unk_cnt`, `unk_pct` | `:y_from`, `:y_to` | 연도 시계열 — 데이터 커버리지 품질 지표(UNK 비중 %). 기존 패턴이 전부 UNK를 버리기만 하고 크기를 안 알려주는 결측 지점 |
+| `x_flow_open_vs_surviving_stock` | 임의 기간(:y_from~:y_to) 개업 유입이 많았는데 현존 재고가 그에 못 미치는 구×업종 조합은? — 유입 대비 잔존(소모전) 셀 랭킹 | `gu_code`, `gu`, `category`, `opened_win`, `current_active`, `stock_per_open` | `:y_from`, `:y_to`, `:min_opened`, `:n` | flow(기간 개업 합산, GROUP BY 로 y×event 팬아웃 접기) ⋈ spec(현재 active_cnt), 조인 키 gu_code+category. stock_per_open = 현존 재고 / 기간 개업 — 낮을수록 유입이 재고로 안 쌓이는 고소모 셀. 창 이전 개업분이 재고에 포함되므로 1 초과 가능(러프한 프록시임을 명시) |
 
 ## d1_geo_grid_detail (`commerce_geo_grid_detail`) — 20건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `bbox_area_kpi_summary` | 지도 화면 영역(bbox :min_lat~:max_lat × :min_lng~:max_lng)의 상권 총괄 지표는? (:category='ALL'이면 전 업종, 특정 업종 지정 가능) | 임의 지도 영역의 격자 수·총 활성 인허가·최근 1년 신규 개업 수와 비중·업종 종수를 1행으로 준다. 화면에 보이는 영역의 상권 규모를 즉시 요약하는 대시보드 KPI. 영역에 해당 데이터가 없으면 0/NULL 요약 1행이 반환된다. | `:min_lat`, `:max_lat`, `:min_lng`, `:max_lng`, `:category` | — |
-| `bbox_heatmap_slice` | 지도 화면 영역(bbox) 안에서 특정 업종 히트맵 셀을 밀도순으로 보여줘 (canonical 히트맵 질의) | 지도 화면 영역(bbox) 안에서 특정 업종 히트맵 셀을 밀도순으로 보여줘 (canonical 히트맵 질의) | `:min_lat`, `:max_lat`, `:min_lng`, `:max_lng`, `:category`, `:min_cnt` | — |
-| `category_cooccurrence_grids` | 두 업종(:cat_a, :cat_b)이 함께 밀집한 격자는 어디인가? (각 업종 활성 :min_each 이상, 약한 쪽 기준 상위 :n개 — 동반 상권 탐색) | 지정한 두 업종이 모두 임계 이상으로 존재하는 격자를 약한 쪽 업종 기준 내림차순으로 준다. 병원+약국, 음식+숙박처럼 시너지 업종 쌍이 실제로 공존하는 상권을 찾는 자료. | `:cat_a`, `:cat_b`, `:min_each`, `:n` | — |
-| `category_coverage_breadth` | 업종별로 서울에 얼마나 넓게 퍼져 있나? (존재 격자 수와 셀당 평균 밀도) | 업종별로 서울에 얼마나 넓게 퍼져 있나? (존재 격자 수와 셀당 평균 밀도) | — | — |
-| `category_growth_rank_citywide` | 서울 전역에서 어떤 업종이 최근 1년 신규 개업 비중이 높은가/낮은가? (:dim ∈ {category, major} 차원 선택, :dir ∈ {asc, desc} 정렬 방향) | 소분류(11종) 또는 대분류(4종) 단위로 서울 전체의 활성 인허가 수·최근 1년 신규 개업 수·신규 비중 랭킹을 준다. 어떤 업종이 지금 성장 국면이고 어떤 업종이 정체인지 시장 선택의 첫 단계 자료. | `:dim`, `:dir` | — |
-| `category_spatial_concentration` | 어떤 업종이 공간적으로 집중돼 있고 어떤 업종이 전역에 분산돼 있나? (top10 격자 점유율 비교) | 어떤 업종이 공간적으로 집중돼 있고 어떤 업종이 전역에 분산돼 있나? (top10 격자 점유율 비교) | — | — |
-| `category_specialization_grids` | 특정 업종(:category)의 상권 내 비중(특화도)이 가장 높은 격자는 어디인가? (전체 활성 :min_total 이상 격자만, 상위 :n개) | 선택 업종의 점포 수가 격자 전체 상권에서 차지하는 비중이 높은 순으로 격자를 준다. 절대 밀집이 아니라 전문화(예: 숙박 특화 거리, 약국 특화 블록)된 상권을 찾는 자료. | `:category`, `:min_total`, `:n` | — |
-| `category_top_grids` | 특정 업종이 서울에서 가장 밀집한 500m 격자는 어디인가? (top-N 랭킹) | 특정 업종이 서울에서 가장 밀집한 500m 격자는 어디인가? (top-N 랭킹) | `:category` | — |
-| `densest_grids_dominant_category` | 실점포 기준(무점포 성격의 industry 제외) 서울 최대 상권 격자 top10과 각 격자의 지배 업종은? | 실점포 기준(무점포 성격의 industry 제외) 서울 최대 상권 격자 top10과 각 격자의 지배 업종은? | — | — |
-| `grid_density_distribution` | 서울 상권 격자의 규모 분포는 어떤 모양인가? (:category 선택, 'ALL'=전 업종 — 밀도 5구간별 격자 수·비중) | 격자를 활성 규모 5구간(10 미만~1000 이상)으로 나눠 구간별 격자 수·활성 합계·셀 비중을 준다. 상권이 소수 대형 셀에 쏠렸는지 잔잔하게 퍼졌는지, 업종별 분포 모양 비교의 기초. | `:category` | — |
-| `grid_rank_of_point` | 특정 좌표(:lat, :lng)가 속한 격자의 상권 규모는 서울 전체 격자 중 몇 위, 상위 몇 %인가? | 기준 좌표가 속한 격자(±0.0025도)의 총 활성·신규 개업 수와, 서울 전체 격자 대비 밀도 순위·상위 백분율을 준다. '이 자리 상권이 서울에서 어느 정도 급인가'라는 벤치마크 질의. | `:lat`, `:lng` | — |
-| `growth_grid_rank_generalized` | 특정 업종(:category, 'ALL'=전 업종)의 격자별 신규 개업 비중 상위/하위 랭킹은? (최소 활성 임계 :min_active, 방향 :dir ∈ {asc, desc}, 상위 :n개) | 선택한 업종(또는 전 업종)의 격자별 신규 개업 비중 랭킹을 방향·임계·개수 파라미터로 준다. '음식점 기준 뜨는 상권'처럼 업종을 좁힌 진입/이탈 후보지 탐색이 가능. | `:category`, `:min_active`, `:dir`, `:n` | — |
-| `growth_hotspots_new_open_share` | 최근 1년 신규 개업 비중이 가장 높은(뜨는) 상권 격자는 어디인가? | 최근 1년 신규 개업 비중이 가장 높은(뜨는) 상권 격자는 어디인가? | — | — |
-| `inv_category_fixed_grid_rank` | 이 업종이 가장 밀집한 격자 좌표는? (격자 고정→업종 구성의 차원 교환) | 이 업종이 가장 밀집한 격자 좌표는? (격자 고정→업종 구성의 차원 교환) | `:category`, `:n` | — |
-| `nearest_category_grids` | 내 좌표(:lat, :lng)에서 가장 가까운 특정 업종 밀집 격자(활성 :min_cnt 이상)는 어디인가? (가까운 순 :n개) | 기준 좌표에서 가까운 순으로 조건(업종·최소 활성)을 만족하는 격자와 그 활성·신규 개업 수, 거리 점수(제곱도)를 준다. '내 위치에서 가장 가까운 약국 밀집 지역' 류의 근접 탐색 질의. | `:lat`, `:lng`, `:category`, `:min_cnt`, `:n` | — |
-| `new_grid_diversity` | 업종이 가장 다양하게 섞인 격자는? (단일 업종 밀집과 대비되는 시선) | 업종이 가장 다양하게 섞인 격자는? (단일 업종 밀집과 대비되는 시선) | `:n` | — |
-| `point_area_category_mix` | 특정 좌표 주변(±0.005도, 약 반경 500m+) 상권의 업종 구성과 비중은? | 특정 좌표 주변(±0.005도, 약 반경 500m+) 상권의 업종 구성과 비중은? | `:lat`, `:lng` | — |
-| `stable_low_turnover_zones` | 신규 유입이 가장 적은(정착·저회전) 상권 격자는 어디인가? | 신규 유입이 가장 적은(정착·저회전) 상권 격자는 어디인가? | — | — |
-| `top_grid_per_category` | 업종마다 서울 1위 밀집 격자는 각각 어디인가? (업종×격자 교차) | 업종마다 서울 1위 밀집 격자는 각각 어디인가? (업종×격자 교차) | — | — |
-| `two_area_category_mix_compare` | 두 지역(bbox A: :a_min_lat~:a_max_lat × :a_min_lng~:a_max_lng vs bbox B: :b_min_lat~:b_max_lat × :b_min_lng~:b_max_lng)의 업종 구성은 어떻게 다른가? (예: 강남 vs 홍대) | 임의의 두 지도 영역에 대해 업종별 활성 인허가 수를 나란히 비교해 준다. 후보지 두 곳의 상권 성격 차이(어느 쪽이 어떤 업종이 강한가)를 한 번의 질의로 파악. | `:a_min_lat`, `:a_max_lat`, `:a_min_lng`, `:a_max_lng`, `:b_min_lat`, `:b_max_lat`, `:b_min_lng`, `:b_max_lng` | — |
+| `bbox_area_kpi_summary` | 지도 화면 영역(bbox :min_lat~:max_lat × :min_lng~:max_lng)의 상권 총괄 지표는? (:category='ALL'이면 전 업종, 특정 업종 지정 가능) | `grid_cells`, `total_active`, `opened_1y`, `new_open_share_pct`, `category_kinds` | `:min_lat`, `:max_lat`, `:min_lng`, `:max_lng`, `:category` | 단면 KPI: bbox 총괄 1행 요약(격자 수·총 활성·신규 비중·업종 종수) — bbox_heatmap_slice(셀 목록 반환)의 집계 반전. 지도 화면 요약 카드용 canonical 질의 |
+| `bbox_heatmap_slice` | 지도 화면 영역(bbox) 안에서 특정 업종 히트맵 셀을 밀도순으로 보여줘 (canonical 히트맵 질의) | `grid_lat`, `grid_lng`, `active_cnt`, `opened_last_365d_active` | `:min_lat`, `:max_lat`, `:min_lng`, `:max_lng`, `:category`, `:min_cnt` | bbox+category 파라미터 단면 조회 (설계 문서의 /api/geo/heatmap 과 동일 축) |
+| `category_cooccurrence_grids` | 두 업종(:cat_a, :cat_b)이 함께 밀집한 격자는 어디인가? (각 업종 활성 :min_each 이상, 약한 쪽 기준 상위 :n개 — 동반 상권 탐색) | `grid_lat`, `grid_lng`, `a_cnt`, `b_cnt` | `:cat_a`, `:cat_b`, `:min_each`, `:n` | 교차(업종 쌍): 두 업종 AND 동반 밀집 격자 — 단일 업종 밀집(category_top_grids)·격자 다양성(new_grid_diversity)이 못 답하는 특정 업종 조합의 공존 지역 |
+| `category_coverage_breadth` | 업종별로 서울에 얼마나 넓게 퍼져 있나? (존재 격자 수와 셀당 평균 밀도) | `category`, `grid_cells`, `total_active`, `avg_per_cell` | — | category→커버리지(격자 수)·평균 밀도 — 절대 밀집(top-N) 관점의 반전(퍼짐 vs 쏠림) |
+| `category_growth_rank_citywide` | 서울 전역에서 어떤 업종이 최근 1년 신규 개업 비중이 높은가/낮은가? (:dim ∈ {category, major} 차원 선택, :dir ∈ {asc, desc} 정렬 방향) | `dim_value`, `grid_cells`, `active_cnt`, `opened_1y`, `new_open_share_pct` | `:dim`, `:dir` | 단면+랭킹: 차원 스위치(category\|major)→신규 개업 비중, 정렬 스위치 — 격자 축을 접은 전역 업종 단면. 기존 패턴은 전부 격자 축을 유지하거나(growth_hotspots) 커버리지만 봄(category_coverage_breadth); 업종 단위 성장/정체 랭킹은 미커버였고 major 축 사용 패턴도 최초 |
+| `category_spatial_concentration` | 어떤 업종이 공간적으로 집중돼 있고 어떤 업종이 전역에 분산돼 있나? (top10 격자 점유율 비교) | `category`, `grid_cells`, `total_active`, `top10_active`, `top10_share_pct` | — | category→공간 집중도 지표(파생) — 격자 랭킹의 관점 반전(어디가 최대 ↔ 얼마나 쏠렸나) |
+| `category_specialization_grids` | 특정 업종(:category)의 상권 내 비중(특화도)이 가장 높은 격자는 어디인가? (전체 활성 :min_total 이상 격자만, 상위 :n개) | `grid_lat`, `grid_lng`, `target_cnt`, `total_active`, `target_share_pct` | `:category`, `:min_total`, `:n` | 특화도 랭킹: 격자별 :category 비중 — densest_grids_dominant_category(절대량→지배 업종)의 관점 반전(상대 비중→전문화 상권). category_top_grids 의 절대 밀집과 달리 '그 동네가 그 업종 동네인가'를 봄 |
+| `category_top_grids` | 특정 업종이 서울에서 가장 밀집한 500m 격자는 어디인가? (top-N 랭킹) | `grid_lat`, `grid_lng`, `active_cnt`, `opened_last_365d_active` | `:category` | category→grid 랭킹 (반전쌍 A: point_area_category_mix 와 차원 교환) |
+| `densest_grids_dominant_category` | 실점포 기준(무점포 성격의 industry 제외) 서울 최대 상권 격자 top10과 각 격자의 지배 업종은? | `grid_lat`, `grid_lng`, `total_active`, `dominant_category` | — | grid(전 업종 합)→dominant category — category_top_grids 의 축 반전(업종별 최대 격자 ↔ 격자별 최대 업종) |
+| `grid_density_distribution` | 서울 상권 격자의 규모 분포는 어떤 모양인가? (:category 선택, 'ALL'=전 업종 — 밀도 5구간별 격자 수·비중) | `density_band`, `grid_cells`, `active_total`, `cell_share_pct` | `:category` | 분포: 격자 밀도 히스토그램(5구간 고정 밴드) — 기존 패턴이 모두 랭킹/단면인 데 반해 분포 형태(롱테일 정도)를 요약하는 신규 축 |
+| `grid_rank_of_point` | 특정 좌표(:lat, :lng)가 속한 격자의 상권 규모는 서울 전체 격자 중 몇 위, 상위 몇 %인가? | `grid_lat`, `grid_lng`, `total_active`, `opened_1y`, `density_rank`, `total_grids`, `top_pct` | `:lat`, `:lng` | 단면+백분위: 좌표→해당 격자의 전역 순위/상위% — 기존 랭킹 패턴은 top-N 진입 격자만 노출하고 개별 격자의 위상(내 동네는 몇 위인가)은 미커버 |
+| `growth_grid_rank_generalized` | 특정 업종(:category, 'ALL'=전 업종)의 격자별 신규 개업 비중 상위/하위 랭킹은? (최소 활성 임계 :min_active, 방향 :dir ∈ {asc, desc}, 상위 :n개) | `grid_lat`, `grid_lng`, `active_cnt`, `opened_1y`, `new_open_share_pct` | `:category`, `:min_active`, `:dir`, `:n` | grid 랭킹 일반화: growth_hotspots_new_open_share·stable_low_turnover_zones 두 고정 패턴의 상위호환 — 고정 임계 100→:min_active, 고정 방향→:dir 스위치, 전 업종 고정→:category 센티널. 업종별 뜨는/정착 상권 조회가 새로 열림 |
+| `growth_hotspots_new_open_share` | 최근 1년 신규 개업 비중이 가장 높은(뜨는) 상권 격자는 어디인가? | `grid_lat`, `grid_lng`, `active_cnt`, `opened_1y`, `new_open_share_pct` | — | grid→신규비중 desc — 반전쌍 B의 정방향(뜨는 상권). 시간축 없는 스냅샷이라 opened_last_365d 비중이 추이 대용 |
+| `inv_category_fixed_grid_rank` | 이 업종이 가장 밀집한 격자 좌표는? (격자 고정→업종 구성의 차원 교환) | `grid_lat`, `grid_lng`, `active_cnt`, `opened_last_365d_active` | `:category`, `:n` | 업종 고정(:category) → 격자 랭킹 — point_area_category_mix 의 역방향 |
+| `nearest_category_grids` | 내 좌표(:lat, :lng)에서 가장 가까운 특정 업종 밀집 격자(활성 :min_cnt 이상)는 어디인가? (가까운 순 :n개) | `grid_lat`, `grid_lng`, `active_cnt`, `opened_last_365d_active`, `sq_deg_dist` | `:lat`, `:lng`, `:category`, `:min_cnt`, `:n` | 근접 랭킹: 좌표→거리순 격자. 기존 point_area_category_mix 는 고정 ±0.005 창 안만 보지만, 이건 제곱거리 정렬이라 창 밖 원거리까지 최근접 N개를 항상 반환(빈 창 문제 없음) |
+| `new_grid_diversity` | 업종이 가장 다양하게 섞인 격자는? (단일 업종 밀집과 대비되는 시선) | `grid_lat`, `grid_lng`, `category_kinds`, `active_cnt` | `:n` | 격자 랭킹 — 업종 종수(밀도 관점의 대안 지표) |
+| `point_area_category_mix` | 특정 좌표 주변(±0.005도, 약 반경 500m+) 상권의 업종 구성과 비중은? | `major`, `category`, `active_cnt`, `opened_last_365d_active`, `share_pct` | `:lat`, `:lng` | grid(좌표)→category 구성 — 반전쌍 A: category_top_grids 의 차원 교환(X별 Y ↔ Y별 X). 좌표 등호 대신 BETWEEN(부동소수 함정 회피) |
+| `stable_low_turnover_zones` | 신규 유입이 가장 적은(정착·저회전) 상권 격자는 어디인가? | `grid_lat`, `grid_lng`, `active_cnt`, `opened_1y`, `new_open_share_pct` | — | 반전쌍 B의 역방향: growth-hotspots 와 정렬 반전(desc↔asc) = 관점 반전(뜨는↔정착) |
+| `top_grid_per_category` | 업종마다 서울 1위 밀집 격자는 각각 어디인가? (업종×격자 교차) | `category`, `grid_lat`, `grid_lng`, `active_cnt` | — | 두 축 교차: category별 grid 1위 (윈도우 함수 PARTITION BY category) |
+| `two_area_category_mix_compare` | 두 지역(bbox A: :a_min_lat~:a_max_lat × :a_min_lng~:a_max_lng vs bbox B: :b_min_lat~:b_max_lat × :b_min_lng~:b_max_lng)의 업종 구성은 어떻게 다른가? (예: 강남 vs 홍대) | `category`, `area_a_cnt`, `area_b_cnt` | `:a_min_lat`, `:a_max_lat`, `:a_min_lng`, `:a_max_lng`, `:b_min_lat`, `:b_max_lat`, `:b_min_lng`, `:b_max_lng` | 교차 비교: 두 bbox × category 조건부 집계 — 단일 영역 구성(point_area_category_mix)의 2영역 나란히 확장. 상권 A/B 비교라는 새 질문 형태 |
 
 ## d1_geo_grid_overview (`commerce_geo_grid_overview`) — 21건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `bbox_major_mix_summary` | 지도 화면(bbox) 안 상권의 대분류 구성은? (뷰포트 전체를 업종별로 집계한 요약 패널) | bbox 안의 대분류별 격자 수·활성 업소 총량·최근 1년 개업 수·신규율을 준다. 지도 화면 옆 요약 패널이나 '이 일대는 무슨 동네인가' 질문에 바로 쓰는 구성 요약. | `:min_lat`, `:max_lat`, `:min_lng`, `:max_lng` | — |
-| `bbox_viewport_heatmap` | 지도 화면(bbox) 안에서 특정 대분류 업소가 많은 격자는? (뷰포트 히트맵 단면) | 지도 화면(bbox) 안에서 특정 대분류 업소가 많은 격자는? (뷰포트 히트맵 단면) | `:major`, `:min_lat`, `:max_lat`, `:min_lng`, `:max_lng` | — |
-| `citywide_major_summary` | 서울 전체에서 대분류별 규모(절대)와 신규 유입률(비중)은 어떻게 다른가? | 서울 전체에서 대분류별 규모(절대)와 신규 유입률(비중)은 어떻게 다른가? | — | — |
-| `density_histogram` | 격자 밀집도는 어떤 분포인가? (:bw 단위 구간별 격자 수 히스토그램, :major='ALL' 또는 특정 대분류) | 격자별 활성 업소 총량을 :bw 폭 구간으로 나눠 구간별 격자 수와 업소 합계를 준다. 상권 밀도의 롱테일 정도, 임계값 설계(min_active 등)의 근거 자료. | `:major`, `:bw` | — |
-| `frozen_cells_zero_new` | 규모(:min_active 이상)가 있는데 최근 1년 신규 개업이 0건인 격자×대분류 셀은 어디인가? (:major='ALL' 또는 특정 대분류) | 신규 유입이 완전히 끊긴 업종·지역 셀을 규모 순으로 준다. 비율로는 묻히는 '완전 동결' 지점을 대분류까지 특정해 쇠퇴 경보나 규제·입지 요인 조사 대상 선정에 쓴다. | `:min_active`, `:major`, `:n` | — |
-| `grid_major_crosstab` | 밀집 상위 격자의 업종(대분류) 구성은 어떻게 다른가? (격자×대분류 교차) | 밀집 상위 격자의 업종(대분류) 구성은 어떻게 다른가? (격자×대분류 교차) | — | — |
-| `grid_rank_metric_switch` | 격자 랭킹을 지표(:metric ∈ active/opened/new_ratio)·방향(:dir ∈ asc/desc)·대분류(:major, 'ALL'=전체)·최소규모(:min_active)로 바꿔가며 뽑으면? (기존 고정 랭킹 패턴들의 일반화) | 하나의 패턴으로 밀집(재고)·신규 개업 절대량·신규율 세 지표의 상·하위 격자 랭킹을 대분류 필터와 함께 제공한다. 뜨는/정체/밀집 상권 질문을 조합 하나로 커버하는 범용 랭커. | `:major`, `:min_active`, `:dir`, `:metric`, `:n` | — |
-| `hotspot_top_grids` | 서울에서 업소가 가장 밀집한 500m 격자는 어디인가? (전 업종 합산 top-N) | 서울에서 업소가 가장 밀집한 500m 격자는 어디인가? (전 업종 합산 top-N) | — | — |
-| `inv_growth_ratio_top` | 기존 규모 대비 신규 개업 비중이 높은(성장 중인) 격자는? (절대 밀도 관점의 반전) | 기존 규모 대비 신규 개업 비중이 높은(성장 중인) 격자는? (절대 밀도 관점의 반전) | `:min_active`, `:n` | — |
-| `major_pair_ratio_grids` | 대분류 A(:major_a)가 B(:major_b)보다 상대적으로 발달한 격자는 어디인가? (B 최소 :min_b 이상인 격자에서 A/B 비율 상위) | 격자별로 두 대분류 활성 업소 수와 A/B 배율을 계산해 A가 상대 우위인 지역을 준다. '의료 대비 문화가 강한 동네' 같은 업종 간 대비 지도를 만든다. | `:major_a`, `:major_b`, `:min_b`, `:n` | — |
-| `major_share_specialized_grids` | 특정 대분류(:major)가 상권 구성의 :min_share 이상을 차지하는 '특화 격자'는 어디인가? (규모 :min_total 이상만) | 격자별 총 활성 업소 중 지정 대분류의 점유율을 계산해 임계 이상인 특화 상권을 점유율 순으로 준다. '문화 특화 거리', '의료 타운' 같은 업종 클러스터 발굴용. | `:major`, `:min_total`, `:min_share`, `:n` | — |
-| `major_top_grids` | 특정 대분류(예: 문화) 업소가 가장 밀집한 격자는 어디인가? | 특정 대분류(예: 문화) 업소가 가장 밀집한 격자는 어디인가? | `:major` | — |
-| `new_major_fixed_grid_rank` | 이 대분류가 가장 밀집한 격자는? (대분류 고정 단면) | 이 대분류가 가장 밀집한 격자는? (대분류 고정 단면) | `:major`, `:n` | — |
-| `per_major_argmax_grid` | 대분류마다 최대 밀집 격자(1위 상권)는 각각 어디인가? | 대분류마다 최대 밀집 격자(1위 상권)는 각각 어디인가? | `:k` | — |
-| `point_major_mix` | 특정 지점(좌표)의 격자에는 어떤 대분류가 얼마나 있나? (상권 구성) | 특정 지점(좌표)의 격자에는 어떤 대분류가 얼마나 있나? (상권 구성) | `:lat`, `:lng` | — |
-| `radius_top_grids` | 지정 좌표(:lat,:lng) 주변 반경(:r, 도 단위) 안에서 업소가 가장 밀집한 격자는 어디인가? (내 위치 주변 상권 탐색) | 임의 지점 주변 반경 내 격자별 활성 업소 총량과 최근 1년 개업 수를 밀집 순으로 준다. '이 근처에서 상권 중심이 어디인가'에 답하는 지역 탐색 기초 질의. | `:lat`, `:r`, `:lng`, `:n` | — |
-| `regrid_coarse_hotspots` | 셀 크기를 :cell(도 단위)로 키워 광역 단위로 보면 어디가 최대 밀집권인가? (지도 줌아웃용 재격자화) | 0.005도 격자를 :cell 크기 광역 셀로 묶어 셀 중심좌표·포함 격자 수·활성 총량·개업 수를 밀집 순으로 준다. 줌 레벨별 히트맵과 권역 단위 비교의 재료. | `:cell`, `:n` | — |
-| `rising_grids_new_ratio` | 최근 1년 신규 개업 비율이 가장 높은 '뜨는' 격자는 어디인가? | 최근 1년 신규 개업 비율이 가장 높은 '뜨는' 격자는 어디인가? | `:min_active` | — |
-| `stagnant_grids_new_ratio` | 규모는 있는데 신규 유입이 끊긴 '정체' 격자는 어디인가? | 규모는 있는데 신규 유입이 끊긴 '정체' 격자는 어디인가? | `:min_active` | — |
-| `top1pct_concentration` | 서울 상권은 얼마나 소수 격자에 집중돼 있나? (상위 1% 셀 점유율) | 서울 상권은 얼마나 소수 격자에 집중돼 있나? (상위 1% 셀 점유율) | `:top_n` | — |
-| `two_zone_compare` | 두 상권(A: :lat_a,:lng_a / B: :lat_b,:lng_b, 반경 :r)의 규모·신규율을 나란히 비교하면? (예: 강남역 vs 홍대) | 두 좌표 반경 구역의 격자 수·활성 업소 총량·최근 1년 개업 수·신규율을 한 결과에 2행으로 준다. 출점 후보지 두 곳을 정량 비교하는 의사결정용. | `:lat_a`, `:r`, `:lng_a`, `:lat_b`, `:lng_b` | — |
+| `bbox_major_mix_summary` | 지도 화면(bbox) 안 상권의 대분류 구성은? (뷰포트 전체를 업종별로 집계한 요약 패널) | `major`, `grid_cells`, `active_total`, `opened_365d`, `new_ratio` | `:min_lat`, `:max_lat`, `:min_lng`, `:max_lng` | 공간 bbox→major 구성 단면 — bbox_viewport_heatmap(격자별 행, 단일 대분류)과 달리 화면 전체를 대분류 4행으로 요약 |
+| `bbox_viewport_heatmap` | 지도 화면(bbox) 안에서 특정 대분류 업소가 많은 격자는? (뷰포트 히트맵 단면) | `grid_lat`, `grid_lng`, `major`, `active_cnt`, `opened_last_365d_active` | `:major`, `:min_lat`, `:max_lat`, `:min_lng`, `:max_lng` | 공간 bbox + major 파라미터 단면 — /api/geo/heatmap/overview 대응 |
+| `citywide_major_summary` | 서울 전체에서 대분류별 규모(절대)와 신규 유입률(비중)은 어떻게 다른가? | `major`, `grid_cells`, `active_total`, `opened_365d`, `new_ratio` | — | major 단일 축 전체 단면 — 절대값(active_total)과 비율(new_ratio) 동시 제시 |
+| `density_histogram` | 격자 밀집도는 어떤 분포인가? (:bw 단위 구간별 격자 수 히스토그램, :major='ALL' 또는 특정 대분류) | `bin_start`, `bin_end`, `grid_cells`, `active_total` | `:major`, `:bw` | grid 밀집도→분포(히스토그램) — 랭킹·집중도 스칼라(top1pct_concentration)가 못 주는 전체 분포 형상 |
+| `frozen_cells_zero_new` | 규모(:min_active 이상)가 있는데 최근 1년 신규 개업이 0건인 격자×대분류 셀은 어디인가? (:major='ALL' 또는 특정 대분류) | `grid_lat`, `grid_lng`, `major`, `active_cnt` | `:min_active`, `:major`, `:n` | grid×major 셀 단면 — 비율 asc(stagnant_grids_new_ratio, 격자 합산)와 달리 '정확히 0'인 셀을 대분류 단위로 짚음 |
+| `grid_major_crosstab` | 밀집 상위 격자의 업종(대분류) 구성은 어떻게 다른가? (격자×대분류 교차) | `grid_lat`, `grid_lng`, `active_total`, `health_cnt`, `industry_cnt`, `culture_cnt`, `environment_cnt` | — | grid × major 두 축 교차(피벗) — 행=격자, 열=대분류 |
+| `grid_rank_metric_switch` | 격자 랭킹을 지표(:metric ∈ active/opened/new_ratio)·방향(:dir ∈ asc/desc)·대분류(:major, 'ALL'=전체)·최소규모(:min_active)로 바꿔가며 뽑으면? (기존 고정 랭킹 패턴들의 일반화) | `grid_lat`, `grid_lng`, `active_total`, `opened_365d`, `new_ratio` | `:major`, `:min_active`, `:dir`, `:metric`, `:n` | grid→랭킹, 지표·방향·대분류 스위치 — hotspot_top_grids/major_top_grids/rising·stagnant_grids_new_ratio 의 파라미터 상위호환 |
+| `hotspot_top_grids` | 서울에서 업소가 가장 밀집한 500m 격자는 어디인가? (전 업종 합산 top-N) | `grid_lat`, `grid_lng`, `active_total`, `opened_365d` | — | grid(격자)→랭킹 desc, major 합산 소거 — top-N 기본형 |
+| `inv_growth_ratio_top` | 기존 규모 대비 신규 개업 비중이 높은(성장 중인) 격자는? (절대 밀도 관점의 반전) | `grid_lat`, `grid_lng`, `major`, `active_cnt`, `opened_last_365d_active`, `growth_pct` | `:min_active`, `:n` | 격자 랭킹 — 신규/재고 비율(active_cnt 절대량 관점의 반전) |
+| `major_pair_ratio_grids` | 대분류 A(:major_a)가 B(:major_b)보다 상대적으로 발달한 격자는 어디인가? (B 최소 :min_b 이상인 격자에서 A/B 비율 상위) | `grid_lat`, `grid_lng`, `a_active`, `b_active`, `a_per_b` | `:major_a`, `:major_b`, `:min_b`, `:n` | grid→두 대분류 비율(A/B) 랭킹 — 단일 대분류 절대량/점유율 패턴이 못 주는 업종 간 상대 지형 |
+| `major_share_specialized_grids` | 특정 대분류(:major)가 상권 구성의 :min_share 이상을 차지하는 '특화 격자'는 어디인가? (규모 :min_total 이상만) | `grid_lat`, `grid_lng`, `total_active`, `major_active`, `major_share` | `:major`, `:min_total`, `:min_share`, `:n` | grid→대분류 점유율(비율) 랭킹 — 절대량 랭킹(major_top_grids)과 달리 '그 격자 안에서의 비중'으로 특화지역을 찾음 |
+| `major_top_grids` | 특정 대분류(예: 문화) 업소가 가장 밀집한 격자는 어디인가? | `grid_lat`, `grid_lng`, `active_cnt`, `opened_last_365d_active` | `:major` | major→grid (대분류 고정, 격자 랭킹) — point_major_mix 와 축 반전 쌍 |
+| `new_major_fixed_grid_rank` | 이 대분류가 가장 밀집한 격자는? (대분류 고정 단면) | `grid_lat`, `grid_lng`, `active_cnt`, `opened_last_365d_active` | `:major`, `:n` | 대분류 고정(:major) → 격자 랭킹 |
+| `per_major_argmax_grid` | 대분류마다 최대 밀집 격자(1위 상권)는 각각 어디인가? | `major`, `grid_lat`, `grid_lng`, `active_cnt`, `opened_last_365d_active` | `:k` | major별 그룹 내 grid argmax(윈도우) — 4개 대분류를 한 번에 비교 |
+| `point_major_mix` | 특정 지점(좌표)의 격자에는 어떤 대분류가 얼마나 있나? (상권 구성) | `major`, `active_cnt`, `opened_365d` | `:lat`, `:lng` | grid(지점)→major 구성 — major_top_grids 의 차원 교환(반전) 쌍 |
+| `radius_top_grids` | 지정 좌표(:lat,:lng) 주변 반경(:r, 도 단위) 안에서 업소가 가장 밀집한 격자는 어디인가? (내 위치 주변 상권 탐색) | `grid_lat`, `grid_lng`, `active_total`, `opened_365d` | `:lat`, `:r`, `:lng`, `:n` | point+반경 창→grid 랭킹 — point_major_mix(고정 반셀 허용오차·구성)와 달리 반경이 파라미터고 출력이 격자 랭킹 |
+| `regrid_coarse_hotspots` | 셀 크기를 :cell(도 단위)로 키워 광역 단위로 보면 어디가 최대 밀집권인가? (지도 줌아웃용 재격자화) | `cell_lat`, `cell_lng`, `grid_cells`, `active_total`, `opened_365d` | `:cell`, `:n` | grid→coarse cell 재집계 랭킹 — 500m 고정 해상도 패턴들과 달리 해상도 자체가 파라미터 |
+| `rising_grids_new_ratio` | 최근 1년 신규 개업 비율이 가장 높은 '뜨는' 격자는 어디인가? | `grid_lat`, `grid_lng`, `active_total`, `opened_365d`, `new_ratio` | `:min_active` | grid→신규율(비중) desc — stagnant-grids 와 정렬·관점 반전 쌍(뜨는↔정체, 절대값 아닌 비율) |
+| `stagnant_grids_new_ratio` | 규모는 있는데 신규 유입이 끊긴 '정체' 격자는 어디인가? | `grid_lat`, `grid_lng`, `active_total`, `opened_365d`, `new_ratio` | `:min_active` | grid→신규율 asc — rising-grids 의 desc↔asc 반전(뜨는↔정체) |
+| `top1pct_concentration` | 서울 상권은 얼마나 소수 격자에 집중돼 있나? (상위 1% 셀 점유율) | `total_grids`, `citywide_active`, `top_active`, `top_share` | `:top_n` | grid 랭킹 → 전체 대비 비중(집중도) 스칼라 — 절대↔비중 관점 전환 |
+| `two_zone_compare` | 두 상권(A: :lat_a,:lng_a / B: :lat_b,:lng_b, 반경 :r)의 규모·신규율을 나란히 비교하면? (예: 강남역 vs 홍대) | `zone`, `grid_cells`, `active_total`, `opened_365d`, `new_ratio` | `:lat_a`, `:r`, `:lng_a`, `:lat_b`, `:lng_b` | 두 공간 창 교차 → zone 단면 비교 — 단일 지점/랭킹 패턴들이 못 주는 A/B 병렬 비교 |
 
 ## d1_gu_specialization (`commerce_gu_specialization`) — 22건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_geo_spread` | 어떤 업종이 지역적으로 가장 편중돼 있나? (업종별 LQ 격차 랭킹) | 어떤 업종이 지역적으로 가장 편중돼 있나? (업종별 LQ 격차 랭킹) | — | — |
-| `category_lq_band_census` | 각 업종은 25개 구 중 몇 곳에서 특화(LQ>=:hi)·중립·결핍(LQ<=:lo) 상태인가? (업종별 LQ 밴드 분포) | 업종별로 특화 지역이 넓게 퍼졌는지(다수 구 특화) 소수 구에 집중됐는지, 결핍 구가 몇 곳인지를 준다. 프랜차이즈 확장 여지(결핍 구 수)와 경쟁 밀집도 판단 자료. | `:hi`, `:lo` | — |
-| `category_pair_colocation` | 두 업종(:cat_a, :cat_b)이 동시에 특화된 자치구는 어디인가? (둘 중 낮은 LQ가 높은 순 = 동반 특화 랭킹) | 보완 관계 업종 쌍(예: 숙박+식품)이 함께 강한 구의 순위를 준다. 두 업종의 시너지가 필요한 업태(예: 관광 상권 대상 사업)의 입지 선정 자료. | `:cat_b`, `:cat_a`, `:n` | — |
-| `category_top_gus` | 이 업종은 어느 구에 특화돼 있나? (:category 단면, 축 반전) | 이 업종은 어느 구에 특화돼 있나? (:category 단면, 축 반전) | `:category` | — |
-| `category_volume_gus` | 이 업종의 절대 규모가 가장 큰 구는? (특화와 규모의 괴리 확인, 축 반전) | 이 업종의 절대 규모가 가장 큰 구는? (특화와 규모의 괴리 확인, 축 반전) | `:category` | — |
-| `gu_composition` | 이 구의 업종 구성(절대 규모·비중)은 어떻게 되나? (:gu 단면) | 이 구의 업종 구성(절대 규모·비중)은 어떻게 되나? (:gu 단면) | `:gu` | — |
-| `gu_concentration_hhi` | 어느 구가 소수 업종에 편중됐고 어느 구가 균형 잡혔나? (HHI 집중도 랭킹) | 어느 구가 소수 업종에 편중됐고 어느 구가 균형 잡혔나? (HHI 집중도 랭킹) | — | — |
-| `gu_major_mix` | 구별 대분류(산업/보건/문화/환경) 구성은 어떻게 다른가? (구×대분류 피벗) | 구별 대분류(산업/보건/문화/환경) 구성은 어떻게 다른가? (구×대분류 피벗) | — | — |
-| `gu_pair_profile_diff` | 두 자치구(:gu_a vs :gu_b)의 업종 특화 프로필은 어디서 가장 갈리나? (11개 업종 LQ 나란히 비교) | 두 구의 업종별 LQ·활성 수를 나란히 놓고 격차가 큰 업종 순으로 준다. 출점 후보지 2곳을 놓고 상권 성격 차이를 따질 때의 기초 자료. | `:gu_a`, `:gu_b` | — |
-| `gu_profile_similarity` | 이 자치구(:gu)와 업종 특화 프로필이 가장 비슷한 구는 어디인가? (11개 업종 LQ 거리 기준 유사 구 top-N) | 기준 구와 업종 구성 성격이 가장 닮은 자치구 순위를 준다. 특정 구에서 검증된 업태를 비슷한 상권 성격의 구로 확장할 때 후보지 선별 자료. | `:gu`, `:n` | — |
-| `gu_rank_r_category` | 25개 구 각각의 :r위 업종은 무엇인가? (:metric ∈ {share=구내 비중, lq=특화도} 기준, 전 구 한눈에) | 모든 자치구의 대표 업종(1위) 또는 차순위 업종을 한 번에 준다. 비중 기준이면 상권의 주력 업종 지도, LQ 기준이면 구별 특화 간판 업종 지도가 된다. | `:metric`, `:r` | — |
-| `gu_top_specialized` | 이 자치구는 어떤 업종에 특화됐나? (:gu 단면, LQ 랭킹) | 이 자치구는 어떤 업종에 특화됐나? (:gu 단면, LQ 랭킹) | `:gu` | — |
-| `inv_lq_lowest` | 이 업종이 상대적으로 가장 결핍된(LQ 최저) 자치구는? (특화 랭킹의 정렬 반전) | 이 업종이 상대적으로 가장 결핍된(LQ 최저) 자치구는? (특화 랭킹의 정렬 반전) | `:category`, `:n` | — |
-| `major_share_gu_ranking` | 이 대분류(:major) 계열의 비중이 가장 높은 자치구는 어디인가? (구별 대분류 점유율 랭킹) | 선택한 대분류가 각 구 상권에서 차지하는 점유율(%)과 절대 규모 순위를 준다. 예: '보건 계열 의존도가 가장 높은 구'처럼 업종 하나가 아닌 계열 단위의 상권 성격 비교. | `:major`, `:n` | — |
-| `new_gu_fixed_lq_asc` | 이 자치구에서 상대적으로 부족한 업종은? (구의 특화 상위 랭킹의 반전) | 이 자치구에서 상대적으로 부족한 업종은? (구의 특화 상위 랭킹의 반전) | `:gu` | — |
-| `new_lq_vs_volume_quadrant` | 특화도는 높은데 절대 규모는 작은 업종×구 조합은? (두 지표 사분면) | 특화도는 높은데 절대 규모는 작은 업종×구 조합은? (두 지표 사분면) | `:n` | — |
-| `niche_vs_anchor` | 특화 업종(LQ>=1.5) 중 대규모 앵커형과 소규모 니치형은 각각 어디인가? (LQ×규모 두 축 교차) | 특화 업종(LQ>=1.5) 중 대규모 앵커형과 소규모 니치형은 각각 어디인가? (LQ×규모 두 축 교차) | — | — |
-| `seoul_category_baseline` | 서울 전체의 업종 구성(각 업종이 전체 활성 업소에서 차지하는 비중)은 어떻게 되나? (LQ 해석의 기준 분포) | 각 업종의 서울 전체 규모와 점유율을 준다. 모든 LQ·share 수치를 해석할 때의 기준선(분모)이며, '이 구의 비중 7%가 높은 건가?'에 답하는 비교 잣대. | `:n` | — |
-| `seoul_top_lq` | 서울 전체에서 가장 강한 특화(구×업종 조합) top-N은? | 서울 전체에서 가장 강한 특화(구×업종 조합) top-N은? | — | — |
-| `spec_rank_explorer` | 서울 전체 구×업종 조합에서 (:major 대분류로 좁혀서, 활성 :min_cnt 이상 소표본 컷 후) LQ 상위/하위 :n은? (:major='ALL'이면 전체, :dir ∈ {desc=특화 top, asc=결핍 top}) | 노이즈 컷과 대분류 범위를 소비자가 정한 뒤 서울 전역에서 가장 특화된(또는 가장 결핍된) 구×업종 조합의 순위·규모·구내 비중을 준다. 특화 지도 훑기와 공백 상권 탐색을 한 패턴으로 해결한다. | `:major`, `:min_cnt`, `:dir`, `:n` | — |
-| `x_spec_flow_momentum` | 지금 특화된(LQ>=:min_lq) 구×업종 조합은 최근 몇 년간 순유입이 계속됐나? — 강화 중인 특화 vs 쇠퇴 중인 특화 판별 | 특화 임계값을 넘는 구×업종 조합 각각의 현재 LQ·재고와 지정 기간 누적 개업·폐업·순증을 준다. 특화가 유입으로 강화되는 중인지, 유출로 무너지는 중인지 방향성을 가른다. | `:min_lq`, `:y_from`, `:y_to`, `:n` | — |
-| `x_spec_vs_lifespan` | 특화된 업종은 그 지역에서 더 오래 버티나? (특화도 × 수명 교차) | 특화된 업종은 그 지역에서 더 오래 버티나? (특화도 × 수명 교차) | `:category`, `:min_closed` | — |
+| `category_geo_spread` | 어떤 업종이 지역적으로 가장 편중돼 있나? (업종별 LQ 격차 랭킹) | `category_ko`, `gu_cnt`, `lq_min`, `lq_max`, `lq_range`, `seoul_cnt` | — | 업종 랭킹 top-N (구간 LQ 격차 = 지리적 편중도). |
+| `category_lq_band_census` | 각 업종은 25개 구 중 몇 곳에서 특화(LQ>=:hi)·중립·결핍(LQ<=:lo) 상태인가? (업종별 LQ 밴드 분포) | `category_ko`, `major_ko`, `specialized_gus`, `neutral_gus`, `deficient_gus`, `total_gus` | `:hi`, `:lo` | 업종별 분포 집계 — LQ 를 소비자 지정 임계값으로 3개 밴드로 나눠 구 수를 센다. 기존 category_geo_spread 는 min/max 격차만 주고 '몇 개 구에서 특화/결핍인지' 밴드 분포는 미커버. |
+| `category_pair_colocation` | 두 업종(:cat_a, :cat_b)이 동시에 특화된 자치구는 어디인가? (둘 중 낮은 LQ가 높은 순 = 동반 특화 랭킹) | `gu`, `lq_a`, `lq_b`, `lq_pair_floor`, `cnt_a`, `cnt_b` | `:cat_b`, `:cat_a`, `:n` | 구 랭킹 top-N — 셀프 조인으로 업종 2개의 LQ 를 같은 행에 놓고 MIN(lq_a, lq_b) 내림차순. 기존 category 단면 패턴들은 업종 하나만 고정 가능해 동반 특화(공생 업종 입지) 질문은 미커버. |
+| `category_top_gus` | 이 업종은 어느 구에 특화돼 있나? (:category 단면, 축 반전) | `gu`, `active_cnt`, `share_pct`, `lq` | `:category` | 업종 고정(:param 단면) → 구 랭킹(LQ 기준). gu_top_specialized 의 축 반전 짝(1쌍째). (수정: 필터를 영문 코드 컬럼 category 로 — 한글 라벨 비교 시 코드 전달하면 0행) |
+| `category_volume_gus` | 이 업종의 절대 규모가 가장 큰 구는? (특화와 규모의 괴리 확인, 축 반전) | `gu`, `active_cnt`, `lq` | `:category` | 업종 고정(:param 단면) → 구 랭킹(절대 규모 기준). gu_composition 의 축 반전 짝(2쌍째). (수정: 필터를 영문 코드 컬럼 category 로 — 한글 라벨 비교 시 코드 전달하면 0행) |
+| `gu_composition` | 이 구의 업종 구성(절대 규모·비중)은 어떻게 되나? (:gu 단면) | `category_ko`, `major_ko`, `active_cnt`, `share_pct` | `:gu` | 구 고정(:param 단면) → 업종 구성 랭킹(절대 규모 기준). 짝: category_volume_gus 와 축 반전 2쌍째. LQ 랭킹(gu_top_specialized)과 '특화 vs 비중' 대비. |
+| `gu_concentration_hhi` | 어느 구가 소수 업종에 편중됐고 어느 구가 균형 잡혔나? (HHI 집중도 랭킹) | `gu`, `hhi`, `total_cnt` | — | 구 랭킹 top-N (파생 지표 HHI = Σ share² — 높을수록 소수 업종 편중). |
+| `gu_major_mix` | 구별 대분류(산업/보건/문화/환경) 구성은 어떻게 다른가? (구×대분류 피벗) | `gu`, `industry_cnt`, `health_cnt`, `culture_cnt`, `env_cnt`, `total_cnt` | — | 두 축 교차: 구(행) × 대분류(피벗 열), 절대 규모. |
+| `gu_pair_profile_diff` | 두 자치구(:gu_a vs :gu_b)의 업종 특화 프로필은 어디서 가장 갈리나? (11개 업종 LQ 나란히 비교) | `category_ko`, `major_ko`, `lq_a`, `lq_b`, `lq_gap`, `cnt_a`, `cnt_b` | `:gu_a`, `:gu_b` | 구 2개 교차 단면 — 조건부 집계 피벗으로 업종별 LQ_a/LQ_b/격차를 한 행에. 기존 패턴은 전부 구 하나 고정 또는 전역 랭킹이라 구 대 구 직접 비교는 미커버. |
+| `gu_profile_similarity` | 이 자치구(:gu)와 업종 특화 프로필이 가장 비슷한 구는 어디인가? (11개 업종 LQ 거리 기준 유사 구 top-N) | `gu`, `lq_dist2`, `common_categories` | `:gu`, `:n` | 구 랭킹 top-N — 같은 테이블 셀프 조인으로 업종별 LQ 제곱거리 합을 계산해 프로필 유사도 순 정렬. 기존 패턴에 구 간 유사도 개념 없음. |
+| `gu_rank_r_category` | 25개 구 각각의 :r위 업종은 무엇인가? (:metric ∈ {share=구내 비중, lq=특화도} 기준, 전 구 한눈에) | `gu`, `category_ko`, `major_ko`, `active_cnt`, `share_pct`, `lq` | `:metric`, `:r` | 구별 그룹 내 랭킹 단면 — 윈도우 ROW_NUMBER 로 구마다 :r위 업종 1행씩 추출. 기존 gu_top_specialized/gu_composition 은 구 하나를 고정해야 해서 '전 구의 1위(또는 2위) 업종 일람'은 미커버. |
+| `gu_top_specialized` | 이 자치구는 어떤 업종에 특화됐나? (:gu 단면, LQ 랭킹) | `category_ko`, `major_ko`, `active_cnt`, `share_pct`, `lq` | `:gu` | 구 고정(:param 단면) → 업종 랭킹(LQ 기준). 짝: category_top_gus 와 축 반전 1쌍. |
+| `inv_lq_lowest` | 이 업종이 상대적으로 가장 결핍된(LQ 최저) 자치구는? (특화 랭킹의 정렬 반전) | `gu`, `active_cnt`, `share_pct`, `lq` | `:category`, `:n` | 자치구 랭킹 — LQ ASC(특화 top 랭킹의 반전 = 공백 상권 탐색) |
+| `major_share_gu_ranking` | 이 대분류(:major) 계열의 비중이 가장 높은 자치구는 어디인가? (구별 대분류 점유율 랭킹) | `gu`, `major_cnt`, `major_share_pct`, `total_cnt` | `:major`, `:n` | 구 랭킹 top-N — 대분류 축 집계(category보다 한 단계 위). 기존 gu_major_mix 는 4개 대분류 전부를 절대 규모 피벗으로만 주고 특정 대분류 기준 정렬·비중이 없음. 보건 대분류는 8개 업종의 합이라 category 단면 패턴으로는 답할 수 없다. |
+| `new_gu_fixed_lq_asc` | 이 자치구에서 상대적으로 부족한 업종은? (구의 특화 상위 랭킹의 반전) | `category`, `active_cnt`, `share_pct`, `lq` | `:gu` | 자치구 고정(:gu) → 업종 랭킹 LQ ASC |
+| `new_lq_vs_volume_quadrant` | 특화도는 높은데 절대 규모는 작은 업종×구 조합은? (두 지표 사분면) | `gu`, `category`, `active_cnt`, `lq`, `quadrant` | `:n` | 업종×구 교차 — LQ(상대) × active_cnt(절대) 사분면 |
+| `niche_vs_anchor` | 특화 업종(LQ>=1.5) 중 대규모 앵커형과 소규모 니치형은 각각 어디인가? (LQ×규모 두 축 교차) | `gu`, `category_ko`, `active_cnt`, `lq`, `type` | — | 두 축 교차: LQ(특화 강도) × active_cnt(규모) 사분면 분류. |
+| `seoul_category_baseline` | 서울 전체의 업종 구성(각 업종이 전체 활성 업소에서 차지하는 비중)은 어떻게 되나? (LQ 해석의 기준 분포) | `category_ko`, `major_ko`, `seoul_cnt`, `seoul_share_pct`, `gu_cnt` | `:n` | 전역 단면 집계 — 업종별 서울 합계와 전체 대비 비중(%). 기존 category_geo_spread 는 합계만 주고 비중(=LQ 의 분모가 되는 기준 분포)은 미커버. 구별 share_in_gu 를 해석하려면 이 기준선이 필요하다. |
+| `seoul_top_lq` | 서울 전체에서 가장 강한 특화(구×업종 조합) top-N은? | `gu`, `category_ko`, `active_cnt`, `lq` | — | 전역 랭킹 top-N (구×업종 조합, 소표본 노이즈 컷 active_cnt>=50). |
+| `spec_rank_explorer` | 서울 전체 구×업종 조합에서 (:major 대분류로 좁혀서, 활성 :min_cnt 이상 소표본 컷 후) LQ 상위/하위 :n은? (:major='ALL'이면 전체, :dir ∈ {desc=특화 top, asc=결핍 top}) | `gu`, `category_ko`, `major_ko`, `active_cnt`, `share_pct`, `lq` | `:major`, `:min_cnt`, `:dir`, `:n` | 전역 랭킹 top-N — 센티널(:major) × 임계값(:min_cnt) × 정렬 방향(:dir). 고정 패턴 seoul_top_lq(컷 50·15행·desc 고정)의 파라미터 일반화 상위호환이며 asc 방향은 전역 결핍 탐색이라는 미커버 영역을 연다. |
+| `x_spec_flow_momentum` | 지금 특화된(LQ>=:min_lq) 구×업종 조합은 최근 몇 년간 순유입이 계속됐나? — 강화 중인 특화 vs 쇠퇴 중인 특화 판별 | `gu`, `category`, `category_ko`, `lq`, `active_cnt`, `opened_win`, `closed_win`, `net_win` | `:min_lq`, `:y_from`, `:y_to`, `:n` | spec(현재 LQ 스냅샷) ⋈ flow(:y_from~:y_to 기간 합산), 조인 키 gu_code+category. flow 는 (y×event_type) 다중행이라 GROUP BY 로 접어 팬아웃 차단. net ASC 정렬로 '특화인데 유출 중'인 위험 조합이 상단에 옴 |
+| `x_spec_vs_lifespan` | 특화된 업종은 그 지역에서 더 오래 버티나? (특화도 × 수명 교차) | `gu`, `lq`, `active_cnt`, `p50_days`, `n_closed` | `:category`, `:min_closed` | 제품 간 조인 — gu_specialization(LQ) × lifespan(p50 수명) |
 
 ## d1_lifespan (`commerce_lifespan`) — 25건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `inv_early_close_lowest` | 1년 내 폐업률이 가장 낮은(초기 안정성 높은) 업종은? | 1년 내 폐업률이 가장 낮은(초기 안정성 높은) 업종은? | `:min_closed`, `:n` | — |
-| `inv_p90_long_tail` | 오래 버틴 상위 10%의 수명이 가장 긴 업종은? (평균 대신 p90 꼬리) | 오래 버틴 상위 10%의 수명이 가장 긴 업종은? (평균 대신 p90 꼬리) | `:min_closed`, `:n` | — |
-| `inv_shortest_lifespan` | 평균 수명이 가장 짧은 업종은? (장수 랭킹의 정렬 반전) | 평균 수명이 가장 짧은 업종은? (장수 랭킹의 정렬 반전) | `:min_closed`, `:n` | — |
-| `inv_survived10y_lowest` | 10년 이상 버틴 비중이 가장 낮은 업종은? (장기생존 랭킹의 반전) | 10년 이상 버틴 비중이 가장 낮은 업종은? (장기생존 랭킹의 반전) | `:min_closed`, `:n` | — |
-| `lifespan_by_dataset_for_gu` | 특정 자치구(:gu_code)에서 가장 오래 버티는 업종은? (축 반전 쌍 A-2: 구 고정 → 업종 랭킹) | 특정 자치구(:gu_code)에서 가장 오래 버티는 업종은? (축 반전 쌍 A-2: 구 고정 → 업종 랭킹) | `:gu_code` | — |
-| `lifespan_by_gu_for_dataset` | 특정 업종(:dataset)은 어느 자치구에서 조기폐업이 많은가? (축 반전 쌍 A-1: 업종 고정 → 구 랭킹) | 특정 업종(:dataset)은 어느 자치구에서 조기폐업이 많은가? (축 반전 쌍 A-1: 업종 고정 → 구 랭킹) | `:dataset` | — |
-| `lifespan_category_ranking` | 중분류별 조기폐업률·수명·10년 장수 비율은? (축 반전 쌍 B-2: 업종 축) | 중분류별 조기폐업률·수명·10년 장수 비율은? (축 반전 쌍 B-2: 업종 축) | — | — |
-| `lifespan_category_share_in_gu` | 특정 자치구(:gu_code)의 폐업은 어떤 중분류로 구성되는가? (구성비 %) | 자치구 하나의 폐업 총량을 중분류별로 분해해 각 축의 점유율(%)과 조기폐업률·가중평균 수명을 준다. 순위·비율만 주던 기존 패턴과 달리 '이 구의 폐업은 무엇으로 이루어졌나'라는 구성(composition) 관점을 처음 제공한다. | `:gu_code`, `:n` | — |
-| `lifespan_dataset_ranking_in_category` | 특정 중분류(:category) 안에서 세부업종(dataset)별 조기폐업률·수명·장수 비율 순위는? | 중분류 하나를 골라 그 안의 세부업종들을 조기폐업률 순으로 줄 세우고 가중평균 수명·10년 장수 비율을 함께 준다. 전 업종 통틀어 top-N 만 있던 기존 랭킹과 달리 같은 업종군 내부의 상대 비교(예: 의료 안에서 의원 vs 의료기기판매)가 가능하다. | `:category`, `:min_closed`, `:n` | — |
-| `lifespan_dataset_search` | 업종 한글명에 :kw 가 들어가는 업종들의 폐업 규모·조기폐업률·수명 요약은? (업종 코드 발견용 검색) | 137개 dataset 코드를 모르는 소비자가 한글 키워드('음식', '약국' 등)로 해당 업종군을 찾고 서울 전체 요약 지표를 바로 받는다. 다른 패턴의 :dataset 파라미터에 넣을 코드를 발견하는 진입 관문 역할. | `:kw`, `:n` | — |
-| `lifespan_dim_switch_ranking` | 선택한 축(:dim ∈ {major, category, gu})별 조기폐업률 랭킹은? 정렬 방향(:dir ∈ {asc, desc})도 선택 — 위험 순/안전 순 모두 지원 | 대분류·중분류·자치구 어느 축으로든 조기폐업률 순위를 한 패턴으로 뽑아준다(가중평균 수명·10년 장수 비율 동반). 기존 고정 랭킹(B-1 구 축, B-2 업종 축)의 상위호환이며, 지금까지 어떤 패턴도 다루지 않던 대분류(major) 축을 처음 연다. | `:dim`, `:dir`, `:n` | — |
-| `lifespan_ecr_worst_topn` | 조기폐업률(1년 내 폐업)이 가장 높은 업종 top 10은? | 조기폐업률(1년 내 폐업)이 가장 높은 업종 top 10은? | — | — |
-| `lifespan_gu_category_cross` | 자치구×중분류 교차에서 조기폐업 위험이 가장 높은 조합은? (두 축 교차) | 자치구×중분류 교차에서 조기폐업 위험이 가장 높은 조합은? (두 축 교차) | — | — |
-| `lifespan_gu_ranking` | 자치구별 전 업종 조기폐업률 순위는? (축 반전 쌍 B-1: 지역 축) | 자치구별 전 업종 조기폐업률 순위는? (축 반전 쌍 B-1: 지역 축) | — | — |
-| `lifespan_gu_ranking_by_category` | 특정 중분류(:category, 'ALL'이면 전 업종)에서 조기폐업률이 높은 자치구 순위는? | 업종 중분류를 골라 그 업종군의 자치구별 조기폐업률·가중평균 수명 순위를 준다. 기존 구 랭킹(전 업종 고정)과 업종 단면(dataset 단위 고정)의 사이를 메우는 중간 해상도 지역 비교이며, :category='ALL' 센티널로 기존 lifespan_gu_ranking 을 포함하는 상위호환. | `:category`, `:min_closed`, `:n` | — |
-| `lifespan_gu_share_for_dataset` | 특정 업종(:dataset)의 폐업은 어느 자치구에 얼마나 집중돼 있는가? (구별 점유율 %) | 업종 하나의 폐업 물량이 자치구별로 몇 %씩 분포하는지(집중도)를 조기폐업률과 함께 준다. 기존 dataset→gu 랭킹이 위험률 순위였다면 이 패턴은 물량 집중 관점 — 시장 규모가 큰 구와 위험한 구를 구분해 읽게 한다. 점유율 분모는 자치구 미상(UNK) 제외 기준. | `:dataset`, `:n` | — |
-| `lifespan_gu_vs_city_for_dataset` | 특정 업종(:dataset)에서 서울 전체 평균 대비 조기폐업률이 얼마나 더 높거나 낮은 자치구는 어디인가? (편차 랭킹) | 업종의 서울 전체 가중 조기폐업률을 기준선으로 놓고 자치구별 편차(%p)를 내림차순으로 준다. 절대값 순위만 주던 기존 구 랭킹과 달리 '전체 대비 얼마나 위험/안전한가'라는 상대 위치를 정량화한다. 평균 수명 기준선도 함께 반환. | `:dataset`, `:min_closed`, `:n` | — |
-| `lifespan_longest_topn` | 평균적으로 가장 오래 버티는(가중평균 수명 최장) 업종 top 10은? | 평균적으로 가장 오래 버티는(가중평균 수명 최장) 업종 top 10은? | — | — |
-| `lifespan_longevity_ratio_topn` | 폐업하더라도 10년 이상 버틴 비율(장수 후 폐업)이 높은 업종 top 10은? | 폐업하더라도 10년 이상 버틴 비율(장수 후 폐업)이 높은 업종 top 10은? | — | — |
-| `lifespan_skew_ranking` | 같은 업종×자치구 안에서 수명 양극화(p90/p50 배율)가 가장 심한(:dir='desc') 또는 가장 고른(:dir='asc') 곳은? | 중위수명 대비 상위 10% 수명의 배율로 '일부만 오래 살아남는 승자독식형'과 '고르게 버티는 균질형' 셀을 가려낸다. 절대 p90 순위(기존 inv_p90_long_tail)와 달리 분포의 모양 자체를 정렬 기준으로 삼고, asc 방향으로 균질 상권도 찾는다. | `:min_closed`, `:dir`, `:n` | — |
-| `lifespan_slice_full` | 특정 업종×자치구(:dataset, :gu_code) 한 칸의 수명 프로필 전체는? (:param 단면) | 특정 업종×자치구(:dataset, :gu_code) 한 칸의 수명 프로필 전체는? (:param 단면) | `:dataset`, `:gu_code` | — |
-| `lifespan_stable_cell_screen` | 조기폐업률이 :max_ecr 이하이고 중위수명이 :min_p50 일 이상인 안정 업종×자치구 조합은 어디인가? (진입 후보 스크리닝) | 위험 상한과 수명 하한을 동시에 걸어 조건을 통과하는 안정 셀(업종×자치구) 목록을 준다. 기존 패턴이 전부 '상위/하위 N 랭킹'이었다면 이것은 조건 충족 후보 발굴 — 창업 입지·업종 후보를 임계값으로 좁히는 스크리너다. | `:min_closed`, `:max_ecr`, `:min_p50`, `:n` | — |
-| `lifespan_top_dataset_per_gu` | 각 자치구에서 조기폐업률이 가장 높은 업종 top-:k 는 무엇인가? (구별 위험 업종 지도) | 25개 자치구 각각의 조기폐업 위험 1~k위 업종을 한 번에 준다. 전체 랭킹이나 구 하나 단면으로는 못 만드는 '구별 위험 업종 지도'로, 지역 비교 리포트 한 장을 단일 호출로 채운다. | `:min_closed`, `:k` | — |
-| `lifespan_unk_coverage_by_dataset` | 자치구 미상(UNK) 폐업 비중이 높은 업종은? — 지역 분석 신뢰도(커버리지) 점검 | 업종별로 폐업 건 중 자치구 미상(UNK) 비중을 계산해 지역 단위 분석을 얼마나 믿어도 되는지 알려준다. 통신판매·방문판매처럼 주소 귀속이 약한 업종을 식별해, 구 단위 패턴 해석 전에 커버리지를 점검하는 데이터 품질 패턴이다. | `:min_closed`, `:n` | — |
-| `new_gu_fixed_shortest_dataset` | 이 자치구에서 수명이 가장 짧은 업종은? (구 고정 단면 + 정렬 반전) | 이 자치구에서 수명이 가장 짧은 업종은? (구 고정 단면 + 정렬 반전) | `:gu_code`, `:min_closed`, `:n` | — |
+| `inv_early_close_lowest` | 1년 내 폐업률이 가장 낮은(초기 안정성 높은) 업종은? | `dataset_ko`, `n_closed`, `early_pct` | `:min_closed`, `:n` | 업종 랭킹 — early_close_ratio ASC(조기폐업 top 랭킹의 반전) |
+| `inv_p90_long_tail` | 오래 버틴 상위 10%의 수명이 가장 긴 업종은? (평균 대신 p90 꼬리) | `dataset_ko`, `n_closed`, `p50_days`, `p90_days`, `p90_over_p50` | `:min_closed`, `:n` | 업종 랭킹 — p90_days(지표 반전: avg/p50 → 상위 꼬리) |
+| `inv_shortest_lifespan` | 평균 수명이 가장 짧은 업종은? (장수 랭킹의 정렬 반전) | `dataset_ko`, `category_ko`, `n_closed`, `p50_days`, `avg_days`, `early_pct` | `:min_closed`, `:n` | 업종 랭킹 — p50 수명 ASC(전 패턴이 DESC 편중이던 것의 반전) |
+| `inv_survived10y_lowest` | 10년 이상 버틴 비중이 가장 낮은 업종은? (장기생존 랭킹의 반전) | `dataset_ko`, `n_closed`, `survived10y_pct` | `:min_closed`, `:n` | 업종 랭킹 — 10년+ 생존 비중 ASC |
+| `lifespan_by_dataset_for_gu` | 특정 자치구(:gu_code)에서 가장 오래 버티는 업종은? (축 반전 쌍 A-2: 구 고정 → 업종 랭킹) | `dataset`, `dataset_ko`, `n_closed`, `avg_days`, `p50_days`, `early_close_ratio` | `:gu_code` | :gu_code 단면 × 업종 랭킹(평균 수명) |
+| `lifespan_by_gu_for_dataset` | 특정 업종(:dataset)은 어느 자치구에서 조기폐업이 많은가? (축 반전 쌍 A-1: 업종 고정 → 구 랭킹) | `gu_code`, `gu`, `n_closed`, `avg_days`, `p50_days`, `p90_days`, `early_close_ratio` | `:dataset` | :dataset 단면 × 자치구 랭킹(조기폐업률) |
+| `lifespan_category_ranking` | 중분류별 조기폐업률·수명·10년 장수 비율은? (축 반전 쌍 B-2: 업종 축) | `category`, `category_ko`, `n_closed`, `early_close_ratio`, `avg_days_w`, `longevity_ratio` | — | 중분류 10개 전체 랭킹 — 3개 지표 동시 비교 |
+| `lifespan_category_share_in_gu` | 특정 자치구(:gu_code)의 폐업은 어떤 중분류로 구성되는가? (구성비 %) | `category`, `category_ko`, `n_closed`, `closed_share_pct`, `early_close_ratio`, `avg_days_w` | `:gu_code`, `:n` | :gu_code 단면 × 중분류 구성비 — 윈도우 합계로 share 산출 |
+| `lifespan_dataset_ranking_in_category` | 특정 중분류(:category) 안에서 세부업종(dataset)별 조기폐업률·수명·장수 비율 순위는? | `dataset`, `dataset_ko`, `n_closed`, `early_close_ratio`, `avg_days_w`, `longevity_ratio` | `:category`, `:min_closed`, `:n` | 중분류 고정 → 세부업종 드릴다운 랭킹 — 3지표 동시, 모수 임계값 |
+| `lifespan_dataset_search` | 업종 한글명에 :kw 가 들어가는 업종들의 폐업 규모·조기폐업률·수명 요약은? (업종 코드 발견용 검색) | `dataset`, `dataset_ko`, `n_closed`, `early_close_ratio`, `avg_days_w` | `:kw`, `:n` | 키워드 검색 단면 — dataset_ko LIKE 부분일치, 폐업 규모 내림차순 |
+| `lifespan_dim_switch_ranking` | 선택한 축(:dim ∈ {major, category, gu})별 조기폐업률 랭킹은? 정렬 방향(:dir ∈ {asc, desc})도 선택 — 위험 순/안전 순 모두 지원 | `dim_value`, `n_closed`, `early_close_ratio`, `avg_days_w`, `longevity_ratio` | `:dim`, `:dir`, `:n` | 차원 스위치 랭킹 — 대분류/중분류/자치구 중 택1, 가중 재계산 3지표 동시, 정렬 방향 스위치 |
+| `lifespan_ecr_worst_topn` | 조기폐업률(1년 내 폐업)이 가장 높은 업종 top 10은? | `dataset`, `dataset_ko`, `n_closed`, `early_close_ratio`, `avg_days_w` | — | 업종(dataset) 랭킹 — 구 합산, 모수 1,000건 이상, 가중 재계산 |
+| `lifespan_gu_category_cross` | 자치구×중분류 교차에서 조기폐업 위험이 가장 높은 조합은? (두 축 교차) | `gu`, `category_ko`, `n_closed`, `early_close_ratio` | — | 자치구 × 중분류 교차 매트릭스 — 모수 200건 이상 상위 15 |
+| `lifespan_gu_ranking` | 자치구별 전 업종 조기폐업률 순위는? (축 반전 쌍 B-1: 지역 축) | `gu_code`, `gu`, `n_closed`, `early_close_ratio`, `avg_days_w` | — | 자치구 25개 전체 랭킹 — 업종 합산 가중 재계산 |
+| `lifespan_gu_ranking_by_category` | 특정 중분류(:category, 'ALL'이면 전 업종)에서 조기폐업률이 높은 자치구 순위는? | `gu_code`, `gu`, `n_closed`, `early_close_ratio`, `avg_days_w` | `:category`, `:min_closed`, `:n` | 중분류 조건부 자치구 랭킹 — 센티널 'ALL'로 전체 축소, 모수 임계값 파라미터 |
+| `lifespan_gu_share_for_dataset` | 특정 업종(:dataset)의 폐업은 어느 자치구에 얼마나 집중돼 있는가? (구별 점유율 %) | `gu_code`, `gu`, `n_closed`, `closed_share_pct`, `early_close_ratio`, `avg_days` | `:dataset`, `:n` | :dataset 단면 × 자치구 폐업 점유율 — 볼륨 집중도 내림차순 |
+| `lifespan_gu_vs_city_for_dataset` | 특정 업종(:dataset)에서 서울 전체 평균 대비 조기폐업률이 얼마나 더 높거나 낮은 자치구는 어디인가? (편차 랭킹) | `gu_code`, `gu`, `n_closed`, `early_close_ratio`, `city_ecr`, `ecr_delta`, `avg_days`, `city_avg_days` | `:dataset`, `:min_closed`, `:n` | 업종 고정 → 자치구 vs 서울 전체 기준선 편차(ecr_delta) 랭킹 |
+| `lifespan_longest_topn` | 평균적으로 가장 오래 버티는(가중평균 수명 최장) 업종 top 10은? | `dataset`, `dataset_ko`, `n_closed`, `avg_days_w` | — | 업종(dataset) 랭킹 — 수명 가중평균 내림차순 |
+| `lifespan_longevity_ratio_topn` | 폐업하더라도 10년 이상 버틴 비율(장수 후 폐업)이 높은 업종 top 10은? | `dataset`, `dataset_ko`, `n_closed`, `survived_10y`, `longevity_ratio` | — | 업종(dataset) 랭킹 — 10년+ 생존 비율, 모수 1,000건 이상 |
+| `lifespan_skew_ranking` | 같은 업종×자치구 안에서 수명 양극화(p90/p50 배율)가 가장 심한(:dir='desc') 또는 가장 고른(:dir='asc') 곳은? | `dataset`, `dataset_ko`, `gu`, `n_closed`, `p50_days`, `p90_days`, `p90_over_p50` | `:min_closed`, `:dir`, `:n` | 업종×자치구 셀 랭킹 — 분포 형태 지표(p90/p50 배율), 정렬 방향 스위치 |
+| `lifespan_slice_full` | 특정 업종×자치구(:dataset, :gu_code) 한 칸의 수명 프로필 전체는? (:param 단면) | `major_ko`, `category_ko`, `dataset_ko`, `gu`, `n_closed`, `avg_days`, `p50_days`, `p90_days`, `closed_within_1y`, `early_close_ratio`, `survived_10y_then_closed` | `:dataset`, `:gu_code` | :dataset × :gu_code 단일 셀 — 전 지표 단면 |
+| `lifespan_stable_cell_screen` | 조기폐업률이 :max_ecr 이하이고 중위수명이 :min_p50 일 이상인 안정 업종×자치구 조합은 어디인가? (진입 후보 스크리닝) | `dataset`, `dataset_ko`, `gu_code`, `gu`, `n_closed`, `p50_days`, `avg_days`, `early_close_ratio`, `survived_10y_then_closed` | `:min_closed`, `:max_ecr`, `:min_p50`, `:n` | 업종×자치구 셀 다중 임계값 스크리닝 — ECR 상한 + p50 하한 + 모수 하한 |
+| `lifespan_top_dataset_per_gu` | 각 자치구에서 조기폐업률이 가장 높은 업종 top-:k 는 무엇인가? (구별 위험 업종 지도) | `gu_code`, `gu`, `rn`, `dataset`, `dataset_ko`, `n_closed`, `early_close_ratio`, `p50_days` | `:min_closed`, `:k` | 그룹별 top-k — 자치구 파티션 ROW_NUMBER, 조기폐업률 내림차순 |
+| `lifespan_unk_coverage_by_dataset` | 자치구 미상(UNK) 폐업 비중이 높은 업종은? — 지역 분석 신뢰도(커버리지) 점검 | `dataset`, `dataset_ko`, `n_closed_total`, `n_closed_unk`, `unk_pct` | `:min_closed`, `:n` | 업종 랭킹 — UNK 귀속 비중(%) 내림차순, 조건부 합계 |
+| `new_gu_fixed_shortest_dataset` | 이 자치구에서 수명이 가장 짧은 업종은? (구 고정 단면 + 정렬 반전) | `dataset_ko`, `n_closed`, `p50_days`, `early_pct` | `:gu_code`, `:min_closed`, `:n` | 자치구 고정(:gu_code) → 업종 랭킹 ASC |
 
 ## d1_multi_site (`commerce_multi_site`) — 21건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `bottom_multi_site_ratio` | (축 반전: 정렬 반전) 독립 자영업 성격이 가장 강한(다점포화가 낮은) 업종은? | (축 반전: 정렬 반전) 독립 자영업 성격이 가장 강한(다점포화가 낮은) 업종은? | `:min_sites`, `:n` | — |
-| `category_leader_per_group` | 각 중분류에서 체인화가 가장 앞선 세부 업종은 무엇인가? (중분류별 1위만, 지점 :min_sites 곳 이상) | 10개 중분류 각각의 체인화 1위 세부 업종과 그 비율·규모·최대 체인 심도를 한 번에 준다. 전체 top-N 랭킹이 특정 분야에 쏠릴 때, 분야별 대표 주자를 고르게 보여주는 뷰. | `:min_sites` | — |
-| `category_share_of_total` | 서울 전체 다지점 지점 중 어느 중분류가 몇 %를 차지하나? (구성비 상위 :n개) | 각 중분류가 서울 전체 다지점 지점에서 차지하는 비중(%)과 절대 규모를 준다. '체인 시장의 파이가 어디에 몰려 있나'를 답하는 구성비 뷰로, 업종 내 비율 랭킹과는 다른 정보다. | `:n` | — |
-| `category_weighted_rollup` | (축 반전: 차원 교환, dataset→category) 중분류 단위로 묶으면 어느 분야가 체인화됐나? | (축 반전: 차원 교환, dataset→category) 중분류 단위로 묶으면 어느 분야가 체인화됐나? | — | — |
-| `chain_depth_ranking` | 운영주체당 지점 수(같은 업종 내 체인 심도)가 깊은 업종은? | 운영주체당 지점 수(같은 업종 내 체인 심도)가 깊은 업종은? | `:min_ops`, `:n` | — |
-| `dataset_vs_category_avg` | 이 중분류(:category) 안에서 중분류 평균보다 유독 체인화가 앞선(뒤처진) 세부 업종은? (지점 :min_sites 곳 이상) | 선택한 중분류의 각 세부 업종 체인화율을 중분류 가중평균과 나란히 놓고 편차(%p)를 준다. '업종군 평균 대비 이례적으로 체인화된 틈새'를 짚는 벤치마크 비교 뷰. | `:category`, `:min_sites` | — |
-| `dim_switch_rollup` | 대분류/중분류 중 원하는 축(:dim ∈ {major, category})으로 묶었을 때 어느 분야가 가장 체인화됐나? | 선택한 상위 축(대분류 또는 중분류) 단위의 업종 수·지점 수·다지점 지점 수·가중 다지점 비율·최대 체인 심도를 준다. 분야 간 체인화 수준 비교의 출발점. | `:dim` | — |
-| `dominance_skew` | 평균적인 체인 대비 최대 운영자가 유독 큰(한 사업자 편중이 심한) 업종은 어디인가? (운영주체 :min_ops 곳 이상, 상위 :n개) | 다지점 운영자들의 평균 지점 수 대비 최대 운영자 지점 수의 배수(편중 배수)로 업종을 줄 세운다. '체인이 고르게 퍼진 시장'과 '한 지배 사업자가 끌고 가는 시장'을 구분하는 경쟁 구도 지표. | `:min_ops`, `:n` | — |
-| `inv_category_fixed_dataset_rank` | 이 업종군 안에서 다점포 비율이 높은 세부 업종은? (중분류 고정→세부 드릴다운) | 이 업종군 안에서 다점포 비율이 높은 세부 업종은? (중분류 고정→세부 드릴다운) | `:category`, `:min_sites` | — |
-| `inv_dataset_to_category_rollup` | 중분류 단위로 합치면 다점포 비율은 어떻게 되나? (세부→상위 롤업) | 중분류 단위로 합치면 다점포 비율은 어떻게 되나? (세부→상위 롤업) | — | — |
-| `keyword_slice` | :param 단면 — 특정 업종(코드 또는 한글 키워드)의 다점포 현황은? | :param 단면 — 특정 업종(코드 또는 한글 키워드)의 다점포 현황은? | `:q` | — |
-| `major_category_cross` | 두 축 교차 — 대분류×중분류 매트릭스에서 다지점율 분포는? | 두 축 교차 — 대분류×중분류 매트릭스에서 다지점율 분포는? | — | — |
-| `major_chained_share` | 대분류별로 '체인화가 :min_ratio 이상 진행된 업종'은 몇 개이고 전체의 몇 %인가? (지점 :min_sites 곳 이상만) | 대분류마다 기준 체인화율을 넘긴 업종 수와 그 비중(%)을 준다. '이 분야는 업종 단위로도 체인화가 보편화됐나'를 지점 가중 비율과 다른 각도(업종 개수 기준)로 답한다. | `:min_ratio`, `:min_sites` | — |
-| `market_overview` | 서울 전체에서 다점포 지점은 몇 %인가? (개요 카드) | 서울 전체에서 다점포 지점은 몇 %인가? (개요 카드) | — | — |
-| `metric_switch_rank` | 원하는 지표(:metric ∈ {ratio, locations, operators, independent, max_sites}) 기준 상위 업종은? (:major='ALL'이면 전체, 대분류 코드(culture/environment/health/industry)면 해당 대분류만) | 다지점 비율·다지점 수·운영주체 수·단독 지점 수·최대 체인 심도 중 고른 지표로 업종을 줄 세우고, 필요하면 대분류 안으로 좁힌다. 한 패턴으로 다섯 가지 관점의 랭킹과 대분류 드릴다운을 커버한다. | `:min_sites`, `:major`, `:metric`, `:n` | — |
-| `new_max_sites_extreme` | 한 운영자가 가장 많은 지점을 가진 업종은? (비율 대신 극단값 지표) | 한 운영자가 가장 많은 지점을 가진 업종은? (비율 대신 극단값 지표) | `:n` | — |
-| `new_sites_per_operator` | 운영자당 지점 수(체인 밀도)가 높은 업종은? | 운영자당 지점 수(체인 밀도)가 높은 업종은? | `:min_ops`, `:n` | — |
-| `ratio_band_histogram` | 업종들의 체인화율은 어떤 분포인가? (0-10%/10-30%/30-50%/50%+ 구간별 업종 수, 지점 :min_sites 곳 이상만) | 체인화율 4개 구간별로 업종 수·지점 수·다지점 지점 수·구간 평균 비율을 준다. '서울 인허가 업종의 체인화가 양극화됐는지, 고르게 퍼졌는지'를 한 번에 보여준다. | `:min_sites` | — |
-| `size_band_chain_pct` | 업종 규모(지점 수)가 클수록 체인화도 높은가? (소형 <:small_max / 중형 <:mid_max / 대형 3개 밴드 비교) | 지점 수 기준 소/중/대형 업종군별로 업종 수·지점 수·가중 다지점 비율·최대 체인 심도를 준다. '체인화가 큰 시장의 현상인지, 작은 틈새 업종에서도 벌어지는지'를 답한다. | `:small_max`, `:mid_max` | — |
-| `top_multi_site_ratio` | 다점포(체인)화 비율이 가장 높은 업종 top-N은? | 다점포(체인)화 비율이 가장 높은 업종 top-N은? | `:min_sites`, `:n` | — |
-| `top_multi_site_volume` | (축 반전: 관점 반전, 비율→절대량) 다지점 지점 수가 절대적으로 많은 업종은? | (축 반전: 관점 반전, 비율→절대량) 다지점 지점 수가 절대적으로 많은 업종은? | `:n` | — |
+| `bottom_multi_site_ratio` | (축 반전: 정렬 반전) 독립 자영업 성격이 가장 강한(다점포화가 낮은) 업종은? | `dataset`, `dataset_ko`, `major_ko`, `category_ko`, `sites_with_phone`, `multi_site_locations`, `multi_site_pct` | `:min_sites`, `:n` | top_multi_site_ratio의 정렬 반전(ASC) — 체인 침투 최저 업종 |
+| `category_leader_per_group` | 각 중분류에서 체인화가 가장 앞선 세부 업종은 무엇인가? (중분류별 1위만, 지점 :min_sites 곳 이상) | `category_ko`, `major_ko`, `dataset_ko`, `sites_with_phone`, `multi_site_pct`, `max_sites_per_operator` | `:min_sites` | 중분류별 argmax(윈도우 ROW_NUMBER) — 그룹당 1행 리더보드, 기존에 없는 축 |
+| `category_share_of_total` | 서울 전체 다지점 지점 중 어느 중분류가 몇 %를 차지하나? (구성비 상위 :n개) | `category_ko`, `major_ko`, `multi_site_locations`, `sites_with_phone`, `share_of_all_multi_pct` | `:n` | 중분류 × 전체 대비 구성비(share-of-total) — 서브쿼리 총합 대비 비중, 기존에 없는 구성비 축 |
+| `category_weighted_rollup` | (축 반전: 차원 교환, dataset→category) 중분류 단위로 묶으면 어느 분야가 체인화됐나? | `category_ko`, `major_ko`, `n_datasets`, `sites_with_phone`, `multi_site_locations`, `weighted_multi_site_pct` | — | 중분류(category) 가중 집계 — 행 단순평균이 아닌 지점 수 가중 비율 |
+| `chain_depth_ranking` | 운영주체당 지점 수(같은 업종 내 체인 심도)가 깊은 업종은? | `dataset`, `dataset_ko`, `major_ko`, `multi_site_operators`, `multi_site_locations`, `avg_sites_per_operator`, `max_sites_per_operator` | `:min_ops`, `:n` | 업종3단 × 업종 내 지점수/운영주체 비 — '넓게 퍼진 체인'과 '깊게 파고든 체인' 구분 |
+| `dataset_vs_category_avg` | 이 중분류(:category) 안에서 중분류 평균보다 유독 체인화가 앞선(뒤처진) 세부 업종은? (지점 :min_sites 곳 이상) | `dataset_ko`, `sites_with_phone`, `multi_site_pct`, `category_weighted_pct`, `diff_pp` | `:category`, `:min_sites` | 세부 업종 vs 소속 중분류 가중평균 편차(%p) — 벤치마크 대비 편차 축, inv_category_fixed_dataset_rank(단순 랭킹)와 다른 정보 |
+| `dim_switch_rollup` | 대분류/중분류 중 원하는 축(:dim ∈ {major, category})으로 묶었을 때 어느 분야가 가장 체인화됐나? | `dim_value`, `n_datasets`, `sites_with_phone`, `multi_site_locations`, `weighted_multi_pct`, `max_chain_depth` | `:dim` | 차원 스위치 롤업 — category_weighted_rollup·inv_dataset_to_category_rollup 의 상위호환(major 축 롤업은 기존에 없음), 지점 수 가중 비율 |
+| `dominance_skew` | 평균적인 체인 대비 최대 운영자가 유독 큰(한 사업자 편중이 심한) 업종은 어디인가? (운영주체 :min_ops 곳 이상, 상위 :n개) | `dataset_ko`, `category_ko`, `multi_site_operators`, `multi_site_locations`, `max_sites_per_operator`, `avg_sites_per_operator`, `dominance_skew` | `:min_ops`, `:n` | 업종 랭킹 — 최대 체인 심도 / 평균 체인 심도 편중 배수. chain_depth_ranking(평균 심도)과 다른 '지배 사업자 쏠림' 관점 |
+| `inv_category_fixed_dataset_rank` | 이 업종군 안에서 다점포 비율이 높은 세부 업종은? (중분류 고정→세부 드릴다운) | `dataset_ko`, `sites_with_phone`, `multi_site_locations`, `multi_pct`, `max_sites_per_operator` | `:category`, `:min_sites` | 중분류 고정(:category) → dataset 랭킹 — 차원 교환 정방향 |
+| `inv_dataset_to_category_rollup` | 중분류 단위로 합치면 다점포 비율은 어떻게 되나? (세부→상위 롤업) | `category`, `sites`, `multi_locs`, `multi_pct`, `max_sites` | — | dataset → category 롤업 — 위 패턴의 역방향(차원 상향) |
+| `keyword_slice` | :param 단면 — 특정 업종(코드 또는 한글 키워드)의 다점포 현황은? | `dataset`, `dataset_ko`, `major_ko`, `category_ko`, `sites_with_phone`, `multi_site_locations`, `multi_site_pct`, `multi_site_operators`, `max_sites_per_operator` | `:q` | 단일 업종 단면 조회 — dataset 코드 일치 또는 dataset_ko 부분 일치 |
+| `major_category_cross` | 두 축 교차 — 대분류×중분류 매트릭스에서 다지점율 분포는? | `major_ko`, `category_ko`, `sites`, `multi_locs`, `multi_site_pct` | — | 대분류(major) × 중분류(category) 2축 교차, 가중 비율 |
+| `major_chained_share` | 대분류별로 '체인화가 :min_ratio 이상 진행된 업종'은 몇 개이고 전체의 몇 %인가? (지점 :min_sites 곳 이상만) | `major_ko`, `n_datasets`, `n_chained`, `chained_dataset_pct` | `:min_ratio`, `:min_sites` | 대분류 × 임계 초과 업종 수 비중 — 조건부 카운트 비율, 기존에 없는 축 |
+| `market_overview` | 서울 전체에서 다점포 지점은 몇 %인가? (개요 카드) | `n_industries`, `total_sites_with_phone`, `total_multi_site_locations`, `overall_multi_site_pct`, `max_sites_single_operator` | — | 테이블 전체 1행 요약 — 후속 질의의 기준선 |
+| `metric_switch_rank` | 원하는 지표(:metric ∈ {ratio, locations, operators, independent, max_sites}) 기준 상위 업종은? (:major='ALL'이면 전체, 대분류 코드(culture/environment/health/industry)면 해당 대분류만) | `dataset`, `dataset_ko`, `major_ko`, `category_ko`, `sites_with_phone`, `multi_site_locations`, `multi_site_pct`, `multi_site_operators`, `max_sites_per_operator`, `single_site_locations` | `:min_sites`, `:major`, `:metric`, `:n` | 지표 스위치 랭킹 + 대분류 센티널 필터 — top_multi_site_ratio·top_multi_site_volume·new_max_sites_extreme 의 상위호환, independent(단독 지점 수) 지표는 신규 |
+| `new_max_sites_extreme` | 한 운영자가 가장 많은 지점을 가진 업종은? (비율 대신 극단값 지표) | `dataset_ko`, `category_ko`, `multi_site_operators`, `max_sites_per_operator`, `sites_with_phone` | `:n` | 업종 랭킹 — max_sites_per_operator(지표 반전: 비율→극단) |
+| `new_sites_per_operator` | 운영자당 지점 수(체인 밀도)가 높은 업종은? | `dataset_ko`, `multi_site_operators`, `multi_site_locations`, `locs_per_operator` | `:min_ops`, `:n` | 업종 랭킹 — 지점/운영자 파생비율(절대량과 다른 시선) |
+| `ratio_band_histogram` | 업종들의 체인화율은 어떤 분포인가? (0-10%/10-30%/30-50%/50%+ 구간별 업종 수, 지점 :min_sites 곳 이상만) | `ratio_band`, `n_datasets`, `sites_with_phone`, `multi_site_locations`, `avg_multi_pct` | `:min_sites` | 다지점 비율 구간 분포(히스토그램) — 기존 패턴에 없는 분포 축 |
+| `size_band_chain_pct` | 업종 규모(지점 수)가 클수록 체인화도 높은가? (소형 <:small_max / 중형 <:mid_max / 대형 3개 밴드 비교) | `size_band`, `n_datasets`, `sites_with_phone`, `multi_site_locations`, `weighted_multi_pct`, `max_chain_depth` | `:small_max`, `:mid_max` | 업종 규모 밴드 × 가중 다지점 비율 — 규모-체인화 상관을 보는 교차 분포, 기존에 없는 축 |
+| `top_multi_site_ratio` | 다점포(체인)화 비율이 가장 높은 업종 top-N은? | `dataset`, `dataset_ko`, `major_ko`, `category_ko`, `sites_with_phone`, `multi_site_locations`, `multi_site_pct`, `multi_site_operators`, `max_sites_per_operator` | `:min_sites`, `:n` | 업종3단(dataset) × 다지점 비율, 내림차순 랭킹 |
+| `top_multi_site_volume` | (축 반전: 관점 반전, 비율→절대량) 다지점 지점 수가 절대적으로 많은 업종은? | `dataset`, `dataset_ko`, `major_ko`, `multi_site_locations`, `sites_with_phone`, `multi_site_pct`, `multi_site_operators` | `:n` | 업종3단 × 다지점 지점 절대 수 — 비율 랭킹의 관점 반전(분모 하한 불필요) |
 
 ## d1_phone_succession (`commerce_phone_succession`) — 21건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `avg_vs_median_gap_skew` | 평균 간격이 중앙값보다 크게 부풀려진(장기 지연 꼬리가 긴) 전환 조합은? | 평균 간격이 중앙값보다 크게 부풀려진(장기 지연 꼬리가 긴) 전환 조합은? | `:min_successions`, `:top_n` | — |
-| `category_net_flow` | 재도전 흐름에서 순유입(들어오는 재창업 > 나가는 폐업) 업종과 순유출 업종은? | 재도전 흐름에서 순유입(들어오는 재창업 > 나가는 폐업) 업종과 순유출 업종은? | — | — |
-| `category_reentry_profile` | 업종별(폐업 기준 또는 개업 기준)로 재개업까지 걸리는 가중평균 기간과 1년 내 재개업률은? 빠른 순/느린 순 정렬 선택 | 업종 하나하나에 대해 전환 상대와 무관하게 합산한 총 재도전 규모, 건수 가중평균 재개업 소요일, 1년 내 재개업률을 준다. 폐업 기준(재기 속도)과 개업 기준(진입까지 준비 기간) 관점을 전환해 볼 수 있다. | `:side`, `:dir` | — |
-| `destination_concentration` | 폐업 후 행선지가 한 업종에 쏠린(집중) 업종과 다양하게 흩어지는(분산) 업종은? | 폐업 업종별로 행선지 가짓수, top1 행선지가 무엇이고 유출의 몇 %를 흡수하는지를 준다. 재도전 경로가 정형화된 업종(쏠림 큼)과 사방으로 흩어지는 업종(분산)을 가른다. | `:dir` | — |
-| `destinations_after_closing` | 특정 업종을 폐업한 사장님은 어떤 업종으로 재창업하나? (행선지 분포) | 특정 업종을 폐업한 사장님은 어떤 업종으로 재창업하나? (행선지 분포) | `:closed_category` | — |
-| `fastest_reentry_pairs` | 재개업이 가장 빠른(중앙값 간격 최단) 업종 전환 조합은? | 재개업이 가장 빠른(중앙값 간격 최단) 업종 전환 조합은? | `:min_successions`, `:top_n` | — |
-| `gap_bucket_distribution` | 재개업 소요 기간(중앙값)은 구간별로 어떻게 분포하나? 특정 대분류만 좁혀 볼 수도 | 전환 조합들을 중앙값 소요 기간 4구간(90일 미만/90~179/180~364/365일 이상)으로 묶어 각 구간의 조합 수, 재도전 건수, 점유율을 준다. 재도전이 단기 회전형인지 장기 공백형인지 분포로 보여준다. | `:closed_major` | — |
-| `inv_within1y_rate_asc` | 같은 연락처로 재개업까지 가장 오래 걸리는 업종쌍은? (빠른 재도전 랭킹의 반전) | 같은 연락처로 재개업까지 가장 오래 걸리는 업종쌍은? (빠른 재도전 랭킹의 반전) | `:min_successions` | — |
-| `major_cross_matrix` | 대분류 4종 간 폐업→재창업 흐름 매트릭스(어느 대분류에서 어느 대분류로)는? | 대분류 4종 간 폐업→재창업 흐름 매트릭스(어느 대분류에서 어느 대분류로)는? | — | — |
-| `new_same_vs_switch_reentry` | 재도전 시 같은 업종을 고르나, 업종을 바꾸나? | 재도전 시 같은 업종을 고르나, 업종을 바꾸나? | — | — |
-| `origins_before_opening` | 특정 업종으로 개업한 재도전자는 어떤 업종 폐업 출신인가? (출신지 분포) | 특정 업종으로 개업한 재도전자는 어떤 업종 폐업 출신인가? (출신지 분포) | `:opened_category` | — |
-| `pair_affinity_lift` | 규모 효과를 제거하면(유출·유입 규모 대비 기대치 대비) 유난히 강하게 이어지는 폐업→개업 조합은? | 각 전환 조합의 건수를 '그 폐업 업종 유출 규모 × 그 개업 업종 유입 규모'로 계산한 기대치와 비교한 배율(lift)을 준다. 절대 건수 랭킹에 묻히는, 규모 대비 비정상적으로 강한 전환 연결(경로 의존성)을 드러낸다. | `:min_successions`, `:top_n` | — |
-| `pair_detail_lookup` | 특정 폐업 업종→개업 업종 전환 조합의 상세 통계(건수·간격·1년내 비율·비중)는? | 지정한 폐업→개업 전환 한 조합의 건수, 평균·중앙값 재개업 간격, 1년 내 재개업률에 더해 그 조합이 전체 재도전과 해당 폐업 업종 유출에서 차지하는 비중을 준다. 특정 전환 경로의 규모·속도를 즉답하는 조회용. | `:closed_category`, `:opened_category` | — |
-| `same_category_retention_rate` | 폐업 후 같은 업종으로 다시 도전하는 비율(동일업종 유지율)이 높은/낮은 업종은? | 폐업 후 같은 업종으로 다시 도전하는 비율(동일업종 유지율)이 높은/낮은 업종은? | — | — |
-| `same_group_retention_by_level` | 폐업 후 같은 분야(대분류 또는 소분류 수준 선택)에 남는 비율이 높은/낮은 분야는? | 대분류 4종 또는 소분류 10종 수준을 골라, 폐업 후 같은 분야 안에서 재창업하는 비율(잔류율)과 유출·잔류 건수를 준다. 소분류는 바꿔도 대분류 안에는 남는지 같은 위계적 이동 패턴을 가른다. | `:level`, `:dir` | — |
-| `slowest_reentry_pairs` | 재개업까지 가장 오래 걸리는 업종 전환 조합은? | 재개업까지 가장 오래 걸리는 업종 전환 조합은? | `:min_successions`, `:top_n` | — |
-| `succession_kpi_overview` | 전화번호 승계 재도전의 전체(또는 대분류 방향별) 총 규모·평균 소요·1년 내 비율 요약은? | 총 재도전 건수, 조합 수, 건수 가중평균 소요일, 1년 내 재개업률을 한 행 KPI로 준다. 두 센티널 조합으로 전체·특정 대분류 유출·특정 대분류 유입·대분류 간 방향 셀까지 같은 패턴으로 요약한다. | `:closed_major`, `:opened_major` | — |
-| `top_destinations_per_origin` | 모든 폐업 업종 각각의 상위 K개 재창업 행선지는? (행선지 지도를 한 번에) | 폐업 업종 10종 각각에 대해 가장 많이 가는 재창업 행선지 상위 K개와 유출 내 점유율을 한 번의 질의로 준다. 업종별 단건 조회를 반복하지 않고 전환 지도를 통째로 그릴 수 있다. | `:top_n` | — |
-| `top_pairs_scoped` | 범위를 골라서(전체/동일업종만/업종전환만/대분류 이탈만) 전환이 가장 많은 업종 조합 top-N은? | 동일업종 재도전이 지배하는 전체 랭킹에서 벗어나, '업종을 갈아탄 전환만' 또는 '대분류 경계를 넘은 전환만'으로 좁힌 최대 규모 전환 경로 순위를 준다. 전환 창업의 실질 이동 경로 파악용. | `:scope`, `:top_n` | — |
-| `top_succession_pairs` | 폐업→재창업 전환이 가장 많은 업종 조합 top-N은? | 폐업→재창업 전환이 가장 많은 업종 조합 top-N은? | `:top_n` | — |
-| `within_1y_urgency_ranking` | 폐업 후 1년 내 재도전 비율이 가장 높은 업종 조합은? | 폐업 후 1년 내 재도전 비율이 가장 높은 업종 조합은? | `:min_successions`, `:top_n` | — |
+| `avg_vs_median_gap_skew` | 평균 간격이 중앙값보다 크게 부풀려진(장기 지연 꼬리가 긴) 전환 조합은? | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days`, `skew_days` | `:min_successions`, `:top_n` | 업종쌍 → (avg-p50) 괴리 desc — 평균↔중앙값 지표 함정 탐지 |
+| `category_net_flow` | 재도전 흐름에서 순유입(들어오는 재창업 > 나가는 폐업) 업종과 순유출 업종은? | `category_ko`, `inflow`, `outflow`, `net_flow` | — | category → inflow↔outflow 관점 반전(같은 테이블을 개업축·폐업축 양방향 집계 후 순흐름) |
+| `category_reentry_profile` | 업종별(폐업 기준 또는 개업 기준)로 재개업까지 걸리는 가중평균 기간과 1년 내 재개업률은? 빠른 순/느린 순 정렬 선택 | `category_ko`, `total_successions`, `wavg_gap_days`, `within_1y_pct` | `:side`, `:dir` | :side ∈ {closed, opened} 차원 스위치 → category 집계 프로필, 가중평균 간격 :dir ∈ {asc, desc} 정렬 스위치 |
+| `destination_concentration` | 폐업 후 행선지가 한 업종에 쏠린(집중) 업종과 다양하게 흩어지는(분산) 업종은? | `closed_category_ko`, `n_destinations`, `total_out`, `top1_destination_ko`, `top1_successions`, `top1_share_pct` | `:dir` | closed_category → 행선지 집중도(top1 점유율) 랭킹, :dir ∈ {asc, desc} 반전 + top1 행선지명 동반 |
+| `destinations_after_closing` | 특정 업종을 폐업한 사장님은 어떤 업종으로 재창업하나? (행선지 분포) | `opened_category_ko`, `successions`, `share_pct`, `p50_gap_days` | `:closed_category` | 폐업 업종 단면(:closed_category) → 개업 업종 분포 / 반전쌍: origins_before_opening (유출→유입 차원 교환) |
+| `fastest_reentry_pairs` | 재개업이 가장 빠른(중앙값 간격 최단) 업종 전환 조합은? | `closed_category_ko`, `opened_category_ko`, `p50_gap_days`, `avg_gap_days`, `successions` | `:min_successions`, `:top_n` | 업종쌍 → p50_gap_days asc / 반전쌍: slowest_reentry_pairs (asc↔desc) |
+| `gap_bucket_distribution` | 재개업 소요 기간(중앙값)은 구간별로 어떻게 분포하나? 특정 대분류만 좁혀 볼 수도 | `gap_bucket`, `n_pairs`, `successions`, `share_pct` | `:closed_major` | p50_gap_days 구간 버킷(90/180/365일) 분포 — 건수 가중 히스토그램, :closed_major 센티널 단면 |
+| `inv_within1y_rate_asc` | 같은 연락처로 재개업까지 가장 오래 걸리는 업종쌍은? (빠른 재도전 랭킹의 반전) | `closed_category_ko`, `opened_category_ko`, `successions`, `p50_gap_days`, `within1y_pct` | `:min_successions` | 업종쌍 랭킹 — 1년 내 재개업 비율 ASC |
+| `major_cross_matrix` | 대분류 4종 간 폐업→재창업 흐름 매트릭스(어느 대분류에서 어느 대분류로)는? | `closed_major_ko`, `opened_major_ko`, `successions`, `wavg_gap_days` | — | closed_major×opened_major 두 축 교차(4×4 매트릭스) + 가중평균 간격 |
+| `new_same_vs_switch_reentry` | 재도전 시 같은 업종을 고르나, 업종을 바꾸나? | `kind`, `successions`, `avg_p50_gap_days` | — | 동종 재도전 vs 업종 전환 — 관점 이분(주소 승계와 대조 가능) |
+| `origins_before_opening` | 특정 업종으로 개업한 재도전자는 어떤 업종 폐업 출신인가? (출신지 분포) | `closed_category_ko`, `successions`, `share_pct`, `p50_gap_days` | `:opened_category` | 개업 업종 단면(:opened_category) → 폐업 업종 분포 / destinations_after_closing의 차원·관점 반전(유입←유출) |
+| `pair_affinity_lift` | 규모 효과를 제거하면(유출·유입 규모 대비 기대치 대비) 유난히 강하게 이어지는 폐업→개업 조합은? | `closed_category_ko`, `opened_category_ko`, `successions`, `lift` | `:min_successions`, `:top_n` | 업종쌍 → lift(실측/기대 배율) desc 랭킹, :min_successions 소형 셀 컷 |
+| `pair_detail_lookup` | 특정 폐업 업종→개업 업종 전환 조합의 상세 통계(건수·간격·1년내 비율·비중)는? | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days`, `within_1y`, `within_1y_pct`, `share_of_origin_outflow_pct`, `share_of_total_pct` | `:closed_category`, `:opened_category` | 업종쌍 단면(셀 조회) — :closed_category×:opened_category 지정 → 해당 셀 상세 + 전체/유출 내 비중 |
+| `same_category_retention_rate` | 폐업 후 같은 업종으로 다시 도전하는 비율(동일업종 유지율)이 높은/낮은 업종은? | `closed_category_ko`, `total_out`, `same_cat`, `same_cat_pct` | — | closed_category → 동일업종 유지율 / 관점 반전: 유지(same_cat_pct)↔전환(100-same_cat_pct), desc↔asc |
+| `same_group_retention_by_level` | 폐업 후 같은 분야(대분류 또는 소분류 수준 선택)에 남는 비율이 높은/낮은 분야는? | `group_ko`, `total_out`, `stayed`, `stay_pct` | `:level`, `:dir` | :level ∈ {major, category} 수준 스위치 → 동일 그룹 잔류율, :dir ∈ {asc, desc} 정렬 반전 (same_category_retention_rate 고정 패턴의 상위호환) |
+| `slowest_reentry_pairs` | 재개업까지 가장 오래 걸리는 업종 전환 조합은? | `closed_category_ko`, `opened_category_ko`, `p50_gap_days`, `avg_gap_days`, `successions` | `:min_successions`, `:top_n` | 업종쌍 → p50_gap_days desc / fastest_reentry_pairs의 정렬 반전 |
+| `succession_kpi_overview` | 전화번호 승계 재도전의 전체(또는 대분류 방향별) 총 규모·평균 소요·1년 내 비율 요약은? | `total_successions`, `n_pairs`, `wavg_gap_days`, `within_1y_pct` | `:closed_major`, `:opened_major` | 전역/대분류 방향 단면 KPI 1행 — :closed_major×:opened_major 이중 센티널('ALL') |
+| `top_destinations_per_origin` | 모든 폐업 업종 각각의 상위 K개 재창업 행선지는? (행선지 지도를 한 번에) | `closed_category_ko`, `opened_category_ko`, `successions`, `share_in_origin_pct`, `rank_in_origin` | `:top_n` | 그룹별 top-K — closed_category 파티션 × 행선지 successions desc 랭크 :top_n 컷 (destinations_after_closing의 전 업종 일괄 버전) |
+| `top_pairs_scoped` | 범위를 골라서(전체/동일업종만/업종전환만/대분류 이탈만) 전환이 가장 많은 업종 조합 top-N은? | `closed_category_ko`, `opened_category_ko`, `closed_major_ko`, `opened_major_ko`, `successions`, `p50_gap_days`, `within_1y_pct` | `:scope`, `:top_n` | 업종쌍 랭킹 — successions desc, :scope ∈ {all, same_category, switched, cross_major} 범위 스위치 (top_succession_pairs 고정 패턴의 상위호환) |
+| `top_succession_pairs` | 폐업→재창업 전환이 가장 많은 업종 조합 top-N은? | `closed_category_ko`, `opened_category_ko`, `successions`, `avg_gap_days`, `p50_gap_days`, `within_1y_pct` | `:top_n` | closed_category×opened_category → successions desc (top-N 랭킹) |
+| `within_1y_urgency_ranking` | 폐업 후 1년 내 재도전 비율이 가장 높은 업종 조합은? | `closed_category_ko`, `opened_category_ko`, `successions`, `within_1y`, `within_1y_pct` | `:min_successions`, `:top_n` | 업종쌍 → 1년 내 재도전율 desc (비율 관점 — successions 절대값 랭킹의 관점 반전) |
 
 ## d1_seasonality (`commerce_seasonality`) — 21건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_month_profile` | 특정 업종(:category)의 월별 개업·폐업 프로파일은? | 특정 업종(:category)의 월별 개업·폐업 프로파일은? | `:category` | — |
-| `category_peak_month` | 업종(중분류)별로 개·폐업이 가장 몰리는 '피크 달'과 그 쏠림 강도(연중 점유율)는? | 업종(중분류)별로 개·폐업이 가장 몰리는 '피크 달'과 그 쏠림 강도(연중 점유율)는? | `:event_type` | — |
-| `dataset_extreme_seasonality` | 최세분(데이터셋) 단위에서 계절성이 극단적인 업종 top-N은? (피크월/최저월 배율) | 최세분(데이터셋) 단위에서 계절성이 극단적인 업종 top-N은? (피크월/최저월 배율) | `:event_type`, `:min_total`, `:n` | — |
-| `dataset_peak_concentration_rank` | 연중 물량이 피크 한 달에 가장 심하게 쏠리는 데이터셋 top-N은? (피크월 점유율 기준 — 결측월·0건 달이 있는 데이터셋도 포함) | 각 데이터셋의 피크 달과 그 달이 연중 물량에서 차지하는 비중(%) 순위를 준다. dataset_extreme_seasonality 는 12개월 전부 관측된 데이터셋만 다루지만, 이 패턴은 점유율 척도라 결측월이 있는 극단 계절 업종의 쏠림도 잰다. | `:event_type`, `:min_total`, `:n` | — |
-| `dim_churn_ratio_rank` | 개업 대비 폐업이 가장 심한(:dir='desc') 또는 가장 건전한(:dir='asc') 업종 축은? 계층(:dim ∈ major\|category\|dataset)과 최소 개업량(:min_opened) 지정 가능 | 누적 개업량이 :min_opened 이상인 항목만 대상으로 폐업/개업 비율 순위를 준다. desc면 구조적 축소 업종, asc면 순증 성장 업종을 식별 — 진입 위험도·성장성 스크리닝의 기초 자료다. | `:dim`, `:min_opened`, `:dir`, `:n` | — |
-| `dim_month_season_profile` | 임의 계층(:level ∈ major\|category\|dataset)에서 코드(:code) 하나를 골라 월별 물량·연중 점유율·계절지수 곡선을 보면? | 선택 계층·코드의 월별 건수에 연중 점유율(%)과 계절지수(1=평달, 2=평달의 2배)를 붙여 준다. 대분류·중분류·데이터셋 어느 수준이든 같은 패턴으로 조회되고, 절대량이 다른 업종끼리도 계절 리듬을 직접 비교할 수 있다. | `:event_type`, `:level`, `:code` | — |
-| `dim_volume_rank` | 대분류·중분류·데이터셋 중 원하는 계층(:dim)으로 개·폐업 누적 총량 순위와 전체 점유율을 보면? | 선택한 계층 단위의 개업·폐업 누적 총량 순위와 전체 이벤트 대비 점유율, 폐업/개업 비율을 함께 준다. 계절성 이전에 '어느 업종 축이 시장 물량을 차지하는가'를 한 번에 잡는 단면 뷰로, 기존 패턴이 다루지 않던 순수 볼륨 관점이다. | `:dim`, `:n` | — |
-| `inv_closed_peak_month` | 폐업이 몰리는 달은? (개업 피크 분석의 관점 반전) | 폐업이 몰리는 달은? (개업 피크 분석의 관점 반전) | — | — |
-| `inv_flat_seasonality` | 계절성이 거의 없는(연중 고른) 업종은? (극단 계절성 랭킹의 반전) | 계절성이 거의 없는(연중 고른) 업종은? (극단 계절성 랭킹의 반전) | `:event_type`, `:min_total`, `:n` | — |
-| `major_month_heatmap` | 대분류 × 월 히트맵 — 어느 대분류가 어느 달에 몰리고, 진폭은 얼마나 다른가? | 대분류 × 월 히트맵 — 어느 대분류가 어느 달에 몰리고, 진폭은 얼마나 다른가? | `:event_type` | — |
-| `month_hot_category` | 달별로 '유독' 그 달에 몰리는 업종은? (자기 연중 평균 대비 계절지수 1위 — category_peak_month의 축 반전) | 달별로 '유독' 그 달에 몰리는 업종은? (자기 연중 평균 대비 계절지수 1위 — category_peak_month의 축 반전) | `:event_type`, `:min_annual` | — |
-| `month_season_index_rank` | 특정 달(:month_of_year)에 유독 몰리는 중분류 전체 순위는? (계절지수 기준 — month_hot_category 가 달마다 1위만 주는 한계를 걷어낸 월 고정 일반화) | 지정한 달의 중분류별 계절지수(1=평달) 전체 순위를 준다. 그 달에 과대/과소 대표되는 업종을 한 번에 파악할 수 있어 월별 마케팅·행정수요 예측의 기초가 된다. | `:event_type`, `:month_of_year`, `:min_annual`, `:n` | — |
-| `month_window_share_rank` | 특정 월 구간(:m_from~:m_to)에 개업(또는 폐업)이 유난히 몰리는 데이터셋 top-N은? (여름 장사·연말 정리 업종 발굴) | 연중 물량 중 지정한 월 구간에 발생한 비중이 높은 데이터셋 순위를 준다. 균등분포라면 3개월 창의 기대치는 25% — 그보다 크게 높으면 계절 집중 업종이다. 임의 구간(여름·연말·1분기 등)을 소비자가 정의할 수 있다. | `:m_from`, `:m_to`, `:event_type`, `:min_total`, `:n` | — |
-| `monthly_open_close_curve` | 1~12월 개업·폐업 곡선과 월별 폐업/개업 비율은 어떻게 움직이나? | 1~12월 개업·폐업 곡선과 월별 폐업/개업 비율은 어떻게 움직이나? | — | — |
-| `monthly_risk_rank` | 개업 대비 폐업 비율이 가장 나쁜(:dir='desc') 또는 가장 좋은(:dir='asc') 달 top-N은? 업종 필터(:category, 'ALL'=전체) 가능 | 월별 폐업/개업 비율 순위로 '위험한 달/안전한 달'을 직접 뽑아 준다. 업종을 고정하면 해당 중분류의 월별 리스크 캘린더가 된다 — 기존 곡선 패턴은 12행 전체를 월 순서로만 반환해 이 랭킹 질문에 바로 답하지 못한다. | `:category`, `:dir`, `:n` | — |
-| `new_month_fixed_dataset_rank` | 특정 달에 개업이 가장 많은 업종은? (월 고정 단면) | 특정 달에 개업이 가장 많은 업종은? (월 고정 단면) | `:month_of_year`, `:event_type`, `:n` | — |
-| `new_open_close_peak_gap` | 개업 피크월과 폐업 피크월이 다른 업종은? (두 관점 교차) | 개업 피크월과 폐업 피크월이 다른 업종은? (두 관점 교차) | `:min_total` | — |
-| `peak_months_top_n` | 개업(또는 폐업)이 가장 몰리는 달 top-N은? | 개업(또는 폐업)이 가장 몰리는 달 top-N은? | `:event_type`, `:n` | — |
-| `quarter_profile` | 분기(1~4Q) 단위로 접으면 개업·폐업과 폐업/개업 비율은 어떻게 움직이나? 특정 중분류(:category)만 볼 수도 있다('ALL'=전체) | 월 단위 노이즈를 접은 분기 리듬(개업·폐업·폐업/개업 비율)을 전체 또는 특정 중분류로 준다. 기존 패턴에 없는 분기 집계 단위라 분기 보고서·계절 전략 문서에 바로 쓸 수 있다. | `:category` | — |
-| `quiet_months_bottom_n` | 반대로 개업(또는 폐업)이 가장 한산한 달은? (peak_months_top_n의 정렬 반전쌍) | 반대로 개업(또는 폐업)이 가장 한산한 달은? (peak_months_top_n의 정렬 반전쌍) | `:event_type`, `:n` | — |
-| `x_close_season_vs_lifespan` | 폐업이 특정 달에 쏠리는 업종의 폐업은 '계절적 일괄 정리'인가 '구조적 단명'인가 — 폐업 피크월·쏠림 강도와 수명 프로필(조기폐업률·평균 수명)의 결합 | 업종별 폐업 피크월과 그 달의 연중 점유율(쏠림 강도), 그리고 같은 업종 폐업자의 조기폐업률·가중평균 수명을 함께 준다. 쏠림이 큰데 수명이 긴 업종 = 행정·계절 요인의 일괄 정리, 쏠림이 크고 조기폐업률도 높은 업종 = 구조적 단명으로 폐업의 성격을 가르는 자료. | `:min_closed`, `:n` | — |
+| `category_month_profile` | 특정 업종(:category)의 월별 개업·폐업 프로파일은? | `month_of_year`, `opened_cnt`, `closed_cnt` | `:category` | :param 단면(업종 고정) × 시계열(월) × 이벤트 피벗 |
+| `category_peak_month` | 업종(중분류)별로 개·폐업이 가장 몰리는 '피크 달'과 그 쏠림 강도(연중 점유율)는? | `category_ko`, `peak_month`, `total`, `share_pct` | `:event_type` | 업종→달 방향(업종마다 피크 달 1개) — 축 반전쌍 A-1(차원 교환) |
+| `dataset_extreme_seasonality` | 최세분(데이터셋) 단위에서 계절성이 극단적인 업종 top-N은? (피크월/최저월 배율) | `dataset_ko`, `annual_total`, `peak_cnt`, `trough_cnt`, `peak_to_trough` | `:event_type`, `:min_total`, `:n` | 데이터셋(148종) 랭킹 top-N × 파생 지표(피크/최저 배율). months_present=12 조건이 결측월 왜곡 차단 |
+| `dataset_peak_concentration_rank` | 연중 물량이 피크 한 달에 가장 심하게 쏠리는 데이터셋 top-N은? (피크월 점유율 기준 — 결측월·0건 달이 있는 데이터셋도 포함) | `dataset_ko`, `peak_month`, `peak_cnt`, `annual`, `peak_share_pct` | `:event_type`, `:min_total`, `:n` | 데이터셋 랭킹(피크월 점유율 DESC) × 파생 지표(피크월 + 피크 점유율%) — dataset_extreme_seasonality 의 peak/trough 배율과 달리 trough=0·결측월 데이터셋도 평가하는 보완 척도 |
+| `dim_churn_ratio_rank` | 개업 대비 폐업이 가장 심한(:dir='desc') 또는 가장 건전한(:dir='asc') 업종 축은? 계층(:dim ∈ major\|category\|dataset)과 최소 개업량(:min_opened) 지정 가능 | `dim_value`, `opened_total`, `closed_total`, `closed_per_opened` | `:dim`, `:min_opened`, `:dir`, `:n` | 차원 스위치 × 비율 랭킹(폐업/개업) × 정렬 방향 스위치 + 최소 개업량 임계값 |
+| `dim_month_season_profile` | 임의 계층(:level ∈ major\|category\|dataset)에서 코드(:code) 하나를 골라 월별 물량·연중 점유율·계절지수 곡선을 보면? | `month_of_year`, `total`, `share_pct`, `season_index` | `:event_type`, `:level`, `:code` | 차원 스위치(계층 선택) × 단면(:code 고정) × 시계열(월 1→12) + 정규화 지표(점유율%, 계절지수 1=평달) — category_month_profile 의 계층 일반화·정규화 상위호환 |
+| `dim_volume_rank` | 대분류·중분류·데이터셋 중 원하는 계층(:dim)으로 개·폐업 누적 총량 순위와 전체 점유율을 보면? | `dim_value`, `opened_total`, `closed_total`, `all_events`, `share_pct`, `closed_per_opened` | `:dim`, `:n` | 차원 스위치(:dim ∈ major\|category\|dataset) × 볼륨 랭킹 DESC × 이벤트 피벗(개업/폐업/합계) + 전체 점유율·폐업/개업 비율 |
+| `inv_closed_peak_month` | 폐업이 몰리는 달은? (개업 피크 분석의 관점 반전) | `month_of_year`, `closed_total` | — | 월중 랭킹 — 폐업 이벤트(개업 관점의 반전) |
+| `inv_flat_seasonality` | 계절성이 거의 없는(연중 고른) 업종은? (극단 계절성 랭킹의 반전) | `dataset_ko`, `total`, `peak`, `trough`, `peak_over_trough` | `:event_type`, `:min_total`, `:n` | 업종 랭킹 — 피크/최저 배율 ASC(dataset_extreme_seasonality 의 정렬 반전) |
+| `major_month_heatmap` | 대분류 × 월 히트맵 — 어느 대분류가 어느 달에 몰리고, 진폭은 얼마나 다른가? | `major_ko`, `month_of_year`, `total` | `:event_type` | 두 축 교차(대분류 × 월) — 히트맵/스몰멀티플용 |
+| `month_hot_category` | 달별로 '유독' 그 달에 몰리는 업종은? (자기 연중 평균 대비 계절지수 1위 — category_peak_month의 축 반전) | `month_of_year`, `hot_category`, `total`, `season_index` | `:event_type`, `:min_annual` | 달→업종 방향(달마다 계절지수 1위 업종) — 축 반전쌍 A-2(차원 교환). season_index=1이 평균, 2면 평달의 2배 |
+| `month_season_index_rank` | 특정 달(:month_of_year)에 유독 몰리는 중분류 전체 순위는? (계절지수 기준 — month_hot_category 가 달마다 1위만 주는 한계를 걷어낸 월 고정 일반화) | `category_ko`, `month_cnt`, `annual`, `season_index` | `:event_type`, `:month_of_year`, `:min_annual`, `:n` | 월 고정 단면 × 중분류 랭킹(계절지수 DESC) + 최소 연물량 임계값 |
+| `month_window_share_rank` | 특정 월 구간(:m_from~:m_to)에 개업(또는 폐업)이 유난히 몰리는 데이터셋 top-N은? (여름 장사·연말 정리 업종 발굴) | `dataset_ko`, `window_cnt`, `annual_cnt`, `window_share_pct` | `:m_from`, `:m_to`, `:event_type`, `:min_total`, `:n` | 기간 창(월 구간 BETWEEN) × 데이터셋 랭킹(구간 점유율 DESC) + 최소 물량 임계값 |
+| `monthly_open_close_curve` | 1~12월 개업·폐업 곡선과 월별 폐업/개업 비율은 어떻게 움직이나? | `month_of_year`, `opened_cnt`, `closed_cnt`, `closed_per_opened` | — | 시계열(월 1→12) × 이벤트 피벗(개업·폐업 두 곡선 + 비율) |
+| `monthly_risk_rank` | 개업 대비 폐업 비율이 가장 나쁜(:dir='desc') 또는 가장 좋은(:dir='asc') 달 top-N은? 업종 필터(:category, 'ALL'=전체) 가능 | `month_of_year`, `opened_cnt`, `closed_cnt`, `closed_per_opened` | `:category`, `:dir`, `:n` | 월 랭킹(폐업/개업 비율) × 정렬 방향 스위치 × 선택 필터(센티널) — monthly_open_close_curve 의 비율 컬럼을 랭킹 축으로 세운 상위호환 |
+| `new_month_fixed_dataset_rank` | 특정 달에 개업이 가장 많은 업종은? (월 고정 단면) | `dataset_ko`, `cnt` | `:month_of_year`, `:event_type`, `:n` | 월 고정(:month_of_year) → 업종 랭킹 — 시간축을 필터로 세운 반전 |
+| `new_open_close_peak_gap` | 개업 피크월과 폐업 피크월이 다른 업종은? (두 관점 교차) | `dataset_ko`, `open_peak_m`, `close_peak_m`, `open_total`, `close_total` | `:min_total` | 업종별 개업 피크월 vs 폐업 피크월 비교 — 이벤트 관점 교차 |
+| `peak_months_top_n` | 개업(또는 폐업)이 가장 몰리는 달 top-N은? | `month_of_year`, `total` | `:event_type`, `:n` | 월(1~12) 랭킹 내림차순 × 이벤트 단면 — 랭킹 top-N |
+| `quarter_profile` | 분기(1~4Q) 단위로 접으면 개업·폐업과 폐업/개업 비율은 어떻게 움직이나? 특정 중분류(:category)만 볼 수도 있다('ALL'=전체) | `quarter`, `opened_cnt`, `closed_cnt`, `closed_per_opened` | `:category` | 파생 시간축(월→분기 접기) × 이벤트 피벗(개업/폐업/비율) × 선택 필터(:category, 'ALL' 센티널) |
+| `quiet_months_bottom_n` | 반대로 개업(또는 폐업)이 가장 한산한 달은? (peak_months_top_n의 정렬 반전쌍) | `month_of_year`, `total` | `:event_type`, `:n` | 월 랭킹 오름차순 × 이벤트 단면 — 축 반전쌍 B(정렬 반전) |
+| `x_close_season_vs_lifespan` | 폐업이 특정 달에 쏠리는 업종의 폐업은 '계절적 일괄 정리'인가 '구조적 단명'인가 — 폐업 피크월·쏠림 강도와 수명 프로필(조기폐업률·평균 수명)의 결합 | `dataset_ko`, `peak_close_month`, `peak_share_pct`, `n_closed`, `early_close_pct`, `avg_days_w` | `:min_closed`, `:n` | 업종(dataset) 랭킹 — seasonality(event_type='closed' 피크월과 연중 점유율, 윈도우) ⋈ lifespan(조기폐업률·가중평균 수명) on dataset, 1:1 |
 
 ## d1_status_duration (`commerce_status_duration`) — 23건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_status_matrix` | 특정 대분류(:major, 'ALL'=전체) 안에서 중분류×상태군 교차로 보면 어느 중분류가 어느 상태에 오래 머무나? (major_status_matrix 의 드릴다운) | 기존 major_status_matrix(대분류 고정 매트릭스)를 한 단계 내려 중분류 수준으로 펼친다. 예: '보건' 안에서 동물/의료/약국 중 어느 쪽의 휴업·폐업 체류가 긴지 셀 단위로 비교할 수 있다. | `:major` | — |
-| `completed_durations` | 실제로 끝난 상태는 얼마나 지속됐나 — 완결 세그먼트 기준 (관점 반전 A) | 실제로 끝난 상태는 얼마나 지속됐나 — 완결 세그먼트 기준 (관점 반전 A) | — | — |
-| `dataset_keyword_search` | 업종 코드(dataset)를 모를 때 한글 키워드(:kw)로 데이터셋을 찾고 진행중 체류 요약까지 한 번에 보려면? (탐색/발견 패턴) | 152종 dataset 코드를 몰라도 '음식점', '숙박' 같은 키워드로 해당 데이터셋 목록과 코드, 진행중 세그먼트 규모, 가중평균 경과일을 준다. dataset_profile 등 코드 파라미터 패턴에 넣을 값을 찾는 진입 관문. | `:kw`, `:n` | — |
-| `dataset_profile` | 특정 업종을 고정하면 상태군×진행중 프로파일은? (차원 교환 B: 업종→상태 단면, :param) | 특정 업종을 고정하면 상태군×진행중 프로파일은? (차원 교환 B: 업종→상태 단면, :param) | `:dataset` | — |
-| `dim_rollup_duration` | 대분류/중분류(:dim ∈ {major, category}) 축으로 접으면 어느 분류가 상태에 오래 머무나? 상태(:status_code, 'ALL'=전체)와 진행중 여부(:is_ongoing)를 골라 보는 분류축 롤업. | 업종 코드(dataset) 152종을 다 보기 전에 대분류 4개 또는 중분류 11개 수준에서 상태 체류의 가중평균·세그먼트 규모·최장 기록을 준다. 어느 분야부터 파고들지 정하는 진입점. 기존 패턴에는 category 수준 집계가 전혀 없었다. | `:dim`, `:is_ongoing`, `:status_code` | — |
-| `duration_band_distribution` | 상태 체류 경과일은 어느 대역(30일 미만/30~90/90~180/180일 이상)에 몰려 있나? (분포 형태 — 평균 한 점이 아니라 히스토그램) | 랭킹·평균만으로는 안 보이는 분포 모양을 준다. 예: 폐업 경과일이 특정 대역에 몰려 있으면 이력 적재 시점 효과를 의심할 수 있고, 180일 이상 대역 규모는 장기 적체 총량을 말해 준다. | `:is_ongoing`, `:status_code` | — |
-| `flex_duration_ranking` | 상태(:status_code)·중분류(:category, 'ALL'=전체) 범위에서 지표(:metric ∈ {avg,p50,p90,max})와 방향(:dir ∈ {asc,desc})을 골라 업종 체류 랭킹을 보려면? (고정 랭킹 3종의 파라미터 일반화) | 기존 status_slice_ranking(avg DESC)·inv_p90_tail_risk(p90 DESC)·inv_shortest_duration(p50 ASC)이 각각 고정하던 지표·방향을 한 패턴으로 흡수한 상위호환. 여기에 중분류 스코프까지 얹어 '식품 안에서만 p90 꼬리 랭킹' 같은 질문이 가능해진다. | `:status_code`, `:category`, `:min_n`, `:dir`, `:metric`, `:n` | — |
-| `inv_dataset_fixed_status_mix` | 이 업종은 어떤 상태에 얼마나 머무르나? (상태 고정→업종 랭킹의 차원 교환) | 이 업종은 어떤 상태에 얼마나 머무르나? (상태 고정→업종 랭킹의 차원 교환) | `:dataset` | — |
-| `inv_max_days_extreme` | 단일 최장 체류 기록이 가장 긴 업종×상태는? | 단일 최장 체류 기록이 가장 긴 업종×상태는? | `:n` | — |
-| `inv_p90_tail_risk` | 상태가 비정상적으로 길게 지속되는(꼬리 위험) 업종은? (avg/p50 대신 p90 지표) | 상태가 비정상적으로 길게 지속되는(꼬리 위험) 업종은? (avg/p50 대신 p90 지표) | `:status_code`, `:min_n`, `:n` | — |
-| `inv_shortest_duration` | 상태 체류가 가장 짧게 끝나는 업종은? (최장 랭킹의 정렬 반전) | 상태 체류가 가장 짧게 끝나는 업종은? (최장 랭킹의 정렬 반전) | `:status_code`, `:min_n`, `:n` | — |
-| `major_status_matrix` | 대분류 × 상태군 교차로 보면 어느 분야가 어느 상태에 오래 머무나? (두 축 교차) | 대분류 × 상태군 교차로 보면 어느 분야가 어느 상태에 오래 머무나? (두 축 교차) | — | — |
-| `major_top_dataset_window` | 대분류별로 특정 상태(:status_code)에 가장 오래 머무는 대표 업종 top-:top_n 은? (그룹별 1위 — 전체 랭킹은 한 분야가 독식할 수 있음) | 전체 top-N 랭킹은 산업·문화 등 특정 분야가 독식하기 쉽다. 이 패턴은 대분류마다 대표를 뽑아 4개 분야를 균형 있게 비교하게 해 준다. 분야 대표 비교 리포트용. | `:status_code`, `:min_n`, `:top_n` | — |
-| `new_duration_skew` | 체류기간 분포가 가장 비대칭인(소수가 극단적으로 긴) 업종×상태는? | 체류기간 분포가 가장 비대칭인(소수가 극단적으로 긴) 업종×상태는? | `:min_n`, `:n` | — |
-| `new_status_group_rollup` | 상태군별 전체 체류기간 프로필은? (상위 축 롤업) | 상태군별 전체 체류기간 프로필은? (상위 축 롤업) | — | — |
-| `ongoing_backlog_volume` | 어느 업종에 특정 상태(:status_code, 'ALL'=전체) 세그먼트가 가장 많이 쌓여 있나? 기간이 아니라 규모(건수) 기준 랭킹. | 기존 랭킹들은 전부 경과일(기간) 정렬이었다. 이 패턴은 세그먼트 물량 기준이라 '어디에 표본이 몰려 있고 어떤 셀의 평균이 믿을 만한가'와 '절대 규모로 큰 적체가 어디인가'를 같이 답한다. | `:status_code`, `:n` | — |
-| `ongoing_durations` | 지금 진행 중인 상태에는 얼마나 머물러 있나 — 경과일 기준 (관점 반전 B) | 지금 진행 중인 상태에는 얼마나 머물러 있나 — 경과일 기준 (관점 반전 B) | — | — |
-| `pause_longest_topn` | 지금 휴업 중인 업소들이 가장 오래 쉬고 있는 업종은? (랭킹 top-N) | 지금 휴업 중인 업소들이 가장 오래 쉬고 있는 업종은? (랭킹 top-N) | — | — |
-| `pause_recent_influx` | 최근에 휴업이 새로 쌓이고 있는(경과일이 짧은) 업종은? (정렬 반전) | 최근에 휴업이 새로 쌓이고 있는(경과일이 짧은) 업종은? (정렬 반전) | — | — |
-| `recent_closure_influx` | 최근 폐업 유입이 활발한(폐업 경과 중앙값이 짧은) 업종은? | 최근 폐업 유입이 활발한(폐업 경과 중앙값이 짧은) 업종은? | — | — |
-| `status_escape_profile` | 특정 상태(:status_code)를 거친 세그먼트 중 이미 종결(탈출)된 비중이 높은 업종은? 휴업이면 '재개·전이율', 영업이면 '이탈률'의 프록시. (비율 축) | 같은 상태를 진행중/종결로 갈라 세그먼트 수 비중과 종결분의 가중평균 지속일을 같이 준다. 기존 패턴은 진행중과 종결을 따로만 봤는데, 이 패턴은 상태에서 '빠져나가는 정도'를 업종끼리 비교하게 해 준다. | `:status_code`, `:min_total`, `:n` | — |
-| `status_slice_ranking` | 특정 상태군을 고정하면 어떤 업종이 가장 오래 머무나? (차원 교환 A: 상태→업종 랭킹, :param) | 특정 상태군을 고정하면 어떤 업종이 가장 오래 머무나? (차원 교환 A: 상태→업종 랭킹, :param) | `:status_code` | — |
-| `x_pause_length_vs_fate` | 오래 쉬는 업종의 휴업은 결국 폐업으로 끝나는가 — 휴업(02) 상태의 체류일과 휴업발 전이의 행선지 구성(재개 vs 폐업행 비중)의 업종 결합 | 업종별 휴업 상태의 세그먼트 수·가중평균 체류일과, 휴업에서 빠져나간 전이 중 폐업행/재개행 비중을 한 행에 준다. 휴업이 길수록 폐업 종착 비중이 높은지 — '휴업 장기화 = 사실상 폐업 예고'인 업종을 짚는 자료. | `:min_transitions`, `:n` | — |
+| `category_status_matrix` | 특정 대분류(:major, 'ALL'=전체) 안에서 중분류×상태군 교차로 보면 어느 중분류가 어느 상태에 오래 머무나? (major_status_matrix 의 드릴다운) | `category_ko`, `status_group`, `segments`, `w_avg_days` | `:major` | 교차: 중분류(category_ko) × 상태군(status_group) 매트릭스, 셀값=가중평균 경과일 \| 단면: :major(센티널 ALL)·진행중 |
+| `completed_durations` | 실제로 끝난 상태는 얼마나 지속됐나 — 완결 세그먼트 기준 (관점 반전 A) | `status_group`, `completed_segments`, `w_avg_days`, `max_p90` | — | 상태군(status_group) → 완결 지속일 \| 관점: 종료 세그먼트(is_ongoing=0) |
+| `dataset_keyword_search` | 업종 코드(dataset)를 모를 때 한글 키워드(:kw)로 데이터셋을 찾고 진행중 체류 요약까지 한 번에 보려면? (탐색/발견 패턴) | `dataset`, `dataset_ko`, `category_ko`, `segments`, `w_avg_days` | `:kw`, `:n` | 룩업: dataset_ko/dataset LIKE '%:kw%' → 업종별 세그먼트 합·가중평균 경과일, 규모 내림차순 |
+| `dataset_profile` | 특정 업종을 고정하면 상태군×진행중 프로파일은? (차원 교환 B: 업종→상태 단면, :param) | `status_group`, `is_ongoing`, `n_segments`, `avg_days`, `p50_days`, `p90_days`, `max_days` | `:dataset` | 상태군(status_group) × 진행중(is_ongoing) 프로파일 \| 단면 파라미터: :dataset (업종 고정) |
+| `dim_rollup_duration` | 대분류/중분류(:dim ∈ {major, category}) 축으로 접으면 어느 분류가 상태에 오래 머무나? 상태(:status_code, 'ALL'=전체)와 진행중 여부(:is_ongoing)를 골라 보는 분류축 롤업. | `dim_value`, `cells`, `segments`, `w_avg_days`, `max_days` | `:dim`, `:is_ongoing`, `:status_code` | 롤업: 차원 스위치(major_ko\|category_ko) → 가중평균 경과일 내림차순 \| 단면: :status_code(센티널 ALL) × :is_ongoing |
+| `duration_band_distribution` | 상태 체류 경과일은 어느 대역(30일 미만/30~90/90~180/180일 이상)에 몰려 있나? (분포 형태 — 평균 한 점이 아니라 히스토그램) | `band`, `cells`, `segments` | `:is_ongoing`, `:status_code` | 분포: avg_days 4개 대역 버킷 → 셀 수·세그먼트 수 \| 단면: :status_code(센티널 ALL) × :is_ongoing |
+| `flex_duration_ranking` | 상태(:status_code)·중분류(:category, 'ALL'=전체) 범위에서 지표(:metric ∈ {avg,p50,p90,max})와 방향(:dir ∈ {asc,desc})을 골라 업종 체류 랭킹을 보려면? (고정 랭킹 3종의 파라미터 일반화) | `dataset_ko`, `category_ko`, `status_group`, `n_segments`, `avg_days`, `p50_days`, `p90_days`, `max_days` | `:status_code`, `:category`, `:min_n`, `:dir`, `:metric`, `:n` | 랭킹: 업종(dataset) → 지표 스위치×정렬 스위치 \| 단면: 진행중·:status_code·:category(센티널 ALL)·표본 :min_n 이상 |
+| `inv_dataset_fixed_status_mix` | 이 업종은 어떤 상태에 얼마나 머무르나? (상태 고정→업종 랭킹의 차원 교환) | `status_group`, `is_ongoing`, `n_segments`, `p50_days`, `p90_days`, `max_days` | `:dataset` | 업종 고정(:dataset) → 상태(status_group) 전개 — status_slice_ranking 의 차원 교환 |
+| `inv_max_days_extreme` | 단일 최장 체류 기록이 가장 긴 업종×상태는? | `dataset_ko`, `status_group`, `n_segments`, `p90_days`, `max_days` | `:n` | 업종×상태 랭킹 — max_days 극단값(지표 반전) |
+| `inv_p90_tail_risk` | 상태가 비정상적으로 길게 지속되는(꼬리 위험) 업종은? (avg/p50 대신 p90 지표) | `dataset_ko`, `status_group`, `n_segments`, `p50_days`, `p90_days`, `max_days` | `:status_code`, `:min_n`, `:n` | 업종 랭킹 — 지표 반전(avg/p50 → p90 꼬리) |
+| `inv_shortest_duration` | 상태 체류가 가장 짧게 끝나는 업종은? (최장 랭킹의 정렬 반전) | `dataset_ko`, `status_group`, `n_segments`, `p50_days`, `avg_days` | `:status_code`, `:min_n`, `:n` | 업종 랭킹 — p50 ASC(정렬 반전) |
+| `major_status_matrix` | 대분류 × 상태군 교차로 보면 어느 분야가 어느 상태에 오래 머무나? (두 축 교차) | `major_ko`, `status_group`, `segments`, `w_avg_days` | — | 대분류(major_ko) × 상태군(status_group) 매트릭스, 셀값=가중평균 경과일 |
+| `major_top_dataset_window` | 대분류별로 특정 상태(:status_code)에 가장 오래 머무는 대표 업종 top-:top_n 은? (그룹별 1위 — 전체 랭킹은 한 분야가 독식할 수 있음) | `major_ko`, `dataset_ko`, `n_segments`, `avg_days`, `p90_days` | `:status_code`, `:min_n`, `:top_n` | 그룹별 랭킹: major_ko 파티션 → avg_days DESC ROW_NUMBER ≤ :top_n \| 단면: :status_code·진행중·표본 :min_n 이상 |
+| `new_duration_skew` | 체류기간 분포가 가장 비대칭인(소수가 극단적으로 긴) 업종×상태는? | `dataset_ko`, `status_group`, `n_segments`, `p50_days`, `p90_days`, `p90_over_p50` | `:min_n`, `:n` | 업종×상태 랭킹 — p90/p50 왜도 파생지표 |
+| `new_status_group_rollup` | 상태군별 전체 체류기간 프로필은? (상위 축 롤업) | `status_group`, `dataset_cells`, `segments`, `w_avg_days`, `max_days` | — | 상태군(status_group) 롤업 — dataset 축을 접은 상위 집계 |
+| `ongoing_backlog_volume` | 어느 업종에 특정 상태(:status_code, 'ALL'=전체) 세그먼트가 가장 많이 쌓여 있나? 기간이 아니라 규모(건수) 기준 랭킹. | `dataset_ko`, `status_group`, `n_segments`, `avg_days`, `p90_days` | `:status_code`, `:n` | 랭킹: 업종×상태 → n_segments 내림차순 \| 단면: 진행중·:status_code(센티널 ALL) |
+| `ongoing_durations` | 지금 진행 중인 상태에는 얼마나 머물러 있나 — 경과일 기준 (관점 반전 B) | `status_group`, `ongoing_segments`, `w_avg_days`, `max_p90` | — | 상태군(status_group) → 현재까지 경과일 \| 관점: 진행중 세그먼트(is_ongoing=1) |
+| `pause_longest_topn` | 지금 휴업 중인 업소들이 가장 오래 쉬고 있는 업종은? (랭킹 top-N) | `dataset_ko`, `category_ko`, `n_segments`, `avg_days`, `p50_days`, `p90_days` | — | 업종(dataset) → 평균 경과일 내림차순 \| 단면: 휴업(02)·진행중 |
+| `pause_recent_influx` | 최근에 휴업이 새로 쌓이고 있는(경과일이 짧은) 업종은? (정렬 반전) | `dataset_ko`, `category_ko`, `n_segments`, `avg_days`, `p50_days`, `p90_days` | — | 업종(dataset) → 평균 경과일 오름차순 \| 단면: 휴업(02)·진행중 |
+| `recent_closure_influx` | 최근 폐업 유입이 활발한(폐업 경과 중앙값이 짧은) 업종은? | `dataset_ko`, `status_group`, `n_segments`, `p50_days`, `avg_days` | — | 업종(dataset) → 폐업 경과 중앙값 오름차순 \| 단면: 폐업(03)·진행중·표본 100+ |
+| `status_escape_profile` | 특정 상태(:status_code)를 거친 세그먼트 중 이미 종결(탈출)된 비중이 높은 업종은? 휴업이면 '재개·전이율', 영업이면 '이탈률'의 프록시. (비율 축) | `dataset_ko`, `category_ko`, `ongoing_segments`, `completed_segments`, `completed_pct`, `completed_w_avg_days` | `:status_code`, `:min_total`, `:n` | 비율: 업종(dataset)별 종결 세그먼트 비중(completed_pct) 내림차순 \| 단면: :status_code \| 임계값: 총 세그먼트 :min_total 이상 |
+| `status_slice_ranking` | 특정 상태군을 고정하면 어떤 업종이 가장 오래 머무나? (차원 교환 A: 상태→업종 랭킹, :param) | `dataset_ko`, `major_ko`, `n_segments`, `avg_days`, `p50_days` | `:status_code` | 업종(dataset) 랭킹 \| 단면 파라미터: :status_code (상태군 고정) |
+| `x_pause_length_vs_fate` | 오래 쉬는 업종의 휴업은 결국 폐업으로 끝나는가 — 휴업(02) 상태의 체류일과 휴업발 전이의 행선지 구성(재개 vs 폐업행 비중)의 업종 결합 | `dataset_ko`, `pause_segments`, `pause_avg_days`, `from_pause_total`, `close_pct`, `reopen_pct` | `:min_transitions`, `:n` | 업종(dataset) 랭킹 — status_duration(status_code='02' 체류일, is_ongoing 합산) ⋈ status_transition(from_status='02' 행선지 구성) on dataset, 1:1 |
 
 ## d1_status_transition (`commerce_status_transition`) — 20건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `category_destination_mix` | 중분류(업종군)별로 전이의 종착지 구성은 어떻게 다른가 — 폐업행 비중은? | 중분류(업종군)별로 전이의 종착지 구성은 어떻게 다른가 — 폐업행 비중은? | — | — |
-| `closure_share_by_dataset` | 전이가 충분히 관측된 업종 중 폐업행 비중이 높은/낮은 곳은? | 전이가 충분히 관측된 업종 중 폐업행 비중이 높은/낮은 곳은? | — | — |
-| `compare_category_profiles` | 두 업종군(:cat_a, :cat_b)의 전이 경로 프로파일은 어떻게 다른가 — 경로별 건수와 각자 내부 구성비를 나란히 비교하면? | 임의의 두 업종군을 골라 전이 경로 구성을 한 표에서 직접 비교한다. 각자 내부 구성비(a_pct/b_pct)로 정규화해 규모가 다른 업종군끼리도 구조 차이(예: 폐업행 쏠림 정도)를 읽을 수 있다. | `:cat_a`, `:cat_b` | — |
-| `cross_major_destination` | 대분류 × 종착 상태 교차표 — 분야별 퇴장 방식의 프로파일은? | 대분류 × 종착 상태 교차표 — 분야별 퇴장 방식의 프로파일은? | — | — |
-| `dataset_transition_matrix` | 특정 업종(데이터셋) 하나의 전이 매트릭스 전체는 어떤 모양인가? | 특정 업종(데이터셋) 하나의 전이 매트릭스 전체는 어떤 모양인가? | `:dataset` | — |
-| `destination_category_leaders` | 각 종착 상태(폐업·제외/전출·취소 등)별로 어떤 업종군이 주도하는가? | 각 종착 상태(폐업·제외/전출·취소 등)별로 어떤 업종군이 주도하는가? | — | — |
-| `flow_share_rank` | 특정 출발 상태군(:from_group, 'ALL'=전체)에서 특정 종착 상태군(:to_group)으로 가는 비중이 높은/낮은(:dir) 업종군·업종(:dim ∈ {category, dataset})은 어디인가? (표본 :min_total 건 이상만) | 출발 상태군을 조건으로 건 전이 확률형 랭킹을 준다 — 예: '영업에서 나간 전이 중 폐업행 비중'(퇴출 위험), '휴업에서 영업으로 복귀한 비중'(회복력). 저표본 왜곡은 :min_total 임계값으로 제어하고, 정렬 방향으로 위험 상위/하위를 모두 조회할 수 있다. | `:dim`, `:to_group`, `:from_group`, `:min_total`, `:dir`, `:n` | — |
-| `from_slice_destinations` | 특정 상태(예: 휴업)에서 다음에 어디로 가는가 — 재개인가 폐업인가? | 특정 상태(예: 휴업)에서 다음에 어디로 가는가 — 재개인가 폐업인가? | `:from_status` | — |
-| `group_net_flow` | 각 상태군은 전이를 통해 순유입인가 순유출인가 — 유입·유출·순변화량은? (:major='ALL' 또는 특정 대분류) | 상태군별 전이 수지(유입-유출)를 줘서 어떤 상태가 업소를 흡수하고 어떤 상태가 배출하는지 보여준다. 기존 패턴들은 from 또는 to 한쪽 관점만 제공했는데, 이 패턴은 양방향을 한 번에 결산한다. | `:major` | — |
-| `inv_rarest_paths` | 가장 드물게 관측되는 전이 경로는? (최다 경로 랭킹의 반전) | 가장 드물게 관측되는 전이 경로는? (최다 경로 랭킹의 반전) | — | — |
-| `inv_reopen_paths` | 영업으로 복귀(재개)하는 경로는 어디서 오나? (퇴장 관점의 반전) | 영업으로 복귀(재개)하는 경로는 어디서 오나? (퇴장 관점의 반전) | — | — |
-| `origin_share_matrix` | 모든 출발 상태군에 대해, 각 상태군에서 나가는 전이의 행선지별 확률(행 정규화 매트릭스)은? (:category='ALL' 또는 특정 중분류) | 상태 전이를 마르코프 행렬처럼 출발군별 조건부 비율로 정규화해 한 번에 준다. '휴업하면 몇 %가 복귀하고 몇 %가 폐업하나' 같은 질문을 모든 출발 상태에 대해 동시에 답하고, 업종군 필터로 범위를 좁힐 수 있다. | `:category` | — |
-| `rank_datasets_by_path` | 특정 전이 경로(예: 영업→폐업)가 가장 많이 발생한 업종은 어디인가? | 특정 전이 경로(예: 영업→폐업)가 가장 많이 발생한 업종은 어디인가? | `:from_status`, `:to_status` | — |
-| `rank_transition_paths` | 서울 인허가 업소의 상태 전이는 어떤 경로가 가장 많은가? | 서울 인허가 업소의 상태 전이는 어떤 경로가 가장 많은가? | — | — |
-| `rare_paths_detail` | 관측이 극히 드문(:max_t건 이하) 전이는 구체적으로 어떤 업종·경로에서 나오나? | 희귀 전이의 업종 상세 목록을 준다. 경로 합계가 아니라 어느 업종에서 그 드문 전이가 났는지까지 짚어 주므로, 이상 징후 점검이나 데이터 품질 리뷰(오입력 의심 전이 확인)에 쓰인다. | `:max_t`, `:n` | — |
-| `scope_path_matrix` | 특정 대분류 또는 중분류(:dim ∈ {major, category}, :code) 안에서 상태 전이 경로 구성은 어떤 모양인가? | 선택한 분류 범위(대분류 또는 중분류) 하나의 전이 경로별 건수와 그 범위 안에서의 구성비를 준다. 기존 패턴은 dataset 단위 매트릭스만 지원했는데, 업종군 단위의 퇴장·복귀 프로파일을 한 번에 볼 수 있다. | `:dim`, `:code`, `:n` | — |
-| `status_code_glossary` | 상태 코드(01~05)는 각각 어떤 상태군을 뜻하나 — 다른 패턴의 :from_status/:to_status 파라미터에 쓸 코드 사전은? | 코드→상태군 매핑 사전을 준다. rank_datasets_by_path 등 코드 파라미터를 받는 기존 패턴을 호출하기 전에 AI/API 소비자가 코드 의미를 조회하는 용도이며, from/to 양측을 합집합으로 검증하므로 매핑 불일치도 드러난다. | — | — |
-| `to_slice_origins` | 특정 상태(예: 폐업)로는 어떤 상태에서 유입되는가? | 특정 상태(예: 폐업)로는 어떤 상태에서 유입되는가? | `:to_status` | — |
-| `volume_concentration_rank` | 전이 관측은 어떤 분류값(:dim ∈ {major, category, dataset})에 얼마나 집중돼 있나 — 상위 :n개의 점유율과 누적 점유율은? (:category='ALL' 또는 특정 중분류 내) | 전이 총량 기준의 차원별 랭킹에 누적 점유율을 붙여, 관측이 소수 업종에 얼마나 쏠려 있는지(집중도)를 보여준다. 다른 비율 패턴을 해석할 때 표본 편중 여부를 판단하는 기초 자료다. | `:dim`, `:category`, `:n` | — |
-| `x_closure_path_vs_lifespan` | 상태 전이에서 폐업행 비중이 높은 업종은 실제 수명도 짧은가 — 퇴장 경로 구성(전이 관점)과 수명 분포(기간 관점)의 업종 결합 | 업종별로 관측된 상태 전이 중 폐업행 비중과, 실제 폐업한 업소들의 가중평균 수명·조기폐업률을 함께 준다. 전이 구성과 수명 분포는 서로 독립적으로 집계된 퇴장 위험 지표라, 두 지표가 함께 높은 업종 = 이중으로 확인된 고위험 업종으로 읽는 자료. | `:min_transitions`, `:min_closed`, `:n` | — |
+| `category_destination_mix` | 중분류(업종군)별로 전이의 종착지 구성은 어떻게 다른가 — 폐업행 비중은? | `category_ko`, `total`, `to_closure`, `to_reopen`, `closure_pct` | — | 축반전쌍 B-1 — 행=category, 값=행선지(폐업/재개) 구성비 |
+| `closure_share_by_dataset` | 전이가 충분히 관측된 업종 중 폐업행 비중이 높은/낮은 곳은? | `dataset_ko`, `total`, `closures`, `closure_pct` | — | 랭킹(저표본 컷 HAVING>=30) — 행=dataset, 값=폐업행 구성비 |
+| `compare_category_profiles` | 두 업종군(:cat_a, :cat_b)의 전이 경로 프로파일은 어떻게 다른가 — 경로별 건수와 각자 내부 구성비를 나란히 비교하면? | `path`, `a_transitions`, `a_pct`, `b_transitions`, `b_pct` | `:cat_a`, `:cat_b` | A/B 교차 비교 — 행=전이경로, 열=업종군 A/B 각각의 건수·자기 총량 대비 구성비(규모 차 보정) |
+| `cross_major_destination` | 대분류 × 종착 상태 교차표 — 분야별 퇴장 방식의 프로파일은? | `major_ko`, `reopen`, `suspend`, `close`, `cancel`, `moveout`, `total` | — | 두 축 교차 — 행=major_ko, 열=to_group 피벗(CASE), 값=건수 |
+| `dataset_transition_matrix` | 특정 업종(데이터셋) 하나의 전이 매트릭스 전체는 어떤 모양인가? | `from_group`, `to_group`, `transitions` | `:dataset` | :param 단면(:dataset short 코드) — 행=from→to 조합 전체 |
+| `destination_category_leaders` | 각 종착 상태(폐업·제외/전출·취소 등)별로 어떤 업종군이 주도하는가? | `to_group`, `category_ko`, `transitions` | — | 축반전쌍 B-2 — 행=행선지(to_group), 값=상위 3개 category. B-1과 축 반전 |
+| `flow_share_rank` | 특정 출발 상태군(:from_group, 'ALL'=전체)에서 특정 종착 상태군(:to_group)으로 가는 비중이 높은/낮은(:dir) 업종군·업종(:dim ∈ {category, dataset})은 어디인가? (표본 :min_total 건 이상만) | `dim_value`, `total`, `to_target`, `share_pct` | `:dim`, `:to_group`, `:from_group`, `:min_total`, `:dir`, `:n` | 랭킹/비율 — 행=:dim 값, 값=조건부 전이 비중(share_pct). closure_share_by_dataset(폐업행·dataset·HAVING 30·DESC 고정)의 파라미터 일반화 상위호환 |
+| `from_slice_destinations` | 특정 상태(예: 휴업)에서 다음에 어디로 가는가 — 재개인가 폐업인가? | `to_group`, `transitions`, `pct` | `:from_status` | 축반전쌍 A-1 — from 고정 단면(:from_status), 행=행선지(to_group) |
+| `group_net_flow` | 각 상태군은 전이를 통해 순유입인가 순유출인가 — 유입·유출·순변화량은? (:major='ALL' 또는 특정 대분류) | `grp`, `outflow`, `inflow`, `net` | `:major` | 교차/수지 — 행=상태군, 값=유출(from 측 합)·유입(to 측 합)·순유입(net). from/to 양쪽 축을 한 표로 합산 |
+| `inv_rarest_paths` | 가장 드물게 관측되는 전이 경로는? (최다 경로 랭킹의 반전) | `path`, `transitions` | — | 전이경로 랭킹 — 건수 ASC(rank_transition_paths 의 정렬 반전) |
+| `inv_reopen_paths` | 영업으로 복귀(재개)하는 경로는 어디서 오나? (퇴장 관점의 반전) | `from_group`, `dataset_ko`, `transitions` | — | 전이 랭킹 — to_status='01'(재개) 관점(폐업 퇴장 관점의 반전) |
+| `origin_share_matrix` | 모든 출발 상태군에 대해, 각 상태군에서 나가는 전이의 행선지별 확률(행 정규화 매트릭스)은? (:category='ALL' 또는 특정 중분류) | `from_group`, `to_group`, `transitions`, `from_share_pct` | `:category` | 교차/비율 — 행=from_group×to_group 전 조합, 값=건수·출발군 내 비중(마르코프 행렬 뷰). from_slice_destinations(출발군 1개씩 호출)의 전체 매트릭스 일반화 |
+| `rank_datasets_by_path` | 특정 전이 경로(예: 영업→폐업)가 가장 많이 발생한 업종은 어디인가? | `dataset_ko`, `category_ko`, `transitions` | `:from_status`, `:to_status` | :param 단면(:from_status,:to_status) + 랭킹 — 행=dataset |
+| `rank_transition_paths` | 서울 인허가 업소의 상태 전이는 어떤 경로가 가장 많은가? | `path`, `transitions`, `pct` | — | 랭킹 — 행=전이경로(from_group→to_group), 값=건수·전체 구성비 |
+| `rare_paths_detail` | 관측이 극히 드문(:max_t건 이하) 전이는 구체적으로 어떤 업종·경로에서 나오나? | `dataset_ko`, `category_ko`, `from_group`, `to_group`, `transitions` | `:max_t`, `:n` | 임계값 단면 — 행=업종(dataset)×경로 원본 행, 값=건수 ASC. inv_rarest_paths(경로 합계 고정 10행)와 달리 업종 상세·임계값 파라미터 |
+| `scope_path_matrix` | 특정 대분류 또는 중분류(:dim ∈ {major, category}, :code) 안에서 상태 전이 경로 구성은 어떤 모양인가? | `path`, `transitions`, `pct` | `:dim`, `:code`, `:n` | 차원 스위치 단면 + 랭킹/비율 — 행=전이경로(from_group→to_group), 값=건수·범위 내 구성비. dataset_transition_matrix 의 상위 스코프(major/category) 일반화 |
+| `status_code_glossary` | 상태 코드(01~05)는 각각 어떤 상태군을 뜻하나 — 다른 패턴의 :from_status/:to_status 파라미터에 쓸 코드 사전은? | `status_code`, `status_group` | — | 단면/사전 — 행=상태 코드, 값=상태군 라벨. from/to 양측 합집합으로 매핑 무결성까지 확인 |
+| `to_slice_origins` | 특정 상태(예: 폐업)로는 어떤 상태에서 유입되는가? | `from_group`, `transitions`, `pct` | `:to_status` | 축반전쌍 A-2 — to 고정 단면(:to_status), 행=출발지(from_group). A-1과 방향 반전 |
+| `volume_concentration_rank` | 전이 관측은 어떤 분류값(:dim ∈ {major, category, dataset})에 얼마나 집중돼 있나 — 상위 :n개의 점유율과 누적 점유율은? (:category='ALL' 또는 특정 중분류 내) | `dim_value`, `transitions`, `pct`, `cum_pct` | `:dim`, `:category`, `:n` | 랭킹/분포 — 행=:dim 값, 값=전이 총량·점유율(pct)·누적 점유율(cum_pct). 순수 볼륨 랭킹+집중도는 기존 패턴에 없음 |
+| `x_closure_path_vs_lifespan` | 상태 전이에서 폐업행 비중이 높은 업종은 실제 수명도 짧은가 — 퇴장 경로 구성(전이 관점)과 수명 분포(기간 관점)의 업종 결합 | `dataset_ko`, `total_transitions`, `closure_share_pct`, `n_closed`, `avg_days_w`, `early_close_pct` | `:min_transitions`, `:min_closed`, `:n` | 업종(dataset) 랭킹 — status_transition(전이 전체 대비 폐업행 구성비) ⋈ lifespan(가중평균 수명·조기폐업률, 구 합산) on dataset, 1:1 |
 
 ## d1_uptae_rollup (`commerce_uptae_rollup`) — 23건
 
-| pattern_id | 질문 | 제공 정보 | 파라미터 | 관용구 |
+| pattern_id | 질문 | 반환 컬럼 | 파라미터 | 축 |
 |---|---|---|---|---|
-| `active_size_distribution` | 업태들의 규모 분포는? — 활성 업소 수 구간(0 / 1-9 / 10-99 / 100-999 / 1000+)별 업태 수와 활성 총량 (:dataset='ALL'이면 전 업종) | 업태 생태계의 롱테일 구조를 준다: 활성 0곳(소멸)부터 1000곳 이상(대형)까지 구간별로 몇 종의 업태가 있고 각 구간이 활성 업소를 얼마나 차지하는지. 소수 대형 업태 집중도와 죽은 꼬리의 규모를 한 눈에 파악. | `:dataset` | — |
-| `category_dataset_mix` | 특정 중분류(category) 안은 어떤 업종(dataset)들로 구성되고 각각의 점유율·생존율은? | 중분류 하나를 골라 그 안의 업종별 업태 수, 활성 업소 수, 카테고리 내 활성 점유율(%), 최근 1년 개업, 생존율을 준다. 기존 dataset→uptaenm 단면(dataset_mix_slice)의 한 층위 위 구성 분해로, 카테고리 시장이 어느 업종에 몰려 있는지 즉답. | `:category`, `:n` | — |
-| `category_top_uptae_cross` | 중분류(category)별 대표 업태 top-3은? (두 축 교차) | 중분류(category)별 대표 업태 top-3은? (두 축 교차) | — | — |
-| `dataset_concentration_hhi` | 업종별 업태 다양성/집중도는? — 단일 업태 지배 업종 vs 다양성 업종 | 업종별 업태 다양성/집중도는? — 단일 업태 지배 업종 vs 다양성 업종 | — | — |
-| `dataset_head_to_head` | 두 업종(dataset)을 나란히 놓고 규모·생존율·신규 유입을 비교하면? (예: 일반음식점 vs 휴게음식점) | 지정한 두 업종의 업태 수, 활성/누적 업소, 최근 1년 개업, 생존율, 신규 유입 비율을 나란히 준다. 업종 랭킹 패턴은 전체를 흘려보내지만 이 패턴은 딱 두 후보의 정면 비교라 창업 업종 선택형 질문에 즉답. | `:ds_a`, `:ds_b` | — |
-| `dataset_mix_slice` | 특정 업종(dataset) 안의 업태 구성은 어떻게 되나? (:dataset 단면) | 특정 업종(dataset) 안의 업태 구성은 어떻게 되나? (:dataset 단면) | `:dataset` | — |
-| `dataset_top_uptae_window` | 36개 업종 각각의 대표(1~k위) 업태는? — 기준 지표를 활성/개업/비중 중에서 선택 (:metric ∈ {active, opened, share} 명시 필수) | 모든 업종에 대해 선택한 지표(활성 업소 수·최근 1년 개업·업종 내 비중) 기준 상위 :top_n 업태를 한 번에 준다. HHI 패턴이 top1_share 수치만 주던 것과 달리 '그 대표 업태가 무엇인지' 이름까지 제공 — 업종별 얼굴 업태 카탈로그. | `:metric`, `:top_n` | — |
-| `growth_uptae_ranking` | 최근 1년 개업을 주도한 업태와 회전율(개업/활성)은? | 최근 1년 개업을 주도한 업태와 회전율(개업/활성)은? | — | — |
-| `hier_rollup_switch` | 대분류/중분류/업종 어느 층위로든 서울 상권 총괄(활성·누적·최근 1년 개업·생존율)을 보면? (:dim ∈ {major, category, dataset} 명시 필수) | 선택한 층위(대분류·중분류·업종)별로 업태 수, 활성/누적 업소 수, 최근 1년 개업 수, 생존율, 신규 유입 비율을 한 번에 준다. 기존 dataset 고정 롤업(survival_by_dataset)을 세 층위로 일반화한 상위호환으로, 시장 전체 조감의 출발점. | `:dim`, `:n` | — |
-| `inv_share_asc` | 같은 업종 안에서 비중이 가장 낮은(희귀) 업태는? | 같은 업종 안에서 비중이 가장 낮은(희귀) 업태는? | `:dataset`, `:min_total`, `:n` | — |
-| `keyword_rollup` | 특정 키워드가 들어간 업태군 전체의 시장 규모 총계는? (예: '미용' 관련 업태를 다 합치면 몇 곳인가) | 키워드로 묶이는 업태군(예: 미용 계열)의 업태 종 수, 활성/누적 업소 총계, 최근 1년 개업, 합산 생존율을 1행으로 준다. 목록형 검색(uptae_keyword_search)이 개별 행을 주는 것과 달리 '그래서 그 시장이 총 몇 곳인가'라는 규모 질문에 답한다. | `:keyword` | — |
-| `new_dead_uptae` | 현재 영업 중이 하나도 없는(사실상 소멸한) 업태는? | 현재 영업 중이 하나도 없는(사실상 소멸한) 업태는? | `:n` | — |
-| `new_growth_uptae` | 최근 1년 신규 개업이 활발한 업태는? (재고 비중 대신 유입 관점) | 최근 1년 신규 개업이 활발한 업태는? (재고 비중 대신 유입 관점) | `:min_active`, `:n` | — |
-| `new_uptae_fixed_dataset_rank` | 이 업태는 어떤 업종에서 주로 나타나나? (업종 고정→업태 랭킹의 차원 교환) | 이 업태는 어떤 업종에서 주로 나타나나? (업종 고정→업태 랭킹의 차원 교환) | `:uptae` | — |
-| `stagnant_uptae` | 최근 1년 신규 개업이 한 건도 없는데 영업 중 업소는 많은(유입이 끊긴) 업태는? (:dataset='ALL'이면 전 업종) | 신규 진입이 완전히 멈췄지만 기존 업소는 다수 영업 중인 업태 목록을 준다. 소멸 업태(new_dead_uptae, active=0)와 성장 업태(new_growth_uptae) 사이의 사각지대인 '정체·사양 신호' 탐지 — 재고는 있는데 유입이 0인 곳이 대상. | `:min_active`, `:dataset`, `:n` | — |
-| `survival_by_dataset` | 업종(dataset) 단위로 보면 생존율이 낮은 업종은? (dataset 축으로 반전) | 업종(dataset) 단위로 보면 생존율이 낮은 업종은? (dataset 축으로 반전) | — | — |
-| `survival_by_uptae` | 폐업이 가장 잦았던(생존율 낮은) 세부 업태는? | 폐업이 가장 잦았던(생존율 낮은) 세부 업태는? | — | — |
-| `survival_rank_dir` | 생존율이 가장 높은(또는 낮은) 세부 업태는? — 정렬 방향과 모수 임계값을 직접 지정 (:dir ∈ {asc, desc} 명시 필수) | 누적 이력이 :min_total 이상인 업태를 생존율 상위(장수 업태) 또는 하위(고폐업 업태) 어느 방향으로든 랭킹해 준다. 기존 패턴이 하위 고정이었던 것을 방향·임계값 파라미터로 일반화 — 안정 업종 벤치마킹과 진입 위험 스크리닝을 하나로 커버. | `:min_total`, `:dir`, `:n` | — |
-| `survival_rate_distribution` | 업태 생존율은 어떻게 분포하나? — 생존율 20%p 구간별 업태 수·재고 (:dataset='ALL'이면 전 업종, :min_total 이상 모수만) | 생존율 랭킹(개별 업태)이 아니라 시장 전체의 생존율 분포 형태를 준다: 저생존 구간과 고생존 구간에 각각 몇 종·얼마 규모가 몰려 있는지. 특정 업종만 잘라 그 업종의 위험 분포를 볼 수도 있다. | `:min_total`, `:dataset` | — |
-| `uptae_dataset_span` | 같은 업태명이 여러 업종(dataset)에 걸쳐 등장하는 경우는? (업태 축으로 반전) | 같은 업태명이 여러 업종(dataset)에 걸쳐 등장하는 경우는? (업태 축으로 반전) | — | — |
-| `uptae_keyword_search` | 특정 키워드가 들어간 업태를 전 업종에서 찾으면? (:keyword 검색) | 특정 키워드가 들어간 업태를 전 업종에서 찾으면? (:keyword 검색) | `:keyword` | — |
-| `uptae_top_ranking` | 서울에서 활성 업소가 가장 많은 세부 업태 top-N은? | 서울에서 활성 업소가 가장 많은 세부 업태 top-N은? | — | — |
-| `x_category_churn_uptae_detail` | 폐업 회전이 높은 이 업종(:category) 안에서 실제로 어떤 세부 업태가 재고와 최근 개업을 지배하나? — 업종 위험 지표의 업태 해부 | 특정 연도 업종 전체의 폐업률·재고(맥락)와 그 업종을 구성하는 세부 업태별 영업·누적·최근 1년 개업 순위를 함께 준다. '식품 폐업률 18%'라는 거시 신호를 어떤 업태(한식·카페 등)가 주도하는지 해부하는 질의. | `:y`, `:category`, `:n` | — |
+| `active_size_distribution` | 업태들의 규모 분포는? — 활성 업소 수 구간(0 / 1-9 / 10-99 / 100-999 / 1000+)별 업태 수와 활성 총량 (:dataset='ALL'이면 전 업종) | `size_band`, `uptae_cnt`, `active_total` | `:dataset` | 분포 — 활성 업소 수 구간별 업태 수·활성 총량 (센티널 업종 필터) |
+| `category_dataset_mix` | 특정 중분류(category) 안은 어떤 업종(dataset)들로 구성되고 각각의 점유율·생존율은? | `dataset`, `major`, `uptae_cnt`, `active_total`, `active_pct`, `opened_365d`, `survival_rate` | `:category`, `:n` | category → dataset 단면 + 카테고리 내 활성 점유율(비율) |
+| `category_top_uptae_cross` | 중분류(category)별 대표 업태 top-3은? (두 축 교차) | `category`, `uptaenm`, `dataset`, `active_cnt` | — | category × uptaenm 교차 (윈도우 top-3) |
+| `dataset_concentration_hhi` | 업종별 업태 다양성/집중도는? — 단일 업태 지배 업종 vs 다양성 업종 | `dataset`, `major`, `category`, `uptae_cnt`, `active_total`, `top1_share`, `hhi` | — | dataset 랭킹 (share 사전계산 활용한 HHI 집중도) |
+| `dataset_head_to_head` | 두 업종(dataset)을 나란히 놓고 규모·생존율·신규 유입을 비교하면? (예: 일반음식점 vs 휴게음식점) | `dataset`, `category`, `major`, `uptae_cnt`, `active_total`, `total_all`, `opened_365d`, `survival_rate`, `new_pct` | `:ds_a`, `:ds_b` | dataset 2종 비교 단면 — 재고·유입·생존율 프로필 병렬 |
+| `dataset_mix_slice` | 특정 업종(dataset) 안의 업태 구성은 어떻게 되나? (:dataset 단면) | `uptaenm`, `active_cnt`, `total_cnt`, `opened_last_365d`, `share` | `:dataset` | dataset → uptaenm 단면 (:dataset 파라미터) [축반전 쌍1-A] |
+| `dataset_top_uptae_window` | 36개 업종 각각의 대표(1~k위) 업태는? — 기준 지표를 활성/개업/비중 중에서 선택 (:metric ∈ {active, opened, share} 명시 필수) | `dataset`, `category`, `uptaenm`, `active_cnt`, `opened_last_365d`, `share` | `:metric`, `:top_n` | dataset × uptaenm 교차 — 윈도우 top-:top_n, 기준 지표 스위치(:metric) |
+| `growth_uptae_ranking` | 최근 1년 개업을 주도한 업태와 회전율(개업/활성)은? | `uptaenm`, `dataset`, `active_cnt`, `opened_last_365d`, `open_ratio` | — | uptaenm 랭킹 (opened_last_365d 플로우 + open_ratio 파생) |
+| `hier_rollup_switch` | 대분류/중분류/업종 어느 층위로든 서울 상권 총괄(활성·누적·최근 1년 개업·생존율)을 보면? (:dim ∈ {major, category, dataset} 명시 필수) | `dim_value`, `uptae_rows`, `active_total`, `total_all`, `opened_365d`, `survival_rate`, `new_pct` | `:dim`, `:n` | 차원 스위치(:dim) 계층 롤업 — 재고·유입·생존율 총괄 랭킹 |
+| `inv_share_asc` | 같은 업종 안에서 비중이 가장 낮은(희귀) 업태는? | `uptaenm`, `active_cnt`, `total_cnt`, `share_pct` | `:dataset`, `:min_total`, `:n` | 업태 랭킹 — share ASC(주력 업태 관점의 반전) |
+| `keyword_rollup` | 특정 키워드가 들어간 업태군 전체의 시장 규모 총계는? (예: '미용' 관련 업태를 다 합치면 몇 곳인가) | `uptae_cnt`, `active_total`, `total_all`, `opened_365d`, `survival_rate` | `:keyword` | 키워드 집계 단면 — LIKE 매칭 업태군의 재고·유입·생존율 총계 1행 |
+| `new_dead_uptae` | 현재 영업 중이 하나도 없는(사실상 소멸한) 업태는? | `uptaenm`, `dataset`, `active_cnt`, `total_cnt` | `:n` | 업태 랭킹 — active_cnt=0 & total_cnt 보유(생존 관점의 극단 반전) |
+| `new_growth_uptae` | 최근 1년 신규 개업이 활발한 업태는? (재고 비중 대신 유입 관점) | `uptaenm`, `dataset`, `active_cnt`, `opened_last_365d`, `new_pct` | `:min_active`, `:n` | 업태 랭킹 — opened_last_365d / 신규 비중(share 관점의 반전) 주의: 분자는 기간 내 개업 전체, 분모는 현재 영업분이라 100% 초과 가능(회전이 빠른 업태). |
+| `new_uptae_fixed_dataset_rank` | 이 업태는 어떤 업종에서 주로 나타나나? (업종 고정→업태 랭킹의 차원 교환) | `dataset`, `category`, `active_cnt`, `total_cnt`, `share_pct` | `:uptae` | 업태 고정(:uptae) → 업종(dataset) 랭킹 — 역방향 |
+| `stagnant_uptae` | 최근 1년 신규 개업이 한 건도 없는데 영업 중 업소는 많은(유입이 끊긴) 업태는? (:dataset='ALL'이면 전 업종) | `uptaenm`, `dataset`, `category`, `active_cnt`, `total_cnt`, `survival_rate` | `:min_active`, `:dataset`, `:n` | uptaenm 랭킹 — 유입 단절(opened_last_365d=0) 필터 + 센티널 업종 필터 + 규모 임계값 |
+| `survival_by_dataset` | 업종(dataset) 단위로 보면 생존율이 낮은 업종은? (dataset 축으로 반전) | `dataset`, `major`, `category`, `active_total`, `total_all`, `survival_rate`, `opened_365d` | — | dataset 랭킹 (생존율 하위) [축반전 쌍2-B: survival_by_uptae의 역방향] |
+| `survival_by_uptae` | 폐업이 가장 잦았던(생존율 낮은) 세부 업태는? | `uptaenm`, `dataset`, `active_cnt`, `total_cnt`, `survival_rate` | — | uptaenm 랭킹 (active/total 생존율, 하위) [축반전 쌍2-A] |
+| `survival_rank_dir` | 생존율이 가장 높은(또는 낮은) 세부 업태는? — 정렬 방향과 모수 임계값을 직접 지정 (:dir ∈ {asc, desc} 명시 필수) | `uptaenm`, `dataset`, `category`, `active_cnt`, `total_cnt`, `survival_rate` | `:min_total`, `:dir`, `:n` | uptaenm 랭킹 — 생존율 정렬 방향 스위치(:dir) + 임계값(:min_total) [survival_by_uptae 상위호환: 상위(장수) 방향을 신규 커버] |
+| `survival_rate_distribution` | 업태 생존율은 어떻게 분포하나? — 생존율 20%p 구간별 업태 수·재고 (:dataset='ALL'이면 전 업종, :min_total 이상 모수만) | `survival_band`, `uptae_cnt`, `active_total`, `total_all` | `:min_total`, `:dataset` | 분포 — 생존율 구간(00-20%~80-100%)별 업태 수·활성·누적 (임계값 + 센티널) |
+| `uptae_dataset_span` | 같은 업태명이 여러 업종(dataset)에 걸쳐 등장하는 경우는? (업태 축으로 반전) | `uptaenm`, `dataset_cnt`, `active_total`, `datasets` | — | uptaenm → dataset 스팬 [축반전 쌍1-B: dataset_mix_slice의 역방향] |
+| `uptae_keyword_search` | 특정 키워드가 들어간 업태를 전 업종에서 찾으면? (:keyword 검색) | `uptaenm`, `dataset`, `category`, `active_cnt`, `total_cnt`, `opened_last_365d`, `share` | `:keyword` | uptaenm LIKE 검색 (:keyword 파라미터, 전 dataset 횡단) |
+| `uptae_top_ranking` | 서울에서 활성 업소가 가장 많은 세부 업태 top-N은? | `uptaenm`, `dataset`, `major`, `category`, `active_cnt`, `total_cnt`, `opened_last_365d`, `share` | — | uptaenm 랭킹 (전 dataset) |
+| `x_category_churn_uptae_detail` | 폐업 회전이 높은 이 업종(:category) 안에서 실제로 어떤 세부 업태가 재고와 최근 개업을 지배하나? — 업종 위험 지표의 업태 해부 | `uptaenm`, `dataset`, `active_cnt`, `total_cnt`, `opened_last_365d`, `category_churn_rate`, `category_stock_start`, `category_closed` | `:y`, `:category`, `:n` | churn(서울 전체 :y·:category 합산 1행 CTE) ⋈ uptae_rollup(업태 랭킹 active_cnt DESC), 조인 키 category. 업종 1행이 업태 N행에 컨텍스트 컬럼으로 반복되는 의도된 브로드캐스트(팬아웃 아님). uptae_rollup 은 category 11종 중 6종만 보유 — 나머지는 inner join 으로 빈 결과 |
 

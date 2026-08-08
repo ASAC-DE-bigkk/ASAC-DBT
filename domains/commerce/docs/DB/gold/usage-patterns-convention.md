@@ -58,6 +58,7 @@ ASAC-DBT#471(Serving#178·#179 후속)로 정본화했다. **선언이 곧 게�
 | 임계값 | `HAVING SUM(stock_start) >= :min_stock` | 권장 기본 예시값 명시 |
 | 기간 창 | `WHERE y BETWEEN :from_y AND :to_y` | 축 범위(실데이터 min/max) 명시 |
 | 지표 스위치 | `CASE :metric WHEN 'churn' THEN … ELSE … END` | 허용 값 목록 명시 |
+| **배열 IN** | `WHERE gu_code IN (SELECT value FROM json_each(:gus))` | `:gus` 는 **JSON 배열 문자열** (`'["11680","11650"]'`) 임을 명시 |
 
 - 스위치·센티널의 허용 값은 `question_ko` 나 `axes` 에 반드시 적는다 — 소비자(AI)는 선언만
   보고 값을 고른다.
@@ -91,7 +92,8 @@ ASAC-DBT#471(Serving#178·#179 후속)로 정본화했다. **선언이 곧 게�
 - **게시 게이트**: export `_handoff_rows` 가 게시 직전 전 패턴을 감사, 위반분은
   **게시 제외 + `serve.pattern_audit_reject` 경보**(§19.1 규격). 통과분 게시는 막지 않는다.
 - **사전 검사(CI/로컬)**: `python scripts/audit_pattern_sql.py --yml <yml>` (위반 시 exit 1),
-  감사기 자체 검증은 `--self-test`(적대 케이스 12종 — 내부 표 참조·스택 쿼리·주석 은닉 등).
+  감사기 자체 검증은 `--self-test`(적대 23종 — 내부 표 참조·콤마 조인 은닉·스택 쿼리·
+  주석 은닉·pragma TVF 등). dbt 저장소 단독 CI 는 `scripts/lint_usage_patterns.py`(E1~E7).
 - **전체 차단(kill switch)** — 사고 시 모든 패턴 실행을 끄는 법, 빠른 순서로:
   1. (게이트웨이, 즉시) d1_usage_patterns 의 `verified_at` 을 NULL 로 — runnable=false 가
      되어 전 패턴 409. 데이터 파괴 없음, 재검증 실행으로 복구.
@@ -101,11 +103,15 @@ ASAC-DBT#471(Serving#178·#179 후속)로 정본화했다. **선언이 곧 게�
 
 ## 7. 표현력의 경계 — 여기서 안 되는 것
 
-계약 4(전 파라미터 필수)·3(식별자 bind 불가)·단일문 제약으로 **배열 IN, 선택 파라미터
-기본값, 패턴 체이닝(한 패턴 결과를 다음 입력으로), 자유 프로젝션**은 패턴으로 표현할 수
+계약 4(전 파라미터 필수)·3(식별자 bind 불가)·단일문 제약으로 **선택 파라미터 기본값,
+패턴 체이닝(한 패턴 결과를 다음 입력으로), 자유 프로젝션·동적 피벗**은 패턴으로 표현할 수
 없다. 이 영역은 마켓플레이스 역제안으로 관리한다 — 목록·논거·보안 영향은
 [usage-patterns-proposal.md](usage-patterns-proposal.md) 참조. **여기 없는 표현이 필요하면
 패턴을 우회하지 말고(§6 감사를 피하는 꼼수 금지) 그 문서에 항목을 추가하라.**
+
+반대로 **배열 IN(가변 개수 다중 선택)은 계약 변경 없이 된다** — `json_each` 관용구(§4)를
+쓴다. 값은 여전히 단일 문자열 스칼라라 bind 를 그대로 통과하고, 감사기는 `json_each` 만
+테이블값 함수로 허용한다(`pragma_*` 는 차단). 실 D1 검증 2026-08-08.
 
 ## 8. 검증 (verified_*)
 
@@ -119,13 +125,24 @@ ASAC-DBT#471(Serving#178·#179 후속)로 정본화했다. **선언이 곧 게�
 - `allow_empty: true` 는 "0행이 정상"인 패턴만(예: 이상 감지 스크린) — 예시값 조합까지
   0행이어도 되는 패턴은 그 사실을 question_ko 에 적는다.
 
-## 9. 제공 정보 선언 (`provides_ko`) 와 카탈로그
+## 9. "무엇을 주는가" — 선언하지 말고 SQL 에서 뽑는다
 
-- 신규 패턴은 `provides_ko`(이 패턴이 소비자에게 주는 정보 1-2문장)를 선언한다 —
-  `question_ko` 가 "무엇을 묻나"라면 `provides_ko` 는 "무엇을 받나"다. 기존 패턴은 소급
-  선언을 권장(카탈로그는 없으면 question_ko 로 대체).
+- **패턴 항목에 임의 필드를 더하지 않는다.** 허용 필드는 org 공통 Serving Contract 가
+  화이트리스트로 고정한다(`serving_contract/schema.yml` `usage_pattern_fields`):
+  필수 `pattern_id`·`sql`, 선택 `question_ko`·`axes`·`requires`·`verified_rows`·
+  `verified_at`·`verified_publication_id`·`allow_empty`·`insight_sample_ko`·`d1_table`.
+  그 밖의 이름은 `serving-contract-gate` CI 가 `usage_pattern_unknown_field` 로 막는다.
+  (`provides_ko` 같은 설명 필드를 두려다 이 게이트에 걸린 전례가 있다 — 게다가
+  `d1_catalog_*` 핸드오프 스키마에 없는 필드는 **게시되지 않아** 소비자에게 닿지도 않는다.
+  필드가 정말 필요하면 계약 확장을 #478 에 먼저 제안한다.)
+- 그래서 "이 패턴이 무엇을 주는가"의 정본은 **SQL 자체**다. 카탈로그 생성기가 최종 SELECT 의
+  프로젝션에서 **반환 컬럼**을 뽑아 표에 싣는다 — 손 선언이 아니라 실물 기준이라 SQL 과
+  어긋날 수 없다. 질문(`question_ko`)·축(`axes`)·파라미터와 함께 읽으면
+  "무엇을 묻고 / 무엇을 받고 / 어떤 축으로" 가 모두 드러난다.
 - 사람용 카탈로그는 생성물이다: `python dags .../scripts/generate_pattern_catalog.py
   --yml <yml> --out docs/DB/gold/usage-patterns-catalog.md`. yml 을 고치면 재생성한다.
+- 따라서 **반환 컬럼에 의미가 드러나는 별칭을 붙이는 것이 곧 문서화**다
+  (`SUM(cnt) AS opened_total` 처럼 — `AS c1` 같은 이름은 카탈로그를 무의미하게 만든다).
 
 ## 10. 선언 블록 서식 (요약)
 
@@ -133,7 +150,6 @@ ASAC-DBT#471(Serving#178·#179 후속)로 정본화했다. **선언이 곧 게�
 - pattern_id: "category_seoul_timeseries"        # §1 슬러그
   question_ko: "특정 업종의 서울 전체 20년 추이는? (:category ∈ 실측 코드)"
   axes: "y(시계열) × 서울 합산 @ category 고정"
-  provides_ko: "한 업종의 연도별 개업·폐업·순증·교체율 추이."   # §9
   verified_rows: 0                               # §8 — --apply 가 실측으로 갱신
   insight_sample_ko: "…실측 수치로…"
   sql: |
