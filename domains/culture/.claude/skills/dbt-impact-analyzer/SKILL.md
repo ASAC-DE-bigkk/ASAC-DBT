@@ -35,6 +35,17 @@ dbt 모델 수정 **전에** downstream 영향을 파악한다. 추출은 스크
    union·테스트 제외 > **10**, `--threshold`로 조정 가능)면 자동 진행 금지 —
    AskUserQuestion으로 ①대상 모델 축소 ②`--max-depth` 제한
    ③전체 계속 중 선택받는다.
+3-1. 🔴 **크로스도메인 참조 확인**: 리포트 `cross_domain.total > 0`이면 **삭제·개명
+   판단을 여기서 멈춘다.** 이건 manifest 밖 영역이라 downstream 수와 무관하다 —
+   `downstream: 0`인데 남이 읽고 있을 수 있다(그게 2026-08-08 실사고다).
+   - `refs[]`의 (도메인·파일·줄)을 리포트에 **그대로** 싣는다. 요약하지 않는다 —
+     읽는 사람이 열어 봐야 할 자리다.
+   - **삭제·개명이면**: 해당 도메인 오너와 합의 전까지 진행 금지. AskUserQuestion으로
+     ①대안 소스로 갈아타기 ②그 도메인에 먼저 알리기 ③계속 중 선택받는다.
+   - **컬럼 변경이면**: 그 파일들을 5단계 sub-agent 대상에 **추가**한다(manifest가
+     안 주므로 경로를 직접 넘긴다).
+   - `scanned == false`면 그 사실을 리포트에 명시한다 — "참조 0건"과 다르다.
+
 4. **변경 유형 분류**: 대상 모델 SQL·yml diff(가정 시나리오면 사용자 서술)에서
    컬럼 추가 / 컬럼 삭제 / 타입 변경 / 로직 변경(스키마 불변)을 구분하고,
    삭제·타입 변경된 컬럼명 목록을 확정한다.
@@ -63,18 +74,33 @@ dbt 모델 수정 **전에** downstream 영향을 파악한다. 추출은 스크
     | gold_x | 1 | 직접 참조 | 명시(col_a) | breaking | contract enforced |
     | gold_y | 2 | 간접 전파 | select * | warn | 테스트 4개 |
 
+    🔴 다른 도메인이 읽고 있다: <n>건        ← cross_domain.total > 0 일 때만
+    | 도메인 | 파일:줄 | 무엇 |
+    |---|---|---|
+    | transit | transit/models/gold/gold_transit_event_access.sql:46 | gold_culture_event_schedule |
+
     manifest: <generated_at> (stale 여부) · downstream 합계 <n> (테스트 제외)
+    크로스도메인 스캔: <훑은 도메인 목록> · <n>건   (또는 "확인 못 함 — <사유>")
 
 - 영향 유형: depth=1 → 직접 참조, depth>=2 → 간접 전파
 - 비고: contract enforced 여부, attached_tests 수, 가정 시나리오 여부
+- 🔴 **크로스도메인 표는 `downstream` 표와 합치지 않는다.** 근거의 종류가 다르다 —
+  하나는 manifest(정확), 하나는 텍스트 스캔(놓칠 수 있음). 섞으면 읽는 사람이
+  둘의 신뢰도를 같게 본다. **스캔 못 했으면 "0건"이 아니라 "확인 못 함"으로 적는다.**
 
 ## 한계 (프로토타입)
 
 - culture 프로젝트 한정 — 루트 승격은 #129 본안(멘토 게이트)
-- **크로스 도메인 미탐지**: 도메인별 독립 dbt 프로젝트라 culture manifest 밖의
-  참조는 downstream에 잡히지 않는다 — 실사례: citydata의
-  `gold_citydata_ppltn_x_culture_daily`가 culture 마트를 참조하지만 미탐지.
-  타 도메인 영향까지 보려면 전 도메인 manifest 순회가 필요(루트 승격 설계 논점)
+- **크로스 도메인**: manifest로는 여전히 안 잡힌다(도메인별 독립 프로젝트).
+  2026-08-08부터 **워킹트리 텍스트 스캔**으로 보완한다(`cross_domain`, 3-1단계) —
+  다른 도메인의 `models/**/*.sql|yml`에서 **모델명**을 찾는다. source alias는
+  도메인마다 달라(`culture`·`citydata_gold`·`weather_culture_schedule_gold`…)
+  키로 쓸 수 없어 이름으로 찾는다. 실측: `gold_culture_event_schedule` →
+  transit 4건 + traffic_weather 2건(alias로 grep했으면 후자를 통째로 놓쳤다).
+  ⚠️ **텍스트 스캔의 한계**: 컴파일 결과가 아니라 소스 텍스트라, 변수·매크로로
+  조립되는 참조는 못 잡는다. 전 도메인 manifest 순회(루트 승격)가 여전히 본안이다.
+  ⚠️ **다른 도메인 워킹트리가 있어야** 돈다 — 없으면 `scanned: false`이고,
+  그건 "참조 0건"이 아니라 **"확인 못 함"**이다
 - raw SQL 기준 실참조 판정(compiled 미사용) — dbt_utils 매크로가 컬럼을 숨기는
   경우 sub-agent가 `매크로 경유 가능`으로 보고하고 사람 확인 요청
 - exposure 노드 추적 없음(culture manifest에 현행 exposure 없음)

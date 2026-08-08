@@ -205,3 +205,126 @@ def test_cli_smoke(tmp_path, capsys):
     assert rc == 0
     out = _json.loads(capsys.readouterr().out)
     assert out["targets"][0]["summary"]["total_downstream"] == 3
+
+
+# ── 크로스도메인 스캔 (#129 — manifest 밖 참조) ──────────────────────────────
+# 실사고 재현: 남의 도메인이 우리 모델을 source() 로 읽는데 우리 manifest 에는
+# 그 참조가 없어 downstream=0 으로 나오던 문제(2026-08-08 culture prod 실패).
+
+def _domains(tmp_path, self_name="culture", others=()):
+    """domains/<self>, domains/<other>… 를 만든다. others = [(도메인, 상대경로, 내용)]"""
+    root = tmp_path / "domains"
+    me = root / self_name
+    (me / "models" / "gold").mkdir(parents=True, exist_ok=True)
+    (me / "models" / "gold" / "own.sql").write_text("select 1", encoding="utf-8")
+    for domain, rel, body in others:
+        f = root / domain / "models" / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(body, encoding="utf-8")
+    return me
+
+
+def test_cross_domain_finds_source_ref(tmp_path):
+    me = _domains(tmp_path, others=[
+        ("transit", "gold/g.sql",
+         "select *\nfrom {{ source('culture', 'gold_culture_event_schedule') }}\n"),
+    ])
+    r = impact_map.cross_domain_refs(me, ["gold_culture_event_schedule"])
+    assert r["scanned"] is True
+    assert r["total"] == 1
+    assert r["by_domain"] == {"transit": 1}
+    assert r["refs"][0]["line"] == 2
+    assert r["refs"][0]["domain"] == "transit"
+
+
+def test_cross_domain_ignores_source_alias(tmp_path):
+    """alias 는 도메인마다 제각각이라 키로 못 쓴다 — 모델명으로 찾는다.
+
+    실측: traffic_weather 는 culture 모델을 `weather_culture_schedule_gold` 라는
+    alias 로 읽는다. alias 로 grep 했으면 통째로 놓쳤다.
+    """
+    me = _domains(tmp_path, others=[
+        ("traffic_weather", "weather/g.sql",
+         "from {{ source('weather_culture_schedule_gold', 'gold_culture_event_schedule') }}\n"),
+    ])
+    r = impact_map.cross_domain_refs(me, ["gold_culture_event_schedule"])
+    assert r["total"] == 1
+    assert r["refs"][0]["domain"] == "traffic_weather"
+
+
+def test_cross_domain_finds_sources_yml_declaration(tmp_path):
+    me = _domains(tmp_path, others=[
+        ("citydata", "sources.yml",
+         "sources:\n  - name: culture\n    tables:\n      - name: silver_culture_event\n"),
+    ])
+    r = impact_map.cross_domain_refs(me, ["silver_culture_event"])
+    assert r["total"] == 1
+    assert r["refs"][0]["file"].endswith("sources.yml")
+
+
+def test_cross_domain_word_boundary(tmp_path):
+    """부분일치 금지 — `gold_x` 가 `gold_x_daily` 에 걸리면 오탐이 쏟아진다."""
+    me = _domains(tmp_path, others=[
+        ("transit", "gold/g.sql", "from {{ source('c', 'gold_x_daily') }}\n"),
+    ])
+    assert impact_map.cross_domain_refs(me, ["gold_x"])["total"] == 0
+    assert impact_map.cross_domain_refs(me, ["gold_x_daily"])["total"] == 1
+
+
+def test_cross_domain_skips_build_artifacts(tmp_path):
+    """target/ 의 컴파일본은 원본이 아니다 — 세면 같은 참조를 두 번 세거나 선언으로 오독한다."""
+    me = _domains(tmp_path, others=[
+        ("transit", "gold/g.sql", "from {{ source('culture', 'gold_a') }}\n"),
+    ])
+    tgt = tmp_path / "domains" / "transit" / "models" / "target" / "compiled.sql"
+    tgt.parent.mkdir(parents=True, exist_ok=True)
+    tgt.write_text("from culture.gold_a\n", encoding="utf-8")
+    assert impact_map.cross_domain_refs(me, ["gold_a"])["total"] == 1
+
+
+def test_cross_domain_excludes_self(tmp_path):
+    """자기 도메인 안의 ref 는 manifest 가 이미 본다 — 여기서 또 세면 중복 보고다."""
+    me = _domains(tmp_path, others=[
+        ("transit", "gold/g.sql", "select 1\n"),   # 스캔은 실제로 돌되 매치가 없어야 한다
+    ])
+    (me / "models" / "gold" / "mine.sql").write_text(
+        "from {{ ref('gold_a') }}", encoding="utf-8")
+    r = impact_map.cross_domain_refs(me, ["gold_a"])
+    assert r["scanned"] is True and r["total"] == 0
+
+
+def test_no_scan_keeps_response_shape(tmp_path):
+    """스캔 못 해도 모양이 같아야 한다 — `total` 이 없으면 소비자가 '0건'과 구분 못 한다."""
+    me = tmp_path / "solo"
+    (me / "models").mkdir(parents=True)
+    r = impact_map.cross_domain_refs(me, ["gold_a"], domains_root=tmp_path / "nope")
+    assert set(r) == {"scanned", "reason", "scanned_domains", "total", "by_domain", "refs"}
+    assert r["total"] == 0
+
+
+def test_cross_domain_no_root(tmp_path):
+    """도메인 루트가 없어도 죽지 않는다 — 스킬이 다른 배치에서도 돈다."""
+    me = tmp_path / "solo"
+    (me / "models").mkdir(parents=True)
+    r = impact_map.cross_domain_refs(me, ["gold_a"], domains_root=tmp_path / "nope")
+    assert r["scanned"] is False and r["refs"] == []
+
+
+def test_report_scans_downstream_names_too(tmp_path):
+    """남이 읽는 게 대상 모델이 아니라 그 **하류**일 수 있다(실사고: transit → event_schedule)."""
+    m = mini_manifest()
+    me = _domains(tmp_path, others=[
+        ("transit", "gold/g.sql", "from {{ source('culture', 'gold_c') }}\n"),
+    ])
+    r = impact_map.build_report(m, ["silver_a"], me, None)
+    assert r["cross_domain"]["total"] == 1          # gold_c 는 silver_a 의 depth-2 하류
+    assert r["cross_domain"]["refs"][0]["model"] == "gold_c"
+
+
+def test_report_cross_scan_can_be_disabled(tmp_path):
+    m = mini_manifest()
+    me = _domains(tmp_path, others=[
+        ("transit", "gold/g.sql", "from {{ source('culture', 'gold_c') }}\n"),
+    ])
+    r = impact_map.build_report(m, ["silver_a"], me, None, scan_cross=False)
+    assert r["cross_domain"]["scanned"] is False
