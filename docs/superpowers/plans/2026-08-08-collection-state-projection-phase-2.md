@@ -282,7 +282,7 @@ Run: `git diff --check`
 
 Expected: exit code 0.
 
-- [ ] **Step 4: Commit only Phase 2 paths**
+- [x] **Step 4: Commit only Phase 2 paths**
 
 ```bash
 git add domains/traffic_weather/macros/collection_state.sql domains/traffic_weather/tests/test_collection_state_projection_contract.py docs/superpowers/plans/2026-08-08-collection-state-projection-phase-2.md
