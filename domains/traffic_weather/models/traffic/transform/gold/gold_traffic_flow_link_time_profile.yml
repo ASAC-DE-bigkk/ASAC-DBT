@@ -16,7 +16,7 @@ models:
             summary: 도로 링크별 과거 관측을 요일과 시간대별로 집계해 평소 교통 흐름을 보여줍니다.
             caveat: 과거 관측 이력을 바탕으로 한 기준값이며 실시간 예측이 아닙니다.
             use_cases: ["요일·시간대별 교통 패턴 분석"]
-          product_question: 서울 도로 링크별로 같은 요일·시간대에 보통 어느 정도 속도로 관측됩니까?
+          product_question: 서울 도로 링크 중 요일·시간대별 평균 속도가 가장 낮은 곳은 어디입니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
             operation:
