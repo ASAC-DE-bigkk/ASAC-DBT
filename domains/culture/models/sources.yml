@@ -175,8 +175,11 @@ sources:
     database: "{{ target.database }}"
     schema: "{{ env_var('SEOUL_CITYDATA_SCHEMA', 'citydata' if target.name == 'prod' else 'seoul_citydata') }}"
     tables:
-      - name: gold_citydata_ppltn_by_time
-        description: 장소×시간(event_at) 인구혼잡도 시계열 — area_congest_lvl·area_ppltn_min/max·gu_code
+      # 🔄 2026-08-08: `gold_citydata_ppltn_by_time` → `gold_citydata_ppltn_hourly`.
+      #    전자는 ASAC-DBT#467 로 삭제됐다(5분 전량 재빌드 비용원). 시간 버킷 집계본이라
+      #    혼잡도는 **그 시간의 최고 등급**이고 5분 분포는 남아 있지 않다.
+      - name: gold_citydata_ppltn_hourly
+        description: 장소×시간버킷(time_bucket) 인구혼잡 집계 — peak_congestion_level(그 시간 최고 등급)·average_population·measurement_count(버킷이 담은 5분 관측 수)·gu_code
 
   # 크로스도메인 read(#308) — commerce published gold. ref 불가라 source 로 배선(citydata_gold 선례).
   #   read-only. culture 는 자기 스키마에만 write. dev=iceberg_dev.commerce / prod=iceberg.commerce.
