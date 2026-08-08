@@ -670,7 +670,7 @@ models:
         data_type: timestamp(6)
 
   - name: gold_culture_event_crowd
-    description: '문화 행사 자치구의 요일×시간대별 평시 혼잡 베이스라인(그레인 gu_code×day_of_week×hour_of_day, #276·v2 #282). citydata gold를 크로스도메인 source로 읽어 event_schedule 있는 gu로 스코프. "그 행사 지역 무슨 요일 몇 시가 붐비나/한적한가". ⚠~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님.'
+    description: '문화 행사 자치구의 요일×시간대별 평시 혼잡 베이스라인(그레인 gu_code×day_of_week×hour_of_day, #276·v2 #282, v3 소스전환 2026-08-08). citydata gold를 크로스도메인 source로 읽어 event_schedule 있는 gu로 스코프. "그 행사 지역 무슨 요일 몇 시가 붐비나/한적한가". ⚠~120 핫스팟 한정 평시 베이스라인 — 특정 행사일 실측 lift 아님. ⚠v3: 소스가 5분 관측(by_time, ASAC-DBT#467로 삭제)에서 시간버킷 집계(ppltn_hourly)로 바뀌어 혼잡도가 **그 시간의 최고 등급** 기준이다 — 실측 평균 혼잡점수 1.381→1.446(+4.7%).'
     config:
       contract:
         enforced: true   # published gold 계약(#180)
@@ -742,6 +742,13 @@ models:
               rights_checked_at: "2026-08-05"
           # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
           # ⚠️ 두 패턴 모두 평시 베이스라인(핫스팟 ~120곳 한정) — 특정 행사일 실측이 아니다(제품 caveat)
+          #
+          # 🔄 2026-08-08 소스 전환(v3): **SQL 은 안 바꿨다** — 컬럼·그레인이 그대로라 세 질의가
+          #    그대로 돈다. `insight_sample_ko` 만 새 소스 기준 실측으로 갱신했다(읽기 전용
+          #    시뮬레이션, prod 원본 대상). 답이 거의 안 바뀌었다: 은평구 9,920→9,882 ·
+          #    송파 00시 8,236→8,341 · 종로 최한산 여유 유지.
+          #    ⚠️ `verified_publication_id` 는 **옛 게시본을 가리킨 채로 뒀다** — 새 값을 손으로
+          #    지어낼 수 없다. 첫 prod 재빌드·발행 뒤에 그 run 의 id 로 갱신해야 한다.
           usage_patterns:
             - pattern_id: quiet_hours_in_gu
               question_ko: 이 구는 언제(요일×시간) 제일 한산한가?
@@ -750,7 +757,7 @@ models:
               verified_rows: 10
               verified_at: "2026-07-31"
               verified_publication_id: 2ba3ce94ac734d0487dfd93fa4999f55
-              insight_sample_ko: 종로구 최한산 = 일(7) 02시, 혼잡점수 1(여유).
+              insight_sample_ko: 종로구 최한산 = 혼잡점수 1.0(여유) — 여러 요일·시간이 동률.
               sql: |
                 -- :gu, :n=10
                 SELECT day_of_week, hour_of_day, typical_congest, avg_congest_score
@@ -763,7 +770,7 @@ models:
               verified_rows: 24
               verified_at: "2026-07-31"
               verified_publication_id: 2ba3ce94ac734d0487dfd93fa4999f55
-              insight_sample_ko: 송파구 토요일 24시간 프로파일 — 00시 avg_ppltn 8,236(여유).
+              insight_sample_ko: 송파구 토요일 24시간 프로파일 — 00시 avg_ppltn 8,341(여유).
               sql: |
                 -- :gu, :dow(1=월..7=일), :n=24
                 SELECT hour_of_day, avg_ppltn, typical_congest
@@ -778,7 +785,7 @@ models:
               verified_rows: 10
               verified_at: "2026-08-05"
               verified_publication_id: 865b88b6a8f1428e8fd6cbb9f937fa26
-              insight_sample_ko: 토요일 19시 은평구 avg_ppltn 9,920 으로 '붐빔' 1위.
+              insight_sample_ko: 토요일 19시 은평구 avg_ppltn 9,882 로 '붐빔' 1위.
               sql: |
                 -- :dow(1=월..7=일), :hour(0..23), :n=10
                 SELECT gu, avg_ppltn, avg_congest_score, typical_congest, crowd_samples
@@ -787,8 +794,8 @@ models:
                 ORDER BY avg_congest_score DESC LIMIT :n
           display:
             title: 행사 지역 요일·시간대 혼잡도
-            summary: 행사가 열리는 자치구의 요일·시간대별 평소 혼잡도를 보여줍니다.
-            caveat: 특정 행사 당일의 증가분이 아니라 평상시 패턴입니다. 서울시가 관측하는 주요 지점 기준이라 자치구 전역을 대표하지는 않습니다.
+            summary: 행사가 열리는 자치구가 요일·시간대별로 얼마나 붐비는지 보여줍니다.
+            caveat: 특정 행사 당일의 증가분이 아니라 평상시 패턴입니다. 서울시가 관측하는 주요 지점 기준이라 자치구 전역을 대표하지는 않습니다. 혼잡도는 그 시간대에 관측된 **가장 붐빈 순간**을 기준으로 하므로, 한 시간 내내 그 수준이었다는 뜻은 아닙니다.
             use_cases:
               - 방문 시간대 추천
               - 행사 운영 인력·안전 배치 계획
