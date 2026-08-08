@@ -300,7 +300,10 @@ models:
           enabled: true
           external: true
           product_id: transit_dong_hourly
-          product_question: 이 행정동은 시간대별로 교통 상태가 어떠했습니까?
+          # 지시대명사 금지 — AI 가 읽는 입력이라 "이 행정동은" 이면 값을 되묻고 끝난다
+          # (ASK-Seoul-Serving#189, citydata 선례 ASAC-DBT#474). 커버리지가 부분(값이
+          # 있는 동·시간만)이라 숫자는 넣지 않는다.
+          product_question: 서울 행정동별 교통 상태는 시간대에 따라 어떻게 달라집니까?
           grain: (admin_dong_code, hour_at)마다 한 행 — 동×시간 교통 이력.
           primary_key: [admin_dong_code, hour_at]
           publication_mode: append          # 최근 구간 삭제→재삽입 (lookback 2h, runtime 상수)
@@ -594,7 +597,10 @@ models:
           enabled: true
           external: true
           product_id: transit_dong_now
-          product_question: 지금 이 행정동의 버스·지하철·주차 상태는 어떻습니까?
+          # 지시대명사 금지(#189). 스냅샷 ~410행 / 서울 행정동 426 이라 전수가 아니므로
+          # 숫자 대신 "서울 행정동별" 로 범위만 준다. "상태가 나쁜 곳" 같은 합성 순위는
+          # 쓰지 않는다 — 3축을 합친 점수 컬럼이 없어 AI 가 기준을 지어내야 한다.
+          product_question: 지금 서울 행정동별 버스 혼잡·지하철 대기·주차 여유는 어떻습니까?
           grain: admin_dong_code마다 한 행 — 동별 현재 교통 스냅샷.
           primary_key: [admin_dong_code]
           publication_mode: snapshot        # ~410행 전량 교체 (staging 원자 전환)
@@ -894,7 +900,8 @@ models:
           enabled: true
           external: true
           product_id: transit_parking_full_risk
-          product_question: 지금 이 주차장은 얼마나 찼고 만차까지 얼마나 남았습니까?
+          # 지시대명사 금지(#189). 실시간 제공 시영주차장만(~108) 이라 전수가 아니므로 숫자 없음.
+          product_question: 지금 서울에서 만차에 가까운 주차장은 어디입니까?
           grain: parking_id마다 한 행 — 실시간 제공 주차장의 현재 만차 리스크.
           primary_key: [parking_id]
           publication_mode: snapshot        # ~108행 전량 교체
@@ -1108,7 +1115,8 @@ models:
           enabled: true
           external: true
           product_id: transit_event_access
-          product_question: 이 문화행사에 대중교통이나 자차로 어떻게 갑니까?
+          # 지시대명사 금지(#189). 진행·예정 행사라 행수가 시점마다 변해 숫자 없음.
+          product_question: 서울 문화행사장에 가까운 지하철역과 주차장은 어디입니까?
           grain: event_ref마다 한 행 — 진행·예정 행사의 접근 안내 명부.
           primary_key: [event_ref]
           publication_mode: snapshot        # ~1천 행 전량 교체
