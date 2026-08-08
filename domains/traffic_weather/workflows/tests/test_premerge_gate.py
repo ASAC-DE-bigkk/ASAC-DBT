@@ -30,19 +30,8 @@ def _load_module():
 
 
 class RecordingRunner:
-    def __init__(
-        self,
-        changed_files: str,
-        *,
-        empty_selector: str | None = None,
-        selector_counts: dict[str, int] | None = None,
-    ) -> None:
+    def __init__(self, changed_files: str) -> None:
         self.changed_files = changed_files
-        self.empty_selector = empty_selector
-        self.selector_counts = {
-            **EXPECTED_GOLD_SELECTOR_COUNTS,
-            **(selector_counts or {}),
-        }
         self.calls: list[tuple[list[str], dict]] = []
 
     def __call__(self, command, **kwargs):
@@ -51,23 +40,10 @@ class RecordingRunner:
         stdout = ""
         if command[:3] == ["git", "diff", "--name-only"]:
             stdout = self.changed_files
-        elif command[:2] == ["dbt", "ls"]:
-            selector = command[command.index("--selector") + 1]
-            count = self.selector_counts.get(selector, 1)
-            stdout = (
-                ""
-                if selector == self.empty_selector
-                else "".join(
-                    f"selected__{selector}__{index}\n" for index in range(count)
-                )
-            )
         return subprocess.CompletedProcess(command, 0, stdout=stdout)
 
 
-def _project(
-    tmp_path: Path,
-    selectors: tuple[str, ...] = tuple(EXPECTED_GOLD_SELECTOR_COUNTS),
-) -> Path:
+def _project(tmp_path: Path) -> Path:
     project_dir = tmp_path / "domains" / "traffic_weather"
     project_dir.mkdir(parents=True)
     (project_dir / "selectors.yml").write_text(
@@ -75,7 +51,7 @@ def _project(
             {
                 "selectors": [
                     {"name": name, "definition": {"method": "tag", "value": name}}
-                    for name in selectors
+                    for name in EXPECTED_GOLD_SELECTOR_COUNTS
                 ]
             },
             sort_keys=False,
@@ -183,11 +159,7 @@ def test_gate_owns_the_complete_read_only_premerge_sequence(tmp_path: Path) -> N
         "--target",
         "dev",
     ]
-    selector_commands = commands[3:6]
-    assert [command[3] for command in selector_commands] == list(
-        EXPECTED_GOLD_SELECTOR_COUNTS
-    )
-    assert commands[6] == [
+    assert commands[3] == [
         sys.executable,
         str(
             project_dir
@@ -200,14 +172,8 @@ def test_gate_owns_the_complete_read_only_premerge_sequence(tmp_path: Path) -> N
         str(target_path / "manifest.json"),
         "--inventory",
         str(project_dir / "contracts" / "traffic_gold_test_cadence.yml"),
-        "--selector-count",
-        "ask_seoul_traffic_transform_gold_gate_tests=125",
-        "--selector-count",
-        "ask_seoul_traffic_transform_gold_hourly_tests=145",
-        "--selector-count",
-        "ask_seoul_traffic_transform_gold_full_tests=175",
     ]
-    assert commands[7] == [
+    assert commands[4] == [
         sys.executable,
         "-m",
         "pytest",
@@ -215,7 +181,7 @@ def test_gate_owns_the_complete_read_only_premerge_sequence(tmp_path: Path) -> N
         "-p",
         "no:cacheprovider",
     ]
-    assert commands[8] == [
+    assert commands[5] == [
         sys.executable,
         str(
             project_dir
@@ -235,76 +201,23 @@ def test_gate_owns_the_complete_read_only_premerge_sequence(tmp_path: Path) -> N
     assert "traffic_snapshot_dag_run_id" in vars_payload
     assert "traffic_flow_snapshot_dag_run_id" in vars_payload
 
-    for _, kwargs in runner.calls[1:6]:
+    assert all(command[:2] != ["dbt", "ls"] for command in commands)
+
+    for _, kwargs in runner.calls[1:3]:
         assert kwargs["cwd"] == project_dir
         assert kwargs["check"] is True
         assert kwargs["env"]["DBT_PROJECT_DIR"] == str(project_dir)
         assert kwargs["env"]["DBT_PROFILES_DIR"] == str(project_dir)
         assert kwargs["env"]["DBT_TARGET"] == "dev"
 
-    pytest_environment = runner.calls[7][1]["env"]
+    inventory_kwargs = runner.calls[3][1]
+    assert inventory_kwargs["cwd"] == project_dir
+    assert inventory_kwargs["check"] is True
+
+    pytest_environment = runner.calls[4][1]["env"]
     assert pytest_environment["ASK_SEOUL_FRESH_MANIFEST"] == str(
         target_path / "manifest.json"
     )
-
-
-def test_empty_named_selector_fails_before_contract_tests(tmp_path: Path) -> None:
-    module = _load_module()
-    project_dir = _project(tmp_path, selectors=("empty",))
-    runner = RecordingRunner(
-        "domains/traffic_weather/selectors.yml\n", empty_selector="empty"
-    )
-
-    with pytest.raises(RuntimeError, match="empty.*empty"):
-        module.run_premerge_gate(
-            repository_root=tmp_path,
-            project_dir=project_dir,
-            target_path=tmp_path / "target",
-            base_sha="base",
-            head_sha="head",
-            command_runner=runner,
-        )
-
-    assert all("pytest" not in command for command, _ in runner.calls)
-    assert all(
-        "validate_singular_test_dependency_manifest.py" not in " ".join(command)
-        for command, _ in runner.calls
-    )
-
-
-@pytest.mark.parametrize(
-    "selector,actual_count",
-    (
-        ("ask_seoul_traffic_transform_gold_gate_tests", 122),
-        ("ask_seoul_traffic_transform_gold_hourly_tests", 142),
-        ("ask_seoul_traffic_transform_gold_full_tests", 172),
-    ),
-)
-def test_exact_gold_selector_drift_fails_before_contract_tests(
-    tmp_path: Path,
-    selector: str,
-    actual_count: int,
-) -> None:
-    module = _load_module()
-    project_dir = _project(tmp_path)
-    runner = RecordingRunner(
-        "domains/traffic_weather/selectors.yml\n",
-        selector_counts={selector: actual_count},
-    )
-
-    with pytest.raises(RuntimeError, match="selector counts mismatch"):
-        module.run_premerge_gate(
-            repository_root=tmp_path,
-            project_dir=project_dir,
-            target_path=tmp_path / "target",
-            base_sha="base",
-            head_sha="head",
-            command_runner=runner,
-        )
-
-    commands = [command for command, _ in runner.calls]
-    assert all("validate_traffic_gold_test_inventory.py" not in " ".join(command) for command in commands)
-    assert all("pytest" not in command for command in commands)
 
 
 def test_traffic_gold_cadence_selectors_are_declared() -> None:
@@ -318,27 +231,38 @@ def test_traffic_gold_cadence_selectors_are_declared() -> None:
     assert "ask_seoul_traffic_transform_gold_hourly_tests" in selector_names
     assert "ask_seoul_traffic_transform_gold_full_tests" in selector_names
 
-    def walk(value):
-        if isinstance(value, dict):
-            yield value
-            for child in value.values():
-                yield from walk(child)
-        elif isinstance(value, list):
-            for child in value:
-                yield from walk(child)
-
-    cadence_definitions = (
-        selector["definition"]
+    definitions = {
+        selector["name"]: selector["definition"]
         for selector in document["selectors"]
-        if selector["name"]
-        in {
-            "ask_seoul_traffic_transform_gold_gate_tests",
-            "ask_seoul_traffic_transform_gold_hourly_tests",
-            "ask_seoul_traffic_transform_gold_full_tests",
+        if selector["name"] in EXPECTED_GOLD_SELECTOR_COUNTS
+    }
+
+    def tier_definition(tier_tag: str) -> dict:
+        return {
+            "intersection": [
+                {
+                    "method": "tag",
+                    "value": "ask_seoul_traffic_transform_gold",
+                    "indirect_selection": "empty",
+                },
+                {
+                    "method": "tag",
+                    "value": tier_tag,
+                    "indirect_selection": "empty",
+                },
+                {"method": "resource_type", "value": "test"},
+            ]
         }
-    )
-    assert all(
-        node.get("method") != "selector"
-        for definition in cadence_definitions
-        for node in walk(definition)
-    )
+
+    gate = tier_definition("traffic_gold_gate")
+    hourly = tier_definition("traffic_gold_hourly_extension")
+    daily = tier_definition("traffic_gold_daily_extension")
+    assert definitions == {
+        "ask_seoul_traffic_transform_gold_gate_tests": gate,
+        "ask_seoul_traffic_transform_gold_hourly_tests": {
+            "union": [gate, hourly],
+        },
+        "ask_seoul_traffic_transform_gold_full_tests": {
+            "union": [gate, hourly, daily],
+        },
+    }

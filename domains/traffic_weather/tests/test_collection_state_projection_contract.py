@@ -44,7 +44,12 @@ def test_projection_preserves_collection_and_recovery_state_separately():
 def test_state_assertion_macro_is_fail_closed_for_enums_combinations_and_ties():
     sql = compact(MACRO)
     assertion = sql.split("macro collection_slot_state_assertions", 1)[1]
-    assert "macro collection_slot_state_assertions(relation)" in sql
+    assert "macro collection_slot_state_assertions(relation, expected_domain)" in sql
+    assert "count(*) over ( partition by expected_slot_id ) as expected_slot_id_count" in assertion
+    assert "expected_slot_id_count <> 1" in assertion
+    assert "domain is null" in assertion
+    assert "domain <> '{{ expected_domain }}'" in assertion
+    assert "source_id is null" in assertion
     assert "collection_state not in" in assertion
     assert "recovery_state not in" in assertion
     assert "recovery_class not in" in assertion

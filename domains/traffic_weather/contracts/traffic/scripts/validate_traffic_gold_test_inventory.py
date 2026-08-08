@@ -20,6 +20,18 @@ GOLD_TIER_TAGS = {
     "hourly_extension": "traffic_gold_hourly_extension",
     "daily_extension": "traffic_gold_daily_extension",
 }
+SELECTOR_TIERS = {
+    "ask_seoul_traffic_transform_gold_gate_tests": ("gate",),
+    "ask_seoul_traffic_transform_gold_hourly_tests": (
+        "gate",
+        "hourly_extension",
+    ),
+    "ask_seoul_traffic_transform_gold_full_tests": (
+        "gate",
+        "hourly_extension",
+        "daily_extension",
+    ),
+}
 STATIC_TIER_TAGS = {
     "ask_seoul_traffic_transform_asac_axes_contract",
     "ask_seoul_traffic_transform_common_admin",
@@ -153,6 +165,28 @@ def _node_tags(node: Mapping[object, object], unique_id: str) -> set[str]:
     if not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags):
         raise InventoryError(f"{unique_id}: tags must be a string list")
     return set(tags)
+
+
+def manifest_selector_counts(manifest: object) -> dict[str, int]:
+    """Return exact Traffic Gold cadence selector counts from manifest tags."""
+    nodes = _manifest_nodes(_mapping(manifest, "manifest"))
+    tier_node_ids = {tier: set() for tier in GOLD_TIER_TAGS}
+    for unique_id, node in nodes.items():
+        if node.get("resource_type") != "test":
+            continue
+        tags = _node_tags(node, unique_id)
+        if TRAFFIC_GOLD_TAG not in tags:
+            continue
+        for tier, tier_tag in GOLD_TIER_TAGS.items():
+            if tier_tag in tags:
+                tier_node_ids[tier].add(unique_id)
+
+    return {
+        selector: len(
+            set().union(*(tier_node_ids[tier] for tier in tiers))
+        )
+        for selector, tiers in SELECTOR_TIERS.items()
+    }
 
 
 def _owner_unique_ids(node: Mapping[object, object], unique_id: str) -> list[str]:
@@ -424,8 +458,6 @@ def _validate_manifest_portfolio(manifest: Mapping[object, object]) -> None:
 def validate_inventory(
     manifest: object,
     inventory: object,
-    *,
-    selector_counts: Mapping[str, int] | None = None,
 ) -> None:
     """Validate a tracked inventory against manifest-native test records."""
     manifest_doc = _mapping(manifest, "manifest")
@@ -509,28 +541,12 @@ def validate_inventory(
 
     _validate_manifest_portfolio(manifest_doc)
 
-    if selector_counts is not None and dict(selector_counts) != EXPECTED_SELECTOR_COUNTS:
+    actual_selector_counts = manifest_selector_counts(manifest_doc)
+    if actual_selector_counts != EXPECTED_SELECTOR_COUNTS:
         raise InventoryError(
             "selector counts mismatch: "
-            f"expected {EXPECTED_SELECTOR_COUNTS}, actual {dict(selector_counts)}"
+            f"expected {EXPECTED_SELECTOR_COUNTS}, actual {actual_selector_counts}"
         )
-
-
-def parse_selector_counts(values: Sequence[str]) -> dict[str, int]:
-    """Parse repeated NAME=COUNT CLI arguments into an exact mapping."""
-    counts: dict[str, int] = {}
-    for value in values:
-        name, separator, raw_count = value.partition("=")
-        if not separator or not name or name in counts:
-            raise InventoryError(f"invalid selector count {value!r}")
-        try:
-            count = int(raw_count)
-        except ValueError as error:
-            raise InventoryError(f"invalid selector count {value!r}") from error
-        if count < 0:
-            raise InventoryError(f"invalid selector count {value!r}")
-        counts[name] = count
-    return counts
 
 
 def generate_candidate(manifest: object) -> dict[str, object]:
@@ -583,12 +599,6 @@ def _argument_parser() -> argparse.ArgumentParser:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--inventory", type=Path)
     mode.add_argument("--generate-candidate", type=Path)
-    parser.add_argument(
-        "--selector-count",
-        action="append",
-        default=[],
-        metavar="NAME=COUNT",
-    )
     return parser
 
 
@@ -611,8 +621,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.inventory.read_text(encoding="utf-8"),
             Loader=_UniqueKeyLoader,
         )
-        selector_counts = parse_selector_counts(args.selector_count)
-        validate_inventory(manifest, inventory, selector_counts=selector_counts)
+        validate_inventory(manifest, inventory)
     except (
         InventoryError,
         OSError,
