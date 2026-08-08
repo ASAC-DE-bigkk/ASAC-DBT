@@ -17,7 +17,7 @@ models:
             summary: 시간대별로 관측 속도가 낮은 도로 링크를 순위로 보여줍니다.
             caveat: 관측된 링크를 속도 기준으로 정렬한 결과입니다.
             use_cases: ["시간대별 혼잡 구간 파악"]
-          product_question: 특정 시간에 관측 속도가 가장 낮은 링크는 어디입니까?
+          product_question: 지금 서울에서 관측 속도가 가장 낮은 도로 링크는 어디입니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
             operation:
@@ -200,7 +200,7 @@ models:
           cross_domain_usage_examples:
             - 특정 시간대 서울에서 가장 느린 도로 링크를 외부 API로 조회할 때 사용합니다.
             - 혼잡 경보 대시보드에서 시간대별 저속 링크 상위 목록을 보여줄 때 사용합니다.
-          product_question: 특정 시간에 관측 속도가 가장 낮은 링크는 어디입니까?
+          product_question: 지금 서울에서 관측 속도가 가장 낮은 도로 링크는 어디입니까?
           row_meaning: 관측된 hour_at 시간대 한 곳과 link_id 한 곳의 순위화된 관측 속도·통행시간 한 행입니다.
           grain: hour_at과 link_id 조합마다 정확히 한 행입니다.
           anchor_universe: silver_seoul_traffic_flow에서 해당 hour_at에 실제로 관측이 있었던 link_id만 포함하며, 전체 링크 universe가 아닙니다.

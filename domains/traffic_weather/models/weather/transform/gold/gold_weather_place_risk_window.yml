@@ -16,7 +16,7 @@ models:
             summary: 장소별로 이동·방문 시 주의가 필요한 기상 위험 예보 시간대를 보여줍니다.
             caveat: 예보값 임계치 기반 참고 정보이며 공식 기상특보가 아닙니다.
             use_cases: ["야외 활동 전 기상 위험 확인"]
-          product_question: 특정 장소에서 방문·이동 주의가 필요할 수 있는 예보 시간과 근거는 무엇입니까?
+          product_question: 서울 주요 장소 중 방문·이동 주의가 필요할 수 있는 예보 시간과 근거는 무엇입니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
             operation:

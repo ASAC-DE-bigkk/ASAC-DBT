@@ -16,7 +16,7 @@ models:
             summary: 장소별로 비나 눈이 이어질 것으로 예보된 시간 구간을 보여줍니다.
             caveat: 강수 예보 구간이며 실제 강수 발생을 보장하지 않습니다.
             use_cases: ["외출 시간대 날씨 참고"]
-          product_question: 특정 장소에서 비나 눈이 연속으로 예보된 시간대는 언제입니까?
+          product_question: 서울 주요 장소 중 비나 눈이 연속으로 예보된 시간대는 언제입니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
             operation:
