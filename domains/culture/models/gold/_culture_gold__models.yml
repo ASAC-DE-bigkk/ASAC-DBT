@@ -603,8 +603,14 @@ models:
               verified_at: "2026-07-31"
               verified_publication_id: 7ed8eddecfac4ba283ce075c26b2d45d
               insight_sample_ko: 7/31 중구 235건 · concentration 0.47 이 최다.
+              # ⚠️ 위 `quiet_days` 와 달리 **:to 를 걸지 않는다.** 상한이 필요했던 이유는
+              # 오름차순이라 1년 뒤 스카폴드 날짜(2027-05-30 · 1건까지 있다)가 "한산한 날"
+              # 1위로 뜨기 때문인데, 여기는 **내림차순**이라 그 행들이 꼴찌로 밀린다.
+              # 그리고 "피해야 할 날"은 앞으로 올 날을 묻는 질문이라 상한이 오히려 답을 자른다.
+              # 선언 주석에 `:to` 가 있었는데 SQL 은 안 썼다 — 이웃에서 복사되며 딸려온 것으로,
+              # 그대로 두면 `?to=` 를 보낸 쪽이 400(선언 밖 파라미터)을 맞는다(2026-08-07 수정).
               sql: |
-                -- :from, :to, :n=10
+                -- :from, :n=10
                 SELECT event_date, gu, total_events, concentration, busiest_type
                 FROM gold_culture_calendar_density
                 WHERE event_date >= :from ORDER BY total_events DESC LIMIT :n
