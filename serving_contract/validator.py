@@ -258,6 +258,83 @@ def _check_usage_patterns(model: ServingModel, schema: dict[str, Any]) -> list[F
             add("usage_pattern_invalid", f"{label} — 'verified_rows' 는 정수여야 한다")
         if "allow_empty" in pattern and not isinstance(pattern["allow_empty"], bool):
             add("usage_pattern_invalid", f"{label} — 'allow_empty' 는 불리언이어야 한다")
+        findings.extend(_check_pattern_param_meta(model, pattern, label, spec))
+
+    return findings
+
+
+def _scalar(value: Any) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (str, int, float))
+
+
+def _check_pattern_param_meta(model: ServingModel, pattern: dict[str, Any],
+                              label: str, spec: dict[str, Any]) -> list[Finding]:
+    """v1.11 (#217 P1·P3) — param_defaults·param_enum·params 의 형과 SQL 정합.
+
+    게이트웨이(convertPattern)는 선언 밖 메타 키를 **조용히 버린다**(게시 지연이 잘 돌던
+    패턴을 죽이면 안 되므로). 그 관용은 런타임의 것이고, **저작 시점(CI)은 시끄럽게** 잡는다 —
+    여기서 걸리는 키는 오타이거나 SQL 파라미터 개명 후 미갱신이다.
+    """
+    findings: list[Finding] = []
+
+    def add(rule: str, message: str) -> None:
+        findings.append(Finding(rule, model.name, message, model.source))
+
+    sql = pattern.get("sql")
+    declared: set[str] = set()
+    if isinstance(sql, str):
+        body = re.sub(r"--[^\n]*", "", sql)
+        body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
+        declared = {m.group(1) for m in re.finditer(r":([a-z_][a-z0-9_]*)", body, re.I)}
+
+    def check_keys(field: str, mapping: Any) -> dict[str, Any]:
+        if not isinstance(mapping, dict):
+            add("usage_pattern_invalid", f"{label} — '{field}' 는 매핑이어야 한다")
+            return {}
+        for key in sorted(set(mapping) - declared):
+            add("usage_pattern_param_meta_unknown",
+                f"{label} — '{field}' 의 '{key}' 는 SQL 의 :파라미터에 없다(오타/개명 미반영)")
+        return mapping
+
+    if "param_defaults" in pattern:
+        for key, value in check_keys("param_defaults", pattern["param_defaults"]).items():
+            if not _scalar(value):
+                add("usage_pattern_invalid", f"{label} — param_defaults['{key}'] 는 문자열/숫자 스칼라여야 한다")
+
+    if "param_enum" in pattern:
+        for key, value in check_keys("param_enum", pattern["param_enum"]).items():
+            if not isinstance(value, list) or not value or not all(_scalar(v) for v in value):
+                add("usage_pattern_invalid", f"{label} — param_enum['{key}'] 는 스칼라 리스트(1개 이상)여야 한다")
+
+    if "params" in pattern:
+        types = set(spec.get("param_spec_types", ["string", "number", "array"]))
+        items = set(spec.get("param_spec_items", ["string", "number"]))
+        cap = int(spec.get("param_spec_max_len_cap", 100))
+        for key, value in check_keys("params", pattern["params"]).items():
+            if not isinstance(value, dict):
+                add("usage_pattern_invalid", f"{label} — params['{key}'] 는 매핑이어야 한다")
+                continue
+            for extra_key in sorted(set(value) - {"type", "item", "max_len"}):
+                add("usage_pattern_invalid", f"{label} — params['{key}'] 의 '{extra_key}' 는 스펙 밖 키다")
+            if value.get("type") not in types:
+                add("usage_pattern_invalid", f"{label} — params['{key}'].type 은 {sorted(types)} 중 하나여야 한다")
+            if "item" in value and value["item"] not in items:
+                add("usage_pattern_invalid", f"{label} — params['{key}'].item 은 {sorted(items)} 중 하나여야 한다")
+            if "max_len" in value and (
+                isinstance(value["max_len"], bool) or not isinstance(value["max_len"], int)
+                or not (1 <= value["max_len"] <= cap)
+            ):
+                add("usage_pattern_invalid", f"{label} — params['{key}'].max_len 은 1..{cap} 정수여야 한다")
+
+    # 기본값이 허용값 밖이면 게이트웨이가 실행 시 400 을 낸다 — 저작 시점에 잡는다.
+    defaults = pattern.get("param_defaults")
+    enums = pattern.get("param_enum")
+    if isinstance(defaults, dict) and isinstance(enums, dict):
+        for key, value in defaults.items():
+            allow = enums.get(key)
+            if isinstance(allow, list) and allow and not any(str(a) == str(value) for a in allow):
+                add("usage_pattern_invalid",
+                    f"{label} — param_defaults['{key}']={value!r} 가 param_enum 허용값 밖이다")
 
     return findings
 
