@@ -9,10 +9,12 @@
 --   임계는 var transit_freshness_skew_minutes). 주 quirk 원천은 subway_arrival 이나
 --   3종 공통 계약으로 방어 적용(gold #67 시간대 집계 오염 차단). 하한은 없음(과거 수신 정상).
 
+-- sorted_by(#482): 근거는 silver_transit_subway_arrival 동일 주석 참조.
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['parking_id', 'event_at'],
+    properties={'sorted_by': "ARRAY['event_at']"},
 ) }}
 
 with bronze as (

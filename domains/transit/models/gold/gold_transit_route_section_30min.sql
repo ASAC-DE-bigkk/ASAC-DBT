@@ -31,12 +31,13 @@
 --   있는 지금 넣지 않으면 full_refresh=false 라 나중엔 CTAS 백업→재적재 수동
 --   절차를 거쳐야 바꿀 수 있다.
 
+-- sorted_by(#482): 파티션 내 파일도 시간순 정렬 — 스코핑 테스트(#418) 프루닝 통계 보존.
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['bus_route_id', 'sect_ord', 'bucket_at'],
     full_refresh=false,
-    properties={'partitioning': "ARRAY['day(bucket_at)']"},
+    properties={'partitioning': "ARRAY['day(bucket_at)']", 'sorted_by': "ARRAY['bucket_at']"},
 ) }}
 
 {%- set incr_filter %}
