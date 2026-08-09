@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.10
+schema_version: v1.11
 supported_contract_versions: [v1]
 
 # 조건부 필수 — `if_present` 필드를 선언한 모델은 `then_required` 필드도 선언해야 한다.
@@ -36,6 +36,7 @@ optional:
   contract_version:       {type: enum, allowed: [v1]}
   event_time:             {type: string}
   freshness_field:        {type: string} # v1.9: event_time과 다른 실제 품질 신선도 축
+  freshness_timezone:     {type: enum, allowed: [UTC, Asia/Seoul]} # v1.11: naive freshness의 명시적 해석 기준
   retention_or_horizon:   {type: string}
   partial_policy:         {type: object}
   freshness_slo_minutes:  {type: int, min: 1}

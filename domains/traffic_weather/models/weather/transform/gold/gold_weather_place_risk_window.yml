@@ -36,6 +36,7 @@ models:
             max_interval_minutes: 240
           event_time: forecast_at
           freshness_field: forecast_collected_at_max
+          freshness_timezone: UTC
           freshness_slo_minutes: 240
           quality_coverage:
             not_applicable_reason: 위험 조건을 충족한 장소·예보시각만 게시하는 희소 이벤트 제품이므로, 게시 행의 place_id 수는 전체 장소 모집단의 커버리지를 뜻하지 않습니다.

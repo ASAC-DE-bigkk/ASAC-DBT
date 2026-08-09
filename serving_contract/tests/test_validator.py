@@ -273,6 +273,26 @@ def test_freshness_field_requires_freshness_slo():
     )
 
 
+def test_freshness_timezone_allows_only_explicit_supported_values():
+    valid = validate([
+        _serving_model(
+            serving_overrides={
+                "freshness_timezone": "UTC",
+            }
+        )
+    ])
+    invalid = validate([
+        _serving_model(
+            serving_overrides={
+                "freshness_timezone": "Europe/London",
+            }
+        )
+    ])
+
+    assert "unknown_key" not in _rules(valid.findings)
+    assert "invalid_enum_value" in _rules(invalid.findings)
+
+
 def test_public_projection_rejects_unknown_columns_with_or_without_manifest():
     model = _serving_model(
         serving_overrides={
