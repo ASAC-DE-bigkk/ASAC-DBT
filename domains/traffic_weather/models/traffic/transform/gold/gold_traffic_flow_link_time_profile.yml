@@ -101,6 +101,7 @@ models:
               question_ko: 특정 요일·시간대에 평균 속도가 낮은 링크는 어디입니까?
               axes: 요일·시간 필터 — 평균 속도 ASC
               requires: [select_columns, filter_set, sort]
+              param_defaults: { n: 20 }
               allow_empty: true
               verified_rows: 16
               verified_at: "2026-08-05T14:39:11Z"
@@ -117,6 +118,7 @@ models:
               question_ko: 표본이 충분한 시간대 프로파일 중 평균 속도가 가장 낮은 링크는 어디입니까?
               axes: 최소 표본 필터 — 평균 속도 ASC
               requires: [select_columns, filter_range, sort]
+              param_defaults: { min_observation_count: 12, n: 20 }
               allow_empty: true
               verified_rows: 0
               verified_at: "2026-08-05T14:39:11Z"
@@ -133,6 +135,7 @@ models:
               question_ko: 대표성이 낮을 수 있는 표본 부족 시간대 프로파일은 무엇입니까?
               axes: 표본 수 상한 필터 — observation_count ASC
               requires: [select_columns, filter_range, sort]
+              param_defaults: { min_observation_count: 12, n: 50 }
               allow_empty: true
               verified_rows: 50
               verified_at: "2026-08-05T14:39:11Z"
@@ -149,6 +152,7 @@ models:
               question_ko: 같은 시간대 안에서도 속도 변동 폭이 큰 링크 프로파일은 무엇입니까?
               axes: 속도 범위 하한 필터 — 범위 DESC
               requires: [select_columns, filter_range, sort]
+              param_defaults: { min_speed_range: 1, n: 20 }
               allow_empty: true
               verified_rows: 20
               verified_at: "2026-08-05T14:39:11Z"
@@ -188,6 +192,118 @@ models:
                 FROM gold_traffic_flow_link_time_profile
                 GROUP BY kst_day_of_week, kst_hour
                 ORDER BY kst_day_of_week, kst_hour
+            - pattern_id: "hourly_speed_curve"
+              question_ko: "요일별(또는 전체) 시간대에 따른 서울 링크 평균 속도 곡선은 어떻게 나타납니까?"
+              axes: "요일 센티널 필터 — 시간대 집계, 평균/최저/최고 속도"
+              verified_rows: 0                # 실 D1 실측: [24, 23] (스탬핑 대기)
+              insight_sample_ko: "요일 전체(:day=0) 기준 0시 시간대는 프로파일 6건에서 평균 41.0km/h(최저 13.8, 최고 70.0)로 집계됐다."
+              sql: |
+                -- :day=5
+                SELECT kst_hour, count(*) AS profile_count, sum(observation_count) AS total_observations, round(avg(avg_flow_speed), 1) AS mean_speed, min(min_flow_speed) AS min_speed, max(max_flow_speed) AS max_speed
+                FROM gold_traffic_flow_link_time_profile
+                WHERE (:day = 0 OR kst_day_of_week = :day)
+                GROUP BY kst_hour
+                ORDER BY kst_hour ASC
+              requires: [select_columns, filter_set, aggregate, group_by, sort]
+            - pattern_id: "rush_window_slowest_links"
+              question_ko: "특정 시간대 창(예: 출근 7~9시) 기준으로 평균 속도가 가장 느린 링크는 어디입니까?"
+              axes: "시간대 창 필터 + 링크 집계 — 표본 하한(HAVING), 평균 속도 ASC"
+              verified_rows: 0                # 실 D1 실측: [20, 20] (스탬핑 대기)
+              insight_sample_ko: "출근 시간대(7~9시) 창에서 링크 1040002000이 평균 12.1km/h(평균 통행시간 91.5초)로 가장 느렸다."
+              sql: |
+                -- :from_hour=7, :to_hour=9, :min_total_observations=2, :n=20
+                SELECT link_id, count(*) AS slot_count, sum(observation_count) AS total_observations, round(avg(avg_flow_speed), 1) AS mean_speed, round(avg(avg_flow_travel_time), 1) AS mean_travel_time
+                FROM gold_traffic_flow_link_time_profile
+                WHERE kst_hour >= :from_hour AND kst_hour <= :to_hour
+                GROUP BY link_id
+                HAVING sum(observation_count) >= :min_total_observations
+                ORDER BY mean_speed ASC, link_id
+                LIMIT :n
+              requires: [select_columns, filter_range, aggregate, group_by, having, sort]
+              param_defaults: { min_total_observations: 2, n: 20 }
+            - pattern_id: "day_of_week_profile_for_link"
+              question_ko: "특정 링크는 어느 요일에 더 혼잡합니까? 요일별 평균 속도·통행시간 기준선은 무엇입니까?"
+              axes: "링크 필터 — 요일 집계, 평균 속도·통행시간"
+              verified_rows: 0                # 실 D1 실측: [6, 5] (스탬핑 대기)
+              insight_sample_ko: "링크 1010009500은 요일 2에서 4개 시간대 평균 15.6km/h, 평균 통행시간 36.8초로 집계됐다."
+              sql: |
+                -- :link_id='1010009500'
+                SELECT kst_day_of_week, count(*) AS slot_count, sum(observation_count) AS total_observations, round(avg(avg_flow_speed), 1) AS mean_speed, round(avg(avg_flow_travel_time), 1) AS mean_travel_time
+                FROM gold_traffic_flow_link_time_profile
+                WHERE link_id = :link_id
+                GROUP BY kst_day_of_week
+                ORDER BY kst_day_of_week ASC
+              requires: [select_columns, filter_set, aggregate, group_by, sort]
+            - pattern_id: "slowest_slot_per_link"
+              question_ko: "각 링크가 가장 혼잡한(평균 속도가 가장 낮은) 요일·시간대는 언제입니까?"
+              axes: "표본 하한 필터 — 링크별 최저 속도 슬롯(윈도우 순위=1), 평균 속도 ASC"
+              verified_rows: 0                # 실 D1 실측: [20, 15] (스탬핑 대기)
+              insight_sample_ko: "각 링크의 최저 속도 시간대만 추리면 링크 1010009500의 요일3 09시가 평균 4.0km/h로 전체 최하위였다."
+              sql: |
+                -- :min_observation_count=1, :n=20
+                WITH ranked AS (
+                  SELECT link_id, kst_day_of_week, kst_hour, observation_count, avg_flow_speed, avg_flow_travel_time,
+                         row_number() OVER (PARTITION BY link_id ORDER BY avg_flow_speed ASC, kst_day_of_week, kst_hour) AS speed_rank
+                  FROM gold_traffic_flow_link_time_profile
+                  WHERE observation_count >= :min_observation_count
+                )
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, avg_flow_speed, avg_flow_travel_time
+                FROM ranked
+                WHERE speed_rank = 1
+                ORDER BY avg_flow_speed ASC, link_id
+                LIMIT :n
+              requires: [select_columns, filter_range, window, subquery, sort]
+              param_defaults: { min_observation_count: 1, n: 20 }
+            - pattern_id: "compare_links_at_time_slot"
+              question_ko: "선택한 여러 링크의 같은 요일·시간대 속도 프로파일을 나란히 비교하면 어떻습니까?"
+              axes: "링크 배열 IN + 요일·시간 필터 — 평균 속도 ASC"
+              verified_rows: 0                # 실 D1 실측: [3, 2] (스탬핑 대기)
+              insight_sample_ko: "요일5 13시에 선택한 3개 링크 중 1010009500이 평균 8.24km/h(2.0~10.8)로 가장 느렸다."
+              sql: |
+                -- :link_ids='["1010009500","1190003200","1220003800"]', :kst_day_of_week=5, :kst_hour=13
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, avg_flow_speed, min_flow_speed, max_flow_speed, avg_flow_travel_time
+                FROM gold_traffic_flow_link_time_profile
+                WHERE link_id IN (SELECT value FROM json_each(:link_ids))
+                  AND kst_day_of_week = :kst_day_of_week
+                  AND kst_hour = :kst_hour
+                ORDER BY avg_flow_speed ASC, link_id
+              requires: [select_columns, filter_set, subquery, sort]
+            - pattern_id: "link_coverage_ranking"
+              question_ko: "프로파일 커버리지(관측된 요일·시간대)가 가장 넓은 링크는 어디입니까?"
+              axes: "링크 집계 — 슬롯 수 하한(HAVING), 프로파일 슬롯 수 DESC"
+              verified_rows: 0                # 실 D1 실측: [20, 20] (스탬핑 대기)
+              insight_sample_ko: "커버리지가 가장 넓은 링크는 1010009500으로 58개 시간대(6개 요일·24개 시각)·관측 258건을 보유했다."
+              sql: |
+                -- :min_slots=1, :n=20
+                SELECT link_id, count(*) AS profiled_slot_count, count(DISTINCT kst_day_of_week) AS day_count, count(DISTINCT kst_hour) AS hour_count, sum(observation_count) AS total_observations
+                FROM gold_traffic_flow_link_time_profile
+                GROUP BY link_id
+                HAVING count(*) >= :min_slots
+                ORDER BY profiled_slot_count DESC, total_observations DESC, link_id
+                LIMIT :n
+              requires: [select_columns, aggregate, group_by, having, sort]
+              param_defaults: { min_slots: 1, n: 20 }
+            - pattern_id: "flexible_profile_ranking"
+              question_ko: "요일·시간대(전체 가능)와 지표(속도/통행시간/속도범위)·정렬 방향을 지정해 프로파일을 순위화하면 어떻습니까?"
+              axes: "요일·시간 센티널 + 표본 하한 — 지표/정렬 스위치 랭킹"
+              verified_rows: 0                # 실 D1 실측: [16, 20] (스탬핑 대기)
+              insight_sample_ko: "요일4 13시를 평균 속도 오름차순으로 정렬하면 링크 1010009500이 10.1km/h로 1위(가장 느림)였다."
+              sql: |
+                -- :day=4, :hour=13, :metric='avg_flow_speed', :min_observation_count=1, :dir='asc', :n=20
+                SELECT link_id, kst_day_of_week, kst_hour, observation_count, avg_flow_speed, avg_flow_travel_time,
+                       max_flow_speed - min_flow_speed AS speed_range,
+                       CASE :metric WHEN 'travel_time' THEN avg_flow_travel_time WHEN 'speed_range' THEN max_flow_speed - min_flow_speed ELSE avg_flow_speed END AS metric_value
+                FROM gold_traffic_flow_link_time_profile
+                WHERE (:day = 0 OR kst_day_of_week = :day)
+                  AND (:hour = -1 OR kst_hour = :hour)
+                  AND observation_count >= :min_observation_count
+                ORDER BY CASE WHEN :dir = 'asc' THEN CASE :metric WHEN 'travel_time' THEN avg_flow_travel_time WHEN 'speed_range' THEN max_flow_speed - min_flow_speed ELSE avg_flow_speed END END ASC,
+                         CASE WHEN :dir = 'desc' THEN CASE :metric WHEN 'travel_time' THEN avg_flow_travel_time WHEN 'speed_range' THEN max_flow_speed - min_flow_speed ELSE avg_flow_speed END END DESC,
+                         link_id
+                LIMIT :n
+              requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { min_observation_count: 1, dir: "asc", n: 20 }
+              param_enum: { dir: [asc, desc] }
     columns:
       - name: product_row_id
         description: link_id, 요일, 시간을 직렬화한 제품 행 식별자입니다.
