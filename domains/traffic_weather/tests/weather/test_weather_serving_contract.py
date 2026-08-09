@@ -7,6 +7,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GOLD_SCHEMA = (
     PROJECT_ROOT / "models/weather/transform/gold/_gold.yml"
 )
+HOURLY_OUTLOOK_SQL = (
+    PROJECT_ROOT / "models/weather/transform/gold/gold_weather_place_hourly_outlook.sql"
+)
 MODEL_NAME = "gold_weather_current_wide_by_admin_dong"
 
 
@@ -47,3 +50,9 @@ def test_weather_current_wide_keeps_primary_key_evidence_and_no_legacy_serving_m
         meta
     )
     assert columns["admin_dong_code"]["tests"] == ["not_null", "unique"]
+
+
+def test_weather_hourly_converts_bronze_utc_collection_time_to_kst_for_gold_freshness():
+    sql = HOURLY_OUTLOOK_SQL.read_text(encoding="utf-8")
+
+    assert "max(cast({{ asac_axes.utc_to_kst('collected_at') }} as timestamp(6))) as forecast_collected_at_max" in sql
