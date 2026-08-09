@@ -28,10 +28,13 @@
 --   재계산된다(부분 집계 방지). silver 자체의 -2h lookback + 시간 경계 여유 1h 를 합쳐 -3h.
 --   merge 는 재집계된 버킷만 갱신, 그 이전 버킷은 안정적이라 건드리지 않는다.
 
+-- sorted_by(#482): 근거는 silver_transit_subway_arrival 동일 주석 참조.
+-- (day 파티셔닝은 d9f38a7 당시 데이터 보유 중이라 제외됐던 테이블 — 여기서도 안 건드림.)
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['admin_dong_code', 'hour_at'],
+    properties={'sorted_by': "ARRAY['hour_at']"},
 ) }}
 
 -- 증분 하한(시간 경계): max(hour_at) - 3h. 최초 빌드는 전건.

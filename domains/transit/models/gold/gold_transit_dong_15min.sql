@@ -36,12 +36,15 @@
 --   있는 지금 넣지 않으면 full_refresh=false 라 나중엔 CTAS 백업→재적재 수동
 --   절차를 거쳐야 바꿀 수 있다.
 
+-- sorted_by(#482): 파티션 내 파일도 시간순 정렬 — 스코핑 테스트(#418) 프루닝 통계 보존.
+-- ⚠️ dev 라이브 테이블은 8/6 재구축 때 partitioning 스펙이 유실된 상태(선언과 드리프트) —
+-- 소급 ALTER 는 ASAC-DAG#748 마이그레이션에서 일괄 처리.
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['admin_dong_code', 'bucket_at'],
     full_refresh=false,
-    properties={'partitioning': "ARRAY['day(bucket_at)']"},
+    properties={'partitioning': "ARRAY['day(bucket_at)']", 'sorted_by': "ARRAY['bucket_at']"},
 ) }}
 
 {%- set incr_filter %}

@@ -12,10 +12,12 @@
 --   임계는 var transit_freshness_skew_minutes). dataTm 은 실시간 GPS 관측시각이라 '전일 잔존'
 --   quirk 는 없고 클럭 스큐만 해당하나, 3종 공통 계약으로 방어 적용. 하한은 없음(과거 수신 정상).
 
+-- sorted_by(#482): 근거는 silver_transit_subway_arrival 동일 주석 참조.
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['veh_id', 'data_tm'],
+    properties={'sorted_by': "ARRAY['event_at']"},
 ) }}
 
 with bronze as (

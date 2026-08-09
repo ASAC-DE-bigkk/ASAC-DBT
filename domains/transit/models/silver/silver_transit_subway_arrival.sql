@@ -16,10 +16,15 @@
 --   막기 위해 event_at <= utc_to_kst(ingested_at)+스큐 상한 필터로 차단(transit_event_at_not_future,
 --   임계는 var transit_freshness_skew_minutes). 하한은 없음(과거 수신 정상).
 
+-- sorted_by(#482): 파일을 event_at 순으로 써서 파일/로우그룹 min-max 통계를 시간축에
+-- 정렬시킨다. 테스트 lookback 스코핑(#418)의 프루닝이 이 통계에 기대므로, optimize
+-- (ASAC-DAG#748) 병합 후에도 스캔 고정 비용이 유지된다. 기존 테이블은 ALTER … SET
+-- PROPERTIES 로 소급(신규 쓰기부터 정렬, 기존 파일은 optimize 시 재정렬).
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['statn_id', 'ordkey', 'recptn_dt'],
+    properties={'sorted_by': "ARRAY['event_at']"},
 ) }}
 
 with bronze as (
