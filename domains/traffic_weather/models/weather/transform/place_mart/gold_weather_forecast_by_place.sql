@@ -7,7 +7,18 @@
     on_schema_change='fail',
 ) }}
 
-with ranked_forecast as (
+{% set snapshot_dag_run_id = var('weather_snapshot_dag_run_id', '') | string | trim %}
+{% set historical_transform = var('weather_historical_transform', false) %}
+
+with
+{% if historical_transform %}
+affected_grains as (
+    select distinct place_id, forecast_at, category
+    from {{ ref('silver_weather_forecast_by_admin_dong') }}
+    where dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
+),
+{% endif %}
+ranked_forecast as (
     select
         *,
         row_number() over (
@@ -19,7 +30,9 @@ with ranked_forecast as (
                 request_id desc
         ) as row_num
     from {{ ref('silver_weather_forecast_by_admin_dong') }}
-    {% if is_incremental() %}
+    {% if historical_transform %}
+    inner join affected_grains using (place_id, forecast_at, category)
+    {% elif is_incremental() %}
     where collected_at >= (
         select coalesce(max(collected_at), timestamp '1970-01-01') - interval '30' minute
         from {{ this }}

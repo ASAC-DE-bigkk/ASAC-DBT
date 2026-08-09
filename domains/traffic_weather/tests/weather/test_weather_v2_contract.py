@@ -221,10 +221,10 @@ def test_bridge_seed_preserves_427_row_legacy_copy_plus_yongsin_backfill():
     assert all(row["temporal_quality"] == "revision_only" for row in history)
 
 
-def test_compatibility_sql_changes_only_for_issue_140_replay_window():
+def test_compatibility_sql_matches_reviewed_weather_contract():
     expected = {
         "models/gold/dim_weather_place.sql": "42f13fc04b38df096c308e07cb636342e13e89c4",
-        "models/gold/gold_weather_forecast_by_place.sql": "2549cfe5a0369ea0ac2fcb0bec5b59bae07d93e8",
+        "models/gold/gold_weather_forecast_by_place.sql": "60763b3e9f848e2c1e1d73f62b6befb19a7764d0",
     }
     for relative_path, expected_blob in expected.items():
         # Normalize only a Windows CRLF checkout before comparing this source

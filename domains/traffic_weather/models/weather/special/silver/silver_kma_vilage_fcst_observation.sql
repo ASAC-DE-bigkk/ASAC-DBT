@@ -11,10 +11,12 @@
 
 {{ weather_w1_initial_build_guard() }}
 {{ weather_w2_assert_repair_evidence() }}
+{{ weather_w2_assert_historical_snapshot_evidence() }}
 
 {% if not weather_w2_is_repair() %}
 {% set snapshot_dag_run_id = var('weather_snapshot_dag_run_id') %}
 {% endif %}
+{% set historical_snapshot = weather_w2_is_historical_snapshot() %}
 
 {% if weather_w2_is_repair() %}
 with publishable_manifest_ranked as (
@@ -119,7 +121,7 @@ bronze_typed as (
         on cast(bronze.source_id as varchar) = manifest.source_id
        and cast(bronze.dag_run_id as varchar) = manifest.dag_run_id
     where cast(bronze.result_code as varchar) = '00'
-    {% if is_incremental() and not weather_w2_is_repair() %}
+    {% if is_incremental() and not weather_w2_is_repair() and not historical_snapshot %}
       and cast(bronze.collected_at as timestamp(6)) >= (
           select coalesce(max(bronze_collected_at_utc), timestamp '1970-01-01 00:00:00')
                  - interval '{{ weather_w1_lookback_minutes() }}' minute

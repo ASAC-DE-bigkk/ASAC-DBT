@@ -13,6 +13,10 @@
 
 {{ weather_w1_initial_build_guard() }}
 {{ weather_w2_assert_repair_evidence() }}
+{{ weather_w2_assert_historical_snapshot_evidence() }}
+
+{% set historical_snapshot = weather_w2_is_historical_snapshot() %}
+{% set snapshot_dag_run_id = weather_w2_historical_snapshot_dag_run_id() %}
 
 with
 {% if weather_w2_is_repair() %}
@@ -32,6 +36,8 @@ eligible as (
     {% if weather_w2_is_repair() %}
       and observation.published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
       and observation.published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+    {% elif historical_snapshot %}
+      and observation.dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
     {% elif is_incremental() %}
       and observation.collected_at >= (
           select coalesce(max(collected_at), timestamp '1970-01-01 00:00:00')
@@ -112,5 +118,16 @@ where not exists (
           and current.published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
           and current_anchor.anchor_source_id is null
       )
+)
+{% elif is_incremental() and historical_snapshot %}
+where not exists (
+    select 1
+    from {{ this }} as current
+    where current.nx = candidate.nx
+      and current.ny = candidate.ny
+      and current.issued_at = candidate.issued_at
+      and current.forecast_at = candidate.forecast_at
+      and current.category = candidate.category
+      and {{ weather_w2_grid_winner_is_newer('current', 'candidate') }}
 )
 {% endif %}
