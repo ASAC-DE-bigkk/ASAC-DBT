@@ -1,6 +1,12 @@
-with source_hourly as (
-    select *
-    from {{ ref('gold_weather_place_hourly_outlook') }}
+with kst_now as (
+    select date_trunc('hour', cast(current_timestamp at time zone 'Asia/Seoul' as timestamp(6))) as current_hour_at
+),
+
+source_hourly as (
+    select hourly.*
+    from {{ ref('gold_weather_place_hourly_outlook') }} as hourly
+    cross join kst_now
+    where hourly.forecast_at >= kst_now.current_hour_at
 ),
 
 source_state as (

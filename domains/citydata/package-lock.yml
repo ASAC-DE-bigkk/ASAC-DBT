@@ -1,4 +1,7 @@
 packages:
   - local: /opt/airflow/dbt/packages/asac_axes
     name: asac_axes
-sha1_hash: 81c807960afb3d6834bf1661644687b2fcba9487
+  - name: dbt_utils
+    package: dbt-labs/dbt_utils
+    version: 1.4.1
+sha1_hash: 4b52beb9378570d074ab4213ef7ad97130607932

@@ -21,7 +21,10 @@
 {% set canonical_contract = weather_w2_canonical_contract() %}
 {{ weather_w2_gold_initial_build_guard() }}
 {{ weather_w2_assert_repair_evidence() }}
+{{ weather_w2_assert_historical_snapshot_evidence() }}
 {{ weather_w2_assert_gold_source_contract() }}
+{% set historical_snapshot = weather_w2_is_historical_snapshot() %}
+{% set snapshot_dag_run_id = weather_w2_historical_snapshot_dag_run_id() %}
 
 with canonical as (
     select
@@ -177,6 +180,9 @@ grid_candidates as (
        and cast(grid.selected_dag_run_id as varchar) = anchor.anchor_dag_run_id
     where grid.published_at >= timestamp '{{ weather_w2_repair_start_at() }}'
       and grid.published_at <= timestamp '{{ weather_w2_publishable_cutoff_at() }}'
+    {% elif historical_snapshot %}
+    where cast(grid.selected_dag_run_id as varchar)
+        = '{{ snapshot_dag_run_id | replace("'", "''") }}'
     {% elif is_incremental() %}
     where collected_at >= (
         select

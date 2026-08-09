@@ -15,6 +15,7 @@
 ) }}
 
 {% set snapshot_dag_run_id = var('weather_snapshot_dag_run_id') %}
+{% set historical_transform = var('weather_historical_transform', false) %}
 
 with latest_manifest_state as (
     {{ latest_manifest_run_state('weather_bronze', 'collection_run_manifest', 'kma_vilage_fcst') }}
@@ -55,7 +56,7 @@ bronze as (
     from {{ source('weather_bronze', 'kma_vilage_fcst') }} as bronze
     inner join publishable_runs
         on cast(bronze.dag_run_id as varchar) = publishable_runs.dag_run_id
-    {% if is_incremental() %}
+    {% if is_incremental() and not historical_transform %}
     -- 증분 커서는 dag_run_id 가 아니라 collected_at 워터마크. run ID 앙티조인은
     -- dedup 에서 전량 패배해 silver 에 ID 를 못 남긴 run(전량 섀도잉된 중복 수집)을
     -- 매 run 재선택하는 순환을 만든다 — 관측: 배치당 139,360행 재머지.

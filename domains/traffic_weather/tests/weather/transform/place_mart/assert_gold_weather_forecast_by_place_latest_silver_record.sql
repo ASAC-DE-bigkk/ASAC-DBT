@@ -1,5 +1,8 @@
 -- Preserve the full-history winner order without a global row_number/TopN plan.
 -- Exact ties are equivalent because every projected lineage field is part of the key.
+{% set snapshot_dag_run_id = var('weather_snapshot_dag_run_id', '') | string | trim %}
+{% set historical_transform = var('weather_historical_transform', false) %}
+
 with latest_silver as (
     select
         place_id,
@@ -28,7 +31,17 @@ with latest_silver as (
                 cast(request_id as varchar)
             )
         ) as latest_record
-    from {{ ref('silver_weather_forecast_by_admin_dong') }}
+    from {{ ref('silver_weather_forecast_by_admin_dong') }} as silver
+    {% if historical_transform %}
+    -- A historical run can change only grains present in its immutable Bronze snapshot.
+    -- Keep the winner comparison global for those grains, while avoiding a full-history
+    -- aggregation unrelated to this bounded recovery.
+    inner join (
+        select distinct place_id, forecast_at, category
+        from {{ ref('silver_weather_forecast_by_admin_dong') }}
+        where dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
+    ) as affected_grains using (place_id, forecast_at, category)
+    {% endif %}
     group by place_id, forecast_at, category
 ),
 

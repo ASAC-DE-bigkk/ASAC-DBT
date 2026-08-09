@@ -43,3 +43,17 @@ def test_admin_dong_silver_declares_incremental_merge_and_grain_key():
     assert "views_enabled=false" in sql
     assert "on_table_exists='drop'" in sql
     assert "on_schema_change='fail'" in sql
+
+
+def test_admin_dong_dedup_selects_grid_winner_before_place_fanout():
+    sql = read_model("silver_weather_forecast_by_admin_dong")
+
+    # A place belongs to one grid, so select the source winner at the native
+    # grid grain before expanding it to places. This prevents a wide window or
+    # duplicate source join after fanout from exhausting Trino memory.
+    assert "selected_grid_forecast as (" in sql
+    assert "max_by(" in sql
+    assert "group by nx, ny, category, issued_at, forecast_at" in sql
+    assert "joined_payload as (" in sql
+    assert "from selected_grid_forecast as grid_forecast" in sql
+    assert "row_number() over" not in sql
