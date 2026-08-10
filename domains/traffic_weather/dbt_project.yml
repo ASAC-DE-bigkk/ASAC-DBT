@@ -50,6 +50,8 @@ models:
           +tags: ["ask_seoul_weather_transform_gold"]
         place_mart:
           +tags: ["ask_seoul_weather_transform_place_mart"]
+        grid_mart:
+          +tags: ["ask_seoul_weather_transform_grid_mart"]
       special:
         w1:
           +tags: ["ask_seoul_weather_w1_bridge"]
@@ -82,6 +84,14 @@ seeds:
           mapping_method: varchar
           grid_distance_m: double
           source_admin_code: varchar
+      weather_coverage_grid:
+        +tags:
+          - ask_seoul_weather_transform_coverage_grid
+        +column_types:
+          grid_id: varchar
+          nx: integer
+          ny: integer
+          coverage_scope: varchar
       weather_admin_dong_grid_bridge_history:
         +tags: ["ask_seoul_weather_w1_inputs"]
         +pre-hook: "{{ weather_w1_candidate_seed_guard() }}"

@@ -123,8 +123,14 @@ class ServingGoldPortfolioContractTest(unittest.TestCase):
             "Traffic serving Gold SQL models are incomplete",
         )
 
-    def test_weather_serving_portfolio_has_exactly_fifteen_models(self) -> None:
-        self.assertEqual(len(WEATHER_SERVING_MODELS), 15)
+    def test_weather_serving_portfolio_has_exactly_seventeen_models(self) -> None:
+        self.assertEqual(len(WEATHER_SERVING_MODELS), 17)
+        self.assertTrue(
+            {
+                "gold_weather_grid_current_outlook",
+                "gold_weather_grid_precipitation_window",
+            }.issubset(WEATHER_SERVING_MODELS)
+        )
         self.assertTrue(
             WEATHER_SERVING_MODELS.issubset(sql_models(WEATHER_GOLD_DIR)),
             "Weather serving Gold SQL models are incomplete",

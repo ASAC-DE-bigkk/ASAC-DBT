@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.12
+schema_version: v1.13
 supported_contract_versions: [v1]
 
 # 조건부 필수 — `if_present` 필드를 선언한 모델은 `then_required` 필드도 선언해야 한다.
@@ -16,6 +16,8 @@ conditional_required:
   - if_present: event_time
     then_required: freshness_slo_minutes
   - if_present: freshness_field
+    then_required: freshness_slo_minutes
+  - if_present: empty_result_freshness
     then_required: freshness_slo_minutes
 
 # meta.serving.* fields that MUST be present (non-empty) on every model declaring a
@@ -36,6 +38,8 @@ optional:
   contract_version:       {type: enum, allowed: [v1]}
   event_time:             {type: string}
   freshness_field:        {type: string} # v1.9: event_time과 다른 실제 품질 신선도 축
+  # v1.13: zero_policy=allow 희소 상품이 0행일 때 상위 관계에서 freshness를 읽는 fail-closed 축
+  empty_result_freshness: {type: object}
   retention_or_horizon:   {type: string}
   partial_policy:         {type: object}
   freshness_slo_minutes:  {type: int, min: 1}
@@ -139,6 +143,11 @@ quality_coverage_fields:
   measured_optional: [measurement_scope]
   measurement_scope_allowed: [published_rows, source_relation]
   not_applicable_required: [not_applicable_reason]
+
+# v1.13: 행이 없는 희소 event 상품도 upstream이 정상 수집된 경우 freshness를 남긴다.
+# relation은 같은 manifest의 dbt model, field는 그 model의 실제 physical column이어야 한다.
+empty_result_freshness_fields:
+  required: [relation, field]
 
 # v1.10 (#706): display 하위 필드. 세 도메인(citydata·culture·transit)이 계약 밖에서
 # 이미 같은 네 키로 수렴해 있던 것을 그대로 승격했다 — 새 설계가 아니다.
