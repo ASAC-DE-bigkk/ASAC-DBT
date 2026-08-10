@@ -76,6 +76,15 @@ def test_weather_wave_a_serving_contracts_keep_truth_labels() -> None:
 
     assert current_serving["zero_policy"] == "fail"
     assert precip_serving["zero_policy"] == "allow"
+    assert precip_serving["empty_result_freshness"] == {
+        "relation": "gold_weather_place_hourly_outlook",
+        "field": "forecast_collected_at_max",
+    }
+    risk_serving = _model(RISK_WINDOW_MODEL)["config"]["meta"]["serving"]
+    assert risk_serving["empty_result_freshness"] == {
+        "relation": "gold_weather_place_hourly_outlook",
+        "field": "forecast_collected_at_max",
+    }
     assert current_serving["public_projection"]["columns"] == CURRENT_PUBLIC_PROJECTION
     assert precip_serving["public_projection"]["columns"] == PRECIP_PUBLIC_PROJECTION
     assert "snapshot_as_of_hour" not in current_serving["public_projection"]["columns"]

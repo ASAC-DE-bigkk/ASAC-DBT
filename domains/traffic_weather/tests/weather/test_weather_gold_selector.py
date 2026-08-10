@@ -15,6 +15,9 @@ SERVING_MODELS = {
     "gold_weather_place_precipitation_window",
     "gold_weather_place_risk_window",
     "gold_weather_place_forecast_change_daily",
+    "gold_weather_grid_hourly_outlook",
+    "gold_weather_grid_current_outlook",
+    "gold_weather_grid_precipitation_window",
 }
 HISTORICAL_SERVING_MODELS = {
     "gold_weather_place_hourly_outlook",

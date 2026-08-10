@@ -25,6 +25,8 @@ EXPECTED_PRODUCTS = {
     "weather_place_precipitation_window",
     "weather_place_risk_window",
     "weather_place_forecast_change_daily",
+    "weather_grid_current_outlook",
+    "weather_grid_precipitation_window",
 }
 
 EXPECTED_PUBLIC_PROJECTIONS = {
@@ -38,6 +40,18 @@ EXPECTED_PUBLIC_PROJECTIONS = {
     ],
     "weather_place_precipitation_window": [
         "product_row_id", "place_id", "place_name", "window_start_at", "window_end_at",
+    ],
+    "weather_grid_current_outlook": [
+        "product_row_id", "grid_id", "nx", "ny", "coverage_scope", "forecast_at",
+        "forecast_category_count", "forecast_issued_at_min", "forecast_issued_at_max",
+        "forecast_collected_at_max", "temp_c", "humidity_pct", "wind_ms", "wind_dir_deg",
+        "precip_prob_pct", "sky_code", "sky_label", "pty_code", "pty_label",
+        "is_precipitating", "pcp_raw", "pcp_mm", "sno_raw", "sno_cm", "forecast_lead_hours",
+    ],
+    "weather_grid_precipitation_window": [
+        "product_row_id", "grid_id", "nx", "ny", "coverage_scope", "window_start_at",
+        "window_end_at", "precipitation_hour_count", "precip_prob_max_pct", "pcp_max_mm",
+        "sno_max_cm", "forecast_issued_at_min", "forecast_issued_at_max", "forecast_collected_at_max",
     ],
     "weather_place_risk_window": [
         "product_row_id", "place_id", "place_name", "admin_dong_code", "admin_dong", "gu_code", "gu",
@@ -111,6 +125,8 @@ EXPECTED_PUBLIC_PROJECTION_HASHES = {
     "weather_place_forecast_change_daily": "75ae5336e3b826cf9352ce474b61c247915d921aad481da4f589b3e63ceb23cd",
     "weather_place_precipitation_window": "b9060e16dc077170e2d6448934a0650b4c773264308cfbea9605e3965d39bdc3",
     "weather_place_risk_window": "47e401e6422e4a54b0abbf1adf6a9b1e5d65d63edd6a3c4e87ac37e1e2a91e7b",
+    "weather_grid_current_outlook": "f50e448ec29fd19d5895e6577e565fd0966f06c8da80722855c55f6d35d59864",
+    "weather_grid_precipitation_window": "43c75d143558fad54cf67bef105a64f94ac0dc355640e3e3de00791dab53f161",
 }
 
 INTERNAL_PUBLIC_FIELD_FRAGMENTS = {

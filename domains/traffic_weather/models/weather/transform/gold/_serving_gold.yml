@@ -1,7 +1,8 @@
 version: 2
 
-# This file documents only the new SQL models in this change.  The authoritative
-# 15+15 serving-candidate registry, including preserved existing models, lives
+# This file documents only the SQL models not documented in a dedicated model
+# contract. The authoritative serving-candidate registry, including preserved
+# existing models, lives
 # in domains/traffic_weather/contracts/serving_gold_catalog.yml.
 
 models:
@@ -17,6 +18,9 @@ models:
       - name: product_row_id
         description: 장소와 예보시각을 직렬화한 결정적 식별자입니다.
         tests: [not_null, unique]
+      - name: forecast_collected_at_max
+        description: Latest KST collection timestamp among source forecasts for this place and forecast hour.
+        tests: [not_null]
 
   - name: gold_weather_place_daily_outlook
     description: 장소별 일 단위 기온 범위·강수 가능성·강수 시간 수를 제공해 방문일 비교를 돕습니다.

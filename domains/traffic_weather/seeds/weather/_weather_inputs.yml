@@ -1,6 +1,30 @@
 version: 2
 
 seeds:
+  - name: weather_coverage_grid
+    description: KMA 단기예보 수집 계약과 정확히 같은 서울 bbox 80개 격자의 canonical serving seed다. 행정동 매핑이나 실제 서울 행정경계 판정에는 사용하지 않는다.
+    columns:
+      - name: grid_id
+        description: KMA 격자를 나타내는 안정적인 공개 식별자다.
+        tests:
+          - not_null
+          - unique
+      - name: nx
+        description: KMA 격자 X 좌표다.
+        tests:
+          - not_null
+      - name: ny
+        description: KMA 격자 Y 좌표다.
+        tests:
+          - not_null
+      - name: coverage_scope
+        description: 수집 범위 의미를 나타내는 계약 값이다.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - seoul_bbox
   - name: weather_place_grid_mapping
     description: 기존 Weather 장소·행정동 별칭을 KMA 격자에 연결한 427행 호환 seed이며 canonical 행정동 증거로 사용하지 않는다.
     columns:
