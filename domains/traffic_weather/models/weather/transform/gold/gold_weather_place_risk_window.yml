@@ -68,6 +68,7 @@ models:
               question_ko: 특정 시간 범위에 위험 후보가 예보된 장소·시각은 무엇입니까?
               axes: 예보 대상 시각 범위 필터 — 시간 ASC
               requires: [select_columns, filter_range, sort]
+              param_defaults: { n: 100, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 100
               verified_at: "2026-08-05T14:39:11Z"
@@ -83,6 +84,7 @@ models:
               question_ko: 특정 위험 후보 라벨을 포함한 장소·시각은 무엇입니까?
               axes: 위험 후보 라벨 포함 필터 — 예보 대상 시각 ASC
               requires: [select_columns, filter_set, sort]
+              param_defaults: { n: 100 }
               allow_empty: true
               verified_rows: 100
               verified_at: "2026-08-05T14:39:11Z"
@@ -98,6 +100,7 @@ models:
               question_ko: 특정 장소의 방문 시간 범위에 위험 후보 예보가 있습니까?
               axes: 장소·예보 대상 시각 범위 필터 — 시간 ASC
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 45
               verified_at: "2026-08-05T14:39:11Z"
@@ -128,6 +131,7 @@ models:
               question_ko: 한 시각에 둘 이상의 위험 후보 라벨이 함께 나타난 장소는 어디입니까?
               axes: 복수 위험 후보 라벨 필터 — 예보 대상 시각 ASC
               requires: [select_columns, filter_set, sort]
+              param_defaults: { n: 100 }
               allow_empty: true
               verified_rows: 0
               verified_at: "2026-08-05T14:39:11Z"
@@ -143,6 +147,7 @@ models:
               question_ko: 가장 먼 미래 시각까지 이어지는 위험 후보 예보는 무엇입니까?
               axes: 예보 대상 시각 정렬 — forecast_at DESC
               requires: [select_columns, sort]
+              param_defaults: { n: 20 }
               allow_empty: true
               verified_rows: 20
               verified_at: "2026-08-05T14:39:11Z"
@@ -157,6 +162,7 @@ models:
               question_ko: 특정 시간 범위에서 장소별 위험 후보 예보 건수는 얼마입니까?
               axes: 예보 대상 시각 범위 집계 — 위험 후보 수 DESC
               requires: [select_columns, filter_range, aggregate, group_by, sort]
+              param_defaults: { n: 100, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 100
               verified_at: "2026-08-05T14:39:11Z"
@@ -169,6 +175,133 @@ models:
                 GROUP BY place_id
                 ORDER BY risk_candidate_count DESC, place_id
                 LIMIT :n
+            - pattern_id: "place_risk_forecast_timeline"
+              question_ko: "특정 장소의 위험 후보 예보를 시간순으로 볼 때 기온·풍속·강수확률과 위험 플래그는 어떻게 이어집니까?"
+              axes: "장소 필터 — 예보 시각 ASC로 측정값·위험 플래그 시계열"
+              verified_rows: 0                # 실 D1 실측: [21, 21] (스탬핑 대기)
+              insight_sample_ko: "송파구 방이2동은 2026-08-08 11시부터 총 17개 예보 시각이 폭염후보이며, 첫 시각 기온 33도·풍속 4.0 m/s·강수확률 0%였다."
+              sql: |
+                -- :place_id=seoul_admd_1171056200
+                SELECT place_id, place_name, gu, forecast_at, temp_c, wind_ms, precip_prob_pct, pty_code, heat_risk, cold_risk, heavy_rain_risk, snow_risk, wind_risk, risk_labels
+                FROM gold_weather_place_risk_window
+                WHERE place_id = :place_id
+                ORDER BY forecast_at ASC
+              requires: [select_columns, filter_set, sort]
+              allow_empty: false
+            - pattern_id: "top_places_by_metric_at_time"
+              question_ko: "특정 예보 시각에 (기온/풍속/강수확률 중 고른 지표로) 가장 높거나 낮은 위험 후보 장소는 어디입니까?"
+              axes: "예보 시각·자치구 센티널 필터 — 선택 지표를 선택 방향으로 정렬한 단면 랭킹"
+              verified_rows: 0                # 실 D1 실측: [15, 10] (스탬핑 대기)
+              insight_sample_ko: "2026-08-08 15시 예보에서 풍속이 가장 높은 위험 후보 장소는 강동구 강일동(풍속 5.2 m/s, 기온 35도)이었다."
+              sql: |
+                -- :forecast_at=2026-08-08 15:00:00, :gu=ALL, :metric=wind_ms, :dir=desc, :n=15
+                SELECT place_id, place_name, gu, forecast_at, temp_c, wind_ms, precip_prob_pct, pty_code
+                FROM gold_weather_place_risk_window
+                WHERE forecast_at = :forecast_at
+                  AND (:gu = 'ALL' OR gu = :gu)
+                ORDER BY CASE WHEN :dir='asc' THEN (CASE :metric WHEN 'temp_c' THEN temp_c WHEN 'wind_ms' THEN wind_ms ELSE precip_prob_pct END) END ASC,
+                         CASE WHEN :dir='desc' THEN (CASE :metric WHEN 'temp_c' THEN temp_c WHEN 'wind_ms' THEN wind_ms ELSE precip_prob_pct END) END DESC,
+                         place_name
+                LIMIT :n
+              requires: [select_columns, filter_set, sort]
+              allow_empty: false
+              param_defaults: { gu: "ALL", dir: "desc", n: 15 }
+              param_enum: { dir: [asc, desc] }
+            - pattern_id: "peak_temp_by_place"
+              question_ko: "예보 기간 동안 예보 최고기온이 지정 임계값 이상으로 가장 높았던 위험 후보 장소는 어디입니까?"
+              axes: "예보 시각 범위 필터 + 장소 집계 — 최고기온 임계값(HAVING) 후 peak_temp DESC"
+              verified_rows: 0                # 실 D1 실측: [20, 20] (스탬핑 대기)
+              insight_sample_ko: "2026-08-07~12 예보 창에서 예보 최고기온 36도로 가장 높은 축에 든 장소에는 종로구 가회동이 포함됐고, 해당 장소의 폭염후보 예보 시각은 4건이었다."
+              sql: |
+                -- :from_at=2026-08-07 00:00:00, :to_at=2026-08-13 00:00:00, :min_peak_temp=35, :n=20
+                SELECT place_id, place_name, gu, max(temp_c) AS peak_temp_c, max(wind_ms) AS peak_wind_ms, count(*) AS risk_hour_count
+                FROM gold_weather_place_risk_window
+                WHERE forecast_at >= :from_at AND forecast_at < :to_at
+                GROUP BY place_id, place_name, gu
+                HAVING max(temp_c) >= :min_peak_temp
+                ORDER BY peak_temp_c DESC, risk_hour_count DESC, place_name
+                LIMIT :n
+              requires: [select_columns, filter_range, aggregate, group_by, having, sort]
+              allow_empty: false
+              param_defaults: { min_peak_temp: 35, n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "risk_exposure_by_area"
+              question_ko: "예보 기간 동안 위험 후보 노출(예보 건수·장소 수·최고기온)이 큰 지역은 자치구/행정동 중 어느 단위로 보든 어디입니까?"
+              axes: "예보 시각 범위 필터 + 지역 차원 스위치(자치구/행정동) 집계 — 위험 건수 DESC"
+              verified_rows: 0                # 실 D1 실측: [25, 25] (스탬핑 대기)
+              insight_sample_ko: "2026-08-08 하루 예보 기준 폭염후보 예보 건수가 가장 많은 자치구는 송파구로, 126건·장소 20곳·최고기온 35도·최고풍속 5.6 m/s였다."
+              sql: |
+                -- :dim=gu, :from_at=2026-08-08 00:00:00, :to_at=2026-08-09 00:00:00, :n=25
+                SELECT CASE :dim WHEN 'gu' THEN gu ELSE admin_dong END AS area, count(*) AS risk_hour_count, count(DISTINCT place_id) AS place_count, max(temp_c) AS peak_temp_c, max(wind_ms) AS peak_wind_ms
+                FROM gold_weather_place_risk_window
+                WHERE forecast_at >= :from_at AND forecast_at < :to_at
+                GROUP BY CASE :dim WHEN 'gu' THEN gu ELSE admin_dong END
+                ORDER BY risk_hour_count DESC, area
+                LIMIT :n
+              requires: [select_columns, filter_range, aggregate, group_by, sort]
+              allow_empty: false
+              param_defaults: { n: 25, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "risk_load_by_forecast_time"
+              question_ko: "예보 기간 안에서 위험 후보로 표시된 장소 수와 최고기온이 예보 시각마다 어떻게 달라집니까?"
+              axes: "예보 시각 범위 필터 + 예보 시각 집계 — 시각 ASC 시계열(장소 수·최고기온·최고풍속·최고강수확률)"
+              verified_rows: 0                # 실 D1 실측: [8, 24] (스탬핑 대기)
+              insight_sample_ko: "2026-08-08 예보 창의 첫 시각 11시에는 39개 장소가 폭염후보로 표시됐고 그 시각 최고기온은 33도였다."
+              sql: |
+                -- :from_at=2026-08-08 00:00:00, :to_at=2026-08-09 00:00:00
+                SELECT forecast_at, count(DISTINCT place_id) AS place_count, max(temp_c) AS peak_temp_c, max(wind_ms) AS peak_wind_ms, max(precip_prob_pct) AS peak_precip_prob_pct
+                FROM gold_weather_place_risk_window
+                WHERE forecast_at >= :from_at AND forecast_at < :to_at
+                GROUP BY forecast_at
+                ORDER BY forecast_at ASC
+              requires: [select_columns, filter_range, aggregate, group_by, sort]
+              allow_empty: false
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "risk_windows_for_gu_set"
+              question_ko: "선택한 여러 자치구의 위험 후보 예보를 한 시간 범위에서 함께 보고 싶습니다."
+              axes: "자치구 다중 선택(배열 IN) + 예보 시각 범위 필터 — 자치구·시각 ASC"
+              verified_rows: 0                # 실 D1 실측: [100, 100] (스탬핑 대기)
+              insight_sample_ko: "강남·송파 두 자치구의 2026-08-08 폭염후보 예보를 모으면 상한 100건에 걸렸고, 첫 행은 강남구 개포2동 11시(기온 33도·강수확률 0%)였다."
+              sql: |
+                -- :gus=["강남구","송파구"], :from_at=2026-08-08 00:00:00, :to_at=2026-08-09 00:00:00, :n=100
+                SELECT place_id, place_name, gu, forecast_at, temp_c, wind_ms, precip_prob_pct, pty_code
+                FROM gold_weather_place_risk_window
+                WHERE gu IN (SELECT value FROM json_each(:gus))
+                  AND forecast_at >= :from_at AND forecast_at < :to_at
+                ORDER BY gu, forecast_at ASC, place_name
+                LIMIT :n
+              requires: [select_columns, filter_set, filter_range, subquery, sort]
+              allow_empty: false
+              param_defaults: { n: 100, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "high_precip_probability_windows"
+              question_ko: "폭염 후보 예보 중에서도 강수확률이 지정 하한 이상으로 높아 소나기가 겹칠 수 있는 장소·시각은 무엇입니까?"
+              axes: "강수확률 하한 + 예보 시각 범위 필터 — 강수확률 DESC"
+              verified_rows: 0                # 실 D1 실측: [50, 50] (스탬핑 대기)
+              insight_sample_ko: "폭염후보 예보 중 강수확률 20% 이상 상위는 강수확률 60%·강수형태 4(소나기) 구간에 몰렸고, 송파구 가락1동 2026-08-08 17시(기온 34도·풍속 5.1 m/s)가 그 예다."
+              sql: |
+                -- :min_precip_prob_pct=20, :from_at=2026-08-07 00:00:00, :to_at=2026-08-13 00:00:00, :n=50
+                SELECT place_id, place_name, gu, forecast_at, precip_prob_pct, pty_code, temp_c, wind_ms
+                FROM gold_weather_place_risk_window
+                WHERE precip_prob_pct >= :min_precip_prob_pct
+                  AND forecast_at >= :from_at AND forecast_at < :to_at
+                ORDER BY precip_prob_pct DESC, forecast_at ASC, place_name
+                LIMIT :n
+              requires: [select_columns, filter_range, sort]
+              allow_empty: false
+              param_defaults: { min_precip_prob_pct: 20, n: 50, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "temp_severity_distribution"
+              question_ko: "예보 기간 동안 위험 후보 예보가 예보 기온대별로 얼마나 분포합니까?"
+              axes: "예보 시각 범위 필터 + 기온 집계 — 기온대별 예보 건수·장소 수 분포(기온 DESC)"
+              verified_rows: 0                # 실 D1 실측: [5, 3] (스탬핑 대기)
+              insight_sample_ko: "2026-08-07~12 예보 창에서 최고기온대인 36도 구간은 예보 43건(장소 43곳, 예보 시각 1개)으로 폭염 정점 구간이었다."
+              sql: |
+                -- :from_at=2026-08-07 00:00:00, :to_at=2026-08-13 00:00:00
+                SELECT temp_c, count(*) AS risk_hour_count, count(DISTINCT place_id) AS place_count, count(DISTINCT forecast_at) AS forecast_hour_count
+                FROM gold_weather_place_risk_window
+                WHERE forecast_at >= :from_at AND forecast_at < :to_at
+                GROUP BY temp_c
+                ORDER BY temp_c DESC
+              requires: [select_columns, filter_range, aggregate, group_by, sort]
+              allow_empty: false
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
           public_projection:
             schema_version: "1.2.0"
             columns:

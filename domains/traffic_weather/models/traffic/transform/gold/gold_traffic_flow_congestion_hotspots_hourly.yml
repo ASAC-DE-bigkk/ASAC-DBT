@@ -66,6 +66,7 @@ models:
               question_ko: 특정 시간대에 관측된 링크를 속도 순위로 보고 싶습니다.
               axes: 시간대 필터 — congestion_rank ASC
               requires: [select_columns, filter_set, sort]
+              param_defaults: { n: 50 }
               allow_empty: true
               verified_rows: 16
               verified_at: "2026-08-05T14:39:11Z"
@@ -82,6 +83,7 @@ models:
               question_ko: 특정 링크가 저속 hotspot으로 관측된 시간대는 언제입니까?
               axes: 링크·hotspot 상태·시간 범위 필터 — 시간 ASC
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 10
               verified_at: "2026-08-05T14:39:11Z"
@@ -98,6 +100,7 @@ models:
               question_ko: 특정 시간 범위에서 관측 속도가 가장 낮았던 링크는 어디입니까?
               axes: 시간 범위·가용 속도 필터 — flow_speed ASC
               requires: [select_columns, filter_range, filter_set, sort]
+              param_defaults: { n: 50, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 50
               verified_at: "2026-08-05T14:39:11Z"
@@ -114,6 +117,7 @@ models:
               question_ko: 시간대별로 혼잡 순위를 계산한 관측 링크 수는 얼마입니까?
               axes: 시간대 범위 집계 — hour_at ASC
               requires: [select_columns, filter_range, aggregate, group_by, sort]
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 35
               verified_at: "2026-08-05T14:39:11Z"
@@ -129,6 +133,7 @@ models:
               question_ko: 특정 시간대에 속도 값이 없어 순위를 신뢰할 수 없는 링크는 무엇입니까?
               axes: 시간대·missing_speed 상태 필터 — 링크 ID ASC
               requires: [select_columns, filter_set, sort]
+              param_defaults: { n: 50 }
               allow_empty: true
               verified_rows: 0
               verified_at: "2026-08-05T14:39:11Z"
@@ -144,6 +149,7 @@ models:
               question_ko: 특정 시간대에서 지정한 혼잡 순위 이내에 드는 링크는 무엇입니까?
               axes: 시간대·순위 상한 필터 — congestion_rank ASC
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { max_rank: 10 }
               allow_empty: true
               verified_rows: 10
               verified_at: "2026-08-05T14:39:11Z"
@@ -158,6 +164,7 @@ models:
               question_ko: 최근 특정 시간 범위에서 저속 hotspot으로 반복 관측된 링크는 무엇입니까?
               axes: 시간 범위·hotspot 상태 집계 — 발생 시간 수 DESC
               requires: [select_columns, filter_range, filter_set, aggregate, group_by, sort]
+              param_defaults: { n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 20
               verified_at: "2026-08-05T14:39:11Z"
@@ -171,6 +178,133 @@ models:
                 GROUP BY link_id
                 ORDER BY hotspot_hour_count DESC, min_flow_speed ASC
                 LIMIT :n
+            - pattern_id: "ranked_links_for_hour_switch"
+              question_ko: "특정 시간대에 관측된 링크를 속도 또는 통행시간 기준으로, 오름/내림차순을 골라 순위대로 보고 싶습니다."
+              axes: "시간대 필터 — 지표(속도/통행시간)·정렬 방향 스위치 랭킹"
+              verified_rows: 0                # 실 D1 실측: [20, 20] (스탬핑 대기)
+              insight_sample_ko: "2026-07-31 21:00:00에 속도 기준 가장 느린 링크는 1080002500으로 7.0km/h(혼잡 순위 1위, 통행시간 415초, 관측 링크 47개)입니다."
+              sql: |
+                -- :hour_at=2026-07-31 21:00:00, :metric=speed, :dir=asc, :n=20
+                SELECT link_id, hour_at, flow_speed, flow_travel_time, congestion_rank, hotspot_state, observed_link_count
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at = :hour_at
+                ORDER BY CASE WHEN :metric='speed' AND :dir='asc' THEN flow_speed END ASC,
+                         CASE WHEN :metric='speed' AND :dir='desc' THEN flow_speed END DESC,
+                         CASE WHEN :metric='travel_time' AND :dir='asc' THEN flow_travel_time END ASC,
+                         CASE WHEN :metric='travel_time' AND :dir='desc' THEN flow_travel_time END DESC
+                LIMIT :n
+              requires: [select_columns, filter_set, sort]
+              allow_empty: false
+              param_defaults: { dir: "asc", n: 20 }
+              param_enum: { dir: [asc, desc] }
+            - pattern_id: "longest_travel_time_in_window"
+              question_ko: "특정 시간 범위에서 통행시간이 가장 길었던 링크·시각은 어디입니까?"
+              axes: "시간 범위·가용 품질 필터 — flow_travel_time DESC"
+              verified_rows: 0                # 실 D1 실측: [20, 20] (스탬핑 대기)
+              insight_sample_ko: "관측 창 전체에서 통행시간이 가장 길었던 링크는 1220003800(2026-07-31 13:00:00)으로 1080초, 속도 10.0km/h(혼잡 순위 2위)입니다."
+              sql: |
+                -- :from_at=2026-07-30 00:00:00, :to_at=2026-08-10 00:00:00, :n=20
+                SELECT link_id, hour_at, flow_speed, flow_travel_time, congestion_rank, hotspot_state
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at >= :from_at AND hour_at < :to_at
+                  AND flow_value_quality = 'available'
+                ORDER BY flow_travel_time DESC, hour_at ASC
+                LIMIT :n
+              requires: [select_columns, filter_range, filter_set, sort]
+              allow_empty: false
+              param_defaults: { n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "hour_of_day_speed_profile"
+              question_ko: "관측 창에서 하루 중 몇 시(시간대)에 평균 속도가 가장 낮습니까?"
+              axes: "시간 범위 필터 — 시(hour-of-day) 파생 차원 집계, 평균 속도 ASC"
+              verified_rows: 0                # 실 D1 실측: [24, 23] (스탬핑 대기)
+              insight_sample_ko: "관측 창 전체에서 시 기준 평균 속도가 가장 낮은 시간대는 18시로 평균 19.7km/h(관측 29건, 최저 6.2km/h, 평균 통행시간 278초)입니다."
+              sql: |
+                -- :from_at=2026-07-30 00:00:00, :to_at=2026-08-10 00:00:00
+                SELECT substr(hour_at, 12, 2) AS hour_of_day, count(*) AS observation_count,
+                       round(avg(flow_speed), 1) AS avg_flow_speed, min(flow_speed) AS min_flow_speed,
+                       round(avg(flow_travel_time), 1) AS avg_flow_travel_time
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at >= :from_at AND hour_at < :to_at
+                GROUP BY hour_of_day
+                ORDER BY avg_flow_speed ASC
+              requires: [select_columns, filter_range, aggregate, group_by, sort]
+              allow_empty: false
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "worst_congestion_hours"
+              question_ko: "관측 창에서 저속 hotspot 링크가 충분히 관측된 시각 중 가장 혼잡(평균 속도 최저)했던 시간은 언제입니까?"
+              axes: "시간 범위·hotspot 상태 필터 — 시각별 집계, 최소 관측 링크 임계값, 평균 속도 ASC"
+              verified_rows: 0                # 실 D1 실측: [20, 10] (스탬핑 대기)
+              insight_sample_ko: "저속 top-10 링크가 5개 이상 관측된 시각 중 평균 속도가 가장 낮았던 시간은 2026-07-31 12:00:00으로 링크 10개 평균 11.9km/h(최저 8.4km/h, 최대 통행시간 274초)입니다."
+              sql: |
+                -- :from_at=2026-07-30 00:00:00, :to_at=2026-08-10 00:00:00, :min_links=5, :n=20
+                SELECT hour_at, count(*) AS hotspot_link_count, round(avg(flow_speed), 1) AS avg_flow_speed,
+                       min(flow_speed) AS min_flow_speed, max(flow_travel_time) AS max_flow_travel_time
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at >= :from_at AND hour_at < :to_at
+                  AND hotspot_state = 'lowest_speed_top_10'
+                GROUP BY hour_at
+                HAVING count(*) >= :min_links
+                ORDER BY avg_flow_speed ASC, min_flow_speed ASC
+                LIMIT :n
+              requires: [select_columns, filter_range, filter_set, aggregate, group_by, having, sort]
+              allow_empty: false
+              param_defaults: { min_links: 5, n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "persistent_severe_congestion"
+              question_ko: "관측 창에서 지정한 속도 이하로 여러 시간 반복 관측된, 만성적으로 심하게 막히는 링크는 어디입니까?"
+              axes: "시간 범위·속도 임계값 필터 — 링크별 발생 시간 집계, 최소 시간 임계값, 발생 시간 DESC"
+              verified_rows: 0                # 실 D1 실측: [5, 13] (스탬핑 대기)
+              insight_sample_ko: "속도 10km/h 이하가 2시간 이상 반복된 링크는 5곳이며, 최다는 1010009500으로 13시간(최저 2.0km/h, 평균 6.6km/h, 최대 통행시간 247초)입니다."
+              sql: |
+                -- :max_speed=10, :min_hours=2, :from_at=2026-07-30 00:00:00, :to_at=2026-08-10 00:00:00, :n=20
+                SELECT link_id, count(*) AS severe_hour_count, min(flow_speed) AS min_flow_speed,
+                       round(avg(flow_speed), 1) AS avg_flow_speed, max(flow_travel_time) AS max_flow_travel_time
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at >= :from_at AND hour_at < :to_at
+                  AND flow_value_quality = 'available'
+                  AND flow_speed <= :max_speed
+                GROUP BY link_id
+                HAVING count(*) >= :min_hours
+                ORDER BY severe_hour_count DESC, min_flow_speed ASC
+                LIMIT :n
+              requires: [select_columns, filter_range, filter_set, aggregate, group_by, having, sort]
+              allow_empty: false
+              param_defaults: { max_speed: 10, min_hours: 2, n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "hotspot_share_by_link"
+              question_ko: "관측 창에서 관측된 시간 대비 저속 hotspot으로 잡힌 비중이 가장 높은, 즉 가장 일관되게 막히는 링크는 어디입니까?"
+              axes: "시간 범위 필터 — 링크별 hotspot 시간/관측 시간 비율, 최소 관측 임계값, 비율 DESC"
+              verified_rows: 0                # 실 D1 실측: [20, 10] (스탬핑 대기)
+              insight_sample_ko: "관측 5시간 이상 링크 중 hotspot 비중이 가장 높은 곳은 1240000900으로 관측 8시간 전부 저속 top-10(비중 1.0, 최저 13.9km/h)입니다."
+              sql: |
+                -- :min_observed_hours=5, :from_at=2026-07-30 00:00:00, :to_at=2026-08-10 00:00:00, :n=20
+                SELECT link_id, count(*) AS observed_hour_count,
+                       sum(CASE WHEN hotspot_state = 'lowest_speed_top_10' THEN 1 ELSE 0 END) AS hotspot_hour_count,
+                       round(1.0 * sum(CASE WHEN hotspot_state = 'lowest_speed_top_10' THEN 1 ELSE 0 END) / count(*), 3) AS hotspot_share,
+                       min(flow_speed) AS min_flow_speed
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE hour_at >= :from_at AND hour_at < :to_at
+                GROUP BY link_id
+                HAVING count(*) >= :min_observed_hours
+                ORDER BY hotspot_share DESC, observed_hour_count DESC
+                LIMIT :n
+              requires: [select_columns, filter_range, aggregate, group_by, having, sort]
+              allow_empty: false
+              param_defaults: { min_observed_hours: 5, n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+            - pattern_id: "congestion_for_link_set"
+              question_ko: "내가 지정한 여러 링크(예: 통근 경로)의 관측 창 내 시간별 혼잡 이력을 한 번에 보고 싶습니다."
+              axes: "다중 링크 배열·시간 범위 필터 — 링크·시각 ASC"
+              verified_rows: 0                # 실 D1 실측: [115, 12] (스탬핑 대기)
+              insight_sample_ko: "지정한 링크 3개(1010009500·1000021700·1210013400)의 관측 창 내 시간별 이력 114행이 반환되며, 첫 행은 1000021700 2026-08-04 18:00 속도 19.0km/h(혼잡 순위 3위)입니다."
+              sql: |
+                -- :link_ids=["1010009500","1000021700","1210013400"], :from_at=2026-07-30 00:00:00, :to_at=2026-08-10 00:00:00, :n=200
+                SELECT link_id, hour_at, flow_speed, flow_travel_time, congestion_rank, hotspot_state, observed_link_count
+                FROM gold_traffic_flow_congestion_hotspots_hourly
+                WHERE link_id IN (SELECT value FROM json_each(:link_ids))
+                  AND hour_at >= :from_at AND hour_at < :to_at
+                ORDER BY link_id, hour_at ASC
+                LIMIT :n
+              requires: [select_columns, filter_set, filter_range, sort]
+              allow_empty: false
+              param_defaults: { n: 200, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
           public_projection:
             schema_version: "1.0.0"
             columns:
