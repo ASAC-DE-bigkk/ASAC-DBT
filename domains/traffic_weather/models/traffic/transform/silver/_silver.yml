@@ -169,6 +169,10 @@ models:
         description: Publishable flow Bronze run pinned by the transform invocation.
         tests:
           - not_null
+      - name: parent_incident_run_id
+        description: Exact Incident Bronze run that selected the Flow link set.
+        tests:
+          - not_null
       - name: request_id
         description: Deterministic request identifier for link and flow run.
       - name: request_params_json

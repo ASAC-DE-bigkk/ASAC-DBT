@@ -29,6 +29,7 @@ bronze as (
         cast(flow.source_id as varchar) as source_id,
         cast(flow.request_params_json as varchar) as request_params_json,
         cast(flow.link_id as varchar) as link_id,
+        cast(flow.parent_incident_run_id as varchar) as parent_incident_run_id,
         try_cast(nullif(trim(cast(flow.prcs_spd as varchar)), '') as double) as flow_speed,
         try_cast(nullif(trim(cast(flow.prcs_trv_time as varchar)), '') as double) as flow_travel_time,
         cast(flow.raw_object_key as varchar) as raw_object_key,
@@ -70,6 +71,7 @@ select
     source_id,
     request_params_json,
     link_id,
+    parent_incident_run_id,
     flow_speed,
     flow_travel_time,
     case

@@ -57,7 +57,9 @@ models:
               verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
               sql: |
                 -- :link_id='1190000100'
-                SELECT link_id, flow_speed, flow_travel_time, flow_value_quality, observed_at_kst, collected_at_kst
+                SELECT link_id, road_name, start_node_name, end_node_name, admin_dong, gu,
+                       longitude, latitude, link_reference_quality,
+                       flow_speed, flow_travel_time, flow_value_quality, observed_at_kst, collected_at_kst
                 FROM gold_traffic_flow_link_latest
                 WHERE link_id = :link_id
             - pattern_id: available_link_values
@@ -103,7 +105,9 @@ models:
               verified_publication_id: "c1886803d27d40a19e6b5b65ab354558"
               sql: |
                 -- :n=20
-                SELECT link_id, flow_speed, flow_travel_time, observed_at_kst
+                SELECT link_id, road_name, start_node_name, end_node_name, admin_dong, gu,
+                       longitude, latitude, link_reference_quality,
+                       flow_speed, flow_travel_time, observed_at_kst
                 FROM gold_traffic_flow_link_latest
                 WHERE flow_value_quality = 'available'
                 ORDER BY flow_speed ASC
@@ -460,6 +464,139 @@ models:
             time_role: event
             timezone: Asia/Seoul
             unit: not_applicable
+      - name: road_name
+        description: TOPIS road name mapped from the complete link reference.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: No complete LinkInfo row is available for this Flow link.
+            unit: not_applicable
+      - name: start_node_name
+        description: Source-provided road-link start node name.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: The source did not provide a start node or the reference is missing.
+            unit: not_applicable
+      - name: end_node_name
+        description: Source-provided road-link end node name.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: The source did not provide an end node or the reference is missing.
+            unit: not_applicable
+      - name: map_distance
+        description: Source-provided road-link distance cast to double.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: The source distance is absent or not numeric.
+            unit: not_applicable
+      - name: representative_vertex_sequence
+        description: Deterministically selected lower-middle geometry vertex.
+        data_type: integer
+        config:
+          meta:
+            semantic_role: derived_value
+            nullable: true
+            null_meaning: No complete LinkVerInfo geometry is available.
+            unit: not_applicable
+      - name: longitude
+        description: WGS84 longitude of the representative road-link vertex.
+        data_type: double
+        config:
+          meta:
+            semantic_role: spatial_coordinate
+            nullable: true
+            null_meaning: Coordinate conversion failed or the point was outside the Seoul bbox.
+            unit: degree
+      - name: latitude
+        description: WGS84 latitude of the representative road-link vertex.
+        data_type: double
+        config:
+          meta:
+            semantic_role: spatial_coordinate
+            nullable: true
+            null_meaning: Coordinate conversion failed or the point was outside the Seoul bbox.
+            unit: degree
+      - name: admin_dong_code
+        description: Canonical administrative-dong code containing the representative point.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: true
+            null_meaning: No Seoul administrative boundary contained the representative point.
+            unit: not_applicable
+      - name: admin_dong
+        description: Administrative-dong name containing the representative point.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: No Seoul administrative boundary contained the representative point.
+            unit: not_applicable
+      - name: gu_code
+        description: Canonical Seoul district code derived from the matched dong.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: true
+            null_meaning: No Seoul administrative boundary contained the representative point.
+            unit: not_applicable
+      - name: gu
+        description: Seoul district name derived from the matched dong.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: No Seoul administrative boundary contained the representative point.
+            unit: not_applicable
+      - name: link_reference_quality
+        description: Completeness and spatial quality of the attached road reference.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+          - accepted_values:
+              arguments:
+                values:
+                  - complete
+                  - missing_info
+                  - missing_vertex
+                  - coordinate_conversion_or_bbox_miss
+                  - admin_boundary_miss
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: false
+            null_meaning: Every Flow anchor is assigned an explicit reference quality.
+            unit: not_applicable
+      - name: link_reference_collected_at_kst
+        description: KST collection timestamp of the selected complete road reference.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: No complete road reference has been collected for this link.
+            time_role: collection
+            timezone: Asia/Seoul
+            unit: not_applicable
       - name: raw_object_key
         description: 선택된 관측 행의 원본 객체를 추적하는 안정 식별자입니다.
         data_type: varchar
@@ -510,6 +647,19 @@ models:
             null_meaning: 수집 시각이 없으면 적재 지연을 검증할 수 없습니다.
             time_role: collection
             timezone: Asia/Seoul
+            unit: not_applicable
+      - name: parent_incident_run_id
+        description: Exact Incident Bronze run that selected the links for this Flow snapshot.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: Exact Incident parent lineage is required for every Flow row.
             unit: not_applicable
       - name: dag_run_id
         description: 선택된 관측 행을 만든 수집 DAG 실행 식별자입니다.
