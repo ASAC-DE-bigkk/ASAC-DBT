@@ -824,3 +824,87 @@ def test_display_must_be_a_mapping():
     result = validate([_serving_model(serving_overrides={"display": ["제목"]})])
 
     assert "display_invalid" in _rules(result.findings)
+
+
+# ── v1.11 (#217 P1·P3): usage_patterns 파라미터 메타 ────────────────────────────
+
+def _pattern_model(pattern_overrides: dict) -> ServingModel:
+    pattern = {
+        "pattern_id": "gu_rank_any",
+        "sql": "-- :dir='desc', :n=10\nSELECT g FROM t WHERE d = :dir ORDER BY g LIMIT :n",
+    }
+    pattern.update(pattern_overrides)
+    return _serving_model(serving_overrides={"usage_patterns": [pattern]})
+
+
+def test_pattern_param_meta_valid_passes():
+    result = validate([_pattern_model({
+        "param_defaults": {"dir": "desc", "n": 10},
+        "param_enum": {"dir": ["asc", "desc"]},
+        "params": {"n": {"type": "number"}},
+    })])
+    assert not [f for f in result.findings if f.rule.startswith("usage_pattern")]
+
+
+def test_pattern_param_meta_array_spec_passes():
+    result = validate([_pattern_model({
+        "sql": "SELECT g FROM t WHERE g IN (:gus)",
+        "params": {"gus": {"type": "array", "item": "string", "max_len": 50}},
+    })])
+    assert not [f for f in result.findings if f.rule.startswith("usage_pattern")]
+
+
+@pytest.mark.parametrize("overrides,rule", [
+    # SQL 에 없는 파라미터의 메타 — 오타/개명 미반영 (게이트웨이는 관용하지만 CI 는 잡는다)
+    ({"param_defaults": {"zzz": 1}}, "usage_pattern_param_meta_unknown"),
+    ({"param_enum": {"zzz": ["a"]}}, "usage_pattern_param_meta_unknown"),
+    ({"params": {"zzz": {"type": "string"}}}, "usage_pattern_param_meta_unknown"),
+    # 형 위반
+    ({"param_defaults": {"dir": ["desc"]}}, "usage_pattern_invalid"),        # 스칼라 아님
+    ({"param_defaults": "desc"}, "usage_pattern_invalid"),                    # 매핑 아님
+    ({"param_enum": {"dir": []}}, "usage_pattern_invalid"),                   # 빈 리스트
+    ({"param_enum": {"dir": "asc"}}, "usage_pattern_invalid"),                # 리스트 아님
+    ({"params": {"dir": {"type": "column"}}}, "usage_pattern_invalid"),       # 미지 type
+    ({"params": {"dir": {"type": "array", "item": "bool"}}}, "usage_pattern_invalid"),   # 미지 item
+    ({"params": {"dir": {"type": "array", "max_len": 0}}}, "usage_pattern_invalid"),     # cap 밖
+    ({"params": {"dir": {"type": "array", "max_len": 101}}}, "usage_pattern_invalid"),   # cap 밖
+    ({"params": {"dir": {"type": "array", "maxlen": 5}}}, "usage_pattern_invalid"),      # 스펙 밖 키
+    # 기본값이 허용값 밖 — 게이트웨이 400 을 저작 시점에 잡는다
+    ({"param_defaults": {"dir": "sideways"}, "param_enum": {"dir": ["asc", "desc"]}}, "usage_pattern_invalid"),
+])
+def test_pattern_param_meta_rejects_malformed(overrides, rule):
+    result = validate([_pattern_model(overrides)])
+    assert rule in _rules(result.findings)
+
+
+# ── v1.12 (#217): 동적 기본값(상대 날짜) ────────────────────────────────────────
+
+def _date_pattern(defaults):
+    return _pattern_model({
+        "pattern_id": "date_window",
+        "sql": "-- :from, :to\nSELECT d FROM t WHERE d BETWEEN :from AND :to",
+        "param_defaults": defaults,
+    })
+
+
+def test_relative_date_default_valid_passes():
+    result = validate([_date_pattern({"from": {"rel": "-30d", "as": "date"},
+                                      "to": {"rel": "0d", "as": "date"}})])
+    assert not [f for f in result.findings if f.rule.startswith("usage_pattern")]
+
+
+def test_relative_date_default_grains_pass():
+    for rel, as_ in [("-1y", "year"), ("0M", "ym"), ("-7d", "datetime")]:
+        m = _pattern_model({"pattern_id": "p", "sql": "-- :y\nSELECT * FROM t WHERE y >= :y",
+                            "param_defaults": {"y": {"rel": rel, "as": as_}}})
+        assert not [f for f in validate([m]).findings if f.rule.startswith("usage_pattern")], (rel, as_)
+
+
+@pytest.mark.parametrize("bad", [
+    {"from": {"rel": "-30x", "as": "date"}},        # 단위 오타
+    {"from": {"rel": "-30d", "as": "week"}},         # as 미지원
+    {"from": {"rel": "-30d", "as": "date", "tz": "x"}},  # 허용 밖 키
+    {"from": {"rel": "-30d"}},                        # as 누락 → 스칼라도 아니라 거부
+])
+def test_relative_date_default_rejects_malformed(bad):
+    assert "usage_pattern_invalid" in _rules(validate([_date_pattern(bad)]).findings)

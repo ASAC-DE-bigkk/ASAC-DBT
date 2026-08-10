@@ -7969,6 +7969,8 @@ models:
                 FROM d1_area_profile GROUP BY dataset_ko HAVING SUM(n_with_area) >= :min_n
                 ORDER BY w_avg_m2 ASC LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, having]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { min_n: 100, n: 10 }
             - pattern_id: "inv_gu_fixed_smallest"
               question_ko: "이 자치구에서 가장 작은 매장 업종은? (구 고정 + 정렬 반전)"
               axes: "자치구 고정(:gu) → 업종 랭킹 p50 ASC"
@@ -7982,6 +7984,8 @@ models:
                 FROM d1_area_profile WHERE gu = :gu AND n_with_area >= :min_n
                 ORDER BY p50_m2 ASC LIMIT :n
               requires: [select_columns, sort, aggregate, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { min_n: 30, n: 10 }
             - pattern_id: "new_large_share_by_category"
               question_ko: "대형(330㎡+) 매장 비중이 높은 업종군은? (소형 비중 관점의 반전)"
               axes: "중분류 랭킹 — 대형 비중 DESC(small_share 관점의 반전)"
@@ -8012,6 +8016,9 @@ models:
                          CASE WHEN :dir='desc' THEN p50_m2 END DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { dir: "desc", min_n: 30, n: 10 }
+              param_enum: { dir: [asc, desc] }
             - pattern_id: "dataset_gu_vs_city"
               question_ko: "특정 구의 특정 업종 매장 면적은 서울 전체 평균 대비 어떤 수준인가?"
               axes: "단일 셀 단면(dataset×gu) + 서울 전체 가중 평균 벤치마크 비율(subquery)"
@@ -8047,6 +8054,8 @@ models:
                 ORDER BY n_with_area DESC
                 LIMIT :n
               requires: [select_columns, sort, window, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { n: 10 }
             - pattern_id: "midsize_share_rank_switch"
               question_ko: "중형(33~330㎡) 매장 비중이 가장 높은 업종/자치구는? (:dim ∈ {gu, dataset})"
               axes: "비율 랭킹 — 차원 스위치(gu|dataset). 기존 소형(lt_33)·대형(ge_330) 비중 패턴이 안 덮는 중형 밴드"
@@ -8068,6 +8077,9 @@ models:
                 ORDER BY pct_mid_33_330 DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { dim: "dataset", min_n: 200, n: 10 }
+              param_enum: { dim: [gu, dataset] }
             - pattern_id: "gu_pair_dataset_gap"
               question_ko: "두 자치구(:gu_a vs :gu_b)에서 같은 업종의 중위 매장 면적 격차가 가장 큰 업종은?"
               axes: "두 단면 교차 비교(gu_a vs gu_b) — dataset 축 격차 랭킹(조건부 피벗), 양쪽 모두 표본 :min_n 이상인 업종만"
@@ -8089,6 +8101,8 @@ models:
                 ORDER BY ratio_a_over_b DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { min_n: 30, n: 10 }
             - pattern_id: "geo_spread_rank_by_dataset"
               question_ko: "같은 업종인데 구에 따라 매장 크기가 가장 크게 달라지는 업종은? (구간 중위 면적 max/min 배율)"
               axes: "dataset 랭킹 — 구간(between-gu) 지역 편차 배율. 셀 내부 양극화(polarization_p90_over_p50)와 구별되는 '지역 간' 편차"
@@ -8108,6 +8122,8 @@ models:
                 ORDER BY max_over_min DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { min_n: 30, min_gu: 10, n: 10 }
             - pattern_id: "unk_gu_share_by_dataset"
               question_ko: "자치구 미상(UNK) 사업장 비중이 높은 데이터셋은? (지역 분석 신뢰도 점검)"
               axes: "비율 랭킹 — dataset 축 데이터 품질(UNK 커버리지)"
@@ -8127,6 +8143,8 @@ models:
                 ORDER BY pct_unk DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, having]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { n: 10 }
             - pattern_id: "category_profile_any_major_gu"
               question_ko: "이 대분류(:major) 안 중분류별 면적 프로필은? 특정 구로 좁히면? (:gu='ALL'이면 서울 전체)"
               axes: ":param 단면(major) + category 드릴다운 + 센티널 gu 필터 — 기존 category_profile_in_major(major 고정·전 구 합산)의 일반화 상위호환"
@@ -8145,6 +8163,27 @@ models:
                 GROUP BY category, category_ko
                 ORDER BY n_biz DESC
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              # v1.11 (#217 P1): gu 생략 = 서울 전체 — 센티널 'ALL' 을 호출자가 몰라도 된다
+              param_defaults: { gu: "ALL" }
+            - pattern_id: "category_profile_major_gus"
+              question_ko: "이 대분류(:major) 안 중분류별 면적 프로필을 고른 구들(:gus)만 합산하면? (:gus 는 구 이름 배열)"
+              axes: ":param 단면(major) + category 드릴다운 + gu 다중 선택(P3 배열) — category_profile_any_major_gu(단일 구/전체)의 다중 선택 확장"
+              verified_rows: 0
+              insight_sample_ko: ""
+              sql: |
+                -- :major='health', :gus='["강남구","서초구","송파구"]'
+                SELECT category, category_ko, SUM(n_with_area) AS n_biz,
+                       ROUND(SUM(avg_m2*n_with_area)/SUM(n_with_area),1) AS w_avg_m2,
+                       ROUND(100.0*SUM(lt_33m2)/SUM(n_with_area),1) AS pct_lt33,
+                       ROUND(100.0*SUM(ge_330m2)/SUM(n_with_area),1) AS pct_ge330
+                FROM d1_area_profile
+                WHERE major = :major AND gu IN (:gus)
+                GROUP BY category, category_ko
+                ORDER BY n_biz DESC
+              requires: [select_columns, sort, aggregate, group_by, filter_set]
+              # v1.11 (#217 P3): 게이트웨이가 :gus 를 원소 수만큼 ?,?,? 로 전개(원소별 값 bind).
+              # verified_* 는 검증 스크립트 실측으로만 채운다(§8 — 스탬프 전엔 runnable=false 로 자동 비활성).
+              params: { gus: { type: array, item: string, max_len: 100 } }
             - pattern_id: "top_p50_combos"
               question_ko: "서울 전체에서 중위 매장 면적이 가장 큰 업종×구 조합은? (표본 :min_n 이상)"
               axes: "전역 교차 랭킹(dataset×gu) — 절대 중위 면적 기준. 비율 기반 양극화 랭킹(polarization)과 상보"
@@ -8160,6 +8199,8 @@ models:
                 ORDER BY p50_m2 DESC
                 LIMIT :n
               requires: [select_columns, sort, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { min_n: 50, n: 10 }
             - pattern_id: "gu_business_mix"
               question_ko: "이 구의 상권은 어떤 업종으로 구성돼 있나? (사업장 수 점유율 기준)"
               axes: ":param 단면(gu) + dataset 구성비(window) — 크기 랭킹(dataset_rank_for_gu)과 상보인 '구성' 관점"
@@ -8177,6 +8218,8 @@ models:
                 ORDER BY n_with_area DESC
                 LIMIT :n
               requires: [select_columns, sort, window, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { n: 10 }
             - pattern_id: "top_dataset_per_gu"
               question_ko: "각 자치구에서 매장이 가장 큰 대표 업종은 무엇인가? (구별 top-1 지도)"
               axes: "그룹별 top-1 — gu 파티션 window(ROW_NUMBER), 표본 :min_n 이상 셀만"
@@ -8196,6 +8239,8 @@ models:
                 WHERE rn = 1
                 ORDER BY p50_m2 DESC
               requires: [select_columns, sort, window, subquery, filter_range]
+              # v1.11 (#217 P1): 예시값 주석의 임계값·방향을 기본값으로 — 생략 가능
+              param_defaults: { min_n: 30 }
           contract_version: v1
           product_question: 업종별 매장 면적 분포는?
           grain: 업종3단×자치구

@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.10
+schema_version: v1.12
 supported_contract_versions: [v1]
 
 # 조건부 필수 — `if_present` 필드를 선언한 모델은 `then_required` 필드도 선언해야 한다.
@@ -103,10 +103,25 @@ publication_trigger_shapes:
 # requires 어휘는 11개 고정(#638 §1.1) — 오타가 그냥 통과되지 않게 하는 것이 이 블록의 목적.
 usage_pattern_fields:
   required: [pattern_id, sql]
+  # v1.11 (#217/#192 P1·P3): param_defaults(기본값 — 미전달 시 게시자 상수로 bind) ·
+  # param_enum(허용값 — 밖이면 게이트웨이 400) · params(타입 선언 — array 는 ?,?,? 전개).
+  # 게시 경로는 d1_usage_patterns 가 아니라 **별도 표 d1_pattern_params** 다(공유 핸드오프
+  # 표는 컬럼 완전일치 검사라 컬럼 추가 금지 — ASAC-DAG#706 전례). 게이트웨이는 표가
+  # 없으면 강등하므로(전 파라미터 필수) 선언이 게시보다 앞서도 안전하다.
   optional: [question_ko, axes, requires, verified_rows, verified_at,
-             verified_publication_id, allow_empty, insight_sample_ko, d1_table]
+             verified_publication_id, allow_empty, insight_sample_ko, d1_table,
+             param_defaults, param_enum, params]
   requires_allowed: [select_columns, sort, aggregate, group_by, having,
                      join, subquery, window, filter_range, filter_set, filter_null]
+  # v1.12 (#217): param_defaults 값은 스칼라 또는 **상대 날짜** {rel, as} 다. 날짜/기간
+  # 파라미터를 정적 상수로 두면 낡으므로(어제의 :from 이 계속 나옴), 게이트웨이가 실행 시점
+  # KST '오늘' 기준으로 해석한다. rel = ^[+-]?\d+(d|w|M|y)$ · as ∈ {date,datetime,ym,year}.
+  param_default_relative_units: [d, w, M, y]
+  param_default_relative_as: [date, datetime, ym, year]
+  # params 항목이 가질 수 있는 키·값 (v1.11 — 게이트웨이 convertPattern 과 잠금)
+  param_spec_types: [string, number, array]
+  param_spec_items: [string, number]
+  param_spec_max_len_cap: 100
 
 # v1.5 (#678): source_evidence 는 D1 ``d1_catalog_sources``로 함께 게시되는
 # 권리/출처 정본이다. 미선언은 레거시 호환을 위해 허용하지만, 선언한 제품은 빈 목록이나
