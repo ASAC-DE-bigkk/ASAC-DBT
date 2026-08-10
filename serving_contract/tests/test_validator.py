@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from serving_contract.cli import _render_json, main
-from serving_contract.model import ServingModel, load_manifest, load_models_from_yaml
+from serving_contract.model import ManifestView, ServingModel, load_manifest, load_models_from_yaml
 from serving_contract.validator import validate
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -257,6 +257,28 @@ def test_freshness_field_must_be_a_model_column():
     result = validate([model])
 
     assert "freshness_field_not_a_column" in _rules(result.findings)
+
+
+def test_empty_result_freshness_requires_a_manifest_relation_and_physical_field():
+    model = _serving_model(
+        serving_overrides={
+            "empty_result_freshness": {
+                "relation": "gold_missing_hourly_outlook",
+                "field": "forecast_collected_at_max",
+            },
+            "freshness_slo_minutes": 60,
+        }
+    )
+    manifest = ManifestView(
+        columns_by_model={
+            "gold_projection_fixture": {"product_row_id", "event_at", "collected_at"},
+        },
+        supplied=True,
+    )
+
+    result = validate([model], manifest)
+
+    assert "empty_result_freshness_invalid" in _rules(result.findings)
 
 
 def test_freshness_field_requires_freshness_slo():

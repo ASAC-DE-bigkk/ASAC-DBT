@@ -619,6 +619,7 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
     # primary_key 컬럼 실존 + not_null·고유성 근거.
     _check_primary_key(model, manifest, add)
     _check_freshness_field(model, manifest, add)
+    _check_empty_result_freshness(model, manifest, add)
     _check_public_projection(model, manifest, add)
 
     # manifest 멤버십.
@@ -641,6 +642,38 @@ def _check_freshness_field(model: ServingModel, manifest: ManifestView, add) -> 
         return
     if manifest.supplied and manifest.has_model(model.name) and field not in manifest.columns(model.name):
         add("freshness_field_not_a_column", f"freshness_field '{field}' 이 dbt manifest 컬럼에 없다")
+
+
+def _check_empty_result_freshness(model: ServingModel, manifest: ManifestView, add) -> None:
+    """Validate the upstream fallback used only when a sparse product has zero rows."""
+    raw = model.serving.get("empty_result_freshness")
+    if raw is None:
+        return
+    if not isinstance(raw, dict):
+        return  # structural type validation reports this separately
+    required = {"relation", "field"}
+    if set(raw) != required:
+        add(
+            "empty_result_freshness_invalid",
+            "empty_result_freshness 는 relation 과 field 만 선언해야 한다",
+        )
+        return
+    relation = raw.get("relation")
+    field = raw.get("field")
+    if not isinstance(relation, str) or not IDENTIFIER_RE.fullmatch(relation):
+        add("empty_result_freshness_invalid", "empty_result_freshness.relation 은 dbt model 식별자여야 한다")
+        return
+    if not isinstance(field, str) or not IDENTIFIER_RE.fullmatch(field):
+        add("empty_result_freshness_invalid", "empty_result_freshness.field 는 physical column 식별자여야 한다")
+        return
+    if relation == model.name:
+        add("empty_result_freshness_invalid", "empty_result_freshness.relation 은 현재 희소 상품 자신일 수 없다")
+        return
+    if manifest.supplied:
+        if not manifest.has_model(relation):
+            add("empty_result_freshness_invalid", f"empty_result_freshness.relation '{relation}' 이 manifest model에 없다")
+        elif field not in manifest.columns(relation):
+            add("empty_result_freshness_invalid", f"empty_result_freshness.field '{field}' 이 relation '{relation}' 컬럼에 없다")
 
 
 def _check_primary_key(model: ServingModel, manifest: ManifestView, add) -> None:
