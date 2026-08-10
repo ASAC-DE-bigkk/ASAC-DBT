@@ -848,7 +848,7 @@ def test_pattern_param_meta_valid_passes():
 
 def test_pattern_param_meta_array_spec_passes():
     result = validate([_pattern_model({
-        "sql": "SELECT g FROM t WHERE g IN (:gus)",
+        "sql": "-- :gus=['a','b']\nSELECT g FROM t WHERE g IN (:gus)",
         "params": {"gus": {"type": "array", "item": "string", "max_len": 50}},
     })])
     assert not [f for f in result.findings if f.rule.startswith("usage_pattern")]
@@ -882,7 +882,7 @@ def test_pattern_param_meta_rejects_malformed(overrides, rule):
 def _date_pattern(defaults):
     return _pattern_model({
         "pattern_id": "date_window",
-        "sql": "-- :from, :to\nSELECT d FROM t WHERE d BETWEEN :from AND :to",
+        "sql": "-- :from='2026-01-01', :to='2026-01-31'\nSELECT d FROM t WHERE d BETWEEN :from AND :to",
         "param_defaults": defaults,
     })
 
@@ -895,7 +895,7 @@ def test_relative_date_default_valid_passes():
 
 def test_relative_date_default_grains_pass():
     for rel, as_ in [("-1y", "year"), ("0M", "ym"), ("-7d", "datetime")]:
-        m = _pattern_model({"pattern_id": "p", "sql": "-- :y\nSELECT * FROM t WHERE y >= :y",
+        m = _pattern_model({"pattern_id": "p", "sql": "-- :y='2026-01-01'\nSELECT * FROM t WHERE y >= :y",
                             "param_defaults": {"y": {"rel": rel, "as": as_}}})
         assert not [f for f in validate([m]).findings if f.rule.startswith("usage_pattern")], (rel, as_)
 
@@ -908,3 +908,36 @@ def test_relative_date_default_grains_pass():
 ])
 def test_relative_date_default_rejects_malformed(bad):
     assert "usage_pattern_invalid" in _rules(validate([_date_pattern(bad)]).findings)
+
+
+# ── v1.13 (#217 후속): export 자동검증 완결성 — 미검증 패턴은 예시값이 다 풀려야 한다 ──────
+
+def test_unverified_pattern_without_example_is_flagged():
+    # :gu 예시값이 없어 export 가 검증을 못 함 → 영구 미검증(게이트웨이 409)
+    m = _pattern_model({"pattern_id": "p", "sql": "SELECT g FROM t WHERE gu = :gu ORDER BY g"})
+    assert "usage_pattern_unverifiable_example" in _rules(validate([m]).findings)
+
+
+def test_unverified_pattern_with_inline_example_passes():
+    m = _pattern_model({"pattern_id": "p", "sql": "-- :gu='강남구'\nSELECT g FROM t WHERE gu = :gu"})
+    assert "usage_pattern_unverifiable_example" not in _rules(validate([m]).findings)
+
+
+def test_verified_pattern_skips_example_check():
+    # 손 검증된 패턴(verified_at)은 예시가 없어도 runnable — 검사 대상 아님
+    m = _pattern_model({"pattern_id": "p", "sql": "SELECT g FROM t WHERE gu = :gu",
+                        "verified_at": "2026-07-30T09:00:00Z", "verified_rows": 5})
+    assert "usage_pattern_unverifiable_example" not in _rules(validate([m]).findings)
+
+
+def test_unverified_pattern_examples_resolve_all_forms():
+    # 따옴표 문자열·숫자·한 줄 배열·따옴표 없는 한글 문자열 — 네 형태 모두 풀린다
+    m = _pattern_model({"pattern_id": "p", "sql": (
+        "-- :gu='강남구', :n=10, :gus=['a','b'], :area=광나루한강공원\n"
+        "SELECT g FROM t WHERE gu=:gu AND g IN (:gus) AND a=:area ORDER BY g LIMIT :n")})
+    assert "usage_pattern_unverifiable_example" not in _rules(validate([m]).findings)
+
+
+def test_no_param_pattern_is_trivially_verifiable():
+    m = _pattern_model({"pattern_id": "p", "sql": "SELECT 1"})
+    assert "usage_pattern_unverifiable_example" not in _rules(validate([m]).findings)
