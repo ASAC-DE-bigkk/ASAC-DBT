@@ -17,3 +17,13 @@ domains/*/target_heavy/
 domains/*/target_test_hourly/
 domains/*/dbt_packages/
 domains/*/logs/
+
+# domains/ 밖에도 dbt 프로젝트가 둘 있다 — elt_smoke(스모크 검증)·packages/asac_axes(공유
+# 패키지). 위 규칙은 `domains/*` 에만 걸리고 4~6행은 `/` 로 최상위에 묶여 있어 둘 다 안 닿는다.
+# 그래서 산출물이 미추적으로 쌓여 `git status` 를 계속 더럽혔다(실측: elt_smoke/target 1.2MB).
+elt_smoke/target/
+elt_smoke/dbt_packages/
+elt_smoke/logs/
+packages/*/target/
+packages/*/dbt_packages/
+packages/*/logs/
