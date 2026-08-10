@@ -67,7 +67,9 @@ models:
             - pattern_id: "forecast_change_timeline_for_place"
               question_ko: "특정 장소에서 예보 대상일별로 최신 발표가 직전 발표 대비 어떻게 달라졌는지 시간순으로 보고 싶습니다."
               axes: "장소 필터 — 예보일 시계열(forecast_date ASC)"
-              verified_rows: 0                # 실 D1 실측: [6, 6] (스탬핑 대기)
+              verified_rows: 6
+              verified_at: "2026-08-10T11:10:00Z"
+              verified_publication_id: "293380934b9d4be1aa7ba9e69e1bb738"
               insight_sample_ko: "종로구 사직동은 6개 예보일 중 2026-08-08만 20시 발표에서 바뀌었고(최고기온 -3°C·최대강수확률 -20%p, 예보 시간 6→3시간), 08-09~08-13은 unchanged."
               sql: |
                 -- :place_id=seoul_admd_1111053000
@@ -77,10 +79,12 @@ models:
             - pattern_id: "temp_change_by_area_for_date"
               question_ko: "특정 예보일에 지역(자치구 또는 행정동)별로 최신 발표의 기온·강수확률 예보가 평균 얼마나 바뀌었습니까?"
               axes: "예보일 필터 · 지역 집계(차원 스위치) — 평균 변화(지표 스위치) ASC"
-              verified_rows: 0                # 실 D1 실측: [25, 30] (스탬핑 대기)
+              verified_rows: 25
+              verified_at: "2026-08-10T11:10:00Z"
+              verified_publication_id: "293380934b9d4be1aa7ba9e69e1bb738"
               insight_sample_ko: "2026-08-08 발표에서 자치구별 평균 최고기온 하락이 가장 큰 곳은 동대문구로 15개 장소가 평균 -4.0°C(평균 최대강수확률 -20%p) 내려갔다."
               sql: |
-                -- :forecast_date=2026-08-08, :dim=gu, :metric=max_temp, :n=25
+                -- :forecast_date=2026-08-15, :dim=gu, :metric=max_temp, :n=25
                 SELECT CASE :dim WHEN 'admin_dong' THEN admin_dong ELSE gu END AS area, count(*) AS place_count, sum(CASE WHEN change_state='changed' THEN 1 ELSE 0 END) AS changed_count, round(avg(max_temp_change_c),2) AS avg_max_temp_change_c, min(max_temp_change_c) AS min_max_temp_change_c, round(avg(max_precip_prob_change_pct),2) AS avg_max_precip_prob_change_pct FROM gold_weather_place_forecast_change_daily WHERE forecast_date = :forecast_date GROUP BY CASE :dim WHEN 'admin_dong' THEN admin_dong ELSE gu END ORDER BY CASE :metric WHEN 'max_precip' THEN avg_max_precip_prob_change_pct ELSE avg_max_temp_change_c END ASC, area LIMIT :n
               requires: [select_columns, filter_set, aggregate, group_by, sort]
               allow_empty: false
@@ -88,10 +92,12 @@ models:
             - pattern_id: "forecast_movers_by_metric_direction"
               question_ko: "특정 예보일에 선택한 지표(최고기온/최저기온/최대강수확률)가 가장 크게 내려가거나 올라간 장소는 어디입니까? (자치구 지정 또는 전체)"
               axes: "예보일·자치구 센티널 필터 — 지표 변화(지표·방향 스위치) 정렬"
-              verified_rows: 0                # 실 D1 실측: [20, 15] (스탬핑 대기)
+              verified_rows: 20
+              verified_at: "2026-08-10T11:18:06Z"
+              verified_publication_id: "293380934b9d4be1aa7ba9e69e1bb738"
               insight_sample_ko: "2026-08-08 발표에서 최고기온 예보가 가장 크게 내려간 장소는 송파구 가락1동으로 -4°C(최대강수확률 -20%p)."
               sql: |
-                -- :forecast_date=2026-08-08, :metric=max_temp, :dir=asc, :gu=ALL, :n=20
+                -- :forecast_date=2026-08-14, :metric=max_temp, :dir=asc, :gu=ALL, :n=20
                 SELECT place_id, place_name, gu, forecast_date, change_state, min_temp_change_c, max_temp_change_c, max_precip_prob_change_pct, CASE :metric WHEN 'min_temp' THEN min_temp_change_c WHEN 'max_precip' THEN max_precip_prob_change_pct ELSE max_temp_change_c END AS metric_change FROM gold_weather_place_forecast_change_daily WHERE forecast_date = :forecast_date AND (:gu = 'ALL' OR gu = :gu) AND CASE :metric WHEN 'min_temp' THEN min_temp_change_c WHEN 'max_precip' THEN max_precip_prob_change_pct ELSE max_temp_change_c END <> 0 ORDER BY CASE WHEN :dir='asc' THEN CASE :metric WHEN 'min_temp' THEN min_temp_change_c WHEN 'max_precip' THEN max_precip_prob_change_pct ELSE max_temp_change_c END END ASC, CASE WHEN :dir='desc' THEN CASE :metric WHEN 'min_temp' THEN min_temp_change_c WHEN 'max_precip' THEN max_precip_prob_change_pct ELSE max_temp_change_c END END DESC, place_name LIMIT :n
               requires: [select_columns, filter_set, filter_range, sort]
               allow_empty: false
@@ -100,28 +106,34 @@ models:
             - pattern_id: "forecasts_dropping_precipitation"
               question_ko: "직전 KMA 발표에는 강수 시작 시각이 있었으나 최신 발표에서 강수 예보가 사라진(비/눈 예보가 빠진) 장소는 어디입니까?"
               axes: "강수 시작 시각 NULL 전이 필터 — 강수확률 변화 ASC"
-              verified_rows: 0                # 실 D1 실측: [100, 20] (스탬핑 대기)
+              verified_rows: 0
+              verified_at: "2026-08-10T11:18:06Z"
+              verified_publication_id: "293380934b9d4be1aa7ba9e69e1bb738"
               insight_sample_ko: "구로구 가리봉동은 직전 17시 발표엔 18:00 강수 시작 예보가 있었으나 20시 발표에서 강수 예보가 빠졌고, 최대강수확률이 60%→0%로 내려갔다."
               sql: |
                 -- :n=100
                 SELECT place_id, place_name, gu, forecast_date, previous_first_precipitation_at, latest_first_precipitation_at, previous_max_precip_prob_pct, latest_max_precip_prob_pct, max_precip_prob_change_pct FROM gold_weather_place_forecast_change_daily WHERE previous_first_precipitation_at IS NOT NULL AND latest_first_precipitation_at IS NULL ORDER BY max_precip_prob_change_pct ASC, place_name LIMIT :n
               requires: [select_columns, filter_null, sort]
-              allow_empty: false
+              allow_empty: true   # 하향 예보 없으면 0행 정상(방향 축)
               param_defaults: { n: 100 }
             - pattern_id: "forecast_change_for_places"
               question_ko: "관심 장소 여러 곳을 골라 특정 예보일의 예보 변경 내역을 한 번에 비교하고 싶습니다."
               axes: "장소 배열·예보일 필터 — 장소명 ASC"
-              verified_rows: 0                # 실 D1 실측: [3, 2] (스탬핑 대기)
+              verified_rows: 3
+              verified_at: "2026-08-10T11:10:00Z"
+              verified_publication_id: "293380934b9d4be1aa7ba9e69e1bb738"
               insight_sample_ko: "지정한 3개 장소(청운효자동·사직동·삼청동)의 2026-08-08 예보 변경 중 사직동은 최고기온 -3°C·최대강수확률 -20%p(20시 발표 vs 17시 발표)."
               sql: |
-                -- :place_ids=["seoul_admd_1111051500","seoul_admd_1111053000","seoul_admd_1111054000"], :forecast_date=2026-08-08
+                -- :place_ids=["seoul_admd_1174070000", "seoul_admd_1174069000", "seoul_admd_1174068500"], :forecast_date=2026-08-15
                 SELECT place_id, place_name, gu, forecast_date, change_state, min_temp_change_c, max_temp_change_c, max_precip_prob_change_pct, latest_issued_at, previous_issued_at FROM gold_weather_place_forecast_change_daily WHERE forecast_date = :forecast_date AND place_id IN (SELECT value FROM json_each(:place_ids)) ORDER BY place_name
               requires: [select_columns, filter_set, sort]
               allow_empty: false
             - pattern_id: "change_intensity_over_date_range"
               question_ko: "특정 예보일 범위에서 날짜별 예보 변경 강도(변경 장소 수·평균 최고기온 하락폭·평균 최대강수확률 변화)는 어떻게 됩니까?"
               axes: "예보일 범위 집계 — 날짜별 변화 강도, forecast_date ASC"
-              verified_rows: 0                # 실 D1 실측: [6, 2] (스탬핑 대기)
+              verified_rows: 4
+              verified_at: "2026-08-10T11:10:00Z"
+              verified_publication_id: "293380934b9d4be1aa7ba9e69e1bb738"
               insight_sample_ko: "2026-08-08 예보일은 427곳 전부가 변경되어 평균 최고기온 -3.56°C·평균 최대강수확률 -28.43%p(최소 -60%p) 내려갔고, 08-09 이후는 변화가 없었다."
               sql: |
                 -- :from_date=2026-08-08, :to_date=2026-08-14
