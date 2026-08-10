@@ -391,23 +391,20 @@ def _unresolved_example_params(sql: str, hint: str) -> list[str]:
                 rest = source[m.end():]
                 nl = rest.find("\n")
                 tail = (rest if nl < 0 else rest[:nl])[:600]
-                # `= 값` 직결 형은 값 전체를 원자적으로 읽는다(비따옴표 날짜 잘림·관용 스킵
-                # 오집 사고 교정 — ASAC-DAG pattern_verify · verify_stamp 와 규약 잠금).
+                # 예시값은 `:이름=값` 꼴 — **`=` 앵커 필수**(ASAC-DAG#756 pattern_verify 와
+                # 규약 잠금). `=` 없는 관용 탐색을 남기면 게이트는 풀리는데 export 검증은
+                # 못 푸는 드리프트(→ 영구 409)가 생긴다. 값 전체를 원자적으로 읽는다.
                 em = re.match(r"\s*=\s*", tail)
-                if em:
-                    rv = tail[em.end():]
-                    if rv.startswith("'"):
-                        found = bool(re.match(r"'(?:[^']|'')*'", rv))
-                    elif rv.startswith("["):
-                        found = bool(re.match(r"\[[^\]\n]*\]", rv))
-                    else:
-                        found = bool(rv.split(",")[0].strip())
-                    if found:
-                        break
+                if not em:
                     continue
-                # `=` 없는 관용형(힌트 문장) — 따옴표/숫자만
-                if re.match(r"[^'0-9\[=]{0,16}('(?:[^']|'')*'|[0-9]+(?:\.[0-9]+)?)", tail):
-                    found = True
+                rv = tail[em.end():]
+                if rv.startswith("'"):
+                    found = bool(re.match(r"'(?:[^']|'')*'", rv))
+                elif rv.startswith("["):
+                    found = bool(re.match(r"\[[^\]\n]*\]", rv))
+                else:
+                    found = bool(rv.split(",")[0].strip())
+                if found:
                     break
             if found:
                 break
