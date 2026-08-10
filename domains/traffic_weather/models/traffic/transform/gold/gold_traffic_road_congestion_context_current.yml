@@ -1,0 +1,458 @@
+version: 2
+models:
+  - name: gold_traffic_road_congestion_context_current
+    description: 최신 도로 링크 소통을 기준으로 같은 수집 parent의 돌발과 관측 당시 사용 가능했던 기상 예보를 결합한 공개 Gold 제품입니다.
+    access: public
+    config:
+      contract: {enforced: true}
+      meta:
+        traffic_quality_product: false
+        cross_domain_gold: true
+        serving:
+          enabled: true
+          external: true
+          product_id: traffic_road_congestion_context_current
+          display:
+            title: 서울 도로 혼잡 원인 맥락
+            summary: 도로명과 현재 속도에 동일 수집 돌발 및 당시 기상 예보를 함께 보여줍니다.
+            caveat: 돌발과 날씨는 혼잡 원인의 인과 증명이 아니라 같은 시점의 해석 보조 맥락입니다.
+            use_cases: [혼잡 도로 위치와 동시점 돌발·날씨 조회]
+          product_question: 서울 어느 도로가 혼잡하고 같은 수집 시점의 돌발과 당시 기상 맥락은 무엇입니까?
+          grain: 최신 Flow에 존재하는 link_id마다 한 행입니다.
+          primary_key: [product_row_id]
+          publication_mode: upsert
+          upsert_strategy: exact_set
+          zero_policy: retain_last_good
+          publication_trigger: {schedule_cron: '12 * * * *'}
+          event_time: observed_at_kst
+          freshness_slo_minutes: 90
+          shape: wide
+          source_evidence:
+            - {source_id: seoul_topis_traffic_info, source_url: https://data.seoul.go.kr/dataList/OA-13291/A/1/datasetView.do, license: "공공누리 제1유형(출처표시)", license_url: https://www.kogl.or.kr/info/licenseType1.do, redistribution: allowed_with_attribution, attribution: 서울특별시, rights_checked_at: "2026-08-10"}
+            - {source_id: seoul_topis_link_info, source_url: https://data.seoul.go.kr/dataList/OA-13310/A/1/datasetView.do, license: "공공누리 제1유형(출처표시)", license_url: https://www.kogl.or.kr/info/licenseType1.do, redistribution: allowed_with_attribution, attribution: 서울특별시, rights_checked_at: "2026-08-10"}
+            - {source_id: seoul_topis_link_vertex, source_url: https://data.seoul.go.kr/dataList/OA-13311/A/1/datasetView.do, license: "공공누리 제1유형(출처표시)", license_url: https://www.kogl.or.kr/info/licenseType1.do, redistribution: allowed_with_attribution, attribution: 서울특별시, rights_checked_at: "2026-08-10"}
+            - {source_id: seoul_topis_acc_info, source_url: https://data.seoul.go.kr/dataList/OA-13315/A/1/datasetView.do, license: "공공누리 제1유형(출처표시)", license_url: https://www.kogl.or.kr/info/licenseType1.do, redistribution: allowed_with_attribution, attribution: 서울특별시, rights_checked_at: "2026-08-10"}
+            - {source_id: kma_vilage_fcst, source_url: https://www.data.go.kr/data/15084084/openapi.do, license: "공공누리 제1유형(출처표시)", license_url: https://www.kogl.or.kr/info/licenseType1.do, redistribution: allowed_with_attribution, attribution: 기상청, rights_checked_at: "2026-08-10"}
+          quality_coverage:
+            not_applicable_reason: Flow 수집 대상은 직전 Incident 응답에서 파생되어 서울 전체 도로망이라는 고정 분모가 없습니다.
+          usage_patterns:
+            - pattern_id: road_context_for_link
+              question_ko: 특정 도로 링크의 최신 속도와 동일 parent 돌발 및 당시 날씨는 무엇입니까?
+              axes: link_id 필터로 도로·소통·돌발·날씨 맥락을 한 행 조회합니다.
+              requires: [select_columns, filter_set]
+              allow_empty: true
+              verified_rows: 0
+              param_defaults: {link_id: "1010009500"}
+              sql: |
+                -- :link_id='1010009500'
+                SELECT link_id, road_name, start_node_name, end_node_name, admin_dong, gu,
+                       longitude, latitude, flow_speed, flow_travel_time, observed_at_kst,
+                       congestion_rank, hotspot_state, incident_count, latest_incident_type,
+                       latest_incident_description, incident_context_state,
+                       tmp_value_num, pop_value_num, is_precipitating, weather_context_state
+                FROM gold_traffic_road_congestion_context_current
+                WHERE link_id = :link_id
+            - pattern_id: slowest_named_roads
+              question_ko: 도로명이 확인된 현재 링크 중 속도가 가장 낮은 도로는 어디입니까?
+              axes: 도로명과 사용 가능한 속도를 필터하고 flow_speed 오름차순으로 정렬합니다.
+              requires: [select_columns, filter_set, filter_null, sort]
+              allow_empty: true
+              verified_rows: 0
+              param_defaults: {n: 20}
+              sql: |
+                -- :n=20
+                SELECT link_id, road_name, start_node_name, end_node_name, admin_dong, gu,
+                       longitude, latitude, flow_speed, flow_travel_time, congestion_rank,
+                       incident_count, weather_context_state, observed_at_kst
+                FROM gold_traffic_road_congestion_context_current
+                WHERE road_name IS NOT NULL AND flow_value_quality = 'available'
+                ORDER BY flow_speed ASC, link_id
+                LIMIT :n
+            - pattern_id: congested_roads_with_incident_context
+              question_ko: 속도가 낮고 동일 parent 돌발이 함께 확인된 도로는 어디입니까?
+              axes: 속도 임계값과 exact-parent 돌발 존재 여부를 필터합니다.
+              requires: [select_columns, filter_range, filter_set, sort]
+              allow_empty: true
+              verified_rows: 0
+              param_defaults: {max_speed: 20, n: 50}
+              sql: |
+                -- :max_speed=20, :n=50
+                SELECT link_id, road_name, admin_dong, gu, flow_speed, congestion_rank,
+                       incident_count, latest_incident_type, latest_incident_detail_type,
+                       latest_incident_description, latest_incident_occurred_at_kst,
+                       incident_context_state, observed_at_kst
+                FROM gold_traffic_road_congestion_context_current
+                WHERE flow_speed <= :max_speed
+                  AND incident_context_state = 'matched_exact_parent'
+                ORDER BY flow_speed ASC, link_id
+                LIMIT :n
+            - pattern_id: congested_roads_with_precipitation_context
+              question_ko: 속도가 낮고 당시 강수가 예보된 도로는 어디입니까?
+              axes: 속도 임계값과 no-hindsight 강수 맥락을 필터합니다.
+              requires: [select_columns, filter_range, filter_set, sort]
+              allow_empty: true
+              verified_rows: 0
+              param_defaults: {max_speed: 20, n: 50}
+              sql: |
+                -- :max_speed=20, :n=50
+                SELECT link_id, road_name, admin_dong, gu, flow_speed, congestion_rank,
+                       tmp_value_num, pop_value_num, pty_qualitative_code,
+                       is_precipitating, weather_context_state, observed_at_kst
+                FROM gold_traffic_road_congestion_context_current
+                WHERE flow_speed <= :max_speed AND is_precipitating = true
+                ORDER BY flow_speed ASC, link_id
+                LIMIT :n
+            - pattern_id: slowest_roads_in_admin_dong
+              question_ko: 특정 행정동에서 현재 속도가 가장 낮은 도로는 어디입니까?
+              axes: 행정동과 사용 가능한 속도를 필터하고 flow_speed 오름차순으로 정렬합니다.
+              requires: [select_columns, filter_set, filter_null, sort]
+              allow_empty: true
+              verified_rows: 0
+              param_defaults: {admin_dong: 성수2가3동, n: 20}
+              sql: |
+                -- :admin_dong='성수2가3동', :n=20
+                SELECT link_id, road_name, start_node_name, end_node_name, admin_dong, gu,
+                       longitude, latitude, flow_speed, flow_travel_time, congestion_rank,
+                       incident_context_state, weather_context_state, observed_at_kst
+                FROM gold_traffic_road_congestion_context_current
+                WHERE admin_dong = :admin_dong
+                  AND road_name IS NOT NULL
+                  AND flow_value_quality = 'available'
+                ORDER BY flow_speed ASC, link_id
+                LIMIT :n
+            - pattern_id: current_links_for_road_name
+              question_ko: 특정 도로명에 속한 현재 링크의 위치와 속도는 어떻습니까?
+              axes: 도로명을 필터하고 관측 속도와 링크 ID 순서로 정렬합니다.
+              requires: [select_columns, filter_set, sort]
+              allow_empty: true
+              verified_rows: 0
+              param_defaults: {road_name: 강변북로, n: 50}
+              sql: |
+                -- :road_name='강변북로', :n=50
+                SELECT link_id, road_name, start_node_name, end_node_name, admin_dong, gu,
+                       longitude, latitude, flow_speed, flow_travel_time, congestion_rank,
+                       hotspot_state, observed_at_kst
+                FROM gold_traffic_road_congestion_context_current
+                WHERE road_name = :road_name
+                  AND flow_value_quality = 'available'
+                ORDER BY flow_speed ASC, link_id
+                LIMIT :n
+            - pattern_id: slow_roads_without_incident_or_precipitation
+              question_ko: 속도는 낮지만 동일 parent 돌발과 강수 맥락이 확인되지 않은 도로는 어디입니까?
+              axes: 속도 임계값, exact-parent 무돌발, 완전한 비강수 날씨 맥락을 함께 필터합니다.
+              requires: [select_columns, filter_range, filter_set, filter_null, sort]
+              allow_empty: true
+              verified_rows: 0
+              param_defaults: {max_speed: 20, n: 50}
+              sql: |
+                -- :max_speed=20, :n=50
+                SELECT link_id, road_name, admin_dong, gu, flow_speed, congestion_rank,
+                       incident_context_state, pop_value_num, is_precipitating,
+                       weather_context_state, observed_at_kst
+                FROM gold_traffic_road_congestion_context_current
+                WHERE flow_speed <= :max_speed
+                  AND road_name IS NOT NULL
+                  AND incident_context_state = 'no_incident_in_exact_parent'
+                  AND weather_context_state = 'available'
+                  AND is_precipitating = false
+                ORDER BY flow_speed ASC, link_id
+                LIMIT :n
+            - pattern_id: context_quality_summary
+              question_ko: 도로 참조와 돌발 및 날씨 맥락 상태별 링크 수는 얼마입니까?
+              axes: 세 맥락 품질 상태의 조합별 링크 수를 집계합니다.
+              requires: [select_columns, aggregate, group_by, sort]
+              allow_empty: false
+              verified_rows: 0
+              sql: |
+                SELECT link_reference_quality, incident_context_state, weather_context_state,
+                       count(*) AS link_count
+                FROM gold_traffic_road_congestion_context_current
+                GROUP BY link_reference_quality, incident_context_state, weather_context_state
+                ORDER BY link_count DESC, link_reference_quality,
+                         incident_context_state, weather_context_state
+          public_projection:
+            schema_version: "1.0.0"
+            columns: [product_row_id, link_id, road_name, start_node_name, end_node_name, map_distance, representative_vertex_sequence, longitude, latitude, admin_dong_code, admin_dong, gu_code, gu, link_reference_quality, flow_speed, flow_travel_time, flow_value_quality, observed_at_kst, collected_at_kst, congestion_rank, observed_link_count, hotspot_state, incident_count, latest_incident_type, latest_incident_detail_type, latest_incident_description, latest_incident_occurred_at_kst, latest_incident_expected_clear_at_kst, incident_context_state, weather_category_coverage_count, weather_latest_issued_at, weather_latest_collected_at, tmp_value_num, pop_value_num, reh_value_num, wsd_value_num, sky_qualitative_code, pty_qualitative_code, is_precipitating, weather_context_state]
+        public_gold:
+          contract_version: "1.0"
+          documentation_language: ko-KR
+          owner: Traffic 데이터 제품 운영팀
+          maturity: low
+          visibility: published_producer
+          contract_status: dev_pending
+          exposure_status: none_no_live_consumer
+          intended_consumer_types: [analyst, ai_catalog, cross_domain_dbt, rapidapi_serving]
+          cross_domain_usage_examples:
+            - 혼잡 도로 지도에서 링크별 속도와 같은 시점의 돌발 및 날씨를 설명할 때 사용합니다.
+            - 도로명과 행정동을 기준으로 혼잡 후보를 탐색하고 맥락 품질을 함께 확인할 때 사용합니다.
+          product_question: 서울 어느 도로가 혼잡하고 같은 수집 시점의 돌발과 당시 기상 맥락은 무엇입니까?
+          row_meaning: 최신 Flow 링크 한 곳의 도로 위치·속도·동일 parent 돌발·관측 당시 기상 맥락을 담은 한 행입니다.
+          grain: gold_traffic_flow_link_latest의 link_id마다 정확히 한 행입니다.
+          anchor_universe: Incident 기반 Flow 수집에서 실제 관측된 최신 link_id 집합이며 context 결측과 무관하게 모든 Flow 행을 보존합니다.
+          usage_guidance: flow_value_quality와 세 context state를 먼저 확인한 뒤 속도·돌발·날씨 값을 해석합니다.
+          do_not_use_for: 돌발이나 날씨를 혼잡의 인과 원인으로 단정하거나 실시간 긴급 경보 및 공식 교통 판정에 사용하지 않습니다.
+          semantic_caveats: Incident는 Flow가 기록한 정확한 parent snapshot이 현재 Silver와 일치할 때만 붙고 Weather는 observed_at_kst 이전 발행 예보만 선택합니다.
+          primary_key: [product_row_id]
+          column_order: [product_row_id, link_id, road_name, start_node_name, end_node_name, map_distance, representative_vertex_sequence, longitude, latitude, admin_dong_code, admin_dong, gu_code, gu, link_reference_quality, flow_speed, flow_travel_time, flow_value_quality, observed_at_kst, collected_at_kst, parent_incident_run_id, congestion_rank, observed_link_count, hotspot_state, incident_count, latest_incident_type, latest_incident_detail_type, latest_incident_description, latest_incident_occurred_at_kst, latest_incident_expected_clear_at_kst, incident_context_state, weather_category_coverage_count, weather_latest_issued_at, weather_latest_collected_at, tmp_value_num, pop_value_num, reh_value_num, wsd_value_num, sky_qualitative_code, pty_qualitative_code, is_precipitating, weather_context_state, flow_dag_run_id]
+          time:
+            canonical_timezone: Asia/Seoul
+            freshness_slo: Flow 관측 후 90분 안에 동일 링크의 도로·돌발·날씨 맥락을 함께 게시하는 것을 목표로 합니다.
+            as_of_meaning: observed_at_kst는 링크 속도 관측 시각이며 돌발 parent와 날씨 발행 cutoff의 기준입니다.
+            late_repair_policy: 링크 참조와 Weather 이력이 보강되면 다음 cross-domain 전체 재계산에서 맥락을 다시 선택합니다.
+            roles:
+              observed_at_kst: {time_role: event, timezone: Asia/Seoul}
+              collected_at_kst: {time_role: collection, timezone: Asia/Seoul}
+              latest_incident_occurred_at_kst: {time_role: context_event, timezone: Asia/Seoul}
+              latest_incident_expected_clear_at_kst: {time_role: context_expected_clearance, timezone: Asia/Seoul}
+              weather_latest_issued_at: {time_role: context_issue, timezone: Asia/Seoul}
+              weather_latest_collected_at: {time_role: context_collection, timezone: Asia/Seoul}
+          space: {enabled: false}
+          metrics: {}
+          joins: {}
+          quality:
+            completeness_explanation: Flow 행은 항상 보존하고 각 context state로 도로 참조·돌발·날씨 결측 이유를 구분합니다.
+            freshness_explanation: Flow 관측·수집과 돌발 발생·예상 해제 및 날씨 발행·수집 시각을 분리해 해석합니다.
+            coverage_explanation: 전체 서울 도로망이 아니라 Incident 기반 Flow 수집에서 실제 관측된 링크만 포함합니다.
+            state_fields:
+              link_reference_quality:
+                allowed_values: [complete, missing_info, missing_vertex, coordinate_conversion_or_bbox_miss, admin_boundary_miss]
+                state_explanations:
+                  complete: 링크 정보와 형상 및 행정동 매핑이 모두 완료된 상태입니다.
+                  missing_info: 링크 기본 정보가 아직 확보되지 않은 상태입니다.
+                  missing_vertex: 링크 형상 좌표가 아직 확보되지 않은 상태입니다.
+                  coordinate_conversion_or_bbox_miss: 좌표 변환에 실패했거나 서울 경계 밖으로 판정된 상태입니다.
+                  admin_boundary_miss: 좌표는 유효하지만 정본 행정동 경계와 결합되지 않은 상태입니다.
+              flow_value_quality:
+                allowed_values: [available, missing_value]
+                state_explanations:
+                  available: 속도 또는 통행시간 중 하나 이상의 원천 값이 존재하는 상태입니다.
+                  missing_value: 속도와 통행시간 원천 값이 모두 없는 상태입니다.
+              hotspot_state:
+                allowed_values: [missing_speed, lowest_speed_top_10, observed]
+                state_explanations:
+                  missing_speed: 속도 값이 없어 혼잡 순위를 해석할 수 없는 상태입니다.
+                  lowest_speed_top_10: 같은 관측 시간대에서 속도가 낮은 상위 열 개 링크인 상태입니다.
+                  observed: 같은 시간대에 관측됐으나 낮은 속도 상위 열 개 밖인 상태입니다.
+              incident_context_state:
+                allowed_values: [missing_parent_lineage, matched_exact_parent, no_incident_in_exact_parent, parent_snapshot_not_current]
+                state_explanations:
+                  missing_parent_lineage: Flow 행에 원본 Incident parent run 식별자가 없는 상태입니다.
+                  matched_exact_parent: 같은 parent run과 link_id의 돌발이 확인된 상태입니다.
+                  no_incident_in_exact_parent: 정확한 parent snapshot은 현재이지만 해당 링크 돌발이 없는 상태입니다.
+                  parent_snapshot_not_current: Flow parent가 현재 Incident Silver snapshot과 달라 돌발을 임의로 붙이지 않은 상태입니다.
+              weather_context_state:
+                allowed_values: [missing_link_location, missing_weather_bridge, missing_weather_context, partial_weather_context, available]
+                state_explanations:
+                  missing_link_location: 도로 링크의 행정동 위치가 없어 날씨를 연결할 수 없는 상태입니다.
+                  missing_weather_bridge: 행정동은 있지만 고정 KMA 격자 bridge가 없는 상태입니다.
+                  missing_weather_context: bridge는 있지만 관측 시각에 사용할 수 있는 예보가 없는 상태입니다.
+                  partial_weather_context: 여섯 개 목표 날씨 카테고리 중 일부만 선택된 상태입니다.
+                  available: 여섯 개 목표 날씨 카테고리가 모두 선택된 상태입니다.
+          lineage:
+            source_relations: [model.asac_seoul.gold_traffic_flow_link_latest, model.asac_seoul.gold_traffic_flow_congestion_hotspots_hourly, model.asac_seoul.silver_seoul_traffic_incident_current, model.asac_seoul.bridge_weather_admin_dong_grid, model.asac_seoul.silver_kma_vilage_fcst_grid]
+            identifiers:
+              as_of: {columns: [observed_at_kst]}
+              publication: {relation_level_only: true, columns: []}
+              raw: {relation_level_only: true, columns: []}
+              request: {relation_level_only: true, columns: []}
+              run: {columns: [parent_incident_run_id, flow_dag_run_id]}
+          lifecycle: {status: active}
+    columns:
+      - name: product_row_id
+        description: link_id를 그대로 사용한 결정적 제품 행 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+          - unique: {config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: primary_key, nullable: false, null_meaning: 공개 제품 기본 키이므로 null을 허용하지 않습니다., unit: not_applicable}}
+      - name: link_id
+        description: TOPIS 도로 링크 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+          - unique: {config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: join_key, nullable: false, null_meaning: Flow anchor의 grain이므로 null을 허용하지 않습니다., unit: not_applicable}}
+      - name: road_name
+        description: 완전한 링크 참조에서 가져온 도로명입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: 완전한 LinkInfo가 없으면 도로명을 알 수 없습니다., unit: not_applicable}}
+      - name: start_node_name
+        description: 원천 링크의 시작 노드 이름입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: 원천 시작 노드가 없거나 링크 참조가 미완료된 상태입니다., unit: not_applicable}}
+      - name: end_node_name
+        description: 원천 링크의 종료 노드 이름입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: 원천 종료 노드가 없거나 링크 참조가 미완료된 상태입니다., unit: not_applicable}}
+      - name: map_distance
+        description: 원천이 제공한 도로 링크 거리 값입니다.
+        data_type: double
+        config: {meta: {semantic_role: analytical_value, nullable: true, null_meaning: 원천 거리가 없거나 숫자로 변환되지 않은 상태입니다., unit: source_unit_unspecified}}
+      - name: representative_vertex_sequence
+        description: 링크 형상에서 결정적으로 선택한 대표 꼭짓점 순번입니다.
+        data_type: integer
+        config: {meta: {semantic_role: derived_value, nullable: true, null_meaning: 완전한 LinkVerInfo 형상이 없는 상태입니다., unit: sequence}}
+      - name: longitude
+        description: 대표 꼭짓점을 변환한 WGS84 경도입니다.
+        data_type: double
+        config: {meta: {semantic_role: spatial_coordinate, nullable: true, null_meaning: 좌표 변환 또는 서울 경계 검증을 통과하지 못한 상태입니다., unit: degree}}
+      - name: latitude
+        description: 대표 꼭짓점을 변환한 WGS84 위도입니다.
+        data_type: double
+        config: {meta: {semantic_role: spatial_coordinate, nullable: true, null_meaning: 좌표 변환 또는 서울 경계 검증을 통과하지 못한 상태입니다., unit: degree}}
+      - name: admin_dong_code
+        description: 대표 좌표가 포함된 정본 행정동 코드입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: join_key, nullable: true, null_meaning: 대표 좌표가 없거나 행정동 경계와 결합되지 않은 상태입니다., unit: not_applicable}}
+      - name: admin_dong
+        description: 정본 행정동 이름입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: 행정동 코드가 결정되지 않은 상태입니다., unit: not_applicable}}
+      - name: gu_code
+        description: 정본 자치구 코드입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: join_key, nullable: true, null_meaning: 행정동 코드가 결정되지 않은 상태입니다., unit: not_applicable}}
+      - name: gu
+        description: 정본 자치구 이름입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: 행정동 코드가 결정되지 않은 상태입니다., unit: not_applicable}}
+      - name: link_reference_quality
+        description: 링크 기본 정보·형상·좌표·행정동 매핑의 완전성 상태입니다.
+        data_type: varchar
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+          - accepted_values: {arguments: {values: [complete, missing_info, missing_vertex, coordinate_conversion_or_bbox_miss, admin_boundary_miss]}, config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: quality_state, nullable: false, null_meaning: 모든 행을 명시적 링크 참조 상태로 분류하므로 null이 없습니다., unit: not_applicable}}
+      - name: flow_speed
+        description: TOPIS가 관측한 도로 링크 속도입니다.
+        data_type: double
+        config: {meta: {semantic_role: analytical_value, nullable: true, null_meaning: 원천 TrafficInfo에 속도 값이 없는 상태입니다., unit: kilometer_per_hour}}
+      - name: flow_travel_time
+        description: TOPIS가 관측한 도로 링크 통행시간입니다.
+        data_type: double
+        config: {meta: {semantic_role: analytical_value, nullable: true, null_meaning: 원천 TrafficInfo에 통행시간 값이 없는 상태입니다., unit: second}}
+      - name: flow_value_quality
+        description: 속도와 통행시간 원천 값의 존재 상태입니다.
+        data_type: varchar
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+          - accepted_values: {arguments: {values: [available, missing_value]}, config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: quality_state, nullable: false, null_meaning: 모든 Flow 행을 값 존재 상태로 분류하므로 null이 없습니다., unit: not_applicable}}
+      - name: observed_at_kst
+        description: 도로 링크의 원천 관측 시각을 서울 기준으로 표현한 값입니다.
+        data_type: timestamp(6)
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: timestamp, nullable: false, null_meaning: 최신 Flow 행을 결정할 수 없으므로 null을 허용하지 않습니다., time_role: event, timezone: Asia/Seoul, unit: not_applicable}}
+      - name: collected_at_kst
+        description: Flow 응답 수집 시각을 서울 기준으로 표현한 값입니다.
+        data_type: timestamp(6)
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: timestamp, nullable: false, null_meaning: 수집 계보에 필수이므로 null을 허용하지 않습니다., time_role: collection, timezone: Asia/Seoul, unit: not_applicable}}
+      - name: parent_incident_run_id
+        description: Flow 링크 목록을 만든 정확한 Incident 수집 run 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: lineage_identifier, nullable: false, null_meaning: exact-parent 돌발 결합에 필수이므로 null을 허용하지 않습니다., unit: not_applicable}}
+      - name: congestion_rank
+        description: 같은 관측 시간대에서 속도가 낮은 순서의 혼잡 순위입니다.
+        data_type: bigint
+        config: {meta: {semantic_role: derived_value, nullable: true, null_meaning: 같은 시간대 hotspot 행이 없으면 순위를 알 수 없습니다., unit: rank}}
+      - name: observed_link_count
+        description: 같은 관측 시간대에 순위 계산에 포함된 링크 수입니다.
+        data_type: bigint
+        config: {meta: {semantic_role: analytical_value, nullable: true, null_meaning: 같은 시간대 hotspot 행이 없으면 관측 링크 수를 알 수 없습니다., unit: count}}
+      - name: hotspot_state
+        description: 속도 존재 여부와 시간대 내 낮은 속도 상위 열 개 여부를 나타냅니다.
+        data_type: varchar
+        config: {meta: {semantic_role: quality_state, nullable: true, null_meaning: 같은 시간대 hotspot 행과 결합되지 않은 상태입니다., unit: not_applicable}}
+      - name: incident_count
+        description: 정확한 parent run에서 같은 링크에 연결된 현재 돌발 수입니다.
+        data_type: bigint
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: analytical_value, nullable: false, null_meaning: 돌발이 없거나 parent를 확인할 수 없으면 0을 사용하므로 null이 없습니다., unit: count}}
+      - name: latest_incident_type
+        description: exact-parent 돌발 중 가장 최근 돌발 유형입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: exact-parent 돌발이 없는 상태입니다., unit: not_applicable}}
+      - name: latest_incident_detail_type
+        description: exact-parent 돌발 중 가장 최근 상세 유형입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: exact-parent 돌발이 없거나 상세 유형이 제공되지 않은 상태입니다., unit: not_applicable}}
+      - name: latest_incident_description
+        description: exact-parent 돌발 중 가장 최근 원천 설명입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: exact-parent 돌발이 없거나 원천 설명이 제공되지 않은 상태입니다., unit: not_applicable}}
+      - name: latest_incident_occurred_at_kst
+        description: 가장 최근 exact-parent 돌발 발생 시각을 서울 기준으로 표현한 값입니다.
+        data_type: timestamp(6)
+        config: {meta: {semantic_role: timestamp, nullable: true, null_meaning: exact-parent 돌발이 없는 상태입니다., time_role: context_event, timezone: Asia/Seoul, unit: not_applicable}}
+      - name: latest_incident_expected_clear_at_kst
+        description: 가장 최근 exact-parent 돌발의 예상 해제 시각을 서울 기준으로 표현한 값입니다.
+        data_type: timestamp(6)
+        config: {meta: {semantic_role: timestamp, nullable: true, null_meaning: exact-parent 돌발이 없거나 예상 해제 시각이 제공되지 않은 상태입니다., time_role: context_expected_clearance, timezone: Asia/Seoul, unit: not_applicable}}
+      - name: incident_context_state
+        description: Flow parent와 현재 Incident snapshot의 일치 및 돌발 결합 상태입니다.
+        data_type: varchar
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+          - accepted_values: {arguments: {values: [missing_parent_lineage, matched_exact_parent, no_incident_in_exact_parent, parent_snapshot_not_current]}, config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: quality_state, nullable: false, null_meaning: 모든 행을 Incident 맥락 상태로 분류하므로 null이 없습니다., unit: not_applicable}}
+      - name: weather_category_coverage_count
+        description: 선택된 목표 날씨 카테고리 수이며 범위는 0부터 6까지입니다.
+        data_type: bigint
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: analytical_value, nullable: false, null_meaning: 날씨 맥락이 없으면 0을 사용하므로 null이 없습니다., unit: count}}
+      - name: weather_latest_issued_at
+        description: 관측 시각 이전에 발행된 선택 예보 중 가장 최근 발표 시각입니다.
+        data_type: timestamp(6)
+        config: {meta: {semantic_role: timestamp, nullable: true, null_meaning: 사용할 수 있는 날씨 예보가 없는 상태입니다., time_role: context_issue, timezone: Asia/Seoul, unit: not_applicable}}
+      - name: weather_latest_collected_at
+        description: 선택된 날씨 카테고리 중 가장 최근 수집 시각을 서울 기준으로 표현한 값입니다.
+        data_type: timestamp(6)
+        config: {meta: {semantic_role: timestamp, nullable: true, null_meaning: 사용할 수 있는 날씨 예보가 없는 상태입니다., time_role: context_collection, timezone: Asia/Seoul, unit: not_applicable}}
+      - name: tmp_value_num
+        description: 관측 시간대의 선택된 기온 예보 값입니다.
+        data_type: double
+        config: {meta: {semantic_role: analytical_value, nullable: true, null_meaning: TMP 예보 카테고리가 없는 상태입니다., unit: degree_celsius}}
+      - name: pop_value_num
+        description: 관측 시간대의 선택된 강수확률 예보 값입니다.
+        data_type: double
+        config: {meta: {semantic_role: analytical_value, nullable: true, null_meaning: POP 예보 카테고리가 없는 상태입니다., unit: percent}}
+      - name: reh_value_num
+        description: 관측 시간대의 선택된 습도 예보 값입니다.
+        data_type: double
+        config: {meta: {semantic_role: analytical_value, nullable: true, null_meaning: REH 예보 카테고리가 없는 상태입니다., unit: percent}}
+      - name: wsd_value_num
+        description: 관측 시간대의 선택된 풍속 예보 값입니다.
+        data_type: double
+        config: {meta: {semantic_role: analytical_value, nullable: true, null_meaning: WSD 예보 카테고리가 없는 상태입니다., unit: meter_per_second}}
+      - name: sky_qualitative_code
+        description: 관측 시간대의 선택된 하늘 상태 예보 코드입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: SKY 예보 카테고리가 없는 상태입니다., unit: not_applicable}}
+      - name: pty_qualitative_code
+        description: 관측 시간대의 선택된 강수 형태 예보 코드입니다.
+        data_type: varchar
+        config: {meta: {semantic_role: dimension, nullable: true, null_meaning: PTY 예보 카테고리가 없는 상태입니다., unit: not_applicable}}
+      - name: is_precipitating
+        description: 선택된 PTY 코드가 강수 상태를 의미하는지 나타냅니다.
+        data_type: boolean
+        config: {meta: {semantic_role: derived_value, nullable: true, null_meaning: PTY 카테고리가 없거나 알려진 코드가 아닌 상태입니다., unit: not_applicable}}
+      - name: weather_context_state
+        description: 링크 위치·격자 bridge·날씨 카테고리 coverage를 종합한 맥락 상태입니다.
+        data_type: varchar
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+          - accepted_values: {arguments: {values: [missing_link_location, missing_weather_bridge, missing_weather_context, partial_weather_context, available]}, config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: quality_state, nullable: false, null_meaning: 모든 행을 Weather 맥락 상태로 분류하므로 null이 없습니다., unit: not_applicable}}
+      - name: flow_dag_run_id
+        description: 최신 Flow 관측 행을 적재한 DAG run 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null: {config: {tags: [traffic_gold_gate]}}
+        config: {meta: {semantic_role: lineage_identifier, nullable: false, null_meaning: Flow 적재 계보에 필수이므로 null을 허용하지 않습니다., unit: not_applicable}}

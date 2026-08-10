@@ -80,19 +80,19 @@ def _portfolio_test_nodes() -> dict[str, dict[str, object]]:
     )
     add_group(
         "bronze_source",
-        70,
+        121,
         None,
         "source.asac_seoul.traffic_bronze.incident",
     )
     add_group(
         "silver",
-        43,
+        76,
         "ask_seoul_traffic_transform_silver",
         "model.asac_seoul.silver_seoul_traffic_incident",
     )
     add_group(
         "gold_gate",
-        125,
+        156,
         "traffic_gold_gate",
         "model.asac_seoul.gold_traffic_incident_summary",
         generic=True,
@@ -200,18 +200,18 @@ def _inventory() -> dict[str, object]:
     return {
         "version": 1,
         "tiers": {
-            "gate": {"expected_count": 125},
+            "gate": {"expected_count": 156},
             "hourly_extension": {"expected_count": 20},
             "daily_extension": {"expected_count": 30},
             "full_static": {"expected_count": 10},
         },
         "total_expected": {
-            "gold_gate": 125,
-            "gold_hourly": 145,
-            "gold_full": 175,
-            "traffic_gate": 239,
-            "traffic_hourly": 259,
-            "traffic_full": 299,
+            "gold_gate": 156,
+            "gold_hourly": 176,
+            "gold_full": 206,
+            "traffic_gate": 354,
+            "traffic_hourly": 374,
+            "traffic_full": 414,
         },
         "tests": tests,
     }
@@ -238,9 +238,9 @@ def test_valid_inventory_matches_manifest(validator) -> None:
 
 def test_manifest_selector_counts_match_exact_cadence_unions(validator) -> None:
     assert validator.manifest_selector_counts(_manifest()) == {
-        "ask_seoul_traffic_transform_gold_gate_tests": 125,
-        "ask_seoul_traffic_transform_gold_hourly_tests": 145,
-        "ask_seoul_traffic_transform_gold_full_tests": 175,
+        "ask_seoul_traffic_transform_gold_gate_tests": 156,
+        "ask_seoul_traffic_transform_gold_hourly_tests": 176,
+        "ask_seoul_traffic_transform_gold_full_tests": 206,
     }
 
 
@@ -481,9 +481,9 @@ def test_candidate_contains_manifest_identity_and_contract_fields(validator) -> 
     }
     assert candidate["portfolio_expected"] == {
         "availability": 1,
-        "bronze_source": 70,
-        "silver": 43,
-        "gold_gate": 125,
+        "bronze_source": 121,
+        "silver": 76,
+        "gold_gate": 156,
         "gold_hourly_extension": 20,
         "gold_daily_extension": 30,
         "full_static": 10,

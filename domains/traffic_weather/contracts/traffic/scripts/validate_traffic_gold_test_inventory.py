@@ -51,25 +51,25 @@ PORTFOLIO_GROUP_TAGS = {
 }
 EXPECTED_PORTFOLIO_COUNTS = {
     "availability": 1,
-    "bronze_source": 70,
-    "silver": 43,
-    "gold_gate": 125,
+    "bronze_source": 121,
+    "silver": 76,
+    "gold_gate": 156,
     "gold_hourly_extension": 20,
     "gold_daily_extension": 30,
     "full_static": 10,
 }
 EXPECTED_SELECTOR_COUNTS = {
-    "ask_seoul_traffic_transform_gold_gate_tests": 125,
-    "ask_seoul_traffic_transform_gold_hourly_tests": 145,
-    "ask_seoul_traffic_transform_gold_full_tests": 175,
+    "ask_seoul_traffic_transform_gold_gate_tests": 156,
+    "ask_seoul_traffic_transform_gold_hourly_tests": 176,
+    "ask_seoul_traffic_transform_gold_full_tests": 206,
 }
 EXPECTED_CADENCE_COUNTS = {
-    "traffic_gate": 239,
-    "traffic_hourly": 259,
-    "traffic_full": 299,
+    "traffic_gate": 354,
+    "traffic_hourly": 374,
+    "traffic_full": 414,
 }
 EXPECTED_TIER_COUNTS = {
-    "gate": 125,
+    "gate": 156,
     "hourly_extension": 20,
     "daily_extension": 30,
     "full_static": 10,
@@ -581,9 +581,9 @@ def generate_candidate(manifest: object) -> dict[str, object]:
             for tier, count in EXPECTED_TIER_COUNTS.items()
         },
         "total_expected": {
-            "gold_gate": 125,
-            "gold_hourly": 145,
-            "gold_full": 175,
+            "gold_gate": 156,
+            "gold_hourly": 176,
+            "gold_full": 206,
             **EXPECTED_CADENCE_COUNTS,
         },
         "portfolio_expected": EXPECTED_PORTFOLIO_COUNTS,

@@ -47,6 +47,8 @@ models:
               redistribution: allowed_with_attribution
               attribution: 서울특별시
               rights_checked_at: "2026-08-06"
+            - {source_id: seoul_topis_link_info, source_url: https://data.seoul.go.kr/dataList/OA-13310/A/1/datasetView.do, license: "공공누리 제1유형(출처표시)", license_url: https://www.kogl.or.kr/info/licenseType1.do, redistribution: allowed_with_attribution, attribution: 서울특별시, rights_checked_at: "2026-08-10"}
+            - {source_id: seoul_topis_link_vertex, source_url: https://data.seoul.go.kr/dataList/OA-13311/A/1/datasetView.do, license: "공공누리 제1유형(출처표시)", license_url: https://www.kogl.or.kr/info/licenseType1.do, redistribution: allowed_with_attribution, attribution: 서울특별시, rights_checked_at: "2026-08-10"}
           usage_patterns:
             - pattern_id: hotspots_for_hour
               question_ko: 특정 시간대에 저속 상위 10위로 관측된 링크는 어디입니까?
@@ -58,7 +60,9 @@ models:
               verified_publication_id: "975fddb26e9e454987068337f4f9efe9"
               sql: |
                 -- :hour_at='2026-08-05 09:00:00'
-                SELECT link_id, hour_at, flow_speed, flow_travel_time, congestion_rank, observed_link_count
+                SELECT link_id, road_name, start_node_name, end_node_name, admin_dong, gu,
+                       longitude, latitude, link_reference_quality,
+                       hour_at, flow_speed, flow_travel_time, congestion_rank, observed_link_count
                 FROM gold_traffic_flow_congestion_hotspots_hourly
                 WHERE hour_at = :hour_at AND hotspot_state = 'lowest_speed_top_10'
                 ORDER BY congestion_rank ASC
@@ -320,7 +324,7 @@ models:
               allow_empty: false
               param_defaults: { n: 200, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
           public_projection:
-            schema_version: "1.0.0"
+            schema_version: "1.1.0"
             columns:
               - product_row_id
               - link_id
@@ -332,6 +336,19 @@ models:
               - congestion_rank
               - observed_link_count
               - hotspot_state
+              - road_name
+              - start_node_name
+              - end_node_name
+              - map_distance
+              - representative_vertex_sequence
+              - longitude
+              - latitude
+              - admin_dong_code
+              - admin_dong
+              - gu_code
+              - gu
+              - link_reference_quality
+              - link_reference_collected_at_kst
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
@@ -368,8 +385,22 @@ models:
             - congestion_rank
             - observed_link_count
             - hotspot_state
+            - road_name
+            - start_node_name
+            - end_node_name
+            - map_distance
+            - representative_vertex_sequence
+            - longitude
+            - latitude
+            - admin_dong_code
+            - admin_dong
+            - gu_code
+            - gu
+            - link_reference_quality
+            - link_reference_collected_at_kst
             - raw_object_key
             - payload_hash
+            - parent_incident_run_id
             - dag_run_id
           time:
             canonical_timezone: Asia/Seoul
@@ -382,6 +413,9 @@ models:
                 timezone: Asia/Seoul
               observed_at_kst:
                 time_role: event
+                timezone: Asia/Seoul
+              link_reference_collected_at_kst:
+                time_role: collection
                 timezone: Asia/Seoul
           space:
             enabled: false
@@ -408,9 +442,23 @@ models:
                   missing_speed: flow_speed가 없어 저속 여부를 판정할 수 없는 상태입니다.
                   lowest_speed_top_10: 그 hour_at 관측 링크 중 congestion_rank가 10 이하인 저속 후보 상태입니다.
                   observed: 정상 관측되었으나 저속 상위 10위 안에 들지 않은 상태입니다.
+              link_reference_quality:
+                allowed_values:
+                  - complete
+                  - missing_info
+                  - missing_vertex
+                  - coordinate_conversion_or_bbox_miss
+                  - admin_boundary_miss
+                state_explanations:
+                  complete: 링크 기본 정보와 형상 및 행정동 매핑이 모두 완료된 상태입니다.
+                  missing_info: 링크 기본 정보가 아직 확보되지 않은 상태입니다.
+                  missing_vertex: 링크 형상 좌표가 아직 확보되지 않은 상태입니다.
+                  coordinate_conversion_or_bbox_miss: 좌표 변환에 실패했거나 서울 경계 밖으로 판정된 상태입니다.
+                  admin_boundary_miss: 좌표는 유효하지만 정본 행정동 경계와 결합되지 않은 상태입니다.
           lineage:
             source_relations:
               - model.asac_seoul.silver_seoul_traffic_flow
+              - model.asac_seoul.silver_seoul_traffic_link_reference
             identifiers:
               as_of:
                 columns:
@@ -426,6 +474,7 @@ models:
                 columns: []
               run:
                 columns:
+                  - parent_incident_run_id
                   - dag_run_id
           lifecycle:
             status: active
@@ -569,6 +618,139 @@ models:
             nullable: false
             null_meaning: case 표현식이 모든 행에 세 상태 중 하나를 부여하므로 null이 없습니다.
             unit: not_applicable
+      - name: road_name
+        description: 완전한 TOPIS 링크 참조에서 가져온 도로명입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: 이 Flow 링크에 사용할 수 있는 완전한 LinkInfo 행이 없습니다.
+            unit: not_applicable
+      - name: start_node_name
+        description: 원천이 제공한 도로 링크 시작 노드 이름입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: 원천 시작 노드가 없거나 링크 참조가 미완료된 상태입니다.
+            unit: not_applicable
+      - name: end_node_name
+        description: 원천이 제공한 도로 링크 종료 노드 이름입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: 원천 종료 노드가 없거나 링크 참조가 미완료된 상태입니다.
+            unit: not_applicable
+      - name: map_distance
+        description: 원천 도로 링크 거리를 double로 변환한 값입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: analytical_value
+            nullable: true
+            null_meaning: 원천 거리가 없거나 숫자로 변환되지 않은 상태입니다.
+            unit: not_applicable
+      - name: representative_vertex_sequence
+        description: 링크 형상에서 결정적으로 선택한 아래쪽 중앙 꼭짓점 순번입니다.
+        data_type: integer
+        config:
+          meta:
+            semantic_role: derived_value
+            nullable: true
+            null_meaning: 사용할 수 있는 완전한 LinkVerInfo 형상이 없습니다.
+            unit: not_applicable
+      - name: longitude
+        description: 대표 도로 링크 꼭짓점을 변환한 WGS84 경도입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: spatial_coordinate
+            nullable: true
+            null_meaning: 좌표 변환에 실패했거나 서울 경계 밖으로 판정된 상태입니다.
+            unit: degree
+      - name: latitude
+        description: 대표 도로 링크 꼭짓점을 변환한 WGS84 위도입니다.
+        data_type: double
+        config:
+          meta:
+            semantic_role: spatial_coordinate
+            nullable: true
+            null_meaning: 좌표 변환에 실패했거나 서울 경계 밖으로 판정된 상태입니다.
+            unit: degree
+      - name: admin_dong_code
+        description: 대표 좌표를 포함하는 정본 행정동 코드입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: true
+            null_meaning: 대표 좌표를 포함하는 서울 행정동 경계를 찾지 못한 상태입니다.
+            unit: not_applicable
+      - name: admin_dong
+        description: 대표 좌표를 포함하는 정본 행정동 이름입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: 대표 좌표를 포함하는 서울 행정동 경계를 찾지 못한 상태입니다.
+            unit: not_applicable
+      - name: gu_code
+        description: 결합된 행정동에서 가져온 정본 서울 자치구 코드입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: join_key
+            nullable: true
+            null_meaning: 대표 좌표를 포함하는 서울 행정동 경계를 찾지 못한 상태입니다.
+            unit: not_applicable
+      - name: gu
+        description: 결합된 행정동에서 가져온 정본 서울 자치구 이름입니다.
+        data_type: varchar
+        config:
+          meta:
+            semantic_role: dimension
+            nullable: true
+            null_meaning: 대표 좌표를 포함하는 서울 행정동 경계를 찾지 못한 상태입니다.
+            unit: not_applicable
+      - name: link_reference_quality
+        description: 결합된 도로 링크 참조의 완전성과 공간 매핑 상태입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+          - accepted_values:
+              arguments:
+                values:
+                  - complete
+                  - missing_info
+                  - missing_vertex
+                  - coordinate_conversion_or_bbox_miss
+                  - admin_boundary_miss
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: quality_state
+            nullable: false
+            null_meaning: 모든 Flow anchor를 명시적 링크 참조 상태로 분류하므로 null이 없습니다.
+            unit: not_applicable
+      - name: link_reference_collected_at_kst
+        description: 선택된 완전한 도로 링크 참조의 서울 기준 수집 시각입니다.
+        data_type: timestamp(6)
+        config:
+          meta:
+            semantic_role: timestamp
+            nullable: true
+            null_meaning: 이 링크에 수집된 완전한 도로 참조가 없는 상태입니다.
+            time_role: collection
+            timezone: Asia/Seoul
+            unit: not_applicable
       - name: raw_object_key
         description: 선택된 관측 행의 원본 객체를 추적하는 안정 식별자입니다.
         data_type: varchar
@@ -593,6 +775,19 @@ models:
             semantic_role: lineage_id
             nullable: false
             null_meaning: payload hash가 없는 행은 공개하지 않습니다.
+      - name: parent_incident_run_id
+        description: 이 Flow snapshot의 링크를 선택한 정확한 Incident Bronze run 식별자입니다.
+        data_type: varchar
+        tests:
+          - not_null:
+              config:
+                tags: [traffic_gold_gate]
+        config:
+          meta:
+            semantic_role: lineage_id
+            nullable: false
+            null_meaning: 모든 Flow 행에 정확한 Incident parent 계보가 필요하므로 null을 허용하지 않습니다.
+            unit: not_applicable
       - name: dag_run_id
         description: 선택된 관측 행을 만든 수집 DAG 실행 식별자입니다.
         data_type: varchar

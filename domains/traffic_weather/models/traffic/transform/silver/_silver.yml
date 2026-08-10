@@ -169,6 +169,10 @@ models:
         description: Publishable flow Bronze run pinned by the transform invocation.
         tests:
           - not_null
+      - name: parent_incident_run_id
+        description: Exact Incident Bronze run that selected the Flow link set.
+        tests:
+          - not_null
       - name: request_id
         description: Deterministic request identifier for link and flow run.
       - name: request_params_json
@@ -187,3 +191,171 @@ models:
         description: KST ingestion partition date.
       - name: collected_at
         description: Bronze collection timestamp.
+
+  - name: silver_seoul_traffic_link_info
+    description: Latest complete TOPIS LinkInfo metadata at one row per road link.
+    columns:
+      - name: source_id
+        description: Fixed road-link reference source identifier.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['seoul_traffic_link_reference']
+      - name: link_id
+        description: TOPIS road-link identifier and model grain.
+        tests:
+          - not_null
+          - unique
+      - name: road_name
+        description: Human-readable TOPIS road name.
+        tests:
+          - not_null
+      - name: start_node_name
+        description: Source-provided start node name.
+      - name: end_node_name
+        description: Source-provided end node name.
+      - name: map_distance
+        description: Typed source road-link distance.
+      - name: region_code
+        description: Source-provided region code.
+      - name: dag_run_id
+        description: Latest complete paired reference run selected for the link.
+        tests:
+          - not_null
+      - name: reference_collected_at
+        description: Latest service collection timestamp in the selected paired run.
+        tests:
+          - not_null
+      - name: request_id
+        description: LinkInfo request lineage.
+        tests:
+          - not_null
+      - name: raw_object_key
+        description: LinkInfo raw object lineage.
+        tests:
+          - not_null
+      - name: payload_hash
+        description: LinkInfo source payload fingerprint.
+        tests:
+          - not_null
+
+  - name: silver_seoul_traffic_link_vertex
+    description: Ordered TOPIS LinkVerInfo coordinates from the latest complete paired run.
+    columns:
+      - name: source_id
+        description: Fixed road-link reference source identifier.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['seoul_traffic_link_reference']
+      - name: link_id
+        description: TOPIS road-link identifier.
+        tests:
+          - not_null
+      - name: vertex_sequence
+        description: Integer source order within the link geometry.
+        tests:
+          - not_null
+      - name: grs80tm_x
+        description: Source GRS80 TM X coordinate, not WGS84 longitude.
+        tests:
+          - not_null
+      - name: grs80tm_y
+        description: Source GRS80 TM Y coordinate, not WGS84 latitude.
+        tests:
+          - not_null
+      - name: dag_run_id
+        description: Latest complete paired reference run selected for the link.
+        tests:
+          - not_null
+      - name: reference_collected_at
+        description: Latest service collection timestamp in the selected paired run.
+        tests:
+          - not_null
+      - name: request_id
+        description: LinkVerInfo request lineage.
+        tests:
+          - not_null
+      - name: raw_object_key
+        description: LinkVerInfo raw object lineage.
+        tests:
+          - not_null
+      - name: payload_hash
+        description: LinkVerInfo source payload fingerprint.
+        tests:
+          - not_null
+
+  - name: silver_seoul_traffic_link_reference
+    description: Latest complete road metadata and representative Seoul location at one row per observed link.
+    columns:
+      - name: link_id
+        description: TOPIS road-link identifier and model grain.
+        tests:
+          - not_null
+          - unique
+      - name: road_name
+        description: Human-readable road name; null only when no complete Info pair exists.
+      - name: start_node_name
+        description: Source-provided start node name.
+      - name: end_node_name
+        description: Source-provided end node name.
+      - name: map_distance
+        description: Typed source road-link distance.
+      - name: representative_vertex_sequence
+        description: Deterministically selected lower-middle vertex sequence.
+      - name: vertex_count
+        description: Number of vertices in the selected complete reference run.
+      - name: longitude
+        description: WGS84 longitude converted from the representative GRS80 TM vertex.
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lon
+      - name: latitude
+        description: WGS84 latitude converted from the representative GRS80 TM vertex.
+        tests:
+          - asac_axes.in_seoul_bbox:
+              arguments:
+                kind: lat
+      - name: admin_dong_code
+        description: Canonical administrative-dong code containing the representative point.
+      - name: admin_dong
+        description: Administrative-dong name containing the representative point.
+      - name: gu_code
+        description: Canonical Seoul district code.
+      - name: gu
+        description: Seoul district name.
+      - name: link_reference_quality
+        description: Completeness and spatial-location quality without dropping the link anchor.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - complete
+                  - missing_info
+                  - missing_vertex
+                  - coordinate_conversion_or_bbox_miss
+                  - admin_boundary_miss
+      - name: reference_collected_at
+        description: Collection timestamp of the last-known-good complete pair.
+      - name: reference_dag_run_id
+        description: Airflow run of the last-known-good complete pair.
+      - name: latest_attempt_collected_at
+        description: Latest observed collection attempt timestamp, complete or incomplete.
+        tests:
+          - not_null
+      - name: latest_attempt_dag_run_id
+        description: Airflow run of the latest observed collection attempt.
+        tests:
+          - not_null
+      - name: info_request_id
+        description: LinkInfo request lineage for the selected complete pair.
+      - name: vertex_request_id
+        description: LinkVerInfo request lineage for the selected complete pair.
+      - name: info_raw_object_key
+        description: LinkInfo raw object lineage for the selected complete pair.
+      - name: vertex_raw_object_key
+        description: LinkVerInfo raw object lineage for the selected complete pair.

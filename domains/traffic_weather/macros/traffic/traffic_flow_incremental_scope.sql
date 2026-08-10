@@ -10,6 +10,7 @@
       cast(source_id as varchar) as source_id,
       cast(request_params_json as varchar) as request_params_json,
       cast(link_id as varchar) as link_id,
+      cast(parent_incident_run_id as varchar) as parent_incident_run_id,
       cast(flow_speed as double) as flow_speed,
       cast(flow_travel_time as double) as flow_travel_time,
       cast(flow_value_quality as varchar) as flow_value_quality,
