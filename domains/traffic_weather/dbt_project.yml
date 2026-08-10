@@ -87,7 +87,6 @@ seeds:
       weather_coverage_grid:
         +tags:
           - ask_seoul_weather_transform_coverage_grid
-          - ask_seoul_weather_w1_inputs
         +column_types:
           grid_id: varchar
           nx: integer

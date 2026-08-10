@@ -298,6 +298,9 @@ selectors:
   - name: ask_seoul_weather_transform_coverage_grid
     description: Weather 80-grid collector coverage seed phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_coverage_grid, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_grid_mart
+    description: Weather 80-grid mart model과 test phase를 선택한다.
+    definition: {method: tag, value: ask_seoul_weather_transform_grid_mart, indirect_selection: cautious}
   - name: ask_seoul_weather_transform_silver
     description: Weather scheduled Silver model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_silver, indirect_selection: cautious}
