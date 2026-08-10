@@ -32,12 +32,13 @@
 --   있는 지금 넣지 않으면 full_refresh=false 라 나중엔 CTAS 백업→재적재 수동
 --   절차를 거쳐야 바꿀 수 있다.
 
+-- sorted_by(#482): 파티션 내 파일도 시간순 정렬 — 스코핑 테스트(#418) 프루닝 통계 보존.
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
     unique_key=['admin_dong_code', 'hour_at'],
     full_refresh=false,
-    properties={'partitioning': "ARRAY['day(hour_at)']"},
+    properties={'partitioning': "ARRAY['day(hour_at)']", 'sorted_by': "ARRAY['hour_at']"},
 ) }}
 
 {#- 아카이브 개시일 — 최초 빌드 하한이자, 소스가 한 번도 랜딩되지 않았을 때의 fallback. -#}

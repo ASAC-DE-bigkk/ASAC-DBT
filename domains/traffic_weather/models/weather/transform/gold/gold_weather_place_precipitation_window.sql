@@ -4,11 +4,17 @@
 
 {{ config(materialized='table') }}
 
-with precipitation_hours as (
+with kst_now as (
+    select date_trunc('hour', cast(current_timestamp at time zone 'Asia/Seoul' as timestamp(6))) as current_hour_at
+),
+
+precipitation_hours as (
     select
-        *
-    from {{ ref('gold_weather_place_hourly_outlook') }}
-    where is_precipitating
+        hourly.*
+    from {{ ref('gold_weather_place_hourly_outlook') }} as hourly
+    cross join kst_now
+    where hourly.forecast_at >= kst_now.current_hour_at
+      and hourly.is_precipitating
 ),
 
 with_previous as (

@@ -126,6 +126,51 @@
 {{ return(weather_w2_repair_mode() == 'bounded_reconcile') }}
 {%- endmacro %}
 
+{% macro weather_w2_historical_snapshot_context() -%}
+{%- set raw_enabled = var('weather_w2_historical_transform', false) -%}
+{%- set enabled_text = raw_enabled | string | lower | trim -%}
+{%- if enabled_text not in ['true', 'false'] -%}
+    {{ exceptions.raise_compiler_error(
+        'weather_w2_historical_transform은 true 또는 false여야 합니다.'
+    ) }}
+{%- endif -%}
+{%- set enabled = enabled_text == 'true' -%}
+{%- set snapshot_dag_run_id = var('weather_snapshot_dag_run_id', '') | string | trim -%}
+{%- if enabled -%}
+    {%- if weather_w2_is_repair() -%}
+        {{ exceptions.raise_compiler_error(
+            'Weather W2 historical snapshot과 bounded_reconcile은 함께 실행할 수 없습니다.'
+        ) }}
+    {%- endif -%}
+    {%- if not modules.re.fullmatch('^[A-Za-z0-9_.:+-]{1,250}$', snapshot_dag_run_id) -%}
+        {{ exceptions.raise_compiler_error(
+            'Weather W2 historical snapshot은 하나의 명시적 Airflow dag_run_id가 필요합니다.'
+        ) }}
+    {%- endif -%}
+    {%- if not weather_w1_prod_snapshot_bootstrap_allowed() -%}
+        {{ exceptions.raise_compiler_error(
+            'Weather W2 historical snapshot은 prod Iceberg Weather 대상에서만 실행할 수 있습니다.'
+        ) }}
+    {%- endif -%}
+{%- endif -%}
+{{ return({'enabled': enabled, 'snapshot_dag_run_id': snapshot_dag_run_id}) }}
+{%- endmacro %}
+
+{% macro weather_w2_is_historical_snapshot() -%}
+{{ return(weather_w2_historical_snapshot_context()['enabled']) }}
+{%- endmacro %}
+
+{% macro weather_w2_historical_snapshot_dag_run_id() -%}
+{{ return(weather_w2_historical_snapshot_context()['snapshot_dag_run_id']) }}
+{%- endmacro %}
+
+{% macro weather_w2_assert_historical_snapshot_evidence() -%}
+{%- if execute and weather_w2_is_historical_snapshot() -%}
+    {%- do weather_w1_assert_prod_snapshot_bootstrap_evidence() -%}
+{%- endif -%}
+{{ return('') }}
+{%- endmacro %}
+
 {% macro weather_w2_repair_start_at() -%}
 {%- set context = weather_w2_repair_context() -%}
 {%- if context['start_at'] is none -%}

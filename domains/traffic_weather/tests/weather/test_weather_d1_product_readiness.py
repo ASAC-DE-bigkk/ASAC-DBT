@@ -15,6 +15,7 @@ CURRENT_MODEL = GOLD_DIR / "gold_weather_place_current_outlook.yml"
 CURRENT_SQL = GOLD_DIR / "gold_weather_place_current_outlook.sql"
 PRECIP_MODEL = GOLD_DIR / "gold_weather_place_precipitation_window.yml"
 FORECAST_CHANGE_MODEL = GOLD_DIR / "gold_weather_place_forecast_change_daily.yml"
+RISK_WINDOW_MODEL = GOLD_DIR / "gold_weather_place_risk_window.yml"
 
 CURRENT_READINESS_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_current_outlook_readiness.sql"
 PRECIP_VALID_EMPTY_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_precipitation_window_valid_empty.sql"
@@ -185,6 +186,18 @@ def test_forecast_change_normalizes_utc_collection_time_to_contract_timezone() -
 
     assert "asac_axes.utc_to_kst('forecast.collected_at')" in sql
     assert "as collected_at_max" in sql
+
+
+def test_risk_window_declares_coverage_not_applicable_for_sparse_events() -> None:
+    model = _model(RISK_WINDOW_MODEL)
+    serving = model["config"]["meta"]["serving"]
+
+    assert serving["quality_coverage"] == {
+        "not_applicable_reason": (
+            "위험 조건을 충족한 장소·예보시각만 게시하는 희소 이벤트 제품이므로, "
+            "게시 행의 place_id 수는 전체 장소 모집단의 커버리지를 뜻하지 않습니다."
+        ),
+    }
 
 
 def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() -> None:

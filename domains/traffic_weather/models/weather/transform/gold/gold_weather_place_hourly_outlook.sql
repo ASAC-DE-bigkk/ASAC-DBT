@@ -42,7 +42,7 @@ pivoted as (
         count(distinct category) as forecast_category_count,
         min(issued_at) as forecast_issued_at_min,
         max(issued_at) as forecast_issued_at_max,
-        max(collected_at) as forecast_collected_at_max,
+        max(cast({{ asac_axes.utc_to_kst('collected_at') }} as timestamp(6))) as forecast_collected_at_max,
         max(fcst_value_num) filter (where category = 'TMP') as temp_c,
         max(fcst_value_num) filter (where category = 'REH') as humidity_pct,
         max(fcst_value_num) filter (where category = 'WSD') as wind_ms,

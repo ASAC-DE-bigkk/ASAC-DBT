@@ -214,6 +214,15 @@ def test_named_and_data_tests_exist_with_direct_dependency_hints() -> None:
         assert sql.strip()
 
 
+def test_latest_grid_record_contract_allows_an_empty_publishable_snapshot_scope() -> None:
+    sql = compact(
+        read(data_test_path("assert_gold_weather_forecast_by_admin_dong_latest_grid_record"))
+    )
+
+    assert "__snapshot_not_publishable_or_empty__" not in sql
+    assert "not exists (select 1 from snapshot_grid_keys)" not in sql
+
+
 def test_contract_commands_and_operating_docs_target_new_public_gold() -> None:
     contract_doc = read(W2_PUBLIC_CONTRACT_DOC)
     operating_doc = read(WEATHER_OPERATING_DOC)

@@ -301,6 +301,25 @@ selectors:
   - name: ask_seoul_weather_transform_gold
     description: Weather scheduled Gold summary model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_gold, indirect_selection: cautious}
+  - name: ask_seoul_weather_transform_serving_products
+    description: Weather D1 네 상품과 공통 hourly source를 같은 snapshot에서 재계산한다.
+    definition:
+      union:
+        - {method: fqn, value: gold_weather_place_hourly_outlook, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_current_outlook, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_precipitation_window, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_risk_window, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_forecast_change_daily, indirect_selection: cautious}
+  - name: ask_seoul_weather_historical_serving_products
+    description: Bounded Weather historical transform이 다시 계산해야 하는 serving Gold 범위다.
+    definition:
+      union:
+        - {method: fqn, value: gold_weather_place_hourly_outlook, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_daily_outlook, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_current_outlook, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_precipitation_window, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_risk_window, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_forecast_change_daily, indirect_selection: cautious}
   - name: ask_seoul_weather_transform_place_mart
     description: Weather place mart model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_place_mart, indirect_selection: cautious}

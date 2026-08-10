@@ -285,25 +285,3 @@ where actual.admin_dong_code is null
    or actual.request_id is distinct from expected.request_id
    or actual.dag_run_id is distinct from expected.dag_run_id
 {% endif %}
-
-{% if not repair_mode %}
-union all
-select
-    cast('__snapshot_not_publishable_or_empty__' as varchar) as admin_dong_code,
-    cast(null as timestamp(6)) as forecast_at,
-    cast(null as varchar) as category,
-    cast(null as timestamp(6)) as expected_issued_at,
-    cast(null as timestamp(6)) as actual_issued_at,
-    cast(null as varchar) as expected_dag_run_id,
-    cast(null as varchar) as actual_dag_run_id,
-    cast(null as varchar) as expected_raw_object_key,
-    cast(null as varchar) as actual_raw_object_key,
-    cast(null as varchar) as expected_request_id,
-    cast(null as varchar) as actual_request_id
-where not exists (
-    select 1
-    from eligible_manifest_anchors
-    where anchor_dag_run_id = '{{ snapshot_dag_run_id | replace("'", "''") }}'
-)
-   or not exists (select 1 from snapshot_grid_keys)
-{% endif %}
