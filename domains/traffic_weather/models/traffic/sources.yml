@@ -283,6 +283,10 @@ sources:
             description: KST ingestion partition date.
             tests:
               - not_null
+          - name: parent_incident_run_id
+            description: Exact Incident Bronze run that selected this Flow link set.
+            tests:
+              - not_null
           - name: dag_run_id
             description: Airflow flow Bronze collection run lineage.
             tests:
@@ -348,7 +352,236 @@ sources:
             description: KST ingestion partition date.
             tests:
               - not_null
+          - name: parent_incident_run_id
+            description: Exact Incident Bronze run that selected this Flow request.
+            tests:
+              - not_null
           - name: dag_run_id
             description: Airflow flow Bronze collection run lineage.
+            tests:
+              - not_null
+
+      - name: seoul_traffic_link_info
+        identifier: bronze_seoul_traffic_link_info
+        description: TOPIS LinkInfo road metadata retained at link and collection-run grain.
+        freshness: null
+        columns:
+          - name: request_id
+            description: Deterministic LinkInfo request identifier.
+            tests:
+              - not_null
+          - name: source_id
+            description: Fixed link-reference source identifier.
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['seoul_traffic_link_reference']
+          - name: service_name
+            description: TOPIS static-link service name; LinkInfo for this relation.
+            tests:
+              - not_null
+          - name: request_params_json
+            description: Redacted LinkInfo request parameters.
+            tests:
+              - not_null
+          - name: link_id
+            description: TOPIS road-link identifier.
+            tests:
+              - not_null
+          - name: road_name
+            description: TOPIS road name for this link.
+            tests:
+              - not_null
+          - name: start_node_name
+            description: Source-provided start node name.
+          - name: end_node_name
+            description: Source-provided end node name.
+          - name: map_distance
+            description: Source-provided road-link distance before numeric casting.
+          - name: region_code
+            description: Source-provided region code.
+          - name: raw_object_key
+            description: R2 object key holding the LinkInfo response.
+            tests:
+              - not_null
+          - name: payload_hash
+            description: SHA-256 fingerprint of the LinkInfo response.
+            tests:
+              - not_null
+          - name: http_status
+            description: HTTP status recorded for the request.
+            tests:
+              - not_null
+          - name: result_code
+            description: TOPIS LinkInfo result code.
+            tests:
+              - not_null
+          - name: result_msg
+            description: TOPIS LinkInfo result message.
+          - name: list_total_count
+            description: TOPIS-reported row count.
+            tests:
+              - not_null
+          - name: row_count
+            description: Parsed LinkInfo row count.
+            tests:
+              - not_null
+          - name: collected_at
+            description: LinkInfo collection timestamp.
+            tests:
+              - not_null
+          - name: load_date
+            description: KST ingestion partition date.
+            tests:
+              - not_null
+          - name: dag_run_id
+            description: Airflow link-reference collection run lineage.
+            tests:
+              - not_null
+
+      - name: seoul_traffic_link_vertex
+        identifier: bronze_seoul_traffic_link_vertex
+        description: TOPIS LinkVerInfo ordered GRS80 TM vertices at link and collection-run grain.
+        freshness: null
+        columns:
+          - name: request_id
+            description: Deterministic LinkVerInfo request identifier.
+            tests:
+              - not_null
+          - name: source_id
+            description: Fixed link-reference source identifier.
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['seoul_traffic_link_reference']
+          - name: service_name
+            description: TOPIS static-link service name; LinkVerInfo for this relation.
+            tests:
+              - not_null
+          - name: request_params_json
+            description: Redacted LinkVerInfo request parameters.
+            tests:
+              - not_null
+          - name: link_id
+            description: TOPIS road-link identifier.
+            tests:
+              - not_null
+          - name: vertex_sequence
+            description: Source vertex order within the road link.
+            tests:
+              - not_null
+          - name: grs80tm_x
+            description: Source GRS80 TM X coordinate, not WGS84 longitude.
+            tests:
+              - not_null
+          - name: grs80tm_y
+            description: Source GRS80 TM Y coordinate, not WGS84 latitude.
+            tests:
+              - not_null
+          - name: raw_object_key
+            description: R2 object key holding the LinkVerInfo response.
+            tests:
+              - not_null
+          - name: payload_hash
+            description: SHA-256 fingerprint of the LinkVerInfo response.
+            tests:
+              - not_null
+          - name: http_status
+            description: HTTP status recorded for the request.
+            tests:
+              - not_null
+          - name: result_code
+            description: TOPIS LinkVerInfo result code.
+            tests:
+              - not_null
+          - name: result_msg
+            description: TOPIS LinkVerInfo result message.
+          - name: list_total_count
+            description: TOPIS-reported vertex count.
+            tests:
+              - not_null
+          - name: row_count
+            description: Parsed LinkVerInfo vertex count.
+            tests:
+              - not_null
+          - name: collected_at
+            description: LinkVerInfo collection timestamp.
+            tests:
+              - not_null
+          - name: load_date
+            description: KST ingestion partition date.
+            tests:
+              - not_null
+          - name: dag_run_id
+            description: Airflow link-reference collection run lineage.
+            tests:
+              - not_null
+
+      - name: seoul_traffic_link_request_audit
+        identifier: bronze_seoul_traffic_link_request_audit
+        description: Request audit for paired TOPIS LinkInfo and LinkVerInfo attempts.
+        freshness: null
+        columns:
+          - name: request_id
+            description: Deterministic static-link request identifier.
+            tests:
+              - not_null
+          - name: source_id
+            description: Fixed link-reference source identifier.
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['seoul_traffic_link_reference']
+          - name: service_name
+            description: LinkInfo or LinkVerInfo service name.
+            tests:
+              - not_null
+          - name: request_params_json
+            description: Redacted static-link request parameters.
+            tests:
+              - not_null
+          - name: link_id
+            description: Requested TOPIS road-link identifier.
+            tests:
+              - not_null
+          - name: raw_object_key
+            description: R2 object key holding the source response.
+            tests:
+              - not_null
+          - name: payload_hash
+            description: SHA-256 fingerprint of the source response.
+            tests:
+              - not_null
+          - name: http_status
+            description: HTTP status recorded for the request.
+            tests:
+              - not_null
+          - name: result_code
+            description: TOPIS business result code.
+            tests:
+              - not_null
+          - name: result_msg
+            description: TOPIS business result message.
+          - name: list_total_count
+            description: TOPIS-reported row count for the service request.
+            tests:
+              - not_null
+          - name: row_count
+            description: Parsed row count for the service request.
+            tests:
+              - not_null
+          - name: collected_at
+            description: Service request collection timestamp.
+            tests:
+              - not_null
+          - name: load_date
+            description: KST ingestion partition date.
+            tests:
+              - not_null
+          - name: dag_run_id
+            description: Airflow link-reference collection run lineage.
             tests:
               - not_null
