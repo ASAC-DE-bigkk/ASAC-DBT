@@ -259,6 +259,7 @@ def _check_usage_patterns(model: ServingModel, schema: dict[str, Any]) -> list[F
         if "allow_empty" in pattern and not isinstance(pattern["allow_empty"], bool):
             add("usage_pattern_invalid", f"{label} — 'allow_empty' 는 불리언이어야 한다")
         findings.extend(_check_pattern_param_meta(model, pattern, label, spec))
+        findings.extend(_check_pattern_verifiability(model, pattern, label))
 
     return findings
 
@@ -366,6 +367,65 @@ def _check_pattern_param_meta(model: ServingModel, pattern: dict[str, Any],
                     f"{label} — param_defaults['{key}']={value!r} 가 param_enum 허용값 밖이다")
 
     return findings
+
+
+# v1.13 (#217 후속): export 시점 자동검증 완결성 — 미검증 패턴(verified_at 없음)은 각 도메인
+# gold→D1 export 가 SQL 을 실 D1 에 돌려 통과분에 verified_at 을 찍어야 runnable=true 가 된다
+# (dags common/serving/pattern_verify.verify_and_stamp). 그 검증은 SQL 주석·힌트의 **예시값**으로
+# 파라미터를 바인딩한다. 예시가 안 풀리는 :param 이 하나라도 있으면 export 가 그 패턴을 건너뛰어
+# 영구 미검증 → 게이트웨이가 실행 시 409("카탈로그에서 가져올 수 없는 항목")로 막는다. 저작 시점에
+# 잡는다. **해석 규약은 pattern_verify.resolve_params 와 잠금 — 한쪽을 고치면 다른 쪽도 같이 고친다.**
+_PATTERN_PLACEHOLDER_RE = re.compile(r":([a-z][a-z0-9_]*)")
+
+
+def _unresolved_example_params(sql: str, hint: str) -> list[str]:
+    """resolve_params(pattern_verify) 와 동일 규약으로, 예시값이 안 풀리는 :param 이름들을 반환."""
+    stripped = re.sub(r"/\*.*?\*/", " ", sql or "")
+    executable = "\n".join(re.sub(r"--.*$", "", line) for line in stripped.splitlines())
+    names = sorted(set(_PATTERN_PLACEHOLDER_RE.findall(executable)), key=len, reverse=True)
+    unresolved: list[str] = []
+    for name in names:
+        found = False
+        for source in (sql or "", hint or ""):
+            for m in re.finditer(rf":{name}(?![a-z0-9_])", source):
+                rest = source[m.end():]
+                nl = rest.find("\n")
+                tail = (rest if nl < 0 else rest[:nl])[:600]
+                # ① 따옴표 문자열 / 숫자   ② 한 줄 배열   ③ 따옴표 없는 문자열 값
+                if re.match(r"[^'0-9\[]{0,16}('(?:[^']|'')*'|[0-9]+(?:\.[0-9]+)?)", tail):
+                    found = True
+                    break
+                if re.match(r"\s*=\s*(\[[^\]\n]*\])", tail):
+                    found = True
+                    break
+                tm = re.match(r"\s*=\s*([^,\n\]]+)", tail)
+                if tm and tm.group(1).strip() and not tm.group(1).strip().startswith(("'", "[")):
+                    found = True
+                    break
+            if found:
+                break
+        if not found:
+            unresolved.append(name)
+    return unresolved
+
+
+def _check_pattern_verifiability(model: ServingModel, pattern: dict[str, Any], label: str) -> list[Finding]:
+    """미검증 패턴이 export 자동검증으로 runnable 이 될 수 있는지(예시값이 다 풀리는지) 검사."""
+    if pattern.get("verified_at"):          # 이미 손 검증됨 — export 무관하게 runnable
+        return []
+    sql = pattern.get("sql")
+    if not isinstance(sql, str):
+        return []                            # 타입 위반은 required 검사가 이미 보고
+    hint = " ".join(str(pattern.get(k) or "") for k in ("question_ko", "axes", "insight_sample_ko"))
+    missing = _unresolved_example_params(sql, hint)
+    if not missing:
+        return []
+    return [Finding(
+        "usage_pattern_unverifiable_example", model.name,
+        f"{label} — 미검증(verified_at 없음) 패턴인데 예시값이 없는 :파라미터 {missing} — export 자동검증이 "
+        f"건너뛰어 영구 미검증→게이트웨이 409. SQL 주석에 예시(`-- :{missing[0]}=…`)를 넣거나 손 검증하라",
+        model.source,
+    )]
 
 
 def _is_public_https_url(value: Any) -> bool:
