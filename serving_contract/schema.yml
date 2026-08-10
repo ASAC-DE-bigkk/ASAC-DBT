@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.11
+schema_version: v1.12
 supported_contract_versions: [v1]
 
 # 조건부 필수 — `if_present` 필드를 선언한 모델은 `then_required` 필드도 선언해야 한다.
@@ -113,6 +113,11 @@ usage_pattern_fields:
              param_defaults, param_enum, params]
   requires_allowed: [select_columns, sort, aggregate, group_by, having,
                      join, subquery, window, filter_range, filter_set, filter_null]
+  # v1.12 (#217): param_defaults 값은 스칼라 또는 **상대 날짜** {rel, as} 다. 날짜/기간
+  # 파라미터를 정적 상수로 두면 낡으므로(어제의 :from 이 계속 나옴), 게이트웨이가 실행 시점
+  # KST '오늘' 기준으로 해석한다. rel = ^[+-]?\d+(d|w|M|y)$ · as ∈ {date,datetime,ym,year}.
+  param_default_relative_units: [d, w, M, y]
+  param_default_relative_as: [date, datetime, ym, year]
   # params 항목이 가질 수 있는 키·값 (v1.11 — 게이트웨이 convertPattern 과 잠금)
   param_spec_types: [string, number, array]
   param_spec_items: [string, number]

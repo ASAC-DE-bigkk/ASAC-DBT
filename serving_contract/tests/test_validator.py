@@ -875,3 +875,36 @@ def test_pattern_param_meta_array_spec_passes():
 def test_pattern_param_meta_rejects_malformed(overrides, rule):
     result = validate([_pattern_model(overrides)])
     assert rule in _rules(result.findings)
+
+
+# ── v1.12 (#217): 동적 기본값(상대 날짜) ────────────────────────────────────────
+
+def _date_pattern(defaults):
+    return _pattern_model({
+        "pattern_id": "date_window",
+        "sql": "-- :from, :to\nSELECT d FROM t WHERE d BETWEEN :from AND :to",
+        "param_defaults": defaults,
+    })
+
+
+def test_relative_date_default_valid_passes():
+    result = validate([_date_pattern({"from": {"rel": "-30d", "as": "date"},
+                                      "to": {"rel": "0d", "as": "date"}})])
+    assert not [f for f in result.findings if f.rule.startswith("usage_pattern")]
+
+
+def test_relative_date_default_grains_pass():
+    for rel, as_ in [("-1y", "year"), ("0M", "ym"), ("-7d", "datetime")]:
+        m = _pattern_model({"pattern_id": "p", "sql": "-- :y\nSELECT * FROM t WHERE y >= :y",
+                            "param_defaults": {"y": {"rel": rel, "as": as_}}})
+        assert not [f for f in validate([m]).findings if f.rule.startswith("usage_pattern")], (rel, as_)
+
+
+@pytest.mark.parametrize("bad", [
+    {"from": {"rel": "-30x", "as": "date"}},        # 단위 오타
+    {"from": {"rel": "-30d", "as": "week"}},         # as 미지원
+    {"from": {"rel": "-30d", "as": "date", "tz": "x"}},  # 허용 밖 키
+    {"from": {"rel": "-30d"}},                        # as 누락 → 스칼라도 아니라 거부
+])
+def test_relative_date_default_rejects_malformed(bad):
+    assert "usage_pattern_invalid" in _rules(validate([_date_pattern(bad)]).findings)

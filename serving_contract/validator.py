@@ -267,6 +267,29 @@ def _scalar(value: Any) -> bool:
     return not isinstance(value, bool) and isinstance(value, (str, int, float))
 
 
+# v1.12 (#217): 동적 기본값 — 날짜/기간 파라미터는 정적 상수면 낡으므로(어제의 :from 이 계속
+# 나옴) `{rel: "-30d", as: date}` 상대 표현으로 선언한다. 게이트웨이가 실행 시점 KST '오늘'
+# 기준으로 해석한다(run-pattern-ext.js resolveRelativeDefault 와 규격 잠금).
+_REL_RE = re.compile(r"^[+-]?\d+(d|w|M|y)$")
+_REL_AS = {"date", "datetime", "ym", "year"}
+
+
+def _is_relative_default(value: Any) -> bool:
+    return (isinstance(value, dict) and isinstance(value.get("rel"), str)
+            and isinstance(value.get("as"), str))
+
+
+def _relative_default_error(value: dict) -> str | None:
+    extra = set(value) - {"rel", "as"}
+    if extra:
+        return f"허용 밖 키 {sorted(extra)} (rel·as 만)"
+    if not _REL_RE.match(value["rel"]):
+        return f"rel '{value['rel']}' 형식 오류 (예: -30d, -4w, -6M, -1y)"
+    if value["as"] not in _REL_AS:
+        return f"as '{value['as']}' 는 {sorted(_REL_AS)} 중 하나여야 한다"
+    return None
+
+
 def _check_pattern_param_meta(model: ServingModel, pattern: dict[str, Any],
                               label: str, spec: dict[str, Any]) -> list[Finding]:
     """v1.11 (#217 P1·P3) — param_defaults·param_enum·params 의 형과 SQL 정합.
@@ -298,8 +321,12 @@ def _check_pattern_param_meta(model: ServingModel, pattern: dict[str, Any],
 
     if "param_defaults" in pattern:
         for key, value in check_keys("param_defaults", pattern["param_defaults"]).items():
-            if not _scalar(value):
-                add("usage_pattern_invalid", f"{label} — param_defaults['{key}'] 는 문자열/숫자 스칼라여야 한다")
+            if _is_relative_default(value):           # v1.12 동적(상대 날짜) 기본값
+                err = _relative_default_error(value)
+                if err:
+                    add("usage_pattern_invalid", f"{label} — param_defaults['{key}'] 상대 날짜 — {err}")
+            elif not _scalar(value):
+                add("usage_pattern_invalid", f"{label} — param_defaults['{key}'] 는 스칼라 또는 상대 날짜{{rel,as}}여야 한다")
 
     if "param_enum" in pattern:
         for key, value in check_keys("param_enum", pattern["param_enum"]).items():
@@ -331,6 +358,8 @@ def _check_pattern_param_meta(model: ServingModel, pattern: dict[str, Any],
     enums = pattern.get("param_enum")
     if isinstance(defaults, dict) and isinstance(enums, dict):
         for key, value in defaults.items():
+            if _is_relative_default(value):    # 상대 날짜는 enum 대상이 아니다(날짜 축엔 enum 없음)
+                continue
             allow = enums.get(key)
             if isinstance(allow, list) and allow and not any(str(a) == str(value) for a in allow):
                 add("usage_pattern_invalid",
