@@ -49,6 +49,114 @@ models:
             - {pattern_id: hottest_places_now, question_ko: "현재 예보 기준 기온이 가장 높은 장소는 어디입니까?", axes: "기온 정렬 — temp_c DESC", requires: [select_columns, sort], allow_empty: true, verified_rows: 20, verified_at: "2026-08-05T14:39:11Z", verified_publication_id: "5179eeff3b6344d9aea4c694fb10b530", sql: "SELECT place_id, place_name, gu, forecast_at, temp_c, humidity_pct, precip_prob_pct FROM gold_weather_place_current_outlook ORDER BY temp_c DESC NULLS LAST, place_name LIMIT :n -- :n=20", param_defaults: {n: 20}}
             - {pattern_id: strong_wind_places_now, question_ko: "현재 예보 기준 풍속이 높은 장소는 어디입니까?", axes: "풍속 하한 필터 — wind_ms DESC", requires: [select_columns, filter_range, sort], allow_empty: true, verified_rows: 50, verified_at: "2026-08-05T14:39:11Z", verified_publication_id: "5179eeff3b6344d9aea4c694fb10b530", sql: "SELECT place_id, place_name, gu, forecast_at, wind_ms, wind_dir_deg, sky_label, pty_label FROM gold_weather_place_current_outlook WHERE wind_ms >= :min_wind_ms ORDER BY wind_ms DESC, place_name LIMIT :n -- :min_wind_ms=0, :n=50", param_defaults: {min_wind_ms: 0, n: 50}}
             - {pattern_id: forecast_category_coverage_overview, question_ko: "현재 장소 예보의 확인된 기상 카테고리 수별 장소 수는 얼마입니까?", axes: "예보 카테고리 수 집계 — 카테고리 수 ASC", requires: [select_columns, aggregate, group_by, sort], allow_empty: false, verified_rows: 1, verified_at: "2026-08-05T14:39:11Z", verified_publication_id: "5179eeff3b6344d9aea4c694fb10b530", sql: "SELECT forecast_category_count, count(*) AS place_count FROM gold_weather_place_current_outlook GROUP BY forecast_category_count ORDER BY forecast_category_count ASC"}
+            - pattern_id: "place_metric_ranking"
+              question_ko: "선택한 기상 지표(기온·습도·풍속·강수확률)와 정렬 방향으로 현재 예보 장소를 순위 매기면 어디입니까?"
+              axes: "지표·정렬 방향 스위치 — 선택 지표 값 순위"
+              verified_rows: 0                # 실 D1 실측: [20, 20, 20, 20] (스탬핑 대기)
+              insight_sample_ko: "기온 내림차순 상위 20곳은 모두 29℃대이며 첫 행은 송파구 가락1동(29℃·습도 70%·풍속 4.2㎧). :metric=humidity면 관악구 난향동(습도 75%)이, :dir=asc면 은평구 갈현제1동(27℃)이 최상단으로 바뀜. 기존 hottest_places_now·strong_wind_places_now를 하나로 일반화하고 최저기온·습도 순위까지 열어줌."
+              sql: |
+                -- :metric=temp, :dir=desc, :n=20
+                SELECT place_id, place_name, admin_dong, gu, forecast_at, temp_c, humidity_pct, wind_ms, precip_prob_pct,
+                       CASE :metric WHEN 'temp' THEN temp_c WHEN 'humidity' THEN humidity_pct WHEN 'wind' THEN wind_ms WHEN 'precip' THEN precip_prob_pct END AS metric_value
+                FROM gold_weather_place_current_outlook
+                ORDER BY CASE WHEN :dir='asc' THEN CASE :metric WHEN 'temp' THEN temp_c WHEN 'humidity' THEN humidity_pct WHEN 'wind' THEN wind_ms WHEN 'precip' THEN precip_prob_pct END END ASC NULLS LAST,
+                         CASE WHEN :dir='desc' THEN CASE :metric WHEN 'temp' THEN temp_c WHEN 'humidity' THEN humidity_pct WHEN 'wind' THEN wind_ms WHEN 'precip' THEN precip_prob_pct END END DESC NULLS LAST,
+                         place_name
+                LIMIT :n
+              requires: [select_columns, sort]
+              allow_empty: false
+              param_defaults: { dir: "desc", n: 20 }
+              param_enum: { dir: [asc, desc] }
+            - pattern_id: "gu_weather_summary"
+              question_ko: "자치구별 현재 예보의 평균 기온·습도·풍속과 장소 수는 얼마입니까?"
+              axes: "자치구 집계 — 평균 기온 DESC"
+              verified_rows: 0                # 실 D1 실측: [25] (스탬핑 대기)
+              insight_sample_ko: "자치구 25곳 요약에서 평균 기온 최상단은 강남구(장소 22곳, 평균 29.0℃, 평균 습도 69.1%, 평균 풍속 4.2㎧, 최대 강수확률 0%)."
+              sql: |
+                SELECT gu_code, gu, count(*) AS place_count,
+                       round(avg(temp_c), 1) AS avg_temp_c, min(temp_c) AS min_temp_c, max(temp_c) AS max_temp_c,
+                       round(avg(humidity_pct), 1) AS avg_humidity_pct, round(avg(wind_ms), 2) AS avg_wind_ms,
+                       max(precip_prob_pct) AS max_precip_prob_pct
+                FROM gold_weather_place_current_outlook
+                GROUP BY gu_code, gu
+                ORDER BY avg_temp_c DESC, gu
+              requires: [select_columns, aggregate, group_by, sort]
+              allow_empty: false
+            - pattern_id: "muggy_places_threshold"
+              question_ko: "기온과 습도가 동시에 임계 이상인 무더운 장소는 어디입니까?"
+              axes: "기온·습도 임계 교차 필터 — 기온 DESC, 습도 DESC"
+              verified_rows: 0                # 실 D1 실측: [50, 50] (스탬핑 대기)
+              insight_sample_ko: "기온 28℃·습도 70% 이상 무더운 장소는 141곳(상한 50건 표시), 첫 행은 송파구 가락1동(29℃·습도 70%). 임계를 29℃로 올리면 81곳으로 좁혀짐."
+              sql: |
+                -- :min_temp_c=28, :min_humidity_pct=70, :n=50
+                SELECT place_id, place_name, admin_dong, gu, temp_c, humidity_pct, wind_ms, forecast_at
+                FROM gold_weather_place_current_outlook
+                WHERE temp_c >= :min_temp_c AND humidity_pct >= :min_humidity_pct
+                ORDER BY temp_c DESC, humidity_pct DESC, place_name
+                LIMIT :n
+              requires: [select_columns, filter_range, sort]
+              allow_empty: false
+              param_defaults: { min_temp_c: 28, min_humidity_pct: 70, n: 50 }
+            - pattern_id: "compare_named_places"
+              question_ko: "지정한 여러 장소명의 현재 예보를 한 번에 비교하면 어떻습니까?"
+              axes: "장소명 배열 다중 선택 — 장소명 ASC"
+              verified_rows: 0                # 실 D1 실측: [3, 4] (스탬핑 대기)
+              insight_sample_ko: "요청한 3개 장소가 모두 반환되고 첫 행 송파구 가락1동은 29℃·습도 70%·맑음·강수없음(forecast_at 2026-08-08 20:00). 자치구가 다른 4곳을 넣어도 각 장소 행이 그대로 반환됨."
+              sql: |
+                -- :names=["잠실본동","가락1동","송파1동"]
+                SELECT place_id, place_name, admin_dong, gu, forecast_at, temp_c, humidity_pct, wind_ms, precip_prob_pct, sky_label, pty_label
+                FROM gold_weather_place_current_outlook
+                WHERE place_name IN (SELECT value FROM json_each(:names))
+                ORDER BY place_name
+              requires: [select_columns, filter_set, subquery]
+              allow_empty: false
+            - pattern_id: "outlook_collection_freshness"
+              question_ko: "현재 예보 수집이 가장 최근인(또는 가장 오래된) 장소는 어디입니까?"
+              axes: "수집 시각 정렬 방향 스위치 — 수집 시각 최신/최오래"
+              verified_rows: 0                # 실 D1 실측: [20, 20] (스탬핑 대기)
+              insight_sample_ko: "수집 최신순 최상단은 서초구 내곡동(2026-08-08 09:32:16 수집). :dir=asc로 바꾸면 도봉구 도봉제1동(09:19:40)이 가장 오래 전 수집으로, 스냅샷 내 수집 지연 편차가 약 12분임을 보여줌."
+              sql: |
+                -- :dir=desc, :n=20
+                SELECT place_id, place_name, admin_dong, gu, forecast_collected_at_max, forecast_issued_at_max, forecast_at
+                FROM gold_weather_place_current_outlook
+                ORDER BY CASE WHEN :dir='asc' THEN forecast_collected_at_max END ASC,
+                         CASE WHEN :dir='desc' THEN forecast_collected_at_max END DESC,
+                         place_name
+                LIMIT :n
+              requires: [select_columns, sort]
+              allow_empty: false
+              param_defaults: { dir: "desc", n: 20 }
+              param_enum: { dir: [asc, desc] }
+            - pattern_id: "place_current_by_name_search"
+              question_ko: "장소명이나 별칭에 특정 문자열이 들어간 장소의 현재 예보는 무엇입니까?"
+              axes: "장소명·별칭 부분일치 검색 — 장소명 ASC"
+              verified_rows: 0                # 실 D1 실측: [6, 3] (스탬핑 대기)
+              insight_sample_ko: "'잠실'로 검색하면 6곳이 잡히고 첫 행은 송파구 잠실2동(29℃·맑음·강수없음). '가락'은 3곳. place_id를 모르는 소비자가 이름만으로 현재 예보에 접근하는 경로."
+              sql: |
+                -- :q=잠실, :n=50
+                SELECT place_id, place_name, alias_names, admin_dong, gu, forecast_at, temp_c, humidity_pct, precip_prob_pct, sky_label, pty_label
+                FROM gold_weather_place_current_outlook
+                WHERE place_name LIKE '%' || :q || '%' OR alias_names LIKE '%' || :q || '%'
+                ORDER BY place_name
+                LIMIT :n
+              requires: [select_columns, filter_set, sort]
+              allow_empty: false
+              param_defaults: { n: 50 }
+            - pattern_id: "nearest_places_to_point"
+              question_ko: "지정한 위경도 좌표에서 가장 가까운 장소의 현재 예보는 무엇입니까?"
+              axes: "좌표 근접 정렬 — 제곱거리 ASC"
+              verified_rows: 0                # 실 D1 실측: [10, 10] (스탬핑 대기)
+              insight_sample_ko: "좌표(37.5033, 127.0864)에서 가장 가까운 장소는 송파구 잠실본동(29℃·맑음·강수없음)으로 사실상 동일 좌표. 다른 좌표(37.49375, 127.107686)를 넣으면 가락1동이 최근접으로 바뀜."
+              sql: |
+                -- :lat=37.5033, :lon=127.0864, :n=10
+                SELECT place_id, place_name, admin_dong, gu, latitude, longitude, temp_c, humidity_pct, precip_prob_pct, sky_label, pty_label,
+                       (latitude - :lat) * (latitude - :lat) + (longitude - :lon) * (longitude - :lon) AS dist_sq
+                FROM gold_weather_place_current_outlook
+                ORDER BY dist_sq ASC, place_name
+                LIMIT :n
+              requires: [select_columns, sort]
+              allow_empty: false
+              param_defaults: { n: 10 }
           public_projection:
             schema_version: "1.0.0"
             columns: [product_row_id, place_id, place_name, alias_names, admin_dong_code, admin_dong, gu_code, gu, latitude, longitude, forecast_at, forecast_category_count, forecast_issued_at_min, forecast_issued_at_max, forecast_collected_at_max, temp_c, humidity_pct, wind_ms, wind_dir_deg, precip_prob_pct, sky_code, sky_label, pty_code, pty_label, is_precipitating, pcp_raw, pcp_mm, sno_raw, sno_cm, forecast_lead_hours]

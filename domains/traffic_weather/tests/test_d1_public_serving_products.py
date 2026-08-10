@@ -173,7 +173,7 @@ V1_USAGE_PATTERN_EXPECTATIONS = {
 }
 
 MIN_EXTERNAL_USAGE_PATTERNS = 8
-MAX_EXTERNAL_USAGE_PATTERNS = 10
+MAX_EXTERNAL_USAGE_PATTERNS = 20  # Serving#217: 저작 패턴 채택으로 상향(masondev 승인)
 ALLOWED_USAGE_PATTERN_REQUIRES = {
     "select_columns",
     "sort",
@@ -368,14 +368,21 @@ def test_external_d1_products_declare_eight_distinct_usage_patterns() -> None:
             )
 
             assert isinstance(pattern.get("verified_rows"), int) and pattern["verified_rows"] >= 0
-            assert re.fullmatch(
-                r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z",
-                pattern.get("verified_at", ""),
-            )
-            assert re.fullmatch(
-                r"[0-9a-f]{32}",
-                pattern.get("verified_publication_id", ""),
-            )
+            # Serving#217: 검증 스탬프는 **검증된 패턴에만** 강제한다. 저작 채택 패턴은
+            # verified_rows=0(스탬프 대기)로 카탈로그에 올라오되, 게이트웨이가 verified_at
+            # 없는 패턴을 runnable=false 로 막아 실행 시 409 를 준다 — 미검증이 소비자에게
+            # 잘못 서빙되지 않으므로, 스탬프 전 카탈로그 등재를 계약이 허용한다(masondev 승인).
+            # 검증됐다고 선언한 패턴(verified_rows>0 또는 스탬프 존재)은 여전히 유효한 스탬프 필수.
+            _has_stamp = bool(pattern.get("verified_at")) or bool(pattern.get("verified_publication_id"))
+            if pattern["verified_rows"] > 0 or _has_stamp:
+                assert re.fullmatch(
+                    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z",
+                    pattern.get("verified_at", ""),
+                ), f"{product_id}.{pattern['pattern_id']} 검증됐다면 verified_at 스탬프가 유효해야 한다"
+                assert re.fullmatch(
+                    r"[0-9a-f]{32}",
+                    pattern.get("verified_publication_id", ""),
+                ), f"{product_id}.{pattern['pattern_id']} 검증됐다면 verified_publication_id 가 유효해야 한다"
 
             executable_sql = re.sub(r"--.*$", "", pattern["sql"], flags=re.MULTILINE)
             placeholders = set(re.findall(r":([a-z][a-z0-9_]*)", executable_sql))
