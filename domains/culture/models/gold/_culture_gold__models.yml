@@ -97,7 +97,7 @@ models:
               verified_publication_id: d45c9031b04b460ab6a946b6fefa15fb
               insight_sample_ko: 사직동이 7월 무료 1,024·교육체험 671건으로 1위.
               sql: |
-                -- :from, :n=10
+                -- :from=2026-08-01, :n=10
                 SELECT admin_dong, gu, SUM(free_events_count) AS free_cnt,
                        SUM(edu_experience_events_count) AS edu_cnt
                 FROM gold_culture_activity_by_dong
@@ -113,7 +113,7 @@ models:
               verified_publication_id: d45c9031b04b460ab6a946b6fefa15fb
               insight_sample_ko: 하계2동 691건 — 서울시립 북서울미술관 효과.
               sql: |
-                -- :from, :n=10
+                -- :from=2026-08-01, :n=10
                 SELECT admin_dong, gu, SUM(exhibitions_count) AS ex_cnt
                 FROM gold_culture_activity_by_dong
                 WHERE event_date >= :from
@@ -130,7 +130,7 @@ models:
               verified_publication_id: 4bc2e5c82e5d49fe8f439cbdcc89b491
               insight_sample_ko: 가양1동 7/1~8/5 누적 158건 — 하루 평균 4.4건.
               sql: |
-                -- :dong, :from, :to, :n=30
+                -- :dong=혜화동, :from=2026-08-01, :to=2026-10-31, :n=30
                 SELECT event_date, activities_count, performances_count,
                        events_count, exhibitions_count
                 FROM gold_culture_activity_by_dong
@@ -666,7 +666,7 @@ models:
               allow_empty: true
               insight_sample_ko: 최신 스냅샷 rising 10건 — 1위 드라큘라.
               sql: |
-                -- :status(momentum_status), :n=10
+                -- :status=rising, :n=10  (momentum_status: rising/steady/falling/new)
                 SELECT rank_no, performance_name, genre, venue_name, rank_delta_3d
                 FROM gold_culture_boxoffice_daily
                 WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM gold_culture_boxoffice_daily)
@@ -685,7 +685,7 @@ models:
               # genre 값은 KOPIS 원문 한글('뮤지컬'·'서양음악(클래식)' 등 7종) — glossary 불필요,
               # 단 값 목록이 d1_catalog_columns description 에 실려야 AI 가 정확히 필터한다
               sql: |
-                -- :genre, :n=10
+                -- :genre=뮤지컬, :n=10
                 SELECT rank_no, performance_name, venue_name, days_on_chart
                 FROM gold_culture_boxoffice_daily
                 WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM gold_culture_boxoffice_daily)
@@ -970,7 +970,7 @@ models:
               # ⚠️ :to 를 안 걸면 1년 뒤 스카폴드 날짜가 "한산한 날"로 뜬다(실측). 상한 필수 —
               # 이 관례를 실어 나르는 것이 참조 구현의 값어치다
               sql: |
-                -- :gu, :from, :to, :n=10
+                -- :gu=중구, :from=2026-07-01, :to=2026-08-31, :n=10
                 SELECT event_date, total_events, busiest_type
                 FROM gold_culture_calendar_density
                 WHERE gu = :gu AND event_date BETWEEN :from AND :to
@@ -991,7 +991,7 @@ models:
               # 선언 주석에 `:to` 가 있었는데 SQL 은 안 썼다 — 이웃에서 복사되며 딸려온 것으로,
               # 그대로 두면 `?to=` 를 보낸 쪽이 400(선언 밖 파라미터)을 맞는다(2026-08-07 수정).
               sql: |
-                -- :from, :n=10
+                -- :from=2026-08-01, :n=10
                 SELECT event_date, gu, total_events, concentration, busiest_type
                 FROM gold_culture_calendar_density
                 WHERE event_date >= :from ORDER BY total_events DESC LIMIT :n
@@ -1007,7 +1007,7 @@ models:
               verified_publication_id: c02106f1baa24256abe26cd7554fe5e7
               insight_sample_ko: 7/1~8/5 중구 10,174건(36일, 하루 283건)으로 1위.
               sql: |
-                -- :from, :to, :n=15
+                -- :from=2026-07-01, :to=2026-08-31, :n=15
                 SELECT gu,
                        SUM(total_events) AS events,
                        COUNT(DISTINCT event_date) AS days,
@@ -1276,7 +1276,7 @@ models:
               verified_publication_id: 2ba3ce94ac734d0487dfd93fa4999f55
               insight_sample_ko: 종로구 최한산 = 혼잡점수 1.0(여유) — 여러 요일·시간이 동률.
               sql: |
-                -- :gu, :n=10
+                -- :gu=성북구, :n=10
                 SELECT day_of_week, hour_of_day, typical_congest, avg_congest_score
                 FROM gold_culture_event_crowd
                 WHERE gu = :gu ORDER BY avg_congest_score ASC LIMIT :n
@@ -1290,7 +1290,7 @@ models:
               verified_publication_id: 2ba3ce94ac734d0487dfd93fa4999f55
               insight_sample_ko: 송파구 토요일 24시간 프로파일 — 00시 avg_ppltn 8,341(여유).
               sql: |
-                -- :gu, :dow(1=월..7=일), :n=24
+                -- :gu=마포구, :dow=6, :n=24  (dow 1=월..7=일)
                 SELECT hour_of_day, avg_ppltn, typical_congest
                 FROM gold_culture_event_crowd
                 WHERE gu = :gu AND day_of_week = :dow ORDER BY hour_of_day LIMIT :n
@@ -1306,7 +1306,7 @@ models:
               verified_publication_id: 865b88b6a8f1428e8fd6cbb9f937fa26
               insight_sample_ko: 토요일 19시 은평구 avg_ppltn 9,882 로 '붐빔' 1위.
               sql: |
-                -- :dow(1=월..7=일), :hour(0..23), :n=10
+                -- :dow=6, :hour=18, :n=10  (dow 1=월..7=일)
                 SELECT gu, avg_ppltn, avg_congest_score, typical_congest, crowd_samples
                 FROM gold_culture_event_crowd
                 WHERE day_of_week = :dow AND hour_of_day = :hour
@@ -1550,7 +1550,7 @@ models:
               verified_publication_id: fd823392eac44937946e5481921223e2
               insight_sample_ko: 종로구에서 해당 주간 진행·개막 10건 — 뮤지컬 '스폿라이트' 등.
               sql: |
-                -- :gu, :from, :to, :n=10
+                -- :gu=종로구, :from=2026-07-01, :to=2026-09-30, :n=10
                 SELECT title, category, venue_name, is_free, event_start_date, event_end_date
                 FROM gold_culture_event_schedule
                 WHERE gu = :gu AND event_start_date <= :to AND event_end_date >= :from
@@ -1569,7 +1569,7 @@ models:
               # (원천이 무료 여부를 안 주는 KOPIS 계열). is_free=1 로 짜면 조용히 0행이다 —
               # 이 함정이 곧 d1_catalog_columns 가 필요한 이유
               sql: |
-                -- :gu, :from, :n=10
+                -- :gu=종로구, :from=2026-08-01, :n=10
                 SELECT title, category, venue_name, event_start_date, event_end_date
                 FROM gold_culture_event_schedule
                 WHERE gu = :gu AND is_free = '무료' AND event_end_date >= :from
@@ -1585,7 +1585,7 @@ models:
               insight_sample_ko: 국악 진행·예정 10건 — 삼청각 수요 상설 공연 등.
               # category 값은 이미 한글('클래식' 12,579 · '교육/체험' 6,337 …) — glossary 불필요
               sql: |
-                -- :category, :from, :n=10
+                -- :category=연극, :from=2026-08-01, :n=10
                 SELECT title, gu, venue_name, event_start_date, event_end_date
                 FROM gold_culture_event_schedule
                 WHERE category = :category AND event_end_date >= :from
@@ -1601,7 +1601,7 @@ models:
               allow_empty: true
               insight_sample_ko: gu_window 의 :from=:to=오늘 특수형.
               sql: |
-                -- :gu, :today, :n=10
+                -- :gu=종로구, :today=2026-08-10, :n=10
                 SELECT title, category, venue_name, event_start_date, event_end_date
                 FROM gold_culture_event_schedule
                 WHERE gu = :gu AND event_start_date <= :today AND event_end_date >= :today
@@ -2397,7 +2397,7 @@ models:
               verified_publication_id: be6602f2b7fb4156a729e70715b55534
               insight_sample_ko: 강남구 1위 역삼1동 — 요식업 4,566곳·score 0.955.
               sql: |
-                -- :gu, :n=10
+                -- :gu=마포구, :n=10
                 SELECT admin_dong, events_upcoming_90d, dining_active_cnt,
                        dining_opened_365d, dine_around_score
                 FROM gold_culture_dine_around
