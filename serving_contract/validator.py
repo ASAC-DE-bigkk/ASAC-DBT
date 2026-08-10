@@ -391,15 +391,22 @@ def _unresolved_example_params(sql: str, hint: str) -> list[str]:
                 rest = source[m.end():]
                 nl = rest.find("\n")
                 tail = (rest if nl < 0 else rest[:nl])[:600]
-                # ① 따옴표 문자열 / 숫자   ② 한 줄 배열   ③ 따옴표 없는 문자열 값
-                if re.match(r"[^'0-9\[]{0,16}('(?:[^']|'')*'|[0-9]+(?:\.[0-9]+)?)", tail):
-                    found = True
-                    break
-                if re.match(r"\s*=\s*(\[[^\]\n]*\])", tail):
-                    found = True
-                    break
-                tm = re.match(r"\s*=\s*([^,\n\]]+)", tail)
-                if tm and tm.group(1).strip() and not tm.group(1).strip().startswith(("'", "[")):
+                # `= 값` 직결 형은 값 전체를 원자적으로 읽는다(비따옴표 날짜 잘림·관용 스킵
+                # 오집 사고 교정 — ASAC-DAG pattern_verify · verify_stamp 와 규약 잠금).
+                em = re.match(r"\s*=\s*", tail)
+                if em:
+                    rv = tail[em.end():]
+                    if rv.startswith("'"):
+                        found = bool(re.match(r"'(?:[^']|'')*'", rv))
+                    elif rv.startswith("["):
+                        found = bool(re.match(r"\[[^\]\n]*\]", rv))
+                    else:
+                        found = bool(rv.split(",")[0].strip())
+                    if found:
+                        break
+                    continue
+                # `=` 없는 관용형(힌트 문장) — 따옴표/숫자만
+                if re.match(r"[^'0-9\[=]{0,16}('(?:[^']|'')*'|[0-9]+(?:\.[0-9]+)?)", tail):
                     found = True
                     break
             if found:
