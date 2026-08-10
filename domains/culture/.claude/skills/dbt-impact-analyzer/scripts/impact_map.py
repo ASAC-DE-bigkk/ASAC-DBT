@@ -198,9 +198,17 @@ def build_report(manifest, model_names, project_dir, max_depth,
                         "downstream": downstream,
                         "summary": summarize(downstream)})
 
-    cross = ({"scanned": False, "reason": "--no-cross-scan", "refs": []}
-             if not scan_cross or not resolved_names
-             else cross_domain_refs(project_dir, sorted(set(resolved_names)), domains_root))
+    # 🔴 **세 갈래가 모두 같은 모양이어야 한다** — `_no_scan()` 을 지나야 `total`·`by_domain`
+    #    까지 채워진다. 여기서 손으로 dict 를 만들었다가 세 키가 빠졌고, SKILL.md 3-1 이
+    #    읽는 `cross_domain.total` 이 `--no-cross-scan` 과 "대상 못 찾음"에서 KeyError 였다
+    #    (2026-08-10 실측). 그게 이 함수의 설계 결정 ④가 막으려던 바로 그 일이다.
+    #    사유도 갈라 적는다 — 안 찾은 것과 못 찾은 것은 다른 사실이다.
+    if not scan_cross:
+        cross = _no_scan("--no-cross-scan")
+    elif not resolved_names:
+        cross = _no_scan("대상 모델을 manifest 에서 못 찾음")
+    else:
+        cross = cross_domain_refs(project_dir, sorted(set(resolved_names)), domains_root)
     return {"manifest": check_staleness(manifest, project_dir),
             "gate": {"threshold": threshold,
                      "total_downstream": len(gate_ids),

@@ -328,3 +328,38 @@ def test_report_cross_scan_can_be_disabled(tmp_path):
     ])
     r = impact_map.build_report(m, ["silver_a"], me, None, scan_cross=False)
     assert r["cross_domain"]["scanned"] is False
+
+
+# 🔴 응답 모양은 **모든 갈래에서 같다**. 갈래마다 다르면 소비자(SKILL.md 3-1 이 읽는
+#    `cross_domain.total`)가 환경에 따라 KeyError 를 맞고, 그건 "참조 0건"과 구분이 안 된다.
+#    이 계약이 코드에는 `_no_scan()` 으로 있었는데 build_report 가 손으로 dict 를 만들어
+#    우회하고 있었다(2026-08-10) — 그래서 갈래별로 **키 집합을 직접** 못 박는다.
+CROSS_KEYS = {"scanned", "reason", "scanned_domains", "total", "by_domain", "refs"}
+
+
+def _cross(tmp_path, **kw):
+    me = _domains(tmp_path, others=[
+        ("transit", "gold/g.sql", "from {{ source('culture', 'gold_c') }}\n"),
+    ])
+    return impact_map.build_report(mini_manifest(), kw.pop("models", ["silver_a"]), me, None, **kw)
+
+
+def test_cross_shape_is_identical_when_disabled(tmp_path):
+    c = _cross(tmp_path, scan_cross=False)["cross_domain"]
+    assert CROSS_KEYS <= set(c), f"빠진 키: {CROSS_KEYS - set(c)}"
+    assert c["scanned"] is False and c["total"] == 0 and c["by_domain"] == {}
+    assert c["reason"] == "--no-cross-scan"
+
+
+def test_cross_shape_is_identical_when_no_target_resolved(tmp_path):
+    c = _cross(tmp_path, models=["존재하지_않는_모델"])["cross_domain"]
+    assert CROSS_KEYS <= set(c), f"빠진 키: {CROSS_KEYS - set(c)}"
+    assert c["total"] == 0
+    # 사유를 갈라 적는다 — 안 찾은 것(플래그)과 못 찾은 것(대상 부재)은 다른 사실이다
+    assert "--no-cross-scan" not in c["reason"]
+
+
+def test_cross_shape_is_identical_when_scanned(tmp_path):
+    c = _cross(tmp_path)["cross_domain"]
+    assert CROSS_KEYS - {"reason"} <= set(c), f"빠진 키: {CROSS_KEYS - {'reason'} - set(c)}"
+    assert c["scanned"] is True
