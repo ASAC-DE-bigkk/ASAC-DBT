@@ -86,6 +86,8 @@ def test_weather_cross_domain_gold_contract() -> None:
     assert "ref('bridge_weather_admin_dong_grid')" in sql
     assert "ref('silver_kma_vilage_fcst_grid')" in sql
     assert "ref('asac_seoul', 'gold_weather_forecast_by_admin_dong')" not in sql
+    assert "-- depends_on: {{ ref('asac_axes', 'dim_admin_dong') }}" in sql
+    assert "from {{ asac_axes.pinned_dim_admin_dong() }}" in sql
     assert "cast(bridge_version as varchar) = 'weather_admin_dong_grid_bridge_v1'" in compact_sql
     assert "traffic.admin_dong_code = weather_bridge.admin_dong_code" in compact_sql
     assert "weather_bridge.nx = weather.nx" in compact_sql

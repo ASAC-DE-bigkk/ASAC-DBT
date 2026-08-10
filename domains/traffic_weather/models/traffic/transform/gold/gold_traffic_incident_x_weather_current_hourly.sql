@@ -9,7 +9,7 @@
 
 with canonical_admin_dong as (
     select distinct cast(admin_dong_code as varchar) as admin_dong_code
-    from {{ ref('asac_axes', 'dim_admin_dong') }}
+    from {{ asac_axes.pinned_dim_admin_dong() }}
     where admin_dong_code is not null
 ),
 
