@@ -116,8 +116,8 @@ class ServingGoldPortfolioContractTest(unittest.TestCase):
         self.assertEqual(PORTFOLIO["domains"]["traffic"]["schema"], "traffic")
         self.assertEqual(PORTFOLIO["domains"]["weather"]["schema"], "weather")
 
-    def test_traffic_serving_portfolio_has_exactly_six_d1_models(self) -> None:
-        self.assertEqual(len(TRAFFIC_SERVING_MODELS), 6)
+    def test_traffic_serving_portfolio_has_exactly_seven_d1_models(self) -> None:
+        self.assertEqual(len(TRAFFIC_SERVING_MODELS), 7)
         self.assertTrue(
             TRAFFIC_SERVING_MODELS.issubset(sql_models(TRAFFIC_GOLD_DIR)),
             "Traffic serving Gold SQL models are incomplete",

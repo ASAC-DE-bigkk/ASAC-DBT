@@ -30,12 +30,15 @@ selectors:
         - {method: fqn, value: "*silver_seoul_traffic_flow*", indirect_selection: empty}
         - {method: resource_type, value: test}
   - name: ask_seoul_traffic_transform_incident_silver
-    description: Traffic Silver 실행 계약에서 Flow 전용 model과 test를 제외한다.
+    description: Traffic Silver 실행 계약에서 Flow와 링크 참조 전용 model과 test를 제외한다.
     definition:
       intersection:
         - {method: selector, value: ask_seoul_traffic_transform_silver}
         - exclude:
             - {method: fqn, value: "*silver_seoul_traffic_flow*", indirect_selection: empty}
+            - {method: fqn, value: silver_seoul_traffic_link_info, indirect_selection: empty}
+            - {method: fqn, value: silver_seoul_traffic_link_reference, indirect_selection: empty}
+            - {method: fqn, value: silver_seoul_traffic_link_vertex, indirect_selection: empty}
   - name: ask_seoul_traffic_transform_gold
     description: Traffic scheduled Gold model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_traffic_transform_gold, indirect_selection: cautious}
@@ -116,48 +119,61 @@ selectors:
               indirect_selection: empty
             - method: resource_type
               value: test
+  - name: ask_seoul_traffic_transform_road_context_scope
+    description: Cross-domain road context model and its child tests.
+    definition:
+      union:
+        - {method: fqn, value: gold_traffic_road_congestion_context_current, children: true}
+
   - name: ask_seoul_traffic_transform_flow_gold_scope
     description: Traffic Flow Gold models and their child tests that require compatible Flow Silver inputs.
     definition:
-      union:
-        - {method: fqn, value: gold_traffic_flow_link_latest, children: true}
-        - {method: fqn, value: gold_traffic_flow_change_latest, children: true}
-        - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, children: true}
-        - {method: fqn, value: gold_traffic_flow_link_time_profile, children: true}
-        - {method: fqn, value: gold_traffic_flow_anomaly_current, children: true}
+      intersection:
+        - union:
+            - {method: fqn, value: gold_traffic_flow_link_latest, children: true}
+            - {method: fqn, value: gold_traffic_flow_change_latest, children: true}
+            - {method: fqn, value: gold_traffic_flow_congestion_hotspots_hourly, children: true}
+            - {method: fqn, value: gold_traffic_flow_link_time_profile, children: true}
+            - {method: fqn, value: gold_traffic_flow_anomaly_current, children: true}
+        - exclude:
+            - {method: selector, value: ask_seoul_traffic_transform_road_context_scope}
 
 
   - name: ask_seoul_traffic_transform_gold_incident_models
-    description: Traffic Gold model nodes excluding Flow Gold scope for incident-only trigger runs.
+    description: Traffic Gold model nodes excluding Flow and road-context scope for incident-only trigger runs.
     definition:
       intersection:
         - {method: selector, value: ask_seoul_traffic_transform_gold_models}
         - exclude:
             - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
+            - {method: selector, value: ask_seoul_traffic_transform_road_context_scope}
 
   - name: ask_seoul_traffic_transform_gold_incident_gate_tests
-    description: Traffic Gold gate tests excluding Flow Gold scope for incident-only trigger runs.
+    description: Traffic Gold gate tests excluding Flow and road-context scope for incident-only trigger runs.
     definition:
       intersection:
         - {method: selector, value: ask_seoul_traffic_transform_gold_gate_tests}
         - exclude:
             - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
+            - {method: selector, value: ask_seoul_traffic_transform_road_context_scope}
 
   - name: ask_seoul_traffic_transform_gold_incident_hourly_tests
-    description: Traffic Gold hourly tests excluding Flow Gold scope for incident-only trigger runs.
+    description: Traffic Gold hourly tests excluding Flow and road-context scope for incident-only trigger runs.
     definition:
       intersection:
         - {method: selector, value: ask_seoul_traffic_transform_gold_hourly_tests}
         - exclude:
             - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
+            - {method: selector, value: ask_seoul_traffic_transform_road_context_scope}
 
   - name: ask_seoul_traffic_transform_gold_incident_full_tests
-    description: Traffic Gold full tests excluding Flow Gold scope for incident-only trigger runs.
+    description: Traffic Gold full tests excluding Flow and road-context scope for incident-only trigger runs.
     definition:
       intersection:
         - {method: selector, value: ask_seoul_traffic_transform_gold_full_tests}
         - exclude:
             - {method: selector, value: ask_seoul_traffic_transform_flow_gold_scope}
+            - {method: selector, value: ask_seoul_traffic_transform_road_context_scope}
 
   - name: ask_seoul_traffic_recovery_silver
     description: 고정 snapshot용 Traffic recovery Silver phase를 선택한다.
@@ -197,6 +213,9 @@ selectors:
     description: Pinned Flow Silver model and one compound publication receipt.
     definition:
       union:
+        - {method: fqn, value: silver_seoul_traffic_link_info, indirect_selection: empty}
+        - {method: fqn, value: silver_seoul_traffic_link_vertex, indirect_selection: empty}
+        - {method: fqn, value: silver_seoul_traffic_link_reference, indirect_selection: empty}
         - {method: fqn, value: silver_seoul_traffic_flow, indirect_selection: empty}
         - {method: fqn, value: assert_traffic_flow_silver_publication_receipt, indirect_selection: empty}
 
@@ -244,6 +263,7 @@ selectors:
       union:
         - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_road_congestion_context_current, indirect_selection: empty}
         - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
 
   - name: ask_seoul_traffic_transform_cross_domain_gold_bootstrap_hot_build
@@ -252,6 +272,7 @@ selectors:
       union:
         - {method: fqn, value: gold_traffic_incident_current_by_admin_dong_hourly, indirect_selection: empty}
         - {method: fqn, value: gold_traffic_incident_x_weather_current_hourly, indirect_selection: empty}
+        - {method: fqn, value: gold_traffic_road_congestion_context_current, indirect_selection: empty}
         - {method: fqn, value: assert_traffic_gold_serving_publication_receipt, indirect_selection: empty}
 
   # Backward-compatible names now resolve to the Traffic Core path.  The

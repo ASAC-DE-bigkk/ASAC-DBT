@@ -15,11 +15,16 @@ GOLD_BOOTSTRAP_HOT = "ask_seoul_traffic_transform_core_gold_bootstrap_hot_build"
 GOLD_INCIDENT_BOOTSTRAP_HOT = (
     "ask_seoul_traffic_transform_core_gold_incident_bootstrap_hot_build"
 )
+CROSS_DOMAIN_HOT = "ask_seoul_traffic_transform_cross_domain_gold_hot_build"
+CROSS_DOMAIN_BOOTSTRAP_HOT = (
+    "ask_seoul_traffic_transform_cross_domain_gold_bootstrap_hot_build"
+)
 DAILY_ASSURANCE = "ask_seoul_traffic_daily_assurance"
 
 INCIDENT_RECEIPT = "assert_traffic_incident_silver_publication_receipt"
 FLOW_RECEIPT = "assert_traffic_flow_silver_publication_receipt"
 GOLD_RECEIPT = "assert_traffic_core_gold_serving_publication_receipt"
+CROSS_DOMAIN_RECEIPT = "assert_traffic_gold_serving_publication_receipt"
 
 TRAFFIC_D1_MODELS = {
     "gold_traffic_flow_congestion_hotspots_hourly",
@@ -29,6 +34,12 @@ TRAFFIC_D1_MODELS = {
     "gold_traffic_flow_anomaly_current",
 }
 TRAFFIC_INCIDENT_ANCHOR = "gold_traffic_incident_current_by_admin_dong_hourly"
+ROAD_CONTEXT = "gold_traffic_road_congestion_context_current"
+LINK_REFERENCE_MODELS = {
+    "silver_seoul_traffic_link_info",
+    "silver_seoul_traffic_link_vertex",
+    "silver_seoul_traffic_link_reference",
+}
 
 
 def _selectors() -> dict[str, dict]:
@@ -52,7 +63,7 @@ def test_hot_path_selectors_define_exact_traffic_models_and_receipts():
         "silver_seoul_traffic_incident_current",
         INCIDENT_RECEIPT,
     }
-    assert _explicit_fqns(selectors[FLOW_HOT]) == {
+    assert _explicit_fqns(selectors[FLOW_HOT]) == LINK_REFERENCE_MODELS | {
         "silver_seoul_traffic_flow",
         FLOW_RECEIPT,
     }
@@ -63,6 +74,12 @@ def test_hot_path_selectors_define_exact_traffic_models_and_receipts():
     assert _explicit_fqns(selectors[GOLD_INCIDENT_HOT]) == {
         TRAFFIC_INCIDENT_ANCHOR,
         GOLD_RECEIPT,
+    }
+    assert _explicit_fqns(selectors[CROSS_DOMAIN_HOT]) == {
+        TRAFFIC_INCIDENT_ANCHOR,
+        "gold_traffic_incident_x_weather_current_hourly",
+        ROAD_CONTEXT,
+        CROSS_DOMAIN_RECEIPT,
     }
 
 
@@ -75,6 +92,12 @@ def test_gold_bootstrap_selectors_preserve_the_always_rebuilt_incident_anchor():
     assert _explicit_fqns(selectors[GOLD_INCIDENT_BOOTSTRAP_HOT]) == {
         TRAFFIC_INCIDENT_ANCHOR,
         GOLD_RECEIPT,
+    }
+    assert _explicit_fqns(selectors[CROSS_DOMAIN_BOOTSTRAP_HOT]) == {
+        TRAFFIC_INCIDENT_ANCHOR,
+        "gold_traffic_incident_x_weather_current_hourly",
+        ROAD_CONTEXT,
+        CROSS_DOMAIN_RECEIPT,
     }
 
 
@@ -100,6 +123,9 @@ def test_compound_receipts_are_fail_closed_for_pinned_identity_and_critical_keys
     incident = (HOT_TESTS / f"{INCIDENT_RECEIPT}.sql").read_text(encoding="utf-8")
     flow = (HOT_TESTS / f"{FLOW_RECEIPT}.sql").read_text(encoding="utf-8")
     gold = (HOT_TESTS / f"{GOLD_RECEIPT}.sql").read_text(encoding="utf-8")
+    cross_domain = (HOT_TESTS / f"{CROSS_DOMAIN_RECEIPT}.sql").read_text(
+        encoding="utf-8"
+    )
 
     assert "var('traffic_snapshot_dag_run_id')" in incident
     assert "missing_pinned_run" in incident
@@ -113,6 +139,9 @@ def test_compound_receipts_are_fail_closed_for_pinned_identity_and_critical_keys
     assert "missing_pinned_run" in flow
     assert "invalid_critical_field" in flow
     assert "duplicate_link_id" in flow
+    assert "missing_link_reference" not in flow
+    assert "ref('silver_seoul_traffic_link_reference')" not in flow
+    assert "road_name is null" not in flow
 
     assert "var('traffic_flow_snapshot_dag_run_id', '')" in gold
     assert "var('traffic_snapshot_dag_run_id', '')" in gold
@@ -120,6 +149,12 @@ def test_compound_receipts_are_fail_closed_for_pinned_identity_and_critical_keys
     assert "stale_incident_snapshot" in gold
     assert TRAFFIC_INCIDENT_ANCHOR in gold
     assert "invalid_product_row_id" in gold
+
+    assert ROAD_CONTEXT in cross_domain
+    assert "invalid_road_context_key" in cross_domain
+    assert "duplicate_road_context_product_row_id" in cross_domain
+    assert "road_context_flow_lineage_mismatch" in cross_domain
+    assert "missing_road_context_row" in cross_domain
     assert "duplicate_product_row_id" in gold
     assert "ref(model_name)" in gold
     for model in TRAFFIC_D1_MODELS:

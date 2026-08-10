@@ -13,6 +13,7 @@ REPOSITORY_ROOT = PROJECT_ROOT.parents[1]
 SELECTORS = PROJECT_ROOT / "selectors.yml"
 
 FLOW_SCOPE = "ask_seoul_traffic_transform_flow_gold_scope"
+ROAD_CONTEXT_SCOPE = "ask_seoul_traffic_transform_road_context_scope"
 SILVER_EXECUTION_TAG = "ask_seoul_traffic_transform_silver"
 INCIDENT_SILVER = "ask_seoul_traffic_transform_incident_silver"
 INCIDENT_PREFLIGHT = "ask_seoul_traffic_transform_incident_preflight_contracts"
@@ -28,6 +29,7 @@ GOLD_HOT_BUILD = "ask_seoul_traffic_transform_gold_hot_build"
 CORE_GOLD_HOT_BUILD = "ask_seoul_traffic_transform_core_gold_hot_build"
 CORE_GOLD_INCIDENT_HOT_BUILD = "ask_seoul_traffic_transform_core_gold_incident_hot_build"
 CROSS_DOMAIN_GOLD_HOT_BUILD = "ask_seoul_traffic_transform_cross_domain_gold_hot_build"
+ROAD_CONTEXT_MODEL = "gold_traffic_road_congestion_context_current"
 
 FULL_GOLD_MODELS = "ask_seoul_traffic_transform_gold_models"
 FULL_GATE_TESTS = "ask_seoul_traffic_transform_gold_gate_tests"
@@ -41,6 +43,11 @@ EXPECTED_FLOW_MODELS = {
     "gold_traffic_flow_link_time_profile",
     "gold_traffic_flow_anomaly_current",
 }
+LINK_REFERENCE_SILVER_MODELS = {
+    "silver_seoul_traffic_link_info",
+    "silver_seoul_traffic_link_vertex",
+    "silver_seoul_traffic_link_reference",
+}
 EXPECTED_FLOW_SILVER_TESTS = {
     "accepted_values_silver_seoul_traffic_flow_flow_value_quality__available__missing_value",
     "accepted_values_silver_seoul_traffic_flow_source_id__seoul_traffic_flow",
@@ -50,6 +57,7 @@ EXPECTED_FLOW_SILVER_TESTS = {
     "not_null_silver_seoul_traffic_flow_link_id",
     "not_null_silver_seoul_traffic_flow_observed_at",
     "not_null_silver_seoul_traffic_flow_payload_hash",
+    "not_null_silver_seoul_traffic_flow_parent_incident_run_id",
     "not_null_silver_seoul_traffic_flow_raw_object_key",
     "not_null_silver_seoul_traffic_flow_source_id",
 }
@@ -71,7 +79,7 @@ EXPECTED_INCIDENT_MODELS = {
     "gold_traffic_incident_x_flow",
     "gold_traffic_incident_x_weather_current_hourly",
 }
-EXPECTED_GOLD_MODEL_COUNT = 13
+EXPECTED_GOLD_MODEL_COUNT = 14
 EXPECTED_INCIDENT_TEST_COUNTS = {
     INCIDENT_GATE_TESTS: 79,
     INCIDENT_HOURLY_TESTS: 99,
@@ -219,6 +227,7 @@ def test_incident_gold_selectors_reuse_full_contract_and_exclude_flow_scope():
 
     expected = {
         FLOW_SCOPE,
+        ROAD_CONTEXT_SCOPE,
         INCIDENT_MODELS,
         INCIDENT_GATE_TESTS,
         INCIDENT_HOURLY_TESTS,
@@ -226,17 +235,55 @@ def test_incident_gold_selectors_reuse_full_contract_and_exclude_flow_scope():
     }
     assert expected <= selectors.keys()
 
-    assert selectors[FLOW_SCOPE] == {
+    assert selectors[ROAD_CONTEXT_SCOPE] == {
         "union": [
-            {"method": "fqn", "value": "gold_traffic_flow_link_latest", "children": True},
-            {"method": "fqn", "value": "gold_traffic_flow_change_latest", "children": True},
             {
                 "method": "fqn",
-                "value": "gold_traffic_flow_congestion_hotspots_hourly",
+                "value": ROAD_CONTEXT_MODEL,
                 "children": True,
+            }
+        ]
+    }
+
+    assert selectors[FLOW_SCOPE] == {
+        "intersection": [
+            {
+                "union": [
+                    {
+                        "method": "fqn",
+                        "value": "gold_traffic_flow_link_latest",
+                        "children": True,
+                    },
+                    {
+                        "method": "fqn",
+                        "value": "gold_traffic_flow_change_latest",
+                        "children": True,
+                    },
+                    {
+                        "method": "fqn",
+                        "value": "gold_traffic_flow_congestion_hotspots_hourly",
+                        "children": True,
+                    },
+                    {
+                        "method": "fqn",
+                        "value": "gold_traffic_flow_link_time_profile",
+                        "children": True,
+                    },
+                    {
+                        "method": "fqn",
+                        "value": "gold_traffic_flow_anomaly_current",
+                        "children": True,
+                    },
+                ]
             },
-            {"method": "fqn", "value": "gold_traffic_flow_link_time_profile", "children": True},
-            {"method": "fqn", "value": "gold_traffic_flow_anomaly_current", "children": True},
+            {
+                "exclude": [
+                    {
+                        "method": "selector",
+                        "value": ROAD_CONTEXT_SCOPE,
+                    }
+                ]
+            },
         ]
     }
 
@@ -245,6 +292,10 @@ def test_incident_gold_selectors_reuse_full_contract_and_exclude_flow_scope():
         "value": "ask_seoul_traffic_transform_gold_models",
     }
     assert _excludes_flow_scope(selectors[INCIDENT_MODELS])
+    assert {
+        "method": "selector",
+        "value": ROAD_CONTEXT_SCOPE,
+    } in selectors[INCIDENT_MODELS]["intersection"][1]["exclude"]
 
     for name, parent in {
         INCIDENT_GATE_TESTS: "ask_seoul_traffic_transform_gold_gate_tests",
@@ -253,6 +304,10 @@ def test_incident_gold_selectors_reuse_full_contract_and_exclude_flow_scope():
     }.items():
         assert selectors[name]["intersection"][0] == {"method": "selector", "value": parent}
         assert _excludes_flow_scope(selectors[name])
+        assert {
+            "method": "selector",
+            "value": ROAD_CONTEXT_SCOPE,
+        } in selectors[name]["intersection"][1]["exclude"]
 
 
 def test_incident_gold_selectors_resolve_exact_model_and_test_sets(
@@ -260,15 +315,22 @@ def test_incident_gold_selectors_resolve_exact_model_and_test_sets(
 ):
     full_gold_models = _resolved_names(resolved_selector_project, FULL_GOLD_MODELS, "model")
     flow_models = _resolved_names(resolved_selector_project, FLOW_SCOPE, "model")
+    road_context_models = _resolved_names(
+        resolved_selector_project, ROAD_CONTEXT_SCOPE, "model"
+    )
     incident_models = _resolved_names(resolved_selector_project, INCIDENT_MODELS, "model")
 
     assert len(full_gold_models) == EXPECTED_GOLD_MODEL_COUNT
     assert flow_models == EXPECTED_FLOW_MODELS
+    assert road_context_models == {ROAD_CONTEXT_MODEL}
     assert incident_models == EXPECTED_INCIDENT_MODELS
-    assert incident_models == full_gold_models - flow_models
+    assert incident_models == full_gold_models - flow_models - road_context_models
     assert len(incident_models) == 8
 
     flow_tests = _resolved_names(resolved_selector_project, FLOW_SCOPE, "test")
+    road_context_tests = _resolved_names(
+        resolved_selector_project, ROAD_CONTEXT_SCOPE, "test"
+    )
     for incident_selector, full_selector in {
         INCIDENT_GATE_TESTS: FULL_GATE_TESTS,
         INCIDENT_HOURLY_TESTS: FULL_HOURLY_TESTS,
@@ -277,7 +339,7 @@ def test_incident_gold_selectors_resolve_exact_model_and_test_sets(
         full_tests = _resolved_names(resolved_selector_project, full_selector, "test")
         incident_tests = _resolved_names(resolved_selector_project, incident_selector, "test")
 
-        assert incident_tests == full_tests - flow_tests
+        assert incident_tests == full_tests - flow_tests - road_context_tests
         assert incident_tests.isdisjoint(flow_tests)
         assert len(incident_tests) == EXPECTED_INCIDENT_TEST_COUNTS[incident_selector]
 
@@ -334,7 +396,15 @@ def test_incident_silver_selector_excludes_flow_scope():
                         "method": "fqn",
                         "value": "*silver_seoul_traffic_flow*",
                         "indirect_selection": "empty",
-                    }
+                    },
+                    *[
+                        {
+                            "method": "fqn",
+                            "value": model,
+                            "indirect_selection": "empty",
+                        }
+                        for model in sorted(LINK_REFERENCE_SILVER_MODELS)
+                    ],
                 ]
             },
         ]
@@ -389,7 +459,7 @@ def test_hot_build_selectors_resolve_exact_models_and_compound_receipts(
     ) == {"assert_traffic_incident_silver_publication_receipt"}
     assert _resolved_names(
         resolved_selector_project, FLOW_HOT_BUILD, "model"
-    ) == {"silver_seoul_traffic_flow"}
+    ) == {"silver_seoul_traffic_flow", *LINK_REFERENCE_SILVER_MODELS}
     assert _resolved_names(
         resolved_selector_project, FLOW_HOT_BUILD, "test"
     ) == {"assert_traffic_flow_silver_publication_receipt"}
@@ -412,6 +482,7 @@ def test_hot_build_selectors_resolve_exact_models_and_compound_receipts(
     ) == {
         "gold_traffic_incident_current_by_admin_dong_hourly",
         "gold_traffic_incident_x_weather_current_hourly",
+        ROAD_CONTEXT_MODEL,
     }
     assert _resolved_names(
         resolved_selector_project, CROSS_DOMAIN_GOLD_HOT_BUILD, "test"

@@ -21,6 +21,7 @@ EXPECTED_PRODUCTS = {
     "traffic_flow_change_latest",
     "traffic_flow_link_time_profile",
     "traffic_flow_anomaly_current",
+    "traffic_road_congestion_context_current",
     "weather_place_current_outlook",
     "weather_place_precipitation_window",
     "weather_place_risk_window",
@@ -66,11 +67,31 @@ EXPECTED_PUBLIC_PROJECTIONS = {
     "traffic_flow_congestion_hotspots_hourly": [
         "product_row_id", "link_id", "hour_at", "flow_speed", "flow_travel_time",
         "flow_value_quality", "observed_at_kst", "congestion_rank", "observed_link_count",
-        "hotspot_state",
+        "hotspot_state", "road_name", "start_node_name", "end_node_name", "map_distance",
+        "representative_vertex_sequence", "longitude", "latitude", "admin_dong_code",
+        "admin_dong", "gu_code", "gu", "link_reference_quality",
+        "link_reference_collected_at_kst",
     ],
     "traffic_flow_link_latest": [
         "product_row_id", "link_id", "flow_speed", "flow_travel_time", "flow_value_quality",
-        "observed_at_kst", "collected_at_kst",
+        "observed_at_kst", "road_name", "start_node_name", "end_node_name", "map_distance",
+        "representative_vertex_sequence", "longitude", "latitude", "admin_dong_code",
+        "admin_dong", "gu_code", "gu", "link_reference_quality",
+        "link_reference_collected_at_kst", "collected_at_kst",
+    ],
+    "traffic_road_congestion_context_current": [
+        "product_row_id", "link_id", "road_name", "start_node_name", "end_node_name",
+        "map_distance", "representative_vertex_sequence", "longitude", "latitude",
+        "admin_dong_code", "admin_dong", "gu_code", "gu", "link_reference_quality",
+        "flow_speed", "flow_travel_time", "flow_value_quality", "observed_at_kst",
+        "collected_at_kst", "congestion_rank", "observed_link_count", "hotspot_state",
+        "incident_count", "latest_incident_type", "latest_incident_detail_type",
+        "latest_incident_description", "latest_incident_occurred_at_kst",
+        "latest_incident_expected_clear_at_kst", "incident_context_state",
+        "weather_category_coverage_count", "weather_latest_issued_at",
+        "weather_latest_collected_at", "tmp_value_num", "pop_value_num", "reh_value_num",
+        "wsd_value_num", "sky_qualitative_code", "pty_qualitative_code",
+        "is_precipitating", "weather_context_state",
     ],
     "traffic_flow_change_latest": [
         "product_row_id", "link_id", "flow_speed", "flow_travel_time", "flow_value_quality",
@@ -99,13 +120,16 @@ EXPECTED_PUBLIC_PROJECTION_VERSIONS = {
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_forecast_change_daily"] = "1.1.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_risk_window"] = "1.2.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_precipitation_window"] = "1.1.0"
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_congestion_hotspots_hourly"] = "1.1.0"
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_link_latest"] = "1.1.0"
 
 EXPECTED_PUBLIC_PROJECTION_HASHES = {
     "traffic_flow_anomaly_current": "5973ee5d82abc24c34f3854976a0814bdbf94945233e2b9d790c038b74d509ef",
     "traffic_flow_change_latest": "528a6fbefa3bf4776cf7f0f6f68b102359154389fe13b0c89ff413d3d5c47c9a",
-    "traffic_flow_congestion_hotspots_hourly": "65d41e4848057702d9a7ae4a7317a7a5f2641b82f33610c2ac6fa8e5f26ce6bd",
-    "traffic_flow_link_latest": "c42d19c3ca3981577f0415bd80adac76c7d8fb102024a0bd17c2f348a43420c0",
+    "traffic_flow_congestion_hotspots_hourly": "5fd01c8913e6e28c29d2f2eea6eb51c7eb55d00673aa2539a7a0816083fb1f47",
+    "traffic_flow_link_latest": "ff29b5c9e0ac1f3a0c6b645f327d38fe85fe5c689460883dad1c04a81253a659",
     "traffic_flow_link_time_profile": "3481b492166efc5ae85240441b67a6e4fdd0f0d4eaf198b031f64ae5cef9fd35",
+    "traffic_road_congestion_context_current": "2d0105de2c91cf8804eafc57452127ff84d70bed58e9c12842b697306bbe4943",
     "traffic_incident_x_weather_current_hourly": "79e6a5ebaa7df4629292c71e32b3b47e3d5d41510b45a9abc6cab401d2693c23",
     "weather_place_current_outlook": "62db82904ff1b66450676f3b64adc4d42c8729849f9e0ae83a9f8ec41ddef07b",
     "weather_place_forecast_change_daily": "75ae5336e3b826cf9352ce474b61c247915d921aad481da4f589b3e63ceb23cd",

@@ -9,6 +9,7 @@ domains:
     serving_models:
       - gold_traffic_flow_link_latest
       - gold_traffic_flow_congestion_hotspots_hourly
+      - gold_traffic_road_congestion_context_current
       - gold_traffic_flow_change_latest
       - gold_traffic_flow_link_time_profile
       - gold_traffic_flow_anomaly_current

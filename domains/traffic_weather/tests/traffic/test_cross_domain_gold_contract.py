@@ -49,14 +49,17 @@ def test_design_and_implementation_plan_exist_for_issue_234() -> None:
     )
 
 
-def test_cross_domain_gold_metadata_locks_weather_only() -> None:
+def test_cross_domain_gold_metadata_locks_served_weather_context_products() -> None:
     models = _gold_models()
     actual = {
         name
         for name, model in models.items()
         if model.get("config", {}).get("meta", {}).get("cross_domain_gold") is True
     }
-    assert actual == {"gold_traffic_incident_x_weather_current_hourly"}
+    assert actual == {
+        "gold_traffic_incident_x_weather_current_hourly",
+        "gold_traffic_road_congestion_context_current",
+    }
 
 
 def test_unserved_traffic_cross_domain_leaves_are_removed_from_catalog() -> None:
