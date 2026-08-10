@@ -32,7 +32,7 @@ CURRENT_PUBLIC_PROJECTION = [
     "pty_code", "pty_label", "is_precipitating", "pcp_raw", "pcp_mm", "sno_raw", "sno_cm",
     "forecast_lead_hours",
 ]
-PRECIP_PUBLIC_PROJECTION = ["product_row_id", "place_id", "window_start_at", "window_end_at"]
+PRECIP_PUBLIC_PROJECTION = ["product_row_id", "place_id", "place_name", "window_start_at", "window_end_at"]
 FORECAST_CHANGE_V1_PUBLIC_PROJECTION = [
     "product_row_id", "place_id", "forecast_date", "latest_issued_at", "change_state",
 ]
