@@ -13,6 +13,21 @@ LINK_SCOPE = (
     / "traffic"
     / "traffic_link_reference_scope.sql"
 )
+SILVER_DIR = PROJECT_ROOT / "models" / "traffic" / "transform" / "silver"
+INFO_SQL = SILVER_DIR / "silver_seoul_traffic_link_info.sql"
+VERTEX_SQL = SILVER_DIR / "silver_seoul_traffic_link_vertex.sql"
+SILVER_YAML = SILVER_DIR / "_silver.yml"
+SILVER_TEST_DIR = (
+    PROJECT_ROOT / "tests" / "traffic" / "transform" / "silver"
+)
+VERTEX_GRAIN_TEST = (
+    SILVER_TEST_DIR
+    / "assert_silver_seoul_traffic_link_vertex_grain_unique.sql"
+)
+COMPLETE_PAIR_TEST = (
+    SILVER_TEST_DIR
+    / "assert_silver_seoul_traffic_link_reference_complete_pair.sql"
+)
 
 
 def compact(value: str) -> str:
@@ -101,3 +116,51 @@ def test_complete_pair_macro_checks_same_run_and_actual_counts():
     assert "vertex_actual_count = vertex_audit_row_count" in sql
     assert "vertex_sequence_distinct_count = vertex_actual_count" in sql
     assert "then true else false end as is_complete" in sql
+
+
+def test_info_and_vertex_models_share_latest_complete_run():
+    info = compact(INFO_SQL.read_text(encoding="utf-8"))
+    vertex = compact(VERTEX_SQL.read_text(encoding="utf-8"))
+
+    for sql in (info, vertex):
+        assert "traffic_link_reference_attempts()" in sql
+        assert "where is_complete" in sql
+        assert "partition by link_id" in sql
+        assert "order by attempt_collected_at desc, dag_run_id desc" in sql
+        assert "winner.dag_run_id" in sql
+    assert "try_cast(info.map_distance as double)" in info
+    assert "nullif(trim(cast(info.road_name as varchar)), '')" in info
+    assert "try_cast(vertex.vertex_sequence as integer)" in vertex
+    assert "try_cast(vertex.grs80tm_x as double)" in vertex
+    assert "try_cast(vertex.grs80tm_y as double)" in vertex
+
+
+def test_link_reference_silver_schema_and_singular_tests_fix_the_grains():
+    document = yaml.safe_load(SILVER_YAML.read_text(encoding="utf-8"))
+    models = {model["name"]: model for model in document["models"]}
+
+    assert {"silver_seoul_traffic_link_info", "silver_seoul_traffic_link_vertex"} <= (
+        set(models)
+    )
+    info_columns = _column_names(models["silver_seoul_traffic_link_info"])
+    vertex_columns = _column_names(models["silver_seoul_traffic_link_vertex"])
+    assert {"link_id", "road_name", "dag_run_id", "reference_collected_at"} <= (
+        info_columns
+    )
+    assert {
+        "link_id",
+        "vertex_sequence",
+        "grs80tm_x",
+        "grs80tm_y",
+        "dag_run_id",
+    } <= vertex_columns
+
+    grain = compact(VERTEX_GRAIN_TEST.read_text(encoding="utf-8"))
+    assert "group by link_id, vertex_sequence" in grain
+    assert "having count(*) <> 1" in grain
+
+    complete = compact(COMPLETE_PAIR_TEST.read_text(encoding="utf-8"))
+    assert "traffic_link_reference_attempts()" in complete
+    assert "silver_seoul_traffic_link_info" in complete
+    assert "silver_seoul_traffic_link_vertex" in complete
+    assert "vertex_actual_count <> vertex_audit_row_count" in complete

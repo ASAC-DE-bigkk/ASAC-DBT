@@ -187,3 +187,98 @@ models:
         description: KST ingestion partition date.
       - name: collected_at
         description: Bronze collection timestamp.
+
+  - name: silver_seoul_traffic_link_info
+    description: Latest complete TOPIS LinkInfo metadata at one row per road link.
+    columns:
+      - name: source_id
+        description: Fixed road-link reference source identifier.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['seoul_traffic_link_reference']
+      - name: link_id
+        description: TOPIS road-link identifier and model grain.
+        tests:
+          - not_null
+          - unique
+      - name: road_name
+        description: Human-readable TOPIS road name.
+        tests:
+          - not_null
+      - name: start_node_name
+        description: Source-provided start node name.
+      - name: end_node_name
+        description: Source-provided end node name.
+      - name: map_distance
+        description: Typed source road-link distance.
+      - name: region_code
+        description: Source-provided region code.
+      - name: dag_run_id
+        description: Latest complete paired reference run selected for the link.
+        tests:
+          - not_null
+      - name: reference_collected_at
+        description: Latest service collection timestamp in the selected paired run.
+        tests:
+          - not_null
+      - name: request_id
+        description: LinkInfo request lineage.
+        tests:
+          - not_null
+      - name: raw_object_key
+        description: LinkInfo raw object lineage.
+        tests:
+          - not_null
+      - name: payload_hash
+        description: LinkInfo source payload fingerprint.
+        tests:
+          - not_null
+
+  - name: silver_seoul_traffic_link_vertex
+    description: Ordered TOPIS LinkVerInfo coordinates from the latest complete paired run.
+    columns:
+      - name: source_id
+        description: Fixed road-link reference source identifier.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['seoul_traffic_link_reference']
+      - name: link_id
+        description: TOPIS road-link identifier.
+        tests:
+          - not_null
+      - name: vertex_sequence
+        description: Integer source order within the link geometry.
+        tests:
+          - not_null
+      - name: grs80tm_x
+        description: Source GRS80 TM X coordinate, not WGS84 longitude.
+        tests:
+          - not_null
+      - name: grs80tm_y
+        description: Source GRS80 TM Y coordinate, not WGS84 latitude.
+        tests:
+          - not_null
+      - name: dag_run_id
+        description: Latest complete paired reference run selected for the link.
+        tests:
+          - not_null
+      - name: reference_collected_at
+        description: Latest service collection timestamp in the selected paired run.
+        tests:
+          - not_null
+      - name: request_id
+        description: LinkVerInfo request lineage.
+        tests:
+          - not_null
+      - name: raw_object_key
+        description: LinkVerInfo raw object lineage.
+        tests:
+          - not_null
+      - name: payload_hash
+        description: LinkVerInfo source payload fingerprint.
+        tests:
+          - not_null
