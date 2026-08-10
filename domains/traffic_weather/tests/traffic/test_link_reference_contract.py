@@ -28,6 +28,11 @@ COMPLETE_PAIR_TEST = (
     SILVER_TEST_DIR
     / "assert_silver_seoul_traffic_link_reference_complete_pair.sql"
 )
+REFERENCE_SQL = SILVER_DIR / "silver_seoul_traffic_link_reference.sql"
+REFERENCE_GRAIN_TEST = (
+    SILVER_TEST_DIR
+    / "assert_silver_seoul_traffic_link_reference_grain_unique.sql"
+)
 
 
 def compact(value: str) -> str:
@@ -164,3 +169,58 @@ def test_link_reference_silver_schema_and_singular_tests_fix_the_grains():
     assert "silver_seoul_traffic_link_info" in complete
     assert "silver_seoul_traffic_link_vertex" in complete
     assert "vertex_actual_count <> vertex_audit_row_count" in complete
+
+
+def test_reference_uses_ordered_middle_vertex_and_existing_axis_macros():
+    sql = compact(REFERENCE_SQL.read_text(encoding="utf-8"))
+
+    assert "row_number() over ( partition by link_id order by vertex_sequence )" in sql
+    assert "floor((vertex_count + 1) / 2" in sql
+    assert "asac_axes.tm_to_wgs84_relation" in sql
+    assert "ref('asac_axes', 'seoul_admin_dong_boundary')" in sql
+    assert "asac_axes.admin_dong_contains" in sql
+    assert "left join" in sql
+    assert "latest_attempt_dag_run_id" in sql
+    assert "reference_dag_run_id" in sql
+
+
+def test_reference_schema_exposes_road_location_quality_and_lineage():
+    document = yaml.safe_load(SILVER_YAML.read_text(encoding="utf-8"))
+    models = {model["name"]: model for model in document["models"]}
+    reference = models["silver_seoul_traffic_link_reference"]
+    columns = _column_names(reference)
+
+    assert {
+        "link_id",
+        "road_name",
+        "longitude",
+        "latitude",
+        "admin_dong_code",
+        "admin_dong",
+        "gu_code",
+        "gu",
+        "link_reference_quality",
+        "reference_collected_at",
+        "reference_dag_run_id",
+        "latest_attempt_dag_run_id",
+    } <= columns
+    quality = next(
+        column for column in reference["columns"]
+        if column["name"] == "link_reference_quality"
+    )
+    accepted = next(
+        test["accepted_values"]["arguments"]["values"]
+        for test in quality["tests"]
+        if isinstance(test, dict) and "accepted_values" in test
+    )
+    assert set(accepted) == {
+        "complete",
+        "missing_info",
+        "missing_vertex",
+        "coordinate_conversion_or_bbox_miss",
+        "admin_boundary_miss",
+    }
+
+    grain = compact(REFERENCE_GRAIN_TEST.read_text(encoding="utf-8"))
+    assert "group by link_id" in grain
+    assert "having count(*) <> 1" in grain
