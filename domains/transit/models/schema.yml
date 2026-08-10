@@ -432,7 +432,7 @@ models:
                          CASE WHEN :dir = 'desc' THEN metric_value END DESC
                 LIMIT :n
               requires: [select_columns, subquery, aggregate, group_by, filter_range, filter_null, having, sort]
-              param_defaults: { min_hours: 20, dir: "desc", n: 10 }
+              param_defaults: { min_hours: 20, dir: "desc", n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "dong_typical_day_profile"
               question_ko: "이 동네의 하루 리듬은? 시간대별로 버스·지하철·주차가 어떻게 달라지나?"
@@ -490,7 +490,7 @@ models:
                 ORDER BY hour_slot
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, sort]
-              param_defaults: { n: 200 }
+              param_defaults: { n: 200, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "dong_metric_threshold_hours"
               question_ko: "이 동네에서 버스 혼잡(또는 지하철 대기/주차 점유)이 임계값을 넘긴 시간은 언제였나?"
               axes: "단일 동 임계 초과 시간 목록 — 지표 스위치·임계값, 지표값 DESC(가장 심했던 순). dong_day_timeline(특정 하루 전체)과 달리 전체 이력에서 극단 시각만 추출"

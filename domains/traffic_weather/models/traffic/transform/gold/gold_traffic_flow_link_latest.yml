@@ -128,7 +128,7 @@ models:
               question_ko: 특정 관측 시간 범위에 갱신된 링크의 최신 값은 무엇입니까?
               axes: 관측 시각 범위 필터 — 관측 시각 DESC
               requires: [select_columns, filter_range, sort]
-              param_defaults: { n: 100 }
+              param_defaults: { n: 100, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 100
               verified_at: "2026-08-05T14:39:11Z"

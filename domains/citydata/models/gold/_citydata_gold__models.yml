@@ -57,6 +57,7 @@ models:
               question_ko: 이 장소의 최근 일별 붐빔 추이는?
               axes: 시계열 — 장소 고정, event_date 축
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               sql: |
                 -- :area=성수동, :from=2026-07-01, :to=2026-07-31
                 SELECT event_date, average_population, max_population, busy_ratio_percent
@@ -122,7 +123,7 @@ models:
                 ORDER BY avg_ppltn DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, filter_set, sort]
-              param_defaults: { gu: "ALL", atype: "ALL", n: 10 }
+              param_defaults: { gu: "ALL", atype: "ALL", n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "ppltn_peak_hour_profile_for_place"
               question_ko: "이 장소는 하루 중 주로 몇 시에 인구 정점을 찍나? (기간 내 정점 시각 분포)"
               axes: "시각 분포 — peak_at 시(hour)별 정점 발생 일수 (장소·기간 고정)"
@@ -139,6 +140,7 @@ models:
                 GROUP BY substr(peak_at, 12, 2)
                 ORDER BY n_days DESC
               requires: [select_columns, aggregate, group_by, filter_set, filter_range, filter_null, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "ppltn_volatility_on_date"
               question_ko: "특정 날 하루 안에서 인구 진폭(최대-최소)이 가장 큰/작은 장소는?"
               axes: "장소 랭킹 — 파생지표 (max_population - min_population) DESC/ASC (날짜 고정, gu 센티널)"
@@ -173,6 +175,7 @@ models:
                 GROUP BY peak_congestion_level
                 ORDER BY n_days DESC
               requires: [select_columns, aggregate, group_by, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "ppltn_compare_selected_areas_on_date"
               question_ko: "관심 장소 여러 곳을 골라 특정 날 붐빔을 나란히 비교하고 싶다"
               axes: "다중 선택 단면 — average_population DESC (날짜 고정, area_name 배열 IN)"
@@ -203,7 +206,7 @@ models:
                 ORDER BY crowded_days DESC, avg_ppltn DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, having, sort]
-              param_defaults: { min_days: 10, n: 20 }
+              param_defaults: { min_days: 10, n: 20, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
           display:
             title: 장소별 일 혼잡 요약
             summary: 장소마다 하루 동안의 평균·최대·최소 인구와 혼잡을 요약했습니다. 날짜 단위로 방문 추세를 볼 때 씁니다.
@@ -330,6 +333,7 @@ models:
               question_ko: 이 장소의 최근 시간별 붐빔 추이는?
               axes: 시계열 — 장소 고정, time_bucket 축
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
               sql: |
                 -- :area_cd=POI014, :from=2026-07-30 00:00:00, :to=2026-07-30 23:00:00
                 SELECT time_bucket, average_population, peak_congestion_level
@@ -370,7 +374,7 @@ models:
                 HAVING COUNT(*) >= :min_buckets
                 ORDER BY avg_ppltn DESC LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, having, sort]
-              param_defaults: { min_buckets: 5, n: 10 }
+              param_defaults: { min_buckets: 5, n: 10, from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "congestion_level_periods_for_place"
               question_ko: "이 장소가 특정 혼잡 등급이었던 시간대는 언제인가?"
               axes: "시간 필터 — peak_congestion_level 고정 (장소 고정), time_bucket ASC"
@@ -441,6 +445,7 @@ models:
                 GROUP BY time_bucket
                 ORDER BY time_bucket
               requires: [select_columns, aggregate, group_by, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
           display:
             title: 장소별 시간대 혼잡
             summary: 장소마다 시간 단위로 인구·혼잡을 집계했습니다. 몇 시가 붐비고 한산한지 시간대별로 볼 수 있습니다.
@@ -558,6 +563,7 @@ models:
               question_ko: 특정 장소의 최근 결제 추이는?
               axes: 시계열 — 장소 고정, event_date 축
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               sql: |
                 -- :area_cd=POI014, :from=2026-07-01, :to=2026-07-31
                 SELECT event_date, payment_count_total, busy_ratio_percent, peak_cmrcl_lvl
@@ -665,6 +671,7 @@ models:
                 GROUP BY peak_hour
                 ORDER BY peak_hour
               requires: [select_columns, aggregate, group_by, filter_range, filter_null, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "frequently_busy_places_over_period"
               question_ko: "최근 기간 붐빔비율이 임계값 이상인 날이 가장 많았던 상권은?"
               axes: "상권 랭킹 — 붐빈 날 수 DESC (기간·임계값 고정)"
@@ -678,7 +685,7 @@ models:
                 GROUP BY area_nm, gu, area_category
                 ORDER BY busy_days DESC, avg_busy DESC LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, sort]
-              param_defaults: { min_busy: 50, n: 10 }
+              param_defaults: { min_busy: 50, n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
           display:
             title: 장소별 일 소비(상권)
             summary: 장소마다 하루 결제 건수와 상권 활력을 집계했습니다. 붐빔 대비 얼마나 소비가 일어나는지 봅니다.
@@ -801,6 +808,7 @@ models:
               question_ko: 이 장소의 구매력 지수 추이는?
               axes: 시계열 — 장소 고정, event_date 축
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               sql: |
                 -- :area_cd=POI014, :from=2026-07-01, :to=2026-07-31
                 SELECT event_date, spend_per_crowd_idx, payment_amt_total, ppltn_avg
@@ -872,7 +880,7 @@ models:
                 GROUP BY event_date
                 ORDER BY event_date ASC
               requires: [select_columns, aggregate, group_by, filter_range, filter_null, sort]
-              param_defaults: { gu: "ALL" }
+              param_defaults: { gu: "ALL", from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "spend_concentration_on_date"
               question_ko: "특정 날, 하루 결제가 특정 시점에 몰린(피크 집중) 장소는? (최소 결제액 이상)"
               axes: "장소 랭킹 — payment_amt_peak/payment_amt_total 비율 DESC (날짜 고정, 임계값)"
@@ -1098,6 +1106,7 @@ models:
               question_ko: 이 동네의 문화행사와 붐빔 추이는?
               axes: 시계열 — 동 고정, event_date 축
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               sql: |
                 -- :dong_code=1123072, :from=2026-07-01, :to=2026-07-31
                 SELECT event_date, event_count, has_event, ppltn_avg, ppltn_peak
@@ -1174,6 +1183,7 @@ models:
                 GROUP BY event_date
                 ORDER BY event_date ASC
               requires: [select_columns, aggregate, group_by, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "sustained_culture_hubs"
               question_ko: "최근 기간 문화행사가 꾸준히 많았던 상위 동네(문화 허브)는?"
               axes: "동 랭킹 — 기간 누적 SUM(event_count) DESC + 임계값 HAVING (기간 고정)"
@@ -1188,7 +1198,7 @@ models:
                 HAVING SUM(event_count) >= :min_events
                 ORDER BY total_events DESC LIMIT :n
               requires: [select_columns, aggregate, group_by, having, filter_range, sort]
-              param_defaults: { min_events: 100, n: 10 }
+              param_defaults: { min_events: 100, n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "compare_selected_dongs_on_date"
               question_ko: "선택한 동네들의 특정 날 문화행사와 붐빔을 나란히 비교하면?"
               axes: "동 단면 비교 — 다중 선택 IN (날짜 고정), ppltn_avg DESC"
@@ -1322,6 +1332,7 @@ models:
               question_ko: 이 동네의 시간별 승하차·돌발 추이는?
               axes: 시계열 — 동 고정, time_bucket 축
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
               sql: |
                 -- :dong_code=1123072, :from=2026-07-30 00:00:00, :to=2026-07-30 23:00:00
                 SELECT time_bucket, board_5min_avg, alight_5min_avg, incident_count, has_incident
@@ -1341,7 +1352,7 @@ models:
                 GROUP BY gu
                 ORDER BY total_incidents DESC LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "hourly_incident_profile"
               question_ko: "하루 중 몇 시에 교통 돌발이 가장 몰리나? (시간대별 분포)"
               axes: "시간대(0-23) 분포 — hour_of_day 축, SUM(incident_count)"
@@ -1355,6 +1366,7 @@ models:
                 GROUP BY hour_of_day
                 ORDER BY hour_of_day
               requires: [select_columns, aggregate, group_by, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "incident_hotspots_by_acc_type"
               question_ko: "특정 사고유형 코드(A04 등)가 발생한 시각·동네는?"
               axes: "단면 — 사고유형 코드 필터, time_bucket ASC"
@@ -1367,7 +1379,7 @@ models:
                 WHERE acc_types LIKE '%' || :code || '%' AND time_bucket BETWEEN :from AND :to
                 ORDER BY time_bucket LIMIT :n
               requires: [select_columns, filter_set, filter_range, sort]
-              param_defaults: { n: 15 }
+              param_defaults: { n: 15, from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "board_alight_net_flow_at_time"
               question_ko: "특정 시각, 순승차(승차-하차)로 본 출발지·도착지 성격 동네는?"
               axes: "동 랭킹 — 순승차(board-alight) 방향 스위치 (시각 고정)"
@@ -1397,7 +1409,7 @@ models:
                 HAVING COUNT(*) >= :min_hours
                 ORDER BY incident_hour_pct DESC LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, having, sort]
-              param_defaults: { min_hours: 24, n: 10 }
+              param_defaults: { min_hours: 24, n: 10, from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "peak_boarding_surges"
               question_ko: "최근 기간 5분 최대 승차(폭증)가 가장 컸던 동네·시각은?"
               axes: "시각·동 랭킹 — board_5min_peak DESC (기간 고정)"
@@ -1410,7 +1422,7 @@ models:
                 WHERE time_bucket BETWEEN :from AND :to
                 ORDER BY board_5min_peak DESC LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "compare_gus_transit_incident_over_period"
               question_ko: "고른 몇 개 자치구를 기간 집계로 나란히 비교하면?"
               axes: "자치구 교차 비교 — 선택 집합 집계 (기간 고정)"
@@ -1424,6 +1436,7 @@ models:
                 GROUP BY gu
                 ORDER BY total_incidents DESC
               requires: [select_columns, aggregate, group_by, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
           display:
             title: 동네 교통량 × 돌발
             summary: 행정동·시간별 승하차 강도와 교통 돌발 상황을 함께 봅니다. 어디가 언제 막히는지 봅니다.
@@ -1531,6 +1544,7 @@ models:
               question_ko: 이 동네의 시간별 붐빔과 날씨 추이는?
               axes: 시계열 — 동 고정, time_bucket 축
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
               sql: |
                 -- :dong_code=1123072, :from=2026-07-30 00:00:00, :to=2026-07-30 23:00:00
                 SELECT time_bucket, ppltn_avg, temp_c, precip_prob, is_raining
@@ -1586,6 +1600,7 @@ models:
                 FROM gold_citydata_ppltn_x_weather_hourly
                 WHERE admin_dong_code = :dong_code AND time_bucket BETWEEN :from AND :to
               requires: [select_columns, filter_set, filter_range, aggregate]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "weather_metric_ranking_at_time"
               question_ko: "특정 시각, 고른 지표(붐빔·기온·습도·바람·강수확률) 기준 상·하위 동네는?"
               axes: "동 랭킹 — 지표·방향 스위치 (시각 고정)"
@@ -1616,6 +1631,7 @@ models:
                 GROUP BY time_bucket
                 ORDER BY time_bucket
               requires: [select_columns, filter_set, filter_range, aggregate, group_by, sort]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "crowd_by_temp_band"
               question_ko: "기온대(구간)별 평균 붐빔은? — 더울수록 사람이 줄까?"
               axes: "분포 — 기온대 구간별 평균 붐빔 (기간 고정)"
@@ -1629,6 +1645,7 @@ models:
                 GROUP BY temp_band
                 ORDER BY temp_band
               requires: [select_columns, filter_range, aggregate, group_by, sort]
+              param_defaults: { from: { rel: "-30d", as: datetime }, to: { rel: "0d", as: datetime } }
             - pattern_id: "compare_dongs_weather_at_time"
               question_ko: "선택한 여러 동네를 특정 시각에 붐빔·날씨로 나란히 비교하면?"
               axes: "다중 단면 — 선택 동 집합 비교 (시각 고정)"
@@ -2452,6 +2469,7 @@ models:
               question_ko: 이 장소 최근 며칠 미세먼지 추이는?
               axes: 날짜 시계열 — event_date ASC (장소 고정)
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               insight_sample_ko: 강남구 PM2.5는 최근 2주 완만히 하락하는 추세다.
               sql: |
                 -- :area=강남구, :from=2026-07-20, :to=2026-08-03
@@ -2463,7 +2481,7 @@ models:
               question_ko: 이 장소 최근 N일 중 미세먼지가 가장 나빴던 날은?
               axes: 날짜 랭킹 — avg_pm10 DESC (장소·기간 고정)
               requires: [select_columns, filter_set, filter_range, sort]
-              param_defaults: { n: 5 }
+              param_defaults: { n: 5, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               insight_sample_ko: 강남구 최근 2주 중 PM10 최악일은 7/28이었다.
               sql: |
                 -- :area=강남구, :from=2026-07-20, :to=2026-08-03, :n=5
@@ -2523,6 +2541,7 @@ models:
                 GROUP BY event_date
                 ORDER BY event_date ASC
               requires: [select_columns, aggregate, group_by, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "air_rank_places_on_date_by_metric"
               question_ko: "특정 날 어느 지점이 대기질이 가장 나쁘거나 가장 깨끗했나? (지표·방향 선택)"
               axes: "장소 랭킹 — 지표·정렬 스위치 (날짜 고정, pm10/pm25/air_idx × 악화/청정)"
@@ -2558,7 +2577,7 @@ models:
                 ORDER BY bad_days DESC, mean_pm10 DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, having, sort]
-              param_defaults: { min_pm10: 35, n: 10 }
+              param_defaults: { min_pm10: 35, n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "air_intraday_spike_ranking"
               question_ko: "특정 날 일중 미세먼지 급등(피크-평균 격차)이 가장 심했던 지점은?"
               axes: "장소 랭킹 — (max_pm10 - avg_pm10) DESC (날짜 고정, 파생 지표)"
@@ -2892,6 +2911,7 @@ models:
               question_ko: 최근 며칠간 어떤 재난 경보가 며칠에 얼마나 발령됐나?
               axes: 날짜 시계열 — event_date ASC
               requires: [select_columns, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               insight_sample_ko: 폭염 안전안내가 7월 말부터 매일 발령되고 있다.
               sql: |
                 -- :from=2026-07-25, :to=2026-08-07
@@ -2903,6 +2923,7 @@ models:
               question_ko: 특정 재난유형이 발령된 날과 규모는?
               axes: 날짜 필터 + 유형 고정 — event_date ASC
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               insight_sample_ko: 호우 안전안내는 8/7 한 차례 국지적으로 발령됐다.
               sql: |
                 -- :type=호우, :from=2026-07-25, :to=2026-08-07
@@ -2914,7 +2935,7 @@ models:
               question_ko: 최근 재난 경보가 가장 많이/광범위하게 발령된 날은?
               axes: 날짜 랭킹 — affected_areas DESC
               requires: [select_columns, filter_range, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               insight_sample_ko: 폭염 경보가 서울 전역(120개소)에 걸린 날은 8/5·8/6이었다.
               sql: |
                 -- :from=2026-07-25, :to=2026-08-07, :n=10
@@ -2941,7 +2962,7 @@ models:
                 ORDER BY total_alerts DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, window, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "dst_longest_episodes"
               question_ko: "첫 발령부터 마지막 발령까지 가장 오래 지속된 재난 경보는?"
               axes: "날짜×유형 랭킹 — 파생 지속시간(last-first, 분) DESC"
@@ -2956,7 +2977,7 @@ models:
                 ORDER BY duration_minutes DESC
                 LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "dst_types_over_time"
               question_ko: "선택한 재난 유형들(예: 폭염·호우)만 기간별로 함께 보면?"
               axes: "시계열 — 유형 다중 선택(IN), event_date ASC"
@@ -2970,6 +2991,7 @@ models:
                   AND event_date BETWEEN :from AND :to
                 ORDER BY event_date ASC, dst_type
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "dst_rank_days_flexible"
               question_ko: "재난 발령일을 지표(경보 수/영향 지역)와 정렬 방향을 골라 랭킹하면?"
               axes: "날짜 랭킹 — 지표 스위치(alert_count/affected_areas) + 정렬 방향 스위치"
@@ -2985,7 +3007,7 @@ models:
                   CASE WHEN :dir='desc' THEN (CASE :metric WHEN 'alert_count' THEN alert_count ELSE affected_areas END) END DESC
                 LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { dir: "desc", n: 10 }
+              param_defaults: { dir: "desc", n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "dst_latest_by_type"
               question_ko: "이 재난 유형의 가장 최근 안내 문구는 무엇인가? (전체는 ALL)"

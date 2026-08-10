@@ -83,6 +83,7 @@ models:
               question_ko: 특정 링크가 저속 hotspot으로 관측된 시간대는 언제입니까?
               axes: 링크·hotspot 상태·시간 범위 필터 — 시간 ASC
               requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 10
               verified_at: "2026-08-05T14:39:11Z"
@@ -99,7 +100,7 @@ models:
               question_ko: 특정 시간 범위에서 관측 속도가 가장 낮았던 링크는 어디입니까?
               axes: 시간 범위·가용 속도 필터 — flow_speed ASC
               requires: [select_columns, filter_range, filter_set, sort]
-              param_defaults: { n: 50 }
+              param_defaults: { n: 50, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 50
               verified_at: "2026-08-05T14:39:11Z"
@@ -116,6 +117,7 @@ models:
               question_ko: 시간대별로 혼잡 순위를 계산한 관측 링크 수는 얼마입니까?
               axes: 시간대 범위 집계 — hour_at ASC
               requires: [select_columns, filter_range, aggregate, group_by, sort]
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 35
               verified_at: "2026-08-05T14:39:11Z"
@@ -162,7 +164,7 @@ models:
               question_ko: 최근 특정 시간 범위에서 저속 hotspot으로 반복 관측된 링크는 무엇입니까?
               axes: 시간 범위·hotspot 상태 집계 — 발생 시간 수 DESC
               requires: [select_columns, filter_range, filter_set, aggregate, group_by, sort]
-              param_defaults: { n: 20 }
+              param_defaults: { n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 20
               verified_at: "2026-08-05T14:39:11Z"
@@ -208,7 +210,7 @@ models:
                 ORDER BY flow_travel_time DESC, hour_at ASC
                 LIMIT :n
               requires: [select_columns, filter_range, filter_set, sort]
-              param_defaults: { n: 20 }
+              param_defaults: { n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
             - pattern_id: "hour_of_day_speed_profile"
               question_ko: "관측 창에서 하루 중 몇 시(시간대)에 평균 속도가 가장 낮습니까?"
               axes: "시간 범위 필터 — 시(hour-of-day) 파생 차원 집계, 평균 속도 ASC"
@@ -224,6 +226,7 @@ models:
                 GROUP BY hour_of_day
                 ORDER BY avg_flow_speed ASC
               requires: [select_columns, filter_range, aggregate, group_by, sort]
+              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
             - pattern_id: "worst_congestion_hours"
               question_ko: "관측 창에서 저속 hotspot 링크가 충분히 관측된 시각 중 가장 혼잡(평균 속도 최저)했던 시간은 언제입니까?"
               axes: "시간 범위·hotspot 상태 필터 — 시각별 집계, 최소 관측 링크 임계값, 평균 속도 ASC"
@@ -241,7 +244,7 @@ models:
                 ORDER BY avg_flow_speed ASC, min_flow_speed ASC
                 LIMIT :n
               requires: [select_columns, filter_range, filter_set, aggregate, group_by, having, sort]
-              param_defaults: { min_links: 5, n: 20 }
+              param_defaults: { min_links: 5, n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
             - pattern_id: "persistent_severe_congestion"
               question_ko: "관측 창에서 지정한 속도 이하로 여러 시간 반복 관측된, 만성적으로 심하게 막히는 링크는 어디입니까?"
               axes: "시간 범위·속도 임계값 필터 — 링크별 발생 시간 집계, 최소 시간 임계값, 발생 시간 DESC"
@@ -260,7 +263,7 @@ models:
                 ORDER BY severe_hour_count DESC, min_flow_speed ASC
                 LIMIT :n
               requires: [select_columns, filter_range, filter_set, aggregate, group_by, having, sort]
-              param_defaults: { max_speed: 10, min_hours: 2, n: 20 }
+              param_defaults: { max_speed: 10, min_hours: 2, n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
             - pattern_id: "hotspot_share_by_link"
               question_ko: "관측 창에서 관측된 시간 대비 저속 hotspot으로 잡힌 비중이 가장 높은, 즉 가장 일관되게 막히는 링크는 어디입니까?"
               axes: "시간 범위 필터 — 링크별 hotspot 시간/관측 시간 비율, 최소 관측 임계값, 비율 DESC"
@@ -279,7 +282,7 @@ models:
                 ORDER BY hotspot_share DESC, observed_hour_count DESC
                 LIMIT :n
               requires: [select_columns, filter_range, aggregate, group_by, having, sort]
-              param_defaults: { min_observed_hours: 5, n: 20 }
+              param_defaults: { min_observed_hours: 5, n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
             - pattern_id: "congestion_for_link_set"
               question_ko: "내가 지정한 여러 링크(예: 통근 경로)의 관측 창 내 시간별 혼잡 이력을 한 번에 보고 싶습니다."
               axes: "다중 링크 배열·시간 범위 필터 — 링크·시각 ASC"
@@ -294,7 +297,7 @@ models:
                 ORDER BY link_id, hour_at ASC
                 LIMIT :n
               requires: [select_columns, filter_set, filter_range, sort]
-              param_defaults: { n: 200 }
+              param_defaults: { n: 200, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
           public_projection:
             schema_version: "1.0.0"
             columns:

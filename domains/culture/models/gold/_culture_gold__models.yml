@@ -164,7 +164,7 @@ models:
                          CASE WHEN :dir='desc' THEN metric_value END DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, having, sort, filter_range]
-              param_defaults: { dir: "desc", n: 10 }
+              param_defaults: { dir: "desc", n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "gu_daily_trend"
               question_ko: "우리 자치구 전체(동 합산)의 문화활동이 날짜별로 얼마나 잡혀 있나 — 늘고 있나, 줄고 있나?"
@@ -186,7 +186,7 @@ models:
                 ORDER BY event_date DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, having, sort]
-              param_defaults: { n: 60 }
+              param_defaults: { n: 60, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "free_share_dongs"
               question_ko: "전체 문화활동 대비 무료 행사 비중이 높은 동네(행정동)는 어디인가?"
               axes: "동 랭킹 — free/activities 비율 DESC, 최소 활동수 임계값(HAVING). 기존 free_edu_dongs(절대건수)의 비율판"
@@ -205,7 +205,7 @@ models:
                 ORDER BY free_pct DESC, total_cnt DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, having, filter_range, sort]
-              param_defaults: { min_activities: 20, n: 10 }
+              param_defaults: { min_activities: 20, n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "festival_occurrences"
               question_ko: "축제가 실제로 열리는(열렸던) 동네와 날짜는 언제 어디인가?"
               axes: "단면/필터 — (KOPIS 축제 + 기타 축제) 카운트가 임계값 이상인 (동, 날짜) 행 나열"
@@ -243,7 +243,7 @@ models:
                 ORDER BY activities DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_set, filter_range, sort]
-              param_defaults: { n: 20 }
+              param_defaults: { n: 20, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "activity_type_mix"
               question_ko: "이 자치구(또는 서울 전체)의 문화활동은 어떤 유형(공연·행사·전시·축제)이 주를 이루나?"
               axes: "분포/비율 — 유형별 기간 합산과 비중(UNPIVOT), gu 센티널로 특정 구 또는 전체(ALL)"
@@ -269,7 +269,7 @@ models:
                 ) t
                 ORDER BY t.cnt DESC
               requires: [select_columns, aggregate, subquery, filter_range, sort]
-              param_defaults: { gu: "ALL" }
+              param_defaults: { gu: "ALL", from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
           display:
             title: 행정동별 일자 문화활동량
             summary: 행정동마다 날짜별로 문화 활동이 몇 건 열리는지 집계했습니다.
@@ -720,7 +720,7 @@ models:
                 WHERE performance_name = :perf AND snapshot_date BETWEEN :from AND :to
                 ORDER BY snapshot_date ASC LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { n: 30 }
+              param_defaults: { n: 30, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "rank_movers"
               question_ko: "최근 3일간 예매 순위가 가장 크게 뛴(또는 떨어진) 공연은?"
               axes: "최신 스냅샷 랭킹 — rank_delta_3d 정렬 방향 스위치(급등/급락)"
@@ -773,7 +773,7 @@ models:
                 HAVING dim_value IS NOT NULL
                 ORDER BY chart_slots DESC, best_rank ASC LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, having, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "consistent_chart_leaders"
               question_ko: "최근 기간 동안 꾸준히 상위권(K위 이내)을 지킨 공연은?"
               axes: "랭킹 — 기간 내 top-K 진입 일수 DESC, 평균 순위 tie-break"
@@ -791,7 +791,7 @@ models:
                 HAVING days_in_top >= :min_days
                 ORDER BY days_in_top DESC, avg_rank ASC LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, having, sort]
-              param_defaults: { min_days: 5, n: 10 }
+              param_defaults: { min_days: 5, n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "ending_soon_still_ranked"
               question_ko: "곧 끝나는데 아직 예매 상위권인, 놓치면 아쉬운 '막차' 공연은?"
               axes: "최신 스냅샷 필터 — event_end_date 임박 윈도우, 종료일 ASC"
@@ -1032,7 +1032,7 @@ models:
                 GROUP BY busiest_type
                 ORDER BY type_events DESC LIMIT :n
               requires: [select_columns, filter_range, aggregate, group_by, sort]
-              param_defaults: { gu: "ALL", n: 10 }
+              param_defaults: { gu: "ALL", n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "gu_leaderboard_by_metric"
               question_ko: "자치구를 원하는 기준(총량·일평균·종류 다양성·집중도)으로 줄세우면 어디가 상위인가?"
               axes: "구 랭킹 — 지표 스위치(events/per_day/diversity/concentration) DESC"
@@ -1056,7 +1056,7 @@ models:
                          END DESC
                 LIMIT :n
               requires: [select_columns, filter_range, aggregate, group_by, sort]
-              param_defaults: { n: 15 }
+              param_defaults: { n: 15, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "type_lead_by_gu"
               question_ko: "특정 종류(공연·축제 등)가 주로 어느 자치구에서 그날의 메인이 되나?"
               axes: "구 랭킹 — busiest_type 고정 후 메인 일수 DESC (종류×구 교차)"
@@ -1073,7 +1073,7 @@ models:
                 GROUP BY gu
                 ORDER BY lead_days DESC, type_events DESC LIMIT :n
               requires: [select_columns, filter_range, aggregate, group_by, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "variety_or_focus_days"
               question_ko: "이 구에서 행사 종류가 다양하게 고루 열리는 날(또는 한 종류로 쏠린 날)은 언제인가?"
               axes: "단면 랭킹 — concentration 정렬 방향 스위치(asc=다양/desc=쏠림), total_events 임계값"
@@ -1090,7 +1090,7 @@ models:
                          total_events DESC
                 LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { min_events: 5, dir: "asc", n: 10 }
+              param_defaults: { min_events: 5, dir: "asc", n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "days_by_type_selection"
               question_ko: "이 구에서 내가 고른 종류들(예: 행사·공연)이 그날의 메인인 날들을 시간순으로 보여줘."
@@ -1106,7 +1106,7 @@ models:
                   AND busiest_type IN (SELECT value FROM json_each(:types))
                 ORDER BY event_date LIMIT :n
               requires: [select_columns, filter_range, filter_set, sort]
-              param_defaults: { n: 15 }
+              param_defaults: { n: 15, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "city_daily_density"
               question_ko: "서울 전체로 보면 어느 날에 문화행사가 가장 몰리나(도시 전역 일자별 밀도)?"
               axes: "일자 집계 랭킹 — 전 구 합산 total_events DESC"
@@ -1123,7 +1123,7 @@ models:
                 GROUP BY event_date
                 ORDER BY events DESC LIMIT :n
               requires: [select_columns, filter_range, aggregate, group_by, sort]
-              param_defaults: { n: 31 }
+              param_defaults: { n: 31, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "weekday_density_profile"
               question_ko: "요일별로 보면 문화행사가 주로 언제 몰리나(주중 vs 주말)?"
               axes: "요일 분포 — strftime 파생 요일별 합산·평균 DESC (구 센티널)"
@@ -1142,7 +1142,7 @@ models:
                 GROUP BY dow
                 ORDER BY events DESC LIMIT :n
               requires: [select_columns, filter_range, aggregate, group_by, sort]
-              param_defaults: { gu: "ALL", n: 7 }
+              param_defaults: { gu: "ALL", n: 7, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
           display:
             title: 자치구 일자별 문화행사 밀도
             summary: 자치구별로 하루에 행사가 몇 건 열리고 어떤 유형에 쏠리는지 보여줍니다.
@@ -1631,7 +1631,7 @@ models:
                          CASE WHEN :dir='desc' THEN events END DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, sort]
-              param_defaults: { dir: "desc", n: 10 }
+              param_defaults: { dir: "desc", n: 10, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "free_ratio_by_gu"
               question_ko: "가격 정보가 있는 행사만 놓고 볼 때 무료 행사 비율이 높은 자치구는 어디인가?"
@@ -1651,7 +1651,7 @@ models:
                 HAVING priced_known >= :min_known
                 ORDER BY free_pct DESC LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, having, filter_null, sort]
-              param_defaults: { min_known: 30, n: 15 }
+              param_defaults: { min_known: 30, n: 15, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "long_running_events"
               question_ko: "특정 날짜에 진행 중인 행사 중 가장 오래(장기) 운영하는 전시·공연은 무엇인가?"
               axes: "랭킹 — 특정일 진행 중 행사 run_days DESC(장르 센티널)"
@@ -1681,7 +1681,7 @@ models:
                   AND event_start_date <= :to AND event_end_date >= :from
                 ORDER BY event_start_date, gu LIMIT :n
               requires: [select_columns, filter_set, filter_range, subquery, sort]
-              param_defaults: { n: 20 }
+              param_defaults: { n: 20, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
             - pattern_id: "monthly_event_histogram"
               question_ko: "행사가 몇 월에 몰리나? 시작월별 행사 수(무료·장르 다양성 포함) 추이를 보여줘."
               axes: "시계열/분포 — 월별 시작 행사 수(구 센티널)"
@@ -1698,7 +1698,7 @@ models:
                   AND (:gu = 'ALL' OR gu = :gu)
                 GROUP BY month ORDER BY month LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_range, sort]
-              param_defaults: { gu: "ALL", n: 24 }
+              param_defaults: { gu: "ALL", n: 24, from: { rel: "-30d", as: date }, to: { rel: "0d", as: date } }
           display:
             title: 서울 문화행사 통합 일정
             summary: 서울의 공연·전시·축제·체험 행사를 한곳에 모은 통합 일정표입니다.

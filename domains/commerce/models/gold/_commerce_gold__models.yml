@@ -1221,6 +1221,7 @@ models:
                 GROUP BY ym
                 ORDER BY ym;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "gu_open_topn"
               question_ko: "최근 N개월 개업이 가장 많은 자치구 top-N은? (랭킹)"
               axes: "자치구(gu_code) 랭킹, 개업 관점 DESC"
@@ -1239,7 +1240,7 @@ models:
                 ORDER BY opened_cnt DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 5 }
+              param_defaults: { n: 5, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "gu_net_bottom"
               question_ko: "같은 기간 폐업이 개업을 초과(순감)한 자치구는? (gu_open_topn의 축 반전 쌍 — 정렬·관점 반전)"
               axes: "자치구(gu_code) 랭킹, 순증 관점 ASC(개업랭킹의 반대 시선)"
@@ -1260,7 +1261,7 @@ models:
                 ORDER BY net ASC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 5 }
+              param_defaults: { n: 5, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "gu_category_mix"
               question_ko: "특정 자치구의 업종(중분류)별 개·폐업 구성은? (:param 단면 — 구를 고정하고 업종 축 전개)"
               axes: "업종(major×category) 전개, 자치구 고정 단면"
@@ -1279,6 +1280,7 @@ models:
                 GROUP BY major, category
                 ORDER BY opened DESC;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "category_gu_spread"
               question_ko: "특정 업종의 자치구별 개·폐업 분포는? (gu_category_mix의 축 반전 쌍 — 차원 교환: 업종 고정 × 구 전개)"
               axes: "자치구(gu_code) 전개, 업종(category) 고정 단면"
@@ -1299,7 +1301,7 @@ models:
                 ORDER BY opened DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 5 }
+              param_defaults: { n: 5, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "year_major_cross"
               question_ko: "연도별 × 대분류별 개업(또는 폐업) 건수 크로스탭은? (두 축 교차)"
               axes: "연(substr(ym,1,4)) × 대분류(major 피벗), 이벤트 고정"
@@ -1335,6 +1337,7 @@ models:
                   AND gu_code = :gu_code
                 ORDER BY event_type, cnt DESC;
               requires: [select_columns, sort]
+              param_defaults: { ym: { rel: "0M", as: ym } }
             - pattern_id: "category_close_ratio"
               question_ko: "업종별 개업 대비 폐업 배율(교체·수축 강도)은? (건수 랭킹의 관점 반전 — 비율 시선)"
               axes: "업종(category) 랭킹, 폐업/개업 비율 관점(절대 건수와 반대 시선) + 소표본 컷(:min_opened)"
@@ -1355,7 +1358,7 @@ models:
                 HAVING opened >= :min_opened
                 ORDER BY close_per_open DESC;
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
-              param_defaults: { min_opened: 100 }
+              param_defaults: { min_opened: 100, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "open_seasonality"
               question_ko: "개업은 몇 월에 몰리나? (월중 계절성 — 시계열 파생)"
               axes: "월중(month-of-year, substr(ym,6,2)) × 개업 건수 — 연도 축을 접은 계절성"
@@ -1373,6 +1376,7 @@ models:
                 GROUP BY month_of_year
                 ORDER BY opened_total DESC;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "inv_gu_closed_topn"
               question_ko: "최근 N개월 폐업이 가장 많은 자치구는? (개업 랭킹의 관점 반전)"
               axes: "자치구 랭킹 — 폐업 절대량 DESC(gu_open_topn 개업 관점의 반전)"
@@ -1387,7 +1391,7 @@ models:
                 WHERE event_type='closed' AND ym BETWEEN :ym_from AND :ym_to AND gu_code <> 'UNK'
                 GROUP BY gu_code ORDER BY closed_cnt DESC LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "inv_gu_open_bottom"
               question_ko: "개업이 가장 적은 자치구는? (개업 랭킹의 정렬 반전)"
               axes: "자치구 랭킹 — 개업 ASC(gu_open_topn 의 정렬 반전)"
@@ -1402,7 +1406,7 @@ models:
                 WHERE event_type='opened' AND ym BETWEEN :ym_from AND :ym_to AND gu_code <> 'UNK'
                 GROUP BY gu_code ORDER BY opened_cnt ASC LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "inv_gu_net_top"
               question_ko: "순증이 가장 큰 자치구는? (순감 랭킹의 정렬 반전)"
               axes: "자치구 랭킹 — 순증 DESC(gu_net_bottom 의 정렬 반전)"
@@ -1420,7 +1424,7 @@ models:
                 WHERE ym BETWEEN :ym_from AND :ym_to AND gu_code <> 'UNK'
                 GROUP BY gu_code ORDER BY net DESC LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "inv_closed_seasonality"
               question_ko: "폐업은 몇 월에 몰리나? (개업 계절성의 관점 반전)"
               axes: "월중(month-of-year) × 폐업 — open_seasonality 의 이벤트 관점 반전"
@@ -1435,6 +1439,7 @@ models:
                 WHERE event_type='closed' AND ym BETWEEN :ym_from AND :ym_to
                 GROUP BY month_of_year ORDER BY closed_total DESC
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "new_worst_net_months"
               question_ko: "순감이 가장 심했던 달은 언제인가?"
               axes: "시간(ym) 랭킹 — 순증 ASC(시계열의 정렬 반전)"
@@ -1466,6 +1471,7 @@ models:
                 WHERE event_type='closed' AND ym BETWEEN :ym_from AND :ym_to
                 GROUP BY category ORDER BY closed_cnt DESC
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "x_inflow_vs_survival"
               question_ko: "최근 개업이 몰린 업종이 실제로 오래 버티는 업종인가? (유입 열기 × 장기 생존율 교차)"
               axes: "제품 간 조인 — flow_monthly(유입) × cohort_survival(5년 생존율) 사분면"
@@ -1508,7 +1514,7 @@ models:
                   CASE WHEN :dir='desc' THEN CASE :metric WHEN 'opened' THEN opened WHEN 'closed' THEN closed ELSE net END END DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { dir: "desc", n: 10 }
+              param_defaults: { dir: "desc", n: 10, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
               param_enum: { dim: [gu, major, category], dir: [asc, desc], metric: [opened, closed, net] }
             - pattern_id: "trend_filtered_cum"
               question_ko: "특정 자치구(:gu_code, 'ALL'=서울 전체)·특정 업종(:category, 'ALL'=전체)의 월별 개업·폐업·순증 추이와 누적 순증은? (flow_trend_monthly 의 센티널 필터 일반화 + 누적 곡선)"
@@ -1531,7 +1537,7 @@ models:
                 GROUP BY ym
                 ORDER BY ym;
               requires: [select_columns, sort, aggregate, group_by, filter_range, window]
-              param_defaults: { gu_code: "ALL", category: "ALL" }
+              param_defaults: { gu_code: "ALL", category: "ALL", ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "yoy_yearly_growth"
               question_ko: "연도별 개업(또는 폐업) 규모는 전년 대비 몇 % 늘거나 줄었나? — 자치구·업종은 선택('ALL'=전체)"
               axes: "연(substr(ym,1,4)) 시계열 × 윈도우 LAG 전년비 + 선택 필터(gu/category 센티널)"
@@ -1574,6 +1580,7 @@ models:
                 GROUP BY dim_value
                 ORDER BY event_cnt DESC;
               requires: [select_columns, sort, aggregate, group_by, filter_range, window]
+              param_defaults: { ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
               param_enum: { dim: [gu, major, category] }
             - pattern_id: "churn_ratio_by_dim"
               question_ko: "개업 대비 폐업 배율(교체 강도)이 높은 곳은 — 자치구/대분류/업종 어느 축으로든? (category_close_ratio 의 차원 스위치 일반화 상위호환)"
@@ -1596,7 +1603,7 @@ models:
                 HAVING opened >= :min_opened
                 ORDER BY close_per_open DESC;
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
-              param_defaults: { min_opened: 50 }
+              param_defaults: { min_opened: 50, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
             - pattern_id: "record_cells_topn"
               question_ko: "역대 한 달·한 구·한 업종 기준 최다 개업(또는 폐업) 기록은 언제 어디였나? (단일 셀 극값 랭킹)"
               axes: "원자 행(ym × gu × major × category) 극값 랭킹 — 집계 없이 cnt DESC"
@@ -1676,7 +1683,7 @@ models:
                 GROUP BY f.ym, f.gu_code
                 ORDER BY f.ym, total DESC;
               requires: [select_columns, sort, aggregate, group_by, filter_range, subquery]
-              param_defaults: { n: 3 }
+              param_defaults: { n: 3, ym_from: { rel: "-11M", as: ym }, ym_to: { rel: "0M", as: ym } }
           product_id: commerce_flow_monthly   # 전역 유일(도메인 접두) — _catalog.product_id 와 대응
           display:                      # v1.10(#706) 화면 표시 정본 — description(기계·API용)과 청중이 다르다
             title: 서울 인허가 개·폐업 흐름(월별)
@@ -1808,7 +1815,7 @@ models:
                 ORDER BY cnt DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, join, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, y: { rel: "0y", as: year } }
             - pattern_id: "trend_one_gu_yearly"
               question_ko: "특정 자치구의 연도별 개업·폐업·순증 추이는? (rank_gu_by_event_year의 축 반전: 구 고정→연도 나열)"
               axes: "자치구 고정 → 연도 시계열(개업/폐업/순증). 축 반전쌍 A의 역방향(차원 교환)"
@@ -1845,7 +1852,7 @@ models:
                 ORDER BY net DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by]
-              param_defaults: { n: 5 }
+              param_defaults: { n: 5, y: { rel: "0y", as: year } }
             - pattern_id: "rank_category_net_bottom"
               question_ko: "특정 연도에 순감(폐업 초과)이 가장 심한 업종은? (rank_category_net_top의 정렬 반전)"
               axes: "연도 고정 → 업종 랭킹, 순증 오름차순(순감 우선). 축 반전쌍 B의 역방향(정렬 반전)"
@@ -1865,7 +1872,7 @@ models:
                 ORDER BY net ASC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by]
-              param_defaults: { n: 5 }
+              param_defaults: { n: 5, y: { rel: "0y", as: year } }
             - pattern_id: "timeseries_category_flow"
               question_ko: "특정 업종의 연도별 개업·폐업·순증 시계열은? (변곡점 탐지)"
               axes: "업종 고정 → 연도 시계열(시간축 y)"
@@ -1897,6 +1904,7 @@ models:
                 WHERE y = :y AND gu_code = :gu_code AND category = :category
                 ORDER BY event_type
               requires: [select_columns, sort]
+              param_defaults: { y: { rel: "0y", as: year } }
             - pattern_id: "cross_gu_category_net"
               question_ko: "특정 연도·대분류에서 자치구×업종 교차로 어느 조합이 가장 수축/성장했나?"
               axes: "연도·대분류 고정 → 자치구 × 중분류 두 축 교차(셀 랭킹)"
@@ -1917,7 +1925,7 @@ models:
                 ORDER BY net ASC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, join, filter_range]
-              param_defaults: { n: 15 }
+              param_defaults: { n: 15, y: { rel: "0y", as: year } }
             - pattern_id: "decade_longrun_flow"
               question_ko: "10년 단위로 본 서울 인허가 개업·폐업의 장기(1900~2025) 물결은?"
               axes: "시간축 재버킷(연→10년대) 장기 시계열"
@@ -1955,7 +1963,7 @@ models:
                 ORDER BY close_per_open DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, join, filter_range]
-              param_defaults: { n: 5 }
+              param_defaults: { n: 5, y: { rel: "0y", as: year } }
             - pattern_id: "inv_closed_yearly_top"
               question_ko: "연도별 폐업이 가장 많았던 해는? (개업 관점의 반전)"
               axes: "연도 랭킹 — 폐업 DESC"
@@ -2066,6 +2074,7 @@ models:
                 GROUP BY CASE :dim WHEN 'category' THEN category WHEN 'gu' THEN gu_code ELSE major END
                 ORDER BY total_cnt DESC
               requires: [select_columns, sort, aggregate, group_by, window, filter_range]
+              param_defaults: { y: { rel: "0y", as: year } }
               param_enum: { dim: [major, category, gu] }
             - pattern_id: "compare_two_years_by_gu"
               question_ko: "두 시점(:y1 → :y2) 사이 자치구별 개업(또는 폐업) 증감량·증감률은? :dir ∈ {asc, desc} 로 급증/급감 어느 쪽을 앞세울지 고른다."
@@ -2116,7 +2125,7 @@ models:
                 ORDER BY close_per_open DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
-              param_defaults: { gu_code: "ALL", min_opened: 20, n: 10 }
+              param_defaults: { gu_code: "ALL", min_opened: 20, n: 10, y: { rel: "0y", as: year } }
             - pattern_id: "peak_year_by_gu"
               question_ko: "지정 기간 안에서 각 자치구의 개업(또는 폐업)이 정점이었던 해는 언제이고 그때 규모는? (구별 전성기/최악기 지도)"
               axes: "자치구별 극값 연도 탐지(윈도우 랭킹) — 기존 패턴엔 없는 '축값별 argmax' 형태"
@@ -2222,7 +2231,7 @@ models:
                 ORDER BY cnt_sum DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, join, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, y: { rel: "0y", as: year } }
           # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
@@ -2863,7 +2872,7 @@ models:
                 -- :y='2025', :n=10
                 SELECT gu_code, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, SUM(stock_start) AS stock_start, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, ROUND(1.0*SUM(opened)/SUM(stock_start),4) AS birth_rate FROM d1_churn_yearly WHERE y = :y AND gu_code<>'UNK' GROUP BY gu_code ORDER BY churn_rate DESC LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, y: { rel: "0y", as: year } }
             - pattern_id: "gu_yearly_timeseries"
               question_ko: "특정 자치구의 20년 개업·폐업·교체율 추이는? (축반전 쌍 A-2: 자치구 고정 → 연도 시계열)"
               axes: "y(시계열) × 전업종 합산 @ gu_code 고정"
@@ -2886,6 +2895,7 @@ models:
                 -- :y='2025', :gu_code='11680'
                 SELECT category, SUM(opened) AS opened, SUM(closed) AS closed, SUM(net_change) AS net_change, SUM(stock_start) AS stock_start, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate FROM d1_churn_yearly WHERE y = :y AND gu_code = :gu_code GROUP BY category HAVING SUM(stock_start)>=100 ORDER BY churn_rate DESC
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
+              param_defaults: { y: { rel: "0y", as: year } }
             - pattern_id: "gu_rank_in_category"
               question_ko: "특정 업종에서 어느 자치구가 가장 고회전인가? (축반전 쌍 B-2: 업종 고정 → 구 랭킹)"
               axes: "gu_code(랭킹) @ y·category 고정 — (y,category,gu_code)가 유일키라 GROUP BY 불필요, 행 그대로 사용"
@@ -2897,7 +2907,7 @@ models:
                 -- :y='2025', :category='food', :n=10
                 SELECT gu_code, opened, closed, net_change, stock_start, ROUND(churn_rate,4) AS churn_rate, ROUND(birth_rate,4) AS birth_rate FROM d1_churn_yearly WHERE y = :y AND category = :category AND gu_code<>'UNK' AND stock_start>=100 ORDER BY churn_rate DESC LIMIT :n
               requires: [select_columns, sort, aggregate, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, y: { rel: "0y", as: year } }
             - pattern_id: "seoul_macro_timeseries"
               question_ko: "서울 전체의 연도별 창업·폐업 체력 변화는? (시계열 매크로)"
               axes: "y(시계열) × 서울 전체 합산 — 필터 없음"
@@ -2919,7 +2929,7 @@ models:
                 -- :y='2025', :n=15
                 SELECT category, gu_code, opened, closed, stock_start, ROUND(churn_rate,4) AS churn_rate FROM d1_churn_yearly WHERE y = :y AND gu_code<>'UNK' AND stock_start>=200 ORDER BY churn_rate DESC LIMIT :n
               requires: [select_columns, sort, aggregate, filter_range]
-              param_defaults: { n: 15 }
+              param_defaults: { n: 15, y: { rel: "0y", as: year } }
             - pattern_id: "slice_gu_category_series"
               question_ko: "특정 자치구×업종 한 단면의 20년 원장(개업·폐업·비율)은? (:param 단면 — 행 그대로)"
               axes: "y(시계열) @ gu_code·category 고정 — 테이블 그레인 그대로, 집계 불필요"
@@ -2942,6 +2952,7 @@ models:
                 -- :y='2025'
                 WITH s AS (SELECT y, category, SUM(opened) AS op FROM d1_churn_yearly GROUP BY y, category), d AS (SELECT y, category, op, LAG(op) OVER (PARTITION BY category ORDER BY y) AS prev_op FROM s) SELECT category, op AS opened_cur, prev_op AS opened_prev, op-prev_op AS diff, ROUND(100.0*(op-prev_op)/prev_op,1) AS pct FROM d WHERE y = :y AND prev_op>0 ORDER BY pct DESC
               requires: [select_columns, sort, aggregate, group_by, subquery, window, filter_range]
+              param_defaults: { y: { rel: "0y", as: year } }
             - pattern_id: "gu_regime_diagnosis"
               question_ko: "각 자치구는 순증형 성장인가, 고회전 소모전인가? (순증×교체율 4분면 진단 — 모델 설계 취지)"
               axes: "gu_code × (net_change, churn_rate) 2지표 4분면 @ y 고정 — 임계값은 그 해 서울 평균 교체율(서브쿼리)"
@@ -2953,6 +2964,7 @@ models:
                 -- :y='2025' — 서브쿼리(서울 평균 임계값) 안 y 도 같은 :y 로 바인딩
                 SELECT gu_code, SUM(net_change) AS net_change, ROUND(1.0*SUM(closed)/SUM(stock_start),4) AS churn_rate, CASE WHEN SUM(net_change)>=0 AND 1.0*SUM(closed)/SUM(stock_start) >= (SELECT 1.0*SUM(closed)/SUM(stock_start) FROM d1_churn_yearly WHERE y = :y) THEN 'growth_high_turnover' WHEN SUM(net_change)>=0 THEN 'growth_stable' WHEN 1.0*SUM(closed)/SUM(stock_start) >= (SELECT 1.0*SUM(closed)/SUM(stock_start) FROM d1_churn_yearly WHERE y = :y) THEN 'shrink_high_turnover' ELSE 'shrink_stable' END AS regime FROM d1_churn_yearly WHERE y = :y AND gu_code<>'UNK' GROUP BY gu_code ORDER BY net_change DESC
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { y: { rel: "0y", as: year } }
             - pattern_id: "inv_lowest_churn_gu"
               question_ko: "폐업률이 가장 낮은(안정적인) 자치구는? (높은 폐업률 랭킹의 반전)"
               axes: "자치구 랭킹 — churn_rate ASC"
@@ -2968,7 +2980,7 @@ models:
                 GROUP BY gu_code HAVING SUM(stock_start) > 1000
                 ORDER BY churn_pct ASC LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, y: { rel: "0y", as: year } }
             - pattern_id: "inv_birth_rate_top"
               question_ko: "신규 진입률(birth rate)이 가장 높은 업종은? (폐업률 관점의 반전)"
               axes: "업종 랭킹 — birth_rate 관점(churn 관점의 반전)"
@@ -2984,6 +2996,7 @@ models:
                 GROUP BY category HAVING SUM(stock_start) > 500
                 ORDER BY birth_pct DESC
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
+              param_defaults: { y: { rel: "0y", as: year } }
             - pattern_id: "new_year_fixed_net_asc"
               question_ko: "특정 연도에 순감이 가장 심했던 업종×구 조합은?"
               axes: "연도 고정(:y) → 업종×구 교차 랭킹 net ASC"
@@ -2997,7 +3010,7 @@ models:
                 FROM d1_churn_yearly WHERE y = :y AND gu_code <> 'UNK'
                 ORDER BY net_change ASC LIMIT :n
               requires: [select_columns, sort, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, y: { rel: "0y", as: year } }
             - pattern_id: "x_gu_churn_vs_lq"
               question_ko: "특정 연도·업종에서 자치구별 폐업 회전율과 업종 특화도(LQ)를 함께 보면? — 특화가 방어력이 되는 구 vs 특화 없이 고회전인 구 진단"
               axes: "gu_code 랭킹(churn_rate DESC) @ y·category 고정 — churn(y×category×gu 원장) ⋈ spec(gu×category 현재 스냅샷), 조인 키 gu_code+category, 1:1(양쪽 모두 해당 그레인 유일키)이라 팬아웃 없음. 부수 효과: churn 단일 테이블이 못 주던 자치구 한글명(s.gu)도 함께 반환"
@@ -3016,7 +3029,7 @@ models:
                 ORDER BY c.churn_rate DESC
                 LIMIT :n
               requires: [select_columns, sort, join, filter_range]
-              param_defaults: { n: 25 }
+              param_defaults: { n: 25, y: { rel: "0y", as: year } }
             - pattern_id: "x_gu_churn_vs_lifespan"
               question_ko: "특정 연도(:y)에 폐업 회전율이 높은 자치구는 역대 폐업 업소의 수명 체질도 취약한가 — 그 해 회전율(churn)과 누적 수명 프로필(평균 수명·조기폐업률)의 자치구 결합 진단"
               axes: "자치구 랭킹 — churn_yearly(:y 연도 단면, 전업종 합산) ⋈ lifespan(전 기간 누적, 전업종 가중 합산) on gu_code, 1:1"
@@ -3042,7 +3055,7 @@ models:
                 ORDER BY c.churn_rate DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, filter_range, subquery, join]
-              param_defaults: { n: 25 }
+              param_defaults: { n: 25, y: { rel: "0y", as: year } }
             - pattern_id: "dim_value_timeseries"
               question_ko: "특정 업종(소분류) 또는 대분류의 서울 전체 20년 개업·폐업·폐업률 추이는? (:dim ∈ {category, major})"
               axes: "y(시계열) × 서울 전체 합산 @ :dim∈{category,major} 값(:val) 고정 — 기존 구 단위 시계열의 업종/대분류 축 대응물"
@@ -3081,7 +3094,7 @@ models:
                          CASE WHEN :dir='desc' THEN SUM(net_change) END DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { dir: "desc", n: 10 }
+              param_defaults: { dir: "desc", n: 10, from: { rel: "-4y", as: year }, to: { rel: "0y", as: year } }
               param_enum: { dim: [gu, category], dir: [asc, desc] }
             - pattern_id: "year_extreme_rank"
               question_ko: "임의 단면(서울 전체·특정 구·특정 업종·그 교차)에서 폐업률이 가장 높았던(또는 낮았던) 연도 top-N은? (:gu_code/:category 센티널 'ALL', :dir ∈ {asc, desc})"
@@ -3152,7 +3165,7 @@ models:
                 ORDER BY pct DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, subquery, window, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, y: { rel: "0y", as: year } }
               param_enum: { dim: [gu, category] }
             - pattern_id: "stock_composition_share"
               question_ko: "특정 연도 서울 재고와 폐업은 어떤 업종/자치구/대분류에 몰려 있나? (점유율 구성, :dim ∈ {gu, category, major})"
@@ -3173,6 +3186,7 @@ models:
                 GROUP BY dim_value
                 ORDER BY stock_share_pct DESC
               requires: [select_columns, sort, aggregate, group_by, subquery, filter_range]
+              param_defaults: { y: { rel: "0y", as: year } }
               param_enum: { dim: [gu, category, major] }
             - pattern_id: "growth_cell_screen"
               question_ko: "특정 연도에 진입률·재고·순증 조건을 만족하는 성장 유망 업종×구 셀은? (임계값 스크리닝: :min_stock, :min_birth)"
@@ -3191,7 +3205,7 @@ models:
                 ORDER BY birth_rate DESC
                 LIMIT :n
               requires: [select_columns, sort, filter_range]
-              param_defaults: { min_stock: 100, min_birth: 0.12, n: 15 }
+              param_defaults: { min_stock: 100, min_birth: 0.12, n: 15, y: { rel: "0y", as: year } }
             - pattern_id: "top_category_per_gu"
               question_ko: "특정 연도에 25개 자치구 각각에서 폐업률이 가장 높은 업종은 무엇인가? (구별 최고 회전 업종 맵)"
               axes: "gu_code × 그룹내 1위 category(교차 맵) @ :y — ROW_NUMBER 그룹별 top-1, stock_start>=100으로 소형 스톡 노이즈 차단"
@@ -3212,6 +3226,7 @@ models:
                 WHERE rn = 1
                 ORDER BY churn_rate DESC
               requires: [select_columns, sort, subquery, window, filter_range]
+              param_defaults: { y: { rel: "0y", as: year } }
           # 원천 권리 증거(#434 · ASK-Seoul-Serving#88) — 152 LOCALDATA 공통.
           # 정의는 flow_monthly 의 앵커 1벌(&commerce_localdata_sources) — rights_checked_at 갱신도 그 한 곳만.
           source_evidence: *commerce_localdata_sources
@@ -3813,7 +3828,7 @@ models:
                 ORDER BY survival_k DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "survival_bottom_ranking"
               question_ko: "(반전) k년차 생존율이 가장 낮은 — 가장 빨리 사라지는 업종은? (소형 업종 노이즈 제거)"
               axes: "축 반전쌍 1/2 — survival_top_ranking의 정렬 반전(ASC) + HAVING 최소표본"
@@ -3833,7 +3848,7 @@ models:
                 ORDER BY survival_k ASC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, having, filter_range]
-              param_defaults: { min_n: 1000, n: 10 }
+              param_defaults: { min_n: 1000, n: 10, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "cohort_trend_by_category"
               question_ko: "(시계열) 특정 업종의 k년차 생존율이 개업연도 세대에 따라 어떻게 변했나 — 언제 창업한 세대가 강했나?"
               axes: "시계열 (코호트연도 축, 업종·연차 고정) — category_ranking_by_cohort와 차원 교환쌍"
@@ -3896,6 +3911,7 @@ models:
                 GROUP BY category_ko, major_ko
                 ORDER BY y5 DESC;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "half_life_by_category"
               question_ko: "(관점 반전) 생존율을 고정하고 시간을 묻는다 — 몇 년차에 절반이 사라지나(업종별 반감기)?"
               axes: "관점 반전 — 랭킹류(k 고정→생존율)를 뒤집어 생존율 50% 고정→도달 연차. 미출현 업종 = :max_k년 내 반감 없음"
@@ -3918,7 +3934,7 @@ models:
                 GROUP BY category, category_ko
                 ORDER BY half_life_years ASC, category;
               requires: [select_columns, sort, aggregate, group_by, subquery, filter_range]
-              param_defaults: { max_k: 11 }
+              param_defaults: { max_k: 11, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "entry_volume_trend"
               question_ko: "(시계열) 연간 신규 개업(창업) 규모는 어떻게 변해 왔나 — 대분류별 기여 포함?"
               axes: "시계열 (연도 축 × 대분류 조건부 피벗) — 생존율이 아닌 cohort_n 자체를 지표로 쓰는 보조 관점"
@@ -3937,6 +3953,7 @@ models:
                 WHERE years_elapsed = 0 AND cohort_y BETWEEN :from_y AND :to_y
                 GROUP BY cohort_y ORDER BY cohort_y;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "major_survival_curves"
               question_ko: "대분류 4개의 생존곡선을 겹쳐 그리면 어디서 갈라지나?"
               axes: "두 축 교차 (대분류 × 연차, long 포맷) — 멀티라인 생존곡선 차트용"
@@ -3953,7 +3970,7 @@ models:
                 GROUP BY major_ko, years_elapsed
                 ORDER BY major_ko, years_elapsed;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { max_k: 10 }
+              param_defaults: { max_k: 10, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "inv_worst_survival"
               question_ko: "5년 생존율이 가장 낮은 업종은? (높은 생존율 랭킹의 반전)"
               axes: "업종 랭킹 — 생존율 ASC(생존 top 관점의 반전)"
@@ -4054,7 +4071,7 @@ models:
                 FROM curve
                 ORDER BY years_elapsed;
               requires: [select_columns, sort, aggregate, group_by, subquery, window, filter_range]
-              param_defaults: { category: "ALL", max_k: 10 }
+              param_defaults: { category: "ALL", max_k: 10, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "category_pair_curve_gap"
               question_ko: "(교차 비교) 임의의 두 업종 A/B의 생존곡선을 나란히 놓으면 격차가 몇 년차에 얼마나 벌어지나?"
               axes: "교차 비교 (두 업종 파라미터 × 연차 축, 격차 컬럼) — 멀티라인 2선 비교 차트용"
@@ -4084,7 +4101,7 @@ models:
                 WHERE rate_a IS NOT NULL AND rate_b IS NOT NULL
                 ORDER BY years_elapsed;
               requires: [select_columns, sort, aggregate, group_by, subquery, filter_range]
-              param_defaults: { max_k: 10 }
+              param_defaults: { max_k: 10, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "first_year_below_threshold"
               question_ko: "(임계값 일반화) 업종별로 누적 생존율이 :threshold 아래로 처음 떨어지는 연차는 언제인가 — 반감기(0.5 고정) 패턴의 임계 자유화판?"
               axes: "관점 반전 랭킹 (생존율 임계 고정 → 도달 연차) — half_life_by_category의 파라미터 일반화 상위호환"
@@ -4107,7 +4124,7 @@ models:
                 GROUP BY category, category_ko
                 ORDER BY first_below_year ASC, category;
               requires: [select_columns, sort, aggregate, group_by, subquery, filter_range]
-              param_defaults: { max_k: 11 }
+              param_defaults: { max_k: 11, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "cohort_yoy_delta_rank"
               question_ko: "(변화폭 랭킹) k년차 생존율이 전년 개업 코호트 대비 가장 급변한(악화 또는 개선) 개업연도는 언제인가?"
               axes: "랭킹 (코호트 연도 축 × 전년 대비 변화폭, 윈도우 LAG, 정렬 스위치)"
@@ -4137,7 +4154,7 @@ models:
                          CASE WHEN :dir = 'desc' THEN delta_vs_prev END DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, subquery, window, filter_range]
-              param_defaults: { dir: "asc", n: 5 }
+              param_defaults: { dir: "asc", n: 5, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "survival_volatility_rank"
               question_ko: "(분포) 같은 업종이라도 개업 시점에 따라 k년차 생존율이 얼마나 출렁였나 — 타이밍 민감도(변동성)가 큰 업종은?"
@@ -4162,7 +4179,7 @@ models:
                 ORDER BY spread DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { min_n: 100, n: 10 }
+              param_defaults: { min_n: 100, n: 10, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "early_vs_late_attrition"
               question_ko: "(조건부 분해) 어떤 업종이 초기(:k_early년차)에 무너지고, 어떤 업종이 초기를 버틴 뒤 장기(:k_late년차)에 소모되나?"
               axes: "단면 교차 (업종 × 두 체크포인트, 조건부 생존율 분해) — 누적 생존율을 초기/후기 구간으로 분리"
@@ -4183,6 +4200,7 @@ models:
                 GROUP BY category, category_ko, major_ko
                 ORDER BY early_survival ASC;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
+              param_defaults: { from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "closure_volume_rank"
               question_ko: "(볼륨 랭킹) 비율 말고 절대 수로 — k년 안에 문 닫은 업소가 가장 많은 업종은 어디인가?"
               axes: "랭킹 top-N (업종 × 폐업 절대 규모 DESC) — 비율 랭킹(inv_worst_survival)의 볼륨 관점 보완"
@@ -4202,7 +4220,7 @@ models:
                 ORDER BY closed_within_k DESC
                 LIMIT :n;
               requires: [select_columns, sort, aggregate, group_by, filter_range]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10, from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "era_survival_compare"
               question_ko: "(시대 비교) 예전 세대(A 창)와 요즘 세대(B 창)를 비교하면 k년차 생존율이 가장 개선/악화된 업종은?"
               axes: "교차 비교 (업종 × 두 코호트 시대 창, 델타 랭킹, 정렬 스위치) — 단일 시계열 패턴들의 두 창 압축판"
@@ -4251,6 +4269,7 @@ models:
                 GROUP BY category, category_ko, major_ko
                 ORDER BY survivors_k DESC;
               requires: [select_columns, sort, aggregate, group_by, window, filter_range]
+              param_defaults: { from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
           contract_version: v1
           product_question: 창업 후 몇 년을 버티나(코호트 생존율)?
           grain: 업종×창업연도×경과연차
@@ -5919,7 +5938,7 @@ models:
                 ORDER BY d.open_rate_pct DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, having, join, subquery, filter_range]
-              param_defaults: { min_churn: 0.08, n: 15 }
+              param_defaults: { min_churn: 0.08, n: 15, y: { rel: "0y", as: year } }
             - pattern_id: "gu_overview_rank"
               question_ko: "서울 25개 자치구를 원하는 지표(:metric ∈ {active,opened,open_rate,alive})와 방향(:dir ∈ {asc,desc})으로 줄 세우면 어떤 순서인가?"
               axes: "gu 랭킹 — 정렬 기준·방향 파라미터화. 기존 패턴엔 구 단위 종합 순위가 없음(gu_category_cross 는 2개 구 비교, gu_category_concentration 은 업종 고정)"
@@ -7753,6 +7772,7 @@ models:
                 FROM age a JOIN ch c ON c.gu_code = a.gu_code
                 ORDER BY a.young_pct DESC
               requires: [select_columns, sort, aggregate, group_by, join, subquery, filter_range]
+              param_defaults: { y: { rel: "0y", as: year } }
             - pattern_id: "x_young_cell_vs_early_close"
               question_ko: "지금 젊은(업력 3년 미만) 가게가 몰려 있는 자치구×업종군 셀은 역대 조기폐업률도 높은 위험 지대인가 — 현재 스톡의 연령 구성과 누적 수명 이력의 셀 단위 2키 결합"
               axes: "자치구×업종군 셀 랭킹 — age_band(현재 스톡 스냅샷) ⋈ lifespan(전 기간 누적) on gu_code+category 2키, 1:1. 기존 x_age_vs_churn(구 단독 키 × churn)과 달리 셀 그레인"
@@ -7806,6 +7826,7 @@ models:
                 FROM ab a JOIN cs c ON c.category = a.category
                 ORDER BY at_risk_index DESC
               requires: [select_columns, sort, aggregate, group_by, filter_range, subquery, join]
+              param_defaults: { from_y: { rel: "-4y", as: year }, to_y: { rel: "0y", as: year } }
             - pattern_id: "band_range_share_rank"
               question_ko: "임의의 연속 업력 구간(:band_from~:band_to) 비중이 높은/낮은 자치구 또는 업종 랭킹 — 신생·중견·노포 어느 구간이든 한 패턴으로"
               axes: "행=:dim 스위치(gu|category), 지표=구간 비중(range_pct), 정렬=:dir(asc|desc) — rank_gu_new_share_top/rank_gu_old_share_top/inv_old_share_category_top 의 파라미터 일반화 상위호환. age_band 사전순=연령순이라 BETWEEN 으로 연속 구간 지정 가능, 기존이 못 덮던 중견(3~10년) 구간도 커버"
@@ -8696,7 +8717,7 @@ models:
                 ORDER BY u.active_cnt DESC
                 LIMIT :n
               requires: [select_columns, sort, aggregate, group_by, join, subquery, filter_range]
-              param_defaults: { n: 15 }
+              param_defaults: { n: 15, y: { rel: "0y", as: year } }
             - pattern_id: "hier_rollup_switch"
               question_ko: "대분류/중분류/업종 어느 층위로든 서울 상권 총괄(활성·누적·최근 1년 개업·생존율)을 보면? (:dim ∈ {major, category, dataset} 명시 필수)"
               axes: "차원 스위치(:dim) 계층 롤업 — 재고·유입·생존율 총괄 랭킹"

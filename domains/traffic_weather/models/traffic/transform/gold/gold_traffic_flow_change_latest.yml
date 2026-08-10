@@ -162,7 +162,7 @@ models:
               question_ko: 특정 관측 시간 범위에서 속도 변화가 큰 링크는 어디입니까?
               axes: 관측 시각 범위 필터 — 절대 속도 변화 DESC
               requires: [select_columns, filter_range, sort]
-              param_defaults: { n: 50 }
+              param_defaults: { n: 50, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
               allow_empty: true
               verified_rows: 50
               verified_at: "2026-08-05T14:39:11Z"
