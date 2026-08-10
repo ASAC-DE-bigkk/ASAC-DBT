@@ -8384,7 +8384,9 @@ models:
             - pattern_id: "category_profile_major_gus"
               question_ko: "이 대분류(:major) 안 중분류별 면적 프로필을 고른 구들(:gus)만 합산하면? (:gus 는 구 이름 배열)"
               axes: ":param 단면(major) + category 드릴다운 + gu 다중 선택(P3 배열) — category_profile_any_major_gu(단일 구/전체)의 다중 선택 확장"
-              verified_rows: 0
+              verified_rows: 6
+              verified_at: "2026-08-10T11:14:34Z"
+              verified_publication_id: "c7f4a9f2d8364b4394f4b33c0ca74eee"
               insight_sample_ko: ""
               sql: |
                 -- :major='health', :gus='["강남구","서초구","송파구"]'
