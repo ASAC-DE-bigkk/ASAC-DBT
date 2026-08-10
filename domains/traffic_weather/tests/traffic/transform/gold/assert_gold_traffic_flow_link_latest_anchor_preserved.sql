@@ -1,3 +1,5 @@
+{{ config(tags=['traffic_gold_gate']) }}
+
 with silver_ranked as (
     select
         link_id,
