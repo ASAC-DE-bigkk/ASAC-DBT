@@ -55,7 +55,9 @@ models:
             - pattern_id: "city_incident_weather_snapshot"
               question_ko: "특정 평가 시각에 서울 전체의 교통 돌발·날씨 요약(전체 행정동, 돌발 발생 동수·총 돌발, 강수 동수, 완전 커버리지 동수, 평균 기온·습도·풍속)은 무엇입니까?"
               axes: "평가 시각 필터 — 서울 전역 단일행 롤업(날씨 커버리지 임계값)"
-              verified_rows: 0                # 실 D1 실측: [1, 1] (스탬핑 대기)
+              verified_rows: 1
+              verified_at: "2026-08-10T11:10:00Z"
+              verified_publication_id: "977820a2ecee408cb9206987945fd319"
               insight_sample_ko: "2026-08-09 01:00 기준 서울 426개 행정동 중 6개 동에서 돌발 총 6건이 발생했고 강수 예보 동은 0개, 날씨 6개 카테고리를 모두 확보한 동은 426개이며 평균기온 25.9도·평균습도 69.8%·평균풍속 2.3m/s입니다."
               sql: |
                 -- :hour_at=2026-08-09 01:00:00, :required_category_count=6

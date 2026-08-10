@@ -391,16 +391,20 @@ def _unresolved_example_params(sql: str, hint: str) -> list[str]:
                 rest = source[m.end():]
                 nl = rest.find("\n")
                 tail = (rest if nl < 0 else rest[:nl])[:600]
-                # ① 따옴표 문자열 / 숫자   ② 한 줄 배열   ③ 따옴표 없는 문자열 값
-                if re.match(r"[^'0-9\[]{0,16}('(?:[^']|'')*'|[0-9]+(?:\.[0-9]+)?)", tail):
-                    found = True
-                    break
-                if re.match(r"\s*=\s*(\[[^\]\n]*\])", tail):
-                    found = True
-                    break
-                tm = re.match(r"\s*=\s*([^,\n\]]+)", tail)
-                if tm and tm.group(1).strip() and not tm.group(1).strip().startswith(("'", "[")):
-                    found = True
+                # 예시값은 `:이름=값` 꼴 — **`=` 앵커 필수**(ASAC-DAG#756 pattern_verify 와
+                # 규약 잠금). `=` 없는 관용 탐색을 남기면 게이트는 풀리는데 export 검증은
+                # 못 푸는 드리프트(→ 영구 409)가 생긴다. 값 전체를 원자적으로 읽는다.
+                em = re.match(r"\s*=\s*", tail)
+                if not em:
+                    continue
+                rv = tail[em.end():]
+                if rv.startswith("'"):
+                    found = bool(re.match(r"'(?:[^']|'')*'", rv))
+                elif rv.startswith("["):
+                    found = bool(re.match(r"\[[^\]\n]*\]", rv))
+                else:
+                    found = bool(rv.split(",")[0].strip())
+                if found:
                     break
             if found:
                 break
