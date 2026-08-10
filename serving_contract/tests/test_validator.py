@@ -912,6 +912,14 @@ def test_relative_date_default_rejects_malformed(bad):
 
 # ── v1.13 (#217 후속): export 자동검증 완결성 — 미검증 패턴은 예시값이 다 풀려야 한다 ──────
 
+def test_unverified_pattern_prose_number_without_equals_is_flagged():
+    # `=` 앵커 필수(ASAC-DAG#756 규약 잠금) — 힌트 문장 속 숫자(`상위 10곳`)로는 못 푼다.
+    # 관용 탐색을 남기면 게이트는 통과하는데 export 검증이 못 풀어 영구 409 드리프트가 난다.
+    m = _pattern_model({"pattern_id": "p", "question_ko": "상위 10곳은?",
+                        "sql": "SELECT g FROM t ORDER BY x LIMIT :n"})
+    assert "usage_pattern_unverifiable_example" in _rules(validate([m]).findings)
+
+
 def test_unverified_pattern_without_example_is_flagged():
     # :gu 예시값이 없어 export 가 검증을 못 함 → 영구 미검증(게이트웨이 409)
     m = _pattern_model({"pattern_id": "p", "sql": "SELECT g FROM t WHERE gu = :gu ORDER BY g"})

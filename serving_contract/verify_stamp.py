@@ -64,34 +64,30 @@ def resolve_params(sql_text: str, hint_text: str = "") -> tuple[str, dict, list]
                 rest = source[m.end():]
                 nl = rest.find("\n")
                 tail = (rest if nl < 0 else rest[:nl])[:600]
-                # `= 값` 직결 형은 값 전체를 원자적으로 읽는다(비따옴표 날짜 잘림·다음 파라미터
-                # 숫자 오집 방지 — pattern_verify.resolve_params 와 규약 잠금).
+                # 예시값은 `:이름=값` 꼴 — **`=` 앵커 필수**(ASAC-DAG#756 pattern_verify 와
+                # 규약 잠금). 값 전체를 원자적으로 읽는다(날짜 잘림·옆칸 숫자 오집 방지).
                 em = re.match(r"\s*=\s*", tail)
-                if em:
-                    rv = tail[em.end():]
-                    if rv.startswith("'"):
-                        qm = re.match(r"'(?:[^']|'')*'", rv)
-                        if qm:
-                            value = qm.group(0)
-                            break
-                    elif rv.startswith("["):
-                        bm = re.match(r"\[[^\]\n]*\]", rv)
-                        if bm:
-                            value = "'" + bm.group(0).replace("'", "''") + "'"
-                            break
-                    else:
-                        token = rv.split(",")[0].strip()
-                        if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", token):
-                            value = token
-                            break
-                        if token:
-                            value = "'" + token.replace("'", "''") + "'"
-                            break
+                if not em:
                     continue
-                vm = re.match(r"[^'0-9\[=]{0,16}('(?:[^']|'')*'|[0-9]+(?:\.[0-9]+)?)", tail)
-                if vm:
-                    value = vm.group(1)
-                    break
+                rv = tail[em.end():]
+                if rv.startswith("'"):
+                    qm = re.match(r"'(?:[^']|'')*'", rv)
+                    if qm:
+                        value = qm.group(0)
+                        break
+                elif rv.startswith("["):
+                    bm = re.match(r"\[[^\]\n]*\]", rv)
+                    if bm:
+                        value = "'" + bm.group(0).replace("'", "''") + "'"
+                        break
+                else:
+                    token = rv.split(",")[0].strip()
+                    if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", token):
+                        value = token
+                        break
+                    if token:
+                        value = "'" + token.replace("'", "''") + "'"
+                        break
             if value is not None:
                 break
         if value is None:
