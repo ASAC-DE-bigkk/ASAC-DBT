@@ -751,6 +751,7 @@ def test_transit_external_products_declare_evidence_for_every_lineage_source():
         "gold_transit_dong_now",
         "gold_transit_event_access",
         "gold_transit_parking_full_risk",
+        "gold_transit_bus_route_timetable",
     }
 
     source_ids = {
@@ -786,6 +787,8 @@ def test_transit_external_products_declare_evidence_for_every_lineage_source():
         "national_data_office_admin_dong_link",
     ]
     assert source_ids["gold_transit_parking_full_risk"] == ["park_info_master", "parking"]
+    # timetable 은 노선 마스터 단일 원천(ASAC-DAG#765 시간표 필드) — lineage 도 이 소스뿐.
+    assert source_ids["gold_transit_bus_route_timetable"] == ["bus_route_master"]
 
     for name, model in external.items():
         redistribution = {
