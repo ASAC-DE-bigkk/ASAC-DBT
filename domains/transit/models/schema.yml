@@ -1912,3 +1912,140 @@ models:
         description: 시간 내 최신 혼잡 라벨(여유/보통/약간 붐빔/붐빔).
       - name: is_parking_pressured
         description: 혼잡('약간 붐빔'/'붐빔') AND 주차 점유>=0.8. 주차 실측 없는 동은 false 아님 null 주의.
+  - name: gold_transit_bus_route_timetable
+    description: >
+      버스 노선 공표 시간표 명부 — 한 행 = 노선 1개(최신 주간 스냅샷). 첫차·막차
+      시각(HH:MM)·배차간격(분)·기점·종점을 제공한다. 원천은 TOPIS getBusRouteList
+      주간 스냅샷(ASAC-DAG#765)이며 관측 기반 실측 배차가 아니라 공표값이다.
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: true
+          product_id: transit_bus_route_timetable
+          product_question: 서울 버스 노선의 첫차·막차 시각과 배차간격은 어떻게 됩니까?
+          grain: bus_route_id마다 한 행 — 최신 주간 스냅샷의 공표 시간표 명부.
+          primary_key: [bus_route_id]
+          publication_mode: snapshot        # ~1.4천 행 전량 교체
+          zero_policy: retain_last_good     # 주간 갱신 실패 시 지난 명부 유지
+          publication_trigger:
+            schedule_cron: "40 8 * * *"     # 3-tier daily 주기 승계 (ASAC-DAG#475)
+          event_time: collected_at
+          freshness_slo_minutes: 15840      # 주간 스냅샷 + 4일 여유(11일)
+          shape: wide
+          display:
+            title: 버스 첫차·막차·배차간격
+            summary: 서울 버스 노선마다 공표 시간표 기준 첫차·막차 시각과 배차간격을 보여줍니다.
+            caveat: 공표 시간표라 실제 운행과 다를 수 있고, 정류소별 첫차/막차가 아니라 기점 기준입니다. 막차가 자정을 넘는 노선은 last_bus_time 이 first_bus_time 보다 이른 값(예 00:30)으로 보입니다. routeType 7(인천)·8(경기) 노선은 is_seoul_route=false 로 구분됩니다.
+            use_cases:
+              - 막차 시각 안내
+              - 노선 배차간격 비교
+              - 첫차 기준 새벽 이동 계획
+          source_evidence:
+            - source_id: bus_route_master
+              source_url: https://www.data.go.kr/data/15000193/openapi.do
+              license: 공공누리 제1유형(출처표시)
+              license_url: https://www.kogl.or.kr/info/licenseType1.do
+              redistribution: allowed_with_attribution
+              attribution: 서울특별시
+              rights_checked_at: "2026-08-11"
+          usage_patterns:
+            - pattern_id: route_timetable_lookup
+              question_ko: 이 버스 노선의 첫차·막차 시각과 배차간격은 무엇입니까?
+              axes: 노선명 필터 — 시간표 명부 조회
+              requires: [select_columns, filter_set]
+              param_defaults: { n: 10 }
+              allow_empty: true
+              verified_rows: 1
+              verified_at: "2026-08-11"
+              sql: |
+                -- :route_nm='6001', :n=10
+                SELECT bus_route_nm, first_bus_time, last_bus_time, headway_min,
+                       start_station_nm, end_station_nm, corp_nm
+                FROM gold_transit_bus_route_timetable
+                WHERE bus_route_nm = :route_nm
+                ORDER BY bus_route_id LIMIT :n
+            - pattern_id: latest_last_bus_routes
+              question_ko: 막차가 늦게까지 다니는 서울 버스 노선은 어디입니까?
+              axes: 서울 노선·막차 존재 필터 — 막차 시각 DESC
+              requires: [select_columns, filter_set, sort]
+              param_defaults: { n: 20 }
+              allow_empty: false
+              verified_rows: 20
+              verified_at: "2026-08-11"
+              sql: |
+                -- :n=20 — 자정 넘는 막차(00:xx)는 문자열 정렬상 이르게 보임(caveat)
+                SELECT bus_route_nm, last_bus_time, first_bus_time, headway_min, start_station_nm, end_station_nm
+                FROM gold_transit_bus_route_timetable
+                WHERE is_seoul_route AND last_bus_time IS NOT NULL
+                ORDER BY last_bus_time DESC, bus_route_id LIMIT :n
+            - pattern_id: shortest_headway_routes
+              question_ko: 배차간격이 짧아 자주 오는 서울 버스 노선은 어디입니까?
+              axes: 서울 노선·배차 존재 필터 — 배차간격 ASC
+              requires: [select_columns, filter_set, filter_range, sort]
+              param_defaults: { n: 20 }
+              allow_empty: false
+              verified_rows: 20
+              verified_at: "2026-08-11"
+              sql: |
+                -- :n=20
+                SELECT bus_route_nm, headway_min, first_bus_time, last_bus_time, start_station_nm, end_station_nm
+                FROM gold_transit_bus_route_timetable
+                WHERE is_seoul_route AND headway_min > 0
+                ORDER BY headway_min ASC, bus_route_id LIMIT :n
+            - pattern_id: routes_by_terminal
+              question_ko: 특정 지역(기점·종점명)을 오가는 버스 노선과 시간표는 무엇입니까?
+              axes: 기점·종점명 부분일치 — 노선 시간표 검색
+              requires: [select_columns, filter_set, sort]
+              param_defaults: { n: 20 }
+              allow_empty: true
+              verified_rows: 11
+              verified_at: "2026-08-11"
+              sql: |
+                -- :q='동대문', :n=20
+                SELECT bus_route_nm, start_station_nm, end_station_nm, first_bus_time, last_bus_time, headway_min
+                FROM gold_transit_bus_route_timetable
+                WHERE start_station_nm LIKE '%' || :q || '%' OR end_station_nm LIKE '%' || :q || '%'
+                ORDER BY bus_route_nm, bus_route_id LIMIT :n
+    columns:
+      - name: bus_route_id
+        description: TOPIS 노선 ID(선행 0 보존 varchar).
+        tests:
+          - not_null:
+              config:
+                tags: [gate]
+          - unique:
+              config:
+                tags: [gate]
+      - name: bus_route_nm
+        description: 노선 번호(표기명, 예 6001·N26).
+        tests:
+          - not_null:
+              config:
+                tags: [hourly]
+      - name: route_type
+        description: TOPIS routeType 코드(3 간선·4 지선·6 광역·7 인천·8 경기 등).
+      - name: tier
+        description: 수집 티어(1=간선·광역 dense, 2=그 외) — collector 정책 원천값.
+      - name: is_seoul_route
+        description: routeType 7(인천)·8(경기)이 아니면 true — 서울 시내 노선 구분.
+      - name: first_bus_time
+        description: 기점 첫차 시각(HH:MM, 공표값). 원천 결측이면 null.
+      - name: last_bus_time
+        description: 기점 막차 시각(HH:MM, 공표값). 자정 넘는 노선은 00:MM 형태. 원천 결측이면 null.
+      - name: headway_min
+        description: 배차간격(분, 공표값). 원천 결측·비정수면 null.
+      - name: start_station_nm
+        description: 기점 정류소명.
+      - name: end_station_nm
+        description: 종점 정류소명.
+      - name: corp_nm
+        description: 운수사명(원천 원문 — 전화번호가 붙어 있을 수 있음).
+      - name: snapshot_load_date
+        description: 이 명부가 나온 주간 스냅샷의 load_date(KST).
+      - name: collected_at
+        description: 스냅샷 수집 시각(UTC) — freshness 축.
+        tests:
+          - not_null:
+              config:
+                tags: [gate]

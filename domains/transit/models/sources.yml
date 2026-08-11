@@ -70,6 +70,9 @@ sources:
           버스 노선 마스터(getBusRouteList 주간 스냅샷, ASAC-DAG #471) — bus_route_id·
           bus_route_nm·route_type·tier + 계보. tier 는 수집 정책(BUS_TIER1_TYPES)으로
           DAG 에서 계산됨(간선3·광역6=1, 그 외=2). dim_transit_bus_route_tier 가 소비.
+          시간표 필드(ASAC-DAG#765): first_bus_tm·last_bus_tm(yyyyMMddHHmmss 원본)·
+          term(배차 분)·start/end_station_nm·corp_nm·route_length — 전 load_date
+          소급 백필 완료(2026-08-11). gold_transit_bus_route_timetable 이 소비.
         # 원천 권리(#406 C4 · ASK-Seoul-Serving#88 B). 서울 TOPIS 버스 API(ws.bus.go.kr)는
         # 공공데이터포털 등록본이 정본 — getBusRouteList 는 '노선정보조회 서비스' 오퍼레이션.
         meta:
