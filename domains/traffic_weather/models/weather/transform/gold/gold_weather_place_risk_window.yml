@@ -126,6 +126,7 @@ models:
               verified_rows: 1
               verified_at: "2026-08-05T14:39:11Z"
               verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
+              param_defaults: { as_of_at: { rel: "-30d", as: datetime } }
               sql: |
                 -- :place_id='seoul_admd_1120062000', :as_of_at='2026-07-30 00:00:00'
                 SELECT place_id, forecast_at, risk_labels
