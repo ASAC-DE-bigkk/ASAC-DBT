@@ -96,17 +96,23 @@ EXPECTED_PUBLIC_PROJECTIONS = {
         "is_precipitating", "weather_context_state",
     ],
     "traffic_flow_change_latest": [
-        "product_row_id", "link_id", "flow_speed", "flow_travel_time", "flow_value_quality",
+        "product_row_id", "link_id", "road_name", "admin_dong_code", "admin_dong",
+        "gu_code", "gu", "link_reference_quality",
+        "flow_speed", "flow_travel_time", "flow_value_quality",
         "observed_at_utc", "observed_at_kst", "previous_flow_speed", "previous_flow_travel_time",
         "previous_observed_at_kst", "flow_speed_change", "flow_travel_time_change", "speed_change_state",
     ],
     "traffic_flow_link_time_profile": [
-        "product_row_id", "link_id", "kst_day_of_week", "kst_hour", "observation_count",
+        "product_row_id", "link_id", "road_name", "admin_dong_code", "admin_dong",
+        "gu_code", "gu", "link_reference_quality",
+        "kst_day_of_week", "kst_hour", "observation_count",
         "speed_observation_count", "avg_flow_speed", "min_flow_speed", "max_flow_speed",
         "avg_flow_travel_time", "first_observed_at_kst", "last_observed_at_kst",
     ],
     "traffic_flow_anomaly_current": [
-        "product_row_id", "link_id", "flow_speed", "flow_travel_time", "flow_value_quality",
+        "product_row_id", "link_id", "road_name", "admin_dong_code", "admin_dong",
+        "gu_code", "gu", "link_reference_quality",
+        "flow_speed", "flow_travel_time", "flow_value_quality",
         "observed_at_kst", "collected_at_kst", "kst_day_of_week", "kst_hour",
         "profile_observation_count", "distinct_observation_date_count", "speed_observation_count",
         "p25_flow_speed", "median_flow_speed", "p75_flow_speed", "profile_first_observed_at_kst",
@@ -125,13 +131,16 @@ EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_risk_window"] = "1.2.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_precipitation_window"] = "1.2.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_congestion_hotspots_hourly"] = "1.1.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_link_latest"] = "1.1.0"
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_change_latest"] = "1.1.0"
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_link_time_profile"] = "1.1.0"
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_anomaly_current"] = "1.1.0"
 
 EXPECTED_PUBLIC_PROJECTION_HASHES = {
-    "traffic_flow_anomaly_current": "5973ee5d82abc24c34f3854976a0814bdbf94945233e2b9d790c038b74d509ef",
-    "traffic_flow_change_latest": "528a6fbefa3bf4776cf7f0f6f68b102359154389fe13b0c89ff413d3d5c47c9a",
+    "traffic_flow_anomaly_current": "6c78841c696aa80eb146b2f693570c347af266b0f6e11491c3e88962989d2eda",
+    "traffic_flow_change_latest": "20a36bd159b2f6e277ef7f00a72ee1d28dd76e40edde9db07dbdf5e8bdb7e80f",
     "traffic_flow_congestion_hotspots_hourly": "5fd01c8913e6e28c29d2f2eea6eb51c7eb55d00673aa2539a7a0816083fb1f47",
     "traffic_flow_link_latest": "ff29b5c9e0ac1f3a0c6b645f327d38fe85fe5c689460883dad1c04a81253a659",
-    "traffic_flow_link_time_profile": "3481b492166efc5ae85240441b67a6e4fdd0f0d4eaf198b031f64ae5cef9fd35",
+    "traffic_flow_link_time_profile": "f729ef990272c7f6447e1a9aa6909e226dc1d40c831b0e81ca72f89a9a26d778",
     "traffic_road_congestion_context_current": "2d0105de2c91cf8804eafc57452127ff84d70bed58e9c12842b697306bbe4943",
     "traffic_incident_x_weather_current_hourly": "79e6a5ebaa7df4629292c71e32b3b47e3d5d41510b45a9abc6cab401d2693c23",
     "weather_place_current_outlook": "048cbc3701852681d7968939bb9e04c685b31b2ba36a0835d785494f603ac832",
