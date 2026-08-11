@@ -23,6 +23,7 @@ SCHEMA_PATH = Path(__file__).parent / "schema.yml"
 IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 EMPTY_RESULT_CODE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+VOCABULARY_ID_RE = re.compile(r"^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$")
 INTERNAL_PUBLIC_FIELD_PARTS = (
     "raw_object_key",
     "payload_hash",
@@ -636,12 +637,100 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
     _check_empty_result_freshness(model, manifest, add)
     _check_valid_empty_contract(model, add)
     _check_public_projection(model, manifest, add)
+    _check_column_vocabularies(model, add)
 
     # manifest 멤버십.
     if manifest.supplied and not manifest.has_model(model.name):
         add("model_not_in_manifest", "계약에 선언됐으나 dbt manifest 에 없는 모델")
 
     return findings
+
+
+def _column_meta(contract: dict[str, Any]) -> dict[str, Any]:
+    config = contract.get("config")
+    if not isinstance(config, dict):
+        return {}
+    meta = config.get("meta")
+    return meta if isinstance(meta, dict) else {}
+
+
+def _check_column_vocabularies(model: ServingModel, add) -> None:
+    """Validate optional glossary links and canonical term declarations."""
+    for column, contract in model.column_contracts.items():
+        if not isinstance(contract, dict):
+            continue
+        meta = _column_meta(contract)
+        vocabulary_id = meta.get("vocabulary_id")
+        valid_id = isinstance(vocabulary_id, str) and VOCABULARY_ID_RE.fullmatch(vocabulary_id)
+        if vocabulary_id is not None and not valid_id:
+            add(
+                "column_vocabulary_id_invalid",
+                f"column '{column}' vocabulary_id 는 namespace:name 형식이어야 한다",
+            )
+
+        terms = meta.get("vocabulary_terms")
+        if terms is None:
+            continue
+        if not valid_id:
+            add(
+                "column_vocabulary_terms_without_id",
+                f"column '{column}' vocabulary_terms 는 유효한 vocabulary_id 와 함께 선언해야 한다",
+            )
+        if not isinstance(terms, list):
+            add("column_vocabulary_term_invalid", f"column '{column}' vocabulary_terms 는 리스트여야 한다")
+            continue
+
+        seen_codes: set[str] = set()
+        for term in terms:
+            if (
+                not isinstance(term, dict)
+                or set(term) != {"code", "label_ko"}
+                or not isinstance(term.get("code"), str)
+                or not term["code"].strip()
+                or not isinstance(term.get("label_ko"), str)
+                or not term["label_ko"].strip()
+            ):
+                add(
+                    "column_vocabulary_term_invalid",
+                    f"column '{column}' vocabulary_terms 항목은 비어 있지 않은 code·label_ko 여야 한다",
+                )
+                continue
+            code = term["code"]
+            if code in seen_codes:
+                add(
+                    "column_vocabulary_term_duplicate",
+                    f"column '{column}' vocabulary_terms code '{code}' 중복",
+                )
+            seen_codes.add(code)
+
+
+def _valid_vocabulary_term_declarations(model: ServingModel) -> list[tuple[str, tuple[tuple[str, str], ...]]]:
+    """Return only well-formed term lists so global conflicts stay actionable."""
+    declarations: list[tuple[str, tuple[tuple[str, str], ...]]] = []
+    for contract in model.column_contracts.values():
+        if not isinstance(contract, dict):
+            continue
+        meta = _column_meta(contract)
+        vocabulary_id = meta.get("vocabulary_id")
+        terms = meta.get("vocabulary_terms")
+        if not (isinstance(vocabulary_id, str) and VOCABULARY_ID_RE.fullmatch(vocabulary_id) and isinstance(terms, list)):
+            continue
+        parsed: list[tuple[str, str]] = []
+        for term in terms:
+            if (
+                not isinstance(term, dict)
+                or set(term) != {"code", "label_ko"}
+                or not isinstance(term.get("code"), str)
+                or not term["code"].strip()
+                or not isinstance(term.get("label_ko"), str)
+                or not term["label_ko"].strip()
+            ):
+                parsed = []
+                break
+            parsed.append((term["code"], term["label_ko"]))
+        if parsed and len({code for code, _ in parsed}) == len(parsed):
+            declarations.append((vocabulary_id, tuple(parsed)))
+    return declarations
 
 
 def _check_freshness_field(model: ServingModel, manifest: ManifestView, add) -> None:
@@ -844,6 +933,7 @@ def _check_projected_column_metadata(model: ServingModel, column: str, add) -> N
 def _check_global(models: list[ServingModel]) -> list[Finding]:
     findings: list[Finding] = []
     seen: dict[str, ServingModel] = {}
+    vocabulary_terms: dict[str, tuple[tuple[str, str], ...]] = {}
     for model in models:
         pid = model.serving.get("product_id")
         if not isinstance(pid, str) or not pid:
@@ -859,6 +949,19 @@ def _check_global(models: list[ServingModel]) -> list[Finding]:
             )
         else:
             seen[pid] = model
+        for vocabulary_id, terms in _valid_vocabulary_term_declarations(model):
+            previous = vocabulary_terms.get(vocabulary_id)
+            if previous is not None and previous != terms:
+                findings.append(
+                    Finding(
+                        "column_vocabulary_terms_conflict",
+                        model.name,
+                        f"vocabulary_id '{vocabulary_id}' 의 vocabulary_terms 선언이 기존 선언과 다르다",
+                        model.source,
+                    )
+                )
+            else:
+                vocabulary_terms[vocabulary_id] = terms
     return findings
 
 

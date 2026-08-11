@@ -508,6 +508,7 @@ models:
             nullable: false
             null_meaning: 품질 상태를 분류하지 못한 행은 공개하지 않습니다.
             unit: not_applicable
+            vocabulary_id: traffic:flow_value_quality
       - name: observed_at_kst
         description: 원천 관측 시각을 서울 기준으로 변환한 timestamp(6)입니다.
         data_type: timestamp(6)

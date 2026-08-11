@@ -109,6 +109,19 @@ def test_invalid_contracts_fail_with_expected_rules():
     assert not missing, f"expected rules not raised: {missing}"
 
 
+def test_column_vocabulary_declarations_raise_specific_rules():
+    """Reject malformed or contradictory code-vocabulary metadata."""
+    result = validate(load_models_from_yaml([INVALID]))
+
+    assert {
+        "column_vocabulary_id_invalid",
+        "column_vocabulary_terms_without_id",
+        "column_vocabulary_term_invalid",
+        "column_vocabulary_term_duplicate",
+        "column_vocabulary_terms_conflict",
+    } <= _rules(result.findings)
+
+
 @pytest.mark.parametrize(
     "model_name,rule",
     [

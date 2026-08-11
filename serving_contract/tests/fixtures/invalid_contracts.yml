@@ -292,3 +292,90 @@ models:
             schema_version: "1.0"
             columns: [request_id, ghost_column]
             aliases: {}
+
+  # column_vocabulary_*: malformed ids, missing parent ids, malformed terms,
+  # duplicate codes, and conflicting declarations for one vocabulary id.
+  - name: bad_column_vocabulary
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: malformed_id
+        config:
+          meta:
+            vocabulary_id: weather-sky_code
+      - name: terms_without_id
+        config:
+          meta:
+            vocabulary_terms:
+              - {code: "1", label_ko: 맑음}
+      - name: malformed_term
+        config:
+          meta:
+            vocabulary_id: weather:sky_code
+            vocabulary_terms:
+              - {code: "", label_ko: 맑음}
+      - name: duplicate_term
+        config:
+          meta:
+            vocabulary_id: traffic:flow_value_quality
+            vocabulary_terms:
+              - {code: available, label_ko: 원천 값 있음}
+              - {code: available, label_ko: 중복 코드}
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_column_vocabulary
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+
+  - name: bad_column_vocabulary_conflict_a
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: flow_quality
+        config:
+          meta:
+            vocabulary_id: traffic:flow_value_quality
+            vocabulary_terms:
+              - {code: available, label_ko: 원천 값 있음}
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_column_vocabulary_conflict_a
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}
+
+  - name: bad_column_vocabulary_conflict_b
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: flow_quality
+        config:
+          meta:
+            vocabulary_id: traffic:flow_value_quality
+            vocabulary_terms:
+              - {code: available, label_ko: 원천 값 존재}
+    config:
+      meta:
+        serving:
+          enabled: true
+          external: false
+          product_id: bad_column_vocabulary_conflict_b
+          product_question: 질문?
+          grain: 한 행.
+          primary_key: [id]
+          publication_mode: snapshot
+          zero_policy: allow
+          publication_trigger: {schedule_cron: "0 * * * *"}

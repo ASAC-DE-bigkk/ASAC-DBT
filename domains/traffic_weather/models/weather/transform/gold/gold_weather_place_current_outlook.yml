@@ -356,6 +356,7 @@ models:
             nullable: false
             null_meaning: 매핑된 장소는 자치구 코드를 보존하므로 null을 허용하지 않습니다.
             unit: not_applicable
+            vocabulary_id: common:gu_code
       - name: gu
         description: 자치구명입니다(장소 매핑에서 승계).
         data_type: varchar
@@ -515,6 +516,11 @@ models:
             nullable: true
             null_meaning: 해당 장소·예보시각에 SKY 카테고리가 없어 결측된 경우입니다.
             unit: not_applicable
+            vocabulary_id: weather:sky_code
+            vocabulary_terms:
+              - {code: "1", label_ko: 맑음}
+              - {code: "3", label_ko: 구름 많음}
+              - {code: "4", label_ko: 흐림}
       - name: sky_label
         description: sky_code를 사람이 읽는 한국어로 표현한 서빙 라벨입니다.
         data_type: varchar
@@ -537,6 +543,16 @@ models:
             nullable: true
             null_meaning: 해당 장소·예보시각에 PTY 카테고리가 없어 결측된 경우입니다.
             unit: not_applicable
+            vocabulary_id: weather:pty_code
+            vocabulary_terms:
+              - {code: "0", label_ko: 없음}
+              - {code: "1", label_ko: 비}
+              - {code: "2", label_ko: 비 또는 눈}
+              - {code: "3", label_ko: 눈}
+              - {code: "4", label_ko: 소나기}
+              - {code: "5", label_ko: 빗방울}
+              - {code: "6", label_ko: 빗방울 또는 눈날림}
+              - {code: "7", label_ko: 눈날림}
       - name: pty_label
         description: pty_code를 사람이 읽는 한국어로 표현한 서빙 라벨입니다.
         data_type: varchar
