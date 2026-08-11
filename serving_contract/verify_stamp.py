@@ -139,8 +139,8 @@ def resolve_params(
                 rest = source[m.end():]
                 nl = rest.find("\n")
                 tail = (rest if nl < 0 else rest[:nl])[:600]
-                # 예시값은 `:이름=값` 꼴 — **`=` 앵커 필수**(ASAC-DAG#756 pattern_verify 와
-                # 규약 잠금). 값 전체를 원자적으로 읽는다(날짜 잘림·옆칸 숫자 오집 방지).
+                # 예시값은 `:이름=값` 꼴 — **`=` 앵커 필수**(ASAC-DAG#756/#763 pattern_verify
+                # 와 규약 잠금). 값 전체를 원자적으로 읽는다(날짜 잘림·옆칸 숫자 오집 방지).
                 em = re.match(r"\s*=\s*", tail)
                 if not em:
                     continue
@@ -156,10 +156,14 @@ def resolve_params(
                         value = "'" + bm.group(0).replace("'", "''") + "'"
                         break
                 else:
-                    token = rv.split(",")[0].strip()
-                    if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", token):
-                        value = token
+                    # 숫자 — 값 전체가 숫자일 때만(#756: 날짜 앞자리 삼킴 방지). 단 `:n = 5. 설명…`
+                    # 처럼 값 뒤 문장이 붙는 저작 관행이 있어(#763 실측) 마침표 무조건 거부도 안
+                    # 된다 — 마침표 뒤가 숫자냐로 가른다(`3.5` 소수 vs `5. ` 문장 끝).
+                    num = re.match(r"[0-9]+(?:\.[0-9]+)?(?![0-9A-Za-z_\-/:]|\.[0-9])", rv)
+                    if num:
+                        value = num.group(0)
                         break
+                    token = rv.split(",")[0].strip()
                     if token:
                         value = "'" + token.replace("'", "''") + "'"
                         break

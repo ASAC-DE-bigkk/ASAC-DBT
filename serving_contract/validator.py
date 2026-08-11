@@ -392,9 +392,11 @@ def _unresolved_example_params(sql: str, hint: str) -> list[str]:
                 rest = source[m.end():]
                 nl = rest.find("\n")
                 tail = (rest if nl < 0 else rest[:nl])[:600]
-                # 예시값은 `:이름=값` 꼴 — **`=` 앵커 필수**(ASAC-DAG#756 pattern_verify 와
-                # 규약 잠금). `=` 없는 관용 탐색을 남기면 게이트는 풀리는데 export 검증은
+                # 예시값은 `:이름=값` 꼴 — **`=` 앵커 필수**(ASAC-DAG#756/#763 pattern_verify
+                # 와 규약 잠금). `=` 없는 관용 탐색을 남기면 게이트는 풀리는데 export 검증은
                 # 못 푸는 드리프트(→ 영구 409)가 생긴다. 값 전체를 원자적으로 읽는다.
+                # (해석 '가능 여부'만 보므로 숫자/문자 구분은 값 존재 판정에 영향 없음 —
+                #  #763 의 숫자 경계 규칙은 실행측(verify_stamp)의 값 추출에 반영된다.)
                 em = re.match(r"\s*=\s*", tail)
                 if not em:
                     continue
