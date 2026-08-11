@@ -243,3 +243,47 @@ models:
           - not_null
       - name: dag_run_id
         description: 선택 예보 행을 만든 Airflow 실행 식별자다.
+  - name: bridge_weather_poi_admin_dong
+    description: >
+      서울 주요 장소(citydata 121 POI) 중심 좌표를 행정동 경계 point-in-polygon 으로
+      행정동에 매핑한 내부 bridge(#511) — weather 행정동 축과 citydata 장소 축의 다리.
+      경계 밖 POI(서울 외곽)는 unmatched 로 보존한다.
+    config:
+      meta:
+        row_meaning_ko: 한 POI(area_cd)의 행정동 매핑 결과다.
+        grain:
+          - area_cd
+        join_cardinality_ko: POI N대 boundary 최대 1(중심점 PIP), canonical dim 최대 1 — left join 으로 unmatched 손실을 금지한다.
+        spatial_semantics_ko: canonical 네 필드는 asac_axes.dim_admin_dong 에서만 stamp 하며 중심점 PIP 는 근사(폴리곤 겹침 경계 오차 가능)다.
+        lifecycle: internal_candidate
+        downstream:
+          - W2_weather_public_gold
+    columns:
+      - name: area_cd
+        description: citydata POI 식별자(POI###) — grain.
+        tests:
+          - not_null
+          - unique
+      - name: area_nm
+        description: POI 장소명(수집 fan-out 기준 이름).
+      - name: category
+        description: POI 분류(관광특구·공원·발달상권 등).
+      - name: longitude
+        description: POI 중심 경도(WGS84) — PIP 입력.
+      - name: latitude
+        description: POI 중심 위도(WGS84) — PIP 입력.
+      - name: admin_dong_code
+        description: 매핑된 정본 행정동 코드(unmatched 면 null).
+      - name: admin_dong
+        description: 매핑된 정본 행정동 이름.
+      - name: gu_code
+        description: 매핑된 정본 자치구 코드.
+      - name: gu
+        description: 매핑된 정본 자치구 이름.
+      - name: canonical_mapping_state
+        description: matched | unmatched — 경계 밖 POI 는 unmatched(값 꾸며내기 금지).
+        tests:
+          - accepted_values:
+              arguments:
+                values: [matched, unmatched]
+
