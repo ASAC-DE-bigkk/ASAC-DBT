@@ -865,7 +865,7 @@ models:
           display:
             title: 공연 예매 랭킹 (일별)
             summary: 공연 예매 순위를 매일 기록해 순위 변동과 신규 진입을 보여줍니다.
-            caveat: 원천이 순위만 제공합니다. 예매율·판매 좌석 수·매출액은 포함되지 않습니다.
+            caveat: 원천이 순위만 제공합니다. 예매율·판매 좌석 수·매출액은 포함되지 않습니다. 공간축(자치구·행정동·좌표)은 공연ID로 공연 정보의 공연장 위치를 승계한 best-effort 값이라 비어 있을 수 있습니다. 제목 끝의 "[서울]" 같은 표기는 장소가 아니라 투어 도시 접미사이며 tour_city 컬럼에 분리되어 있습니다.
             use_cases:
               - 인기 공연 큐레이션
               - 장르별 흥행 추이 리포트
@@ -887,7 +887,10 @@ models:
         description: KOPIS 공연 식별자(mt20id) — 공연 상세 정보와 붙이는 조인 키
         data_type: varchar
       - name: performance_name
-        description: 공연명
+        description: 공연명. 투어 공연은 끝에 "[도시]" 접미사가 붙을 수 있다(tour_city에 분리 제공)
+        data_type: varchar
+      - name: tour_city
+        description: 공연명 끝 "[도시]" 접미사에서 분리한 투어 도시 표기. 장소 필드가 아니며 접미사가 없으면 비어 있다
         data_type: varchar
       - name: genre
         description: KOPIS 장르(연극·뮤지컬·클래식 등 원문 분류)
@@ -913,6 +916,18 @@ models:
       - name: gu
         description: 공연장 자치구 이름
         data_type: varchar
+      - name: admin_dong_code
+        description: 공연장이 속한 행정동 코드(공연ID로 공연 정보에서 승계, best-effort)
+        data_type: varchar
+      - name: admin_dong
+        description: 공연장 행정동 이름(승계, best-effort)
+        data_type: varchar
+      - name: longitude
+        description: 공연장 경도(WGS84, 승계, best-effort)
+        data_type: double
+      - name: latitude
+        description: 공연장 위도(WGS84, 승계, best-effort)
+        data_type: double
       - name: rank_prev_3d
         description: 3일 전 같은 공연의 순위. 그때 순위표에 없었으면 비어 있다
         data_type: integer

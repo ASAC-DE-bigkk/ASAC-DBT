@@ -9,6 +9,7 @@ with box as (
         b.rank_no,
         b.performance_id,
         b.performance_name,
+        b.tour_city,
         b.genre,
         b.venue_name,
         b.event_start_date,
@@ -19,7 +20,14 @@ with box as (
 ),
 
 perf_axis as (
-    select performance_id, max(gu_code) as gu_code, max(gu) as gu
+    select
+        performance_id,
+        max(gu_code)         as gu_code,
+        max(gu)              as gu,
+        max(admin_dong_code) as admin_dong_code,
+        max(admin_dong)      as admin_dong,
+        max(longitude)       as longitude,
+        max(latitude)        as latitude
     from {{ ref('silver_culture_performance') }}
     where performance_id is not null
     group by performance_id
@@ -50,6 +58,7 @@ select
     b.rank_no,
     b.performance_id,
     b.performance_name,
+    b.tour_city,
     b.genre,
     b.venue_name,
     b.event_start_date,
@@ -58,6 +67,10 @@ select
     b.seat_count,
     p.gu_code,
     p.gu,
+    p.admin_dong_code,
+    p.admin_dong,
+    p.longitude,
+    p.latitude,
     -- 모멘텀
     d3.rank_no                                     as rank_prev_3d,
     (d3.rank_no - b.rank_no)                       as rank_delta_3d,
