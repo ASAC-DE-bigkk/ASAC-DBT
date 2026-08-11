@@ -1,5 +1,5 @@
 with kst_now as (
-    select date_trunc('hour', cast(current_timestamp at time zone 'Asia/Seoul' as timestamp(6))) as current_hour_at
+    select {{ weather_serving_as_of_hour() }} as current_hour_at
 ),
 
 source_hourly as (

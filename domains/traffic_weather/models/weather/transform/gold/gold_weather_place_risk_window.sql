@@ -4,9 +4,15 @@
 
 {{ config(materialized='table') }}
 
-with hourly as (
-    select *
-    from {{ ref('gold_weather_place_hourly_outlook') }}
+with kst_now as (
+    select {{ weather_serving_as_of_hour() }} as current_hour_at
+),
+
+hourly as (
+    select hourly.*
+    from {{ ref('gold_weather_place_hourly_outlook') }} as hourly
+    cross join kst_now
+    where hourly.forecast_at >= kst_now.current_hour_at
 ),
 
 flagged as (

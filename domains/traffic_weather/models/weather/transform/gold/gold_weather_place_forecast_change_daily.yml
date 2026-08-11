@@ -34,8 +34,7 @@ models:
           publication_mode: snapshot
           zero_policy: fail
           publication_trigger:
-            trigger_type: asset
-            max_interval_minutes: 240
+            schedule_cron: "0 * * * *"
           event_time: latest_issued_at
           freshness_field: latest_collected_at_max
           freshness_slo_minutes: 240

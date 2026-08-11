@@ -22,6 +22,7 @@ from serving_contract.model import ManifestView, ServingModel
 SCHEMA_PATH = Path(__file__).parent / "schema.yml"
 IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+EMPTY_RESULT_CODE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 INTERNAL_PUBLIC_FIELD_PARTS = (
     "raw_object_key",
     "payload_hash",
@@ -578,6 +579,17 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
     if serving.get("external") is True and serving.get("enabled") is not True:
         add("external_enabled_conflict", "external=true 인데 enabled 이 true 가 아니다 (게시 안 되는데 공개 노출)")
 
+    # public catalog retirement is only safe for a contract that is already
+    # disabled and non-external. The Publisher treats this as a catalog-only
+    # cleanup signal; accepting a live product here could erase a public entry.
+    if serving.get("retire_on_publish") is True and (
+        serving.get("enabled") is not False or serving.get("external") is not False
+    ):
+        add(
+            "retire_on_publish_invalid",
+            "retire_on_publish requires enabled=false and external=false",
+        )
+
     # publication_trigger 는 cron 또는 asset 정확히 하나.
     if "upsert_strategy" in serving and serving.get("publication_mode") != "upsert":
         add("upsert_strategy_invalid", "upsert_strategy requires publication_mode=upsert")
@@ -620,6 +632,7 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
     _check_primary_key(model, manifest, add)
     _check_freshness_field(model, manifest, add)
     _check_empty_result_freshness(model, manifest, add)
+    _check_valid_empty_contract(model, add)
     _check_public_projection(model, manifest, add)
 
     # manifest 멤버십.
@@ -674,6 +687,42 @@ def _check_empty_result_freshness(model: ServingModel, manifest: ManifestView, a
             add("empty_result_freshness_invalid", f"empty_result_freshness.relation '{relation}' 이 manifest model에 없다")
         elif field not in manifest.columns(relation):
             add("empty_result_freshness_invalid", f"empty_result_freshness.field '{field}' 이 relation '{relation}' 컬럼에 없다")
+
+
+def _check_valid_empty_contract(model: ServingModel, add) -> None:
+    """Public sparse products must publish a Worker-readable valid-empty state."""
+    serving = model.serving
+    if not (
+        serving.get("enabled") is True
+        and serving.get("external") is True
+        and serving.get("zero_policy") == "allow"
+    ):
+        return
+
+    missing: list[str] = []
+    if not isinstance(serving.get("empty_result_freshness"), dict):
+        missing.append("empty_result_freshness")
+
+    projection = serving.get("mcp_projection")
+    empty_result = projection.get("empty_result") if isinstance(projection, dict) else None
+    if not isinstance(empty_result, dict):
+        missing.append("mcp_projection.empty_result")
+    elif (
+        empty_result.get("state") != "valid_empty"
+        or not isinstance(empty_result.get("code"), str)
+        or not EMPTY_RESULT_CODE_RE.fullmatch(empty_result["code"])
+        or not isinstance(empty_result.get("message_ko"), str)
+        or not empty_result["message_ko"].strip()
+    ):
+        missing.append("mcp_projection.empty_result(valid_empty)")
+
+    if missing:
+        add(
+            "valid_empty_contract_invalid",
+            "enabled=true·external=true·zero_policy=allow 공개 상품은 "
+            + ", ".join(missing)
+            + " 선언이 필요하다",
+        )
 
 
 def _check_primary_key(model: ServingModel, manifest: ManifestView, add) -> None:

@@ -4,7 +4,7 @@
 {{ config(materialized='table') }}
 
 with kst_today as (
-    select cast(current_timestamp at time zone 'Asia/Seoul' as date) as today
+    select cast({{ weather_serving_as_of_hour() }} as date) as today
 ),
 
 issue_daily as (

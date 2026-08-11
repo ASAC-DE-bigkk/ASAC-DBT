@@ -38,16 +38,24 @@ def _models_by_name(path: Path) -> dict[str, dict]:
     return {model["name"]: model for model in payload["models"]}
 
 
-def test_grid_d1_product_contracts_are_present_and_explicit() -> None:
+def test_grid_gold_contracts_are_retained_for_internal_audit_not_public_d1() -> None:
     assert CURRENT_YML.exists()
     assert CURRENT_SQL.exists()
     assert PRECIP_YML.exists()
     assert PRECIP_SQL.exists()
 
-    current = _model(CURRENT_YML)["config"]["meta"]["serving"]
-    precipitation = _model(PRECIP_YML)["config"]["meta"]["serving"]
+    current_model = _model(CURRENT_YML)
+    precipitation_model = _model(PRECIP_YML)
+    current = current_model["config"]["meta"]["serving"]
+    precipitation = precipitation_model["config"]["meta"]["serving"]
+
+    assert current_model["access"] == "protected"
+    assert precipitation_model["access"] == "protected"
 
     assert current["product_id"] == "weather_grid_current_outlook"
+    assert current["enabled"] is False
+    assert current["external"] is False
+    assert current["retire_on_publish"] is True
     assert current["zero_policy"] == "fail"
     assert current["quality_coverage"] == {
         "field": "grid_id",
@@ -58,6 +66,9 @@ def test_grid_d1_product_contracts_are_present_and_explicit() -> None:
     assert current["public_projection"]["columns"] == CURRENT_PROJECTION
 
     assert precipitation["product_id"] == "weather_grid_precipitation_window"
+    assert precipitation["enabled"] is False
+    assert precipitation["external"] is False
+    assert precipitation["retire_on_publish"] is True
     assert precipitation["zero_policy"] == "allow"
     assert precipitation["empty_result_freshness"] == {
         "relation": "gold_weather_grid_hourly_outlook",
