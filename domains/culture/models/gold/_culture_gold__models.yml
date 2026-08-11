@@ -904,9 +904,6 @@ models:
       - name: event_end_date
         description: 공연 종료일(KST)
         data_type: date
-      - name: perf_count
-        description: 상연 횟수(KOPIS 원문)
-        data_type: integer
       - name: seat_count
         description: 공연장 좌석 수 — 공연 규모를 가늠하는 값
         data_type: integer

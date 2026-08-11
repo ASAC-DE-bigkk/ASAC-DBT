@@ -1,3 +1,11 @@
+-- 🔴 `perf_count`(상연 횟수)는 이 gold 에서 뺐다 (#757, 2026-08-11).
+--   KOPIS 가 **같은 요청에도 시점에 따라** `prfdtcnt=0` 을 주는 일이 잦아 최근 구간이
+--   전량 0인데 `seat_count > 0` 이었다(실측 1,387행) — 좌석은 있는데 공연 횟수가 0인
+--   값이 외부 카탈로그로 나가고 있었다. **틀린 값은 빈 값보다 나쁘다.**
+--   원인은 상류라 우리가 못 고치고, 이 컬럼을 쓰는 발행 질의 패턴은 전 도메인 통틀어
+--   0건이라 내려도 깨지는 소비자가 없다(2026-08-11 D1 실측).
+--   silver(`silver_culture_boxoffice.perf_count`)에는 그대로 남는다 — 원문 보존이고
+--   상류가 회복되면 이 select 에 한 줄 되돌리면 된다.
 -- gold: 예매상황판 랭킹 스냅샷 + 순위 모멘텀. 공간은 performance(→facility) 경유 best-effort.
 --   KOPIS 예매율 필드 부재 → 예매 상황은 rank 자체. 모멘텀 = 순위 이동으로 "요즘 뜨는 공연"(#270).
 --   "3일 전"은 snapshot_date - 3일 달력 조인(freshness 갭 안전, 3스냅샷 lag 아님).
@@ -14,7 +22,6 @@ with box as (
         b.venue_name,
         b.event_start_date,
         b.event_end_date,
-        b.perf_count,
         b.seat_count
     from {{ ref('silver_culture_boxoffice') }} b
 ),
@@ -63,7 +70,6 @@ select
     b.venue_name,
     b.event_start_date,
     b.event_end_date,
-    b.perf_count,
     b.seat_count,
     p.gu_code,
     p.gu,
