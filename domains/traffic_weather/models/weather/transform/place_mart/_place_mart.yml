@@ -138,7 +138,7 @@ models:
         tests:
           - not_null
       - name: grid_distance_m
-        description: 장소와 격자 기준점 사이 거리 m이며 미계산 시 null이다.
+        description: 장소와 배정 격자 셀 중심 사이 거리 m — #511 백필로 전량 채워짐(재검토 기준은 셀 반대각선 3,536m 초과 또는 순변환 불일치).
   - name: gold_weather_forecast_by_place
     description: 기존 장소별 최신 KMA 예보 호환 mart이며 W2의 canonical admin_dong_code·forecast_at·category question-grain Gold가 아니다.
     columns:
@@ -188,7 +188,7 @@ models:
       - name: mapping_method
         description: legacy 장소-격자 mapping 개정 label이다.
       - name: grid_distance_m
-        description: 장소와 격자 기준점 사이 거리 m이며 미계산 시 null이다.
+        description: 장소와 배정 격자 셀 중심 사이 거리 m — #511 백필로 전량 채워짐(재검토 기준은 셀 반대각선 3,536m 초과 또는 순변환 불일치).
       - name: source_admin_code
         description: KMA 안내 자료의 행정코드 후보다.
       - name: source_grid_place_id
@@ -256,8 +256,7 @@ models:
         join_cardinality_ko: POI N대 boundary 최대 1(중심점 PIP), canonical dim 최대 1 — left join 으로 unmatched 손실을 금지한다.
         spatial_semantics_ko: canonical 네 필드는 asac_axes.dim_admin_dong 에서만 stamp 하며 중심점 PIP 는 근사(폴리곤 겹침 경계 오차 가능)다.
         lifecycle: internal_candidate
-        downstream:
-          - W2_weather_public_gold
+        downstream: []   # 아직 참조 모델 없음 — 소비 시작 시 갱신(#116 리뷰)
     columns:
       - name: area_cd
         description: citydata POI 식별자(POI###) — grain.

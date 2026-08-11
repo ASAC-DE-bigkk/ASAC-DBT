@@ -83,7 +83,9 @@ seeds:
         description: >
           장소(행정동 중심좌표)와 배정 격자 셀 중심 사이 거리 m — 매핑 신뢰도 지표(#511,
           contracts/weather/scripts/backfill_grid_distance.py 로 산출, KMA DFS 역변환+haversine).
-          실측 최대 3,810m이며 반셀(~2.8km) 초과는 배정 재검토 신호다(순변환 불일치 8개 동 실측).
+          재검토 신호 기준은 셀 반대각선 3,536m 초과(실측 3건) 또는 순변환 불일치(8개 동)다 —
+          반셀 2.8km 는 균등분포에서도 14.8%가 넘는 값이라 기준이 아니다(#116 리뷰 교정).
+          실측 최대 3,810m.
         tests:
           - not_null
       - name: source_admin_code

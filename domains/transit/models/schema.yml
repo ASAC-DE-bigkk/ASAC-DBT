@@ -1027,7 +1027,7 @@ models:
           display:
             title: 지금 우리 동네 교통 상태
             summary: 행정동마다 지금 버스·주차·지하철 상태를 한 행으로 보여줍니다.
-            caveat: 버스가 자주 다니지 않는 동은 표시된 값이 수 시간 전 관측일 수 있어, 함께 제공되는 관측 시각(_last_event_at)을 확인하세요. 지하철 대기 시간은 실시간 도착정보가 있는 역 주변 동에만 채워집니다. 버스 위치는 01~05시(KST)에 수집하지 않아 새벽 시간대 버스 지표는 0이 아니라 미수집(결측)입니다.
+            caveat: 버스가 자주 다니지 않는 동은 표시된 값이 수 시간 전 관측일 수 있어, 함께 제공되는 관측 시각(_last_event_at)을 확인하세요. 지하철 대기 시간은 실시간 도착정보가 있는 역 주변 동에만 채워집니다. 버스 위치는 01~05시(KST)에 수집하지 않으므로 새벽에는 신규 버스 관측이 없습니다 — 이때 버스 값은 비는 게 아니라 마지막(대개 00시대) 관측이 그대로 남으니 bus_last_event_at 으로 관측 시점을 확인하세요.
             use_cases:
               - 동네 교통 현황 위젯·대시보드
               - 외출 전 대중교통·주차 상황 확인
@@ -1936,7 +1936,7 @@ models:
           display:
             title: 버스 첫차·막차·배차간격
             summary: 서울 버스 노선마다 공표 시간표 기준 첫차·막차 시각과 배차간격을 보여줍니다.
-            caveat: 공표 시간표라 실제 운행과 다를 수 있고, 정류소별 첫차/막차가 아니라 기점 기준입니다. 막차가 자정을 넘는 노선은 last_bus_time 이 first_bus_time 보다 이른 값(예 00:30)으로 보입니다. routeType 7(인천)·8(경기) 노선은 is_seoul_route=false 로 구분됩니다.
+            caveat: 공표 시간표라 실제 운행과 다를 수 있고, 정류소별 첫차/막차가 아니라 기점 기준입니다. 막차가 자정을 넘는 노선은 is_overnight_last_bus=true 로 구분됩니다(예 N26 막차 04:10=익일 — 시각만 정렬하면 이른 값으로 보이니 이 플래그와 함께 정렬하세요). 공표 누락(시각 00:00 플레이스홀더)은 null 로 처리되며, headway_min=0 은 배차 미공표를 뜻합니다. routeType 7(인천)·8(경기) 노선은 is_seoul_route=false 로 구분됩니다(routeType 미상도 false).
             use_cases:
               - 막차 시각 안내
               - 노선 배차간격 비교
@@ -1974,11 +1974,11 @@ models:
               verified_rows: 20
               verified_at: "2026-08-11"
               sql: |
-                -- :n=20 — 자정 넘는 막차(00:xx)는 문자열 정렬상 이르게 보임(caveat)
-                SELECT bus_route_nm, last_bus_time, first_bus_time, headway_min, start_station_nm, end_station_nm
+                -- :n=20 — 자정 넘김(is_overnight_last_bus)을 먼저, 그 안에서 시각 DESC
+                SELECT bus_route_nm, last_bus_time, is_overnight_last_bus, first_bus_time, headway_min, start_station_nm, end_station_nm
                 FROM gold_transit_bus_route_timetable
                 WHERE is_seoul_route AND last_bus_time IS NOT NULL
-                ORDER BY last_bus_time DESC, bus_route_id LIMIT :n
+                ORDER BY is_overnight_last_bus DESC, last_bus_time DESC, bus_route_id LIMIT :n
             - pattern_id: shortest_headway_routes
               question_ko: 배차간격이 짧아 자주 오는 서울 버스 노선은 어디입니까?
               axes: 서울 노선·배차 존재 필터 — 배차간격 ASC
@@ -2028,13 +2028,15 @@ models:
       - name: tier
         description: 수집 티어(1=간선·광역 dense, 2=그 외) — collector 정책 원천값.
       - name: is_seoul_route
-        description: routeType 7(인천)·8(경기)이 아니면 true — 서울 시내 노선 구분.
+        description: routeType 7(인천)·8(경기)이 아니면 true — 서울 시내 노선 구분. 미상(NULL)은 false(명시 판정만 true).
+      - name: is_overnight_last_bus
+        description: 막차가 자정을 넘는 노선이면 true — 같은 행의 첫차/막차 날짜부 상대 비교(수집 시각 무관). 판정 불가·모순 행은 false.
       - name: first_bus_time
-        description: 기점 첫차 시각(HH:MM, 공표값). 원천 결측이면 null.
+        description: 기점 첫차 시각(HH:MM, 공표값). 원천 결측·공표 누락(00:00 플레이스홀더)이면 null.
       - name: last_bus_time
-        description: 기점 막차 시각(HH:MM, 공표값). 자정 넘는 노선은 00:MM 형태. 원천 결측이면 null.
+        description: 기점 막차 시각(HH:MM, 공표값). 자정 넘는 노선은 is_overnight_last_bus=true 로 구분(00:MM 등 이른 표기 가능). 원천 결측·공표 누락이면 null.
       - name: headway_min
-        description: 배차간격(분, 공표값). 원천 결측·비정수면 null.
+        description: 배차간격(분, 공표값). 원천 결측·비정수면 null, 0 은 배차 미공표(실측 112건 — 대부분 경기 노선)를 뜻하므로 간격 비교에서는 0 을 제외할 것.
       - name: start_station_nm
         description: 기점 정류소명.
       - name: end_station_nm
@@ -2074,7 +2076,7 @@ models:
           display:
             title: 지하철 첫차·막차 시간표
             summary: 지하철역마다 요일(평일·토·휴일)과 방향별 첫차·막차 시각, 하루 열차 수를 보여줍니다.
-            caveat: 공표 시간표 기준이라 실제 운행과 다를 수 있습니다. 서울교통공사 제공 1~9호선만 포함되며 신분당선·우이신설선·경의중앙선 등은 없습니다. 자정 이후 시각은 24:MM·25:MM 표기입니다(예 25:00 = 익일 01:00, 원천 표기 실측). 월 단위 전량 수집이 진행 중인 기간에는 일부 역이 아직 없을 수 있습니다.
+            caveat: 공표 시간표 기준이라 실제 운행과 다를 수 있습니다. 원천(OA-101)이 제공하는 노선만 포함됩니다 — 2026-08 실측 기준 1·3~9호선이며 **2호선 전체와 7호선 인천 구간은 원천이 미제공**이고, 신분당선·우이신설선·경의중앙선 등도 없습니다. 시각은 그 역의 열차 운행 시각(도착 기준, 기점역 출발행은 출발 시각)입니다. 자정 이후는 24:MM·25:MM 표기입니다(예 25:00 = 익일 01:00). 월 단위 전량 수집이 진행 중인 기간에는 일부 역이 아직 없을 수 있습니다.
             use_cases:
               - 역·방향별 막차 시각 안내
               - 요일별 첫차 기준 새벽 이동 계획
@@ -2186,13 +2188,13 @@ models:
       - name: station_nm
         description: 역명(원천 원문).
       - name: first_train_time
-        description: 첫차 시각(HH:MM, 공표값). 결측이면 null.
+        description: 첫차 시각(HH:MM, 공표값 — 그 역의 운행 시각, 기점역 출발행은 LEFTTIME 기반). 결측이면 null.
       - name: last_train_time
-        description: 막차 시각(HH:MM, 공표값). 자정 이후는 원천 표기대로 24:MM·25:MM(예 25:00=익일 01:00).
+        description: 막차 시각(HH:MM, 공표값 — 운행 시각 기준). 자정 이후는 원천 표기대로 24:MM·25:MM(예 25:00=익일 01:00).
       - name: train_count
         description: 해당 (역·요일·방향) 시간표의 열차 수.
       - name: express_train_count
-        description: 급행(EXPRESS_YN='G') 열차 수 — 원천 코드 실측(G/D) 기준.
+        description: 급행 열차 수 — 원천 코드 실측 기준 D=급행·G=일반(9호선 D 정차역 16개가 급행 정차역 명단과 일치, 3~8호선은 D 0건).
       - name: cycle_id
         description: 이 요약이 나온 월 순회 cycle(YYYY-MM).
       - name: collected_at
