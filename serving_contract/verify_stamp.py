@@ -28,8 +28,10 @@ import os
 import re
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import yaml
 
@@ -43,6 +45,9 @@ CONST_RE = re.compile(r"(?<!:)\b([a-z_][a-z0-9_]*)\s*=\s*([0-9]+|'(?:[^']|'')*')
 BT_RE = re.compile(r"\b([a-z_][a-z0-9_]*)\s+BETWEEN\s+:([a-z][a-z0-9_]*)\s+AND\s+:([a-z][a-z0-9_]*)", re.I)
 ARR_RE = re.compile(r"\b([a-z_][a-z0-9_]*)\s+IN\s*\(\s*SELECT\s+value\s+FROM\s+json_each\(\s*:([a-z][a-z0-9_]*)\s*\)", re.I)
 SENT_RE = re.compile(r":([a-z][a-z0-9_]*)\s*=\s*'")   # `:gu = 'ALL'` 센티널 — 교정 금지
+RELATIVE_RE = re.compile(r"^([+-]?\d+)(d|w|M|y)$")
+RELATIVE_AS = {"date", "datetime", "ym", "year"}
+KST = ZoneInfo("Asia/Seoul")
 
 
 # ── 예시값 해석 (dags common/serving/pattern_verify.resolve_params 와 규약 잠금) ──
@@ -52,12 +57,82 @@ def executable_sql(sql_text: str) -> str:
     return "\n".join(re.sub(r"--.*$", "", line) for line in stripped.splitlines())
 
 
-def resolve_params(sql_text: str, hint_text: str = "") -> tuple[str, dict, list]:
+def _relative_default_literal(
+    default,
+    *,
+    now: datetime | None,
+) -> tuple[str | None, bool]:
+    """Return (SQL literal, declared) for a relative default.
+
+    ``declared`` distinguishes invalid metadata from an absent declaration so
+    an invalid relative default cannot fall back to a stale SQL comment.
+    """
+    if not isinstance(default, Mapping):
+        return None, False
+    if set(default) != {"rel", "as"}:
+        return None, True
+    rel = default.get("rel")
+    as_type = default.get("as")
+    match = RELATIVE_RE.fullmatch(rel) if isinstance(rel, str) else None
+    if not match or not isinstance(as_type, str) or as_type not in RELATIVE_AS:
+        return None, True
+
+    current = datetime.now(KST) if now is None else now
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=KST)
+    else:
+        current = current.astimezone(KST)
+    amount, unit = int(match.group(1)), match.group(2)
+    try:
+        if unit == "d":
+            shifted = current + timedelta(days=amount)
+        elif unit == "w":
+            shifted = current + timedelta(weeks=amount)
+        else:
+            if unit == "M":
+                month_index = current.year * 12 + current.month - 1 + amount
+                year, month_zero_based = divmod(month_index, 12)
+                anchor = current.replace(year=year, month=month_zero_based + 1, day=1)
+            else:
+                anchor = current.replace(year=current.year + amount, day=1)
+            # Match JavaScript Date.setUTCMonth/setUTCFullYear overflow semantics.
+            shifted = anchor + timedelta(days=current.day - 1)
+    except (OverflowError, ValueError):
+        return None, True
+
+    if as_type == "date":
+        text = shifted.strftime("%Y-%m-%d")
+    elif as_type == "datetime":
+        clock = shifted.strftime("%H:%M:%S") if amount == 0 else "00:00:00"
+        text = shifted.strftime("%Y-%m-%d") + " " + clock
+    elif as_type == "ym":
+        text = shifted.strftime("%Y-%m")
+    else:
+        text = shifted.strftime("%Y")
+    return "'" + text + "'", True
+
+
+def resolve_params(
+    sql_text: str,
+    hint_text: str = "",
+    *,
+    param_defaults: Mapping[str, object] | None = None,
+    now: datetime | None = None,
+) -> tuple[str, dict, list]:
     executable = executable_sql(sql_text)
     names = sorted(set(PLACEHOLDER_RE.findall(executable)), key=len, reverse=True)
     resolved: dict[str, str] = {}
     unresolved: list[str] = []
+    defaults = param_defaults if isinstance(param_defaults, Mapping) else {}
     for name in names:
+        if name in defaults:
+            value, declared = _relative_default_literal(defaults[name], now=now)
+            if declared:
+                if value is None:
+                    unresolved.append(name)
+                else:
+                    resolved[name] = value
+                continue
         value = None
         for source in (sql_text or "", hint_text or ""):
             for m in re.finditer(rf":{name}(?![a-z0-9_])", source):
@@ -376,7 +451,12 @@ def main() -> int:
                         continue
                     pid = p.get("pattern_id")
                     sql = p.get("sql") or ""
-                    _, resolved, unresolved = resolve_params(sql, hint_of(p))
+                    _, resolved, unresolved = resolve_params(
+                        sql,
+                        hint_of(p),
+                        param_defaults=p.get("param_defaults"),
+                        now=now,
+                    )
                     tag = f"[{dom}] {prod} :: {pid}"
                     if unresolved:
                         cnt["unresolved"] += 1
