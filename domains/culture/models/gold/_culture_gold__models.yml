@@ -669,9 +669,9 @@ models:
           zero_policy: retain_last_good
           publication_trigger:
             schedule_cron: "30 4 * * *"
-          # source_evidence — 이 제품은 KOPIS 예매 순위만 읽는다(silver_culture_boxoffice·
-          # silver_culture_performance). 지역 축이 없어 행정동 링크를 쓰지 않으므로
-          # activity_by_dong 의 6원천 중 KOPIS 하나만 상속한다(#88 §1-2 B).
+          # source_evidence — KOPIS 예매 순위 + 공연장 위치 승계(#509: performance→
+          # facility 경유로 admin_dong_code·admin_dong·좌표를 공개하며 행정동 링크를
+          # 읽게 됨). #88 §1-2 B 에 따라 lineage 가 실제로 읽는 두 원천을 선언한다.
           source_evidence:
             - source_id: kopis_open_api
               source_url: https://www.kopis.or.kr/por/cs/openapi/openApiFaq.do?menuId=MNU_00074
@@ -679,6 +679,13 @@ models:
               license_url: https://kopis.or.kr/upload/openApi/%EA%B3%B5%EC%97%B0%EC%98%88%EC%88%A0%ED%86%B5%ED%95%A9%EC%A0%84%EC%82%B0%EB%A7%9DOpenAPI%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C.pdf
               redistribution: allowed_with_attribution
               attribution: 공연예술통합전산망(KOPIS)
+              rights_checked_at: "2026-08-04"
+            - source_id: national_data_office_admin_dong_link
+              source_url: https://www.data.go.kr/data/15136368/fileData.do
+              license: 공공저작물 제3유형(출처표시·변경금지) — 2차 가공 집계 외부 API 재배포 승인
+              license_url: https://www.kogl.or.kr/info/licenseType3.do
+              redistribution: allowed_with_attribution
+              attribution: 국가데이터처
               rights_checked_at: "2026-08-04"
           # usage_patterns — 규격·검증 근거는 gold_culture_activity_by_dong 블록 주석 참조.
           # 3건 모두 "최신 스냅샷" 스칼라 서브쿼리를 쓴다 → requires 에 subquery.
