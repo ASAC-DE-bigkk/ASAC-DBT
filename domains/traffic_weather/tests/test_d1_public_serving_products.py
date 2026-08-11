@@ -26,32 +26,20 @@ EXPECTED_PRODUCTS = {
     "weather_place_precipitation_window",
     "weather_place_risk_window",
     "weather_place_forecast_change_daily",
-    "weather_grid_current_outlook",
-    "weather_grid_precipitation_window",
 }
 
 EXPECTED_PUBLIC_PROJECTIONS = {
     "weather_place_current_outlook": [
         "product_row_id", "place_id", "place_name", "alias_names", "admin_dong_code", "admin_dong",
         "gu_code", "gu", "latitude", "longitude", "forecast_at", "forecast_category_count",
-        "forecast_issued_at_min", "forecast_issued_at_max", "forecast_collected_at_max", "temp_c",
+        "forecast_issued_at_min", "forecast_issued_at_max", "forecast_collected_at_max", "snapshot_as_of_hour", "temp_c",
         "humidity_pct", "wind_ms", "wind_dir_deg", "precip_prob_pct", "sky_code", "sky_label",
         "pty_code", "pty_label", "is_precipitating", "pcp_raw", "pcp_mm", "sno_raw", "sno_cm",
         "forecast_lead_hours",
     ],
     "weather_place_precipitation_window": [
-        "product_row_id", "place_id", "place_name", "window_start_at", "window_end_at",
-    ],
-    "weather_grid_current_outlook": [
-        "product_row_id", "grid_id", "nx", "ny", "coverage_scope", "forecast_at",
-        "forecast_category_count", "forecast_issued_at_min", "forecast_issued_at_max",
-        "forecast_collected_at_max", "temp_c", "humidity_pct", "wind_ms", "wind_dir_deg",
-        "precip_prob_pct", "sky_code", "sky_label", "pty_code", "pty_label",
-        "is_precipitating", "pcp_raw", "pcp_mm", "sno_raw", "sno_cm", "forecast_lead_hours",
-    ],
-    "weather_grid_precipitation_window": [
-        "product_row_id", "grid_id", "nx", "ny", "coverage_scope", "window_start_at",
-        "window_end_at", "precipitation_hour_count", "precip_prob_max_pct", "pcp_max_mm",
+        "product_row_id", "place_id", "place_name", "admin_dong_code", "admin_dong", "gu_code", "gu",
+        "window_start_at", "window_end_at", "precipitation_hour_count", "precip_prob_max_pct", "pcp_max_mm",
         "sno_max_cm", "forecast_issued_at_min", "forecast_issued_at_max", "forecast_collected_at_max",
     ],
     "weather_place_risk_window": [
@@ -131,9 +119,10 @@ EXPECTED_PUBLIC_PROJECTION_VERSIONS = {
     product_id: "1.0.0"
     for product_id in EXPECTED_PRODUCTS
 }
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_current_outlook"] = "1.1.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_forecast_change_daily"] = "1.1.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_risk_window"] = "1.2.0"
-EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_precipitation_window"] = "1.1.0"
+EXPECTED_PUBLIC_PROJECTION_VERSIONS["weather_place_precipitation_window"] = "1.2.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_congestion_hotspots_hourly"] = "1.1.0"
 EXPECTED_PUBLIC_PROJECTION_VERSIONS["traffic_flow_link_latest"] = "1.1.0"
 
@@ -145,12 +134,10 @@ EXPECTED_PUBLIC_PROJECTION_HASHES = {
     "traffic_flow_link_time_profile": "3481b492166efc5ae85240441b67a6e4fdd0f0d4eaf198b031f64ae5cef9fd35",
     "traffic_road_congestion_context_current": "2d0105de2c91cf8804eafc57452127ff84d70bed58e9c12842b697306bbe4943",
     "traffic_incident_x_weather_current_hourly": "79e6a5ebaa7df4629292c71e32b3b47e3d5d41510b45a9abc6cab401d2693c23",
-    "weather_place_current_outlook": "62db82904ff1b66450676f3b64adc4d42c8729849f9e0ae83a9f8ec41ddef07b",
+    "weather_place_current_outlook": "048cbc3701852681d7968939bb9e04c685b31b2ba36a0835d785494f603ac832",
     "weather_place_forecast_change_daily": "75ae5336e3b826cf9352ce474b61c247915d921aad481da4f589b3e63ceb23cd",
-    "weather_place_precipitation_window": "b9060e16dc077170e2d6448934a0650b4c773264308cfbea9605e3965d39bdc3",
+    "weather_place_precipitation_window": "2a5d25fa6dcfde4150b871c6664af0df8a78e5b65acdeb5e5b9c4f10ecdc46bf",
     "weather_place_risk_window": "47e401e6422e4a54b0abbf1adf6a9b1e5d65d63edd6a3c4e87ac37e1e2a91e7b",
-    "weather_grid_current_outlook": "f50e448ec29fd19d5895e6577e565fd0966f06c8da80722855c55f6d35d59864",
-    "weather_grid_precipitation_window": "43c75d143558fad54cf67bef105a64f94ac0dc355640e3e3de00791dab53f161",
 }
 
 INTERNAL_PUBLIC_FIELD_FRAGMENTS = {
