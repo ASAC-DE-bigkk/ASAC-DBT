@@ -559,6 +559,10 @@ models:
             nullable: false
             null_meaning: 품질 상태를 분류하지 못한 행은 공개하지 않습니다.
             unit: not_applicable
+            vocabulary_id: traffic:flow_value_quality
+            vocabulary_terms:
+              - {code: available, label_ko: 원천 값 있음}
+              - {code: missing_value, label_ko: 원천 값 없음}
       - name: observed_at_kst
         description: 관측 시각을 서울 기준으로 변환한 timestamp(6)이며 hour_at의 근거입니다.
         data_type: timestamp(6)
@@ -618,6 +622,11 @@ models:
             nullable: false
             null_meaning: case 표현식이 모든 행에 세 상태 중 하나를 부여하므로 null이 없습니다.
             unit: not_applicable
+            vocabulary_id: traffic:hotspot_state
+            vocabulary_terms:
+              - {code: missing_speed, label_ko: 속도 결측}
+              - {code: lowest_speed_top_10, label_ko: 최저 속도 상위 10}
+              - {code: observed, label_ko: 관측됨}
       - name: road_name
         description: 완전한 TOPIS 링크 참조에서 가져온 도로명입니다.
         data_type: varchar

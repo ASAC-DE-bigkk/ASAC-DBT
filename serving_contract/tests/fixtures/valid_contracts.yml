@@ -9,6 +9,11 @@ models:
       - name: product_row_id
         tests: [not_null, unique]
       - name: place_id
+        config:
+          meta:
+            vocabulary_id: fixture:place_kind
+            vocabulary_terms:
+              - {code: station, label_ko: 관측 지점}
       - name: forecast_at
     config:
       meta:

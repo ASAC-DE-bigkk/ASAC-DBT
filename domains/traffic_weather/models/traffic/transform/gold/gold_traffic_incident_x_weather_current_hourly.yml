@@ -283,6 +283,7 @@ models:
             nullable: false
             null_meaning: 정본 자치구 코드가 없는 후보는 공개하지 않습니다.
             unit: not_applicable
+            vocabulary_id: common:gu_code
       - name: gu
         description: 자치구명입니다.
         data_type: varchar
