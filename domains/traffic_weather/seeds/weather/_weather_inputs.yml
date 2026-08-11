@@ -80,7 +80,12 @@ seeds:
                 values:
                   - kma_admin_dong_grid_20260325
       - name: grid_distance_m
-        description: 장소와 격자 기준점 사이 거리 m이며 계산되지 않은 경우 null이다.
+        description: >
+          장소(행정동 중심좌표)와 배정 격자 셀 중심 사이 거리 m — 매핑 신뢰도 지표(#511,
+          contracts/weather/scripts/backfill_grid_distance.py 로 산출, KMA DFS 역변환+haversine).
+          실측 최대 3,810m이며 반셀(~2.8km) 초과는 배정 재검토 신호다(순변환 불일치 8개 동 실측).
+        tests:
+          - not_null
       - name: source_admin_code
         description: KMA 안내 자료에 기록된 행정코드 후보이며 canonical dim과 exact join해야 한다.
         tests:

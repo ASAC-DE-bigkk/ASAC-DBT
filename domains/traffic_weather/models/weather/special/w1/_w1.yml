@@ -80,3 +80,4 @@ models:
         description: canonical exact join 결과인 matched 또는 unmatched 상태다.
       - name: canonical_join_eligible
         description: canonical 다섯 필드를 사용할 수 있는 matched 여부다.
+
