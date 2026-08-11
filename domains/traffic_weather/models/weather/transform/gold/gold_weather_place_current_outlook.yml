@@ -95,7 +95,7 @@ models:
               verified_rows: 50
               verified_at: "2026-08-10T11:10:00Z"
               verified_publication_id: "5e7a691783b84bc5a1e685985ab3d4b7"
-              insight_sample_ko: "기온 28℃·습도 70% 이상 무더운 장소는 141곳(상한 50건 표시), 첫 행은 송파구 가락1동(29℃·습도 70%). 임계를 29℃로 올리면 81곳으로 좁혀짐."
+              insight_sample_ko: "기온 28℃·습도 60% 이상인 무더운 장소를 상한 50건까지 확인합니다."
               sql: |
                 -- :min_temp_c=29, :min_humidity_pct=55, :n=50
                 SELECT place_id, place_name, admin_dong, gu, temp_c, humidity_pct, wind_ms, forecast_at
@@ -105,7 +105,7 @@ models:
                 LIMIT :n
               requires: [select_columns, filter_range, sort]
               allow_empty: false
-              param_defaults: { min_temp_c: 28, min_humidity_pct: 70, n: 50 }
+              param_defaults: { min_temp_c: 28, min_humidity_pct: 60, n: 50 }
             - pattern_id: "compare_named_places"
               question_ko: "지정한 여러 장소명의 현재 예보를 한 번에 비교하면 어떻습니까?"
               axes: "장소명 배열 다중 선택 — 장소명 ASC"
