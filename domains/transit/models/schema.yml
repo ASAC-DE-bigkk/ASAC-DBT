@@ -362,6 +362,7 @@ models:
               question_ko: 이 동네는 그날 시간대별로 얼마나 붐볐나?
               axes: 필터(동, 날짜) — 시간 오름차순 타임라인
               requires: [select_columns, filter_set, sort]
+              param_defaults: { date: { rel: "-1d", as: date } }
               sql: |
                 -- :dong=1165054000(행정동 코드), :date=2026-08-01
                 SELECT hour_at, bus_congestion_avg, bus_veh_cnt, subway_arrival_cnt, parking_occupancy_avg
@@ -1653,7 +1654,7 @@ models:
               question_ko: 이 구에서 지하철로 가기 편한 행사는?
               axes: 구 내 행사 랭킹 — 최근접 역 거리 ASC (종료 행사 제외)
               requires: [select_columns, filter_set, filter_range, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10 , today: { rel: "0d", as: date } }
               sql: |
                 -- :gu=성북구, :today=2026-08-05, :n=10
                 SELECT title, venue_name, event_start_date, event_end_date,
@@ -1668,7 +1669,7 @@ models:
               question_ko: 오늘 하는 행사 중 주차 부담이 적은 곳은?
               axes: 행사 랭킹(오늘 진행 중, 주차장 도보권 한정) — 인근 주차장 평시 만차 확률 ASC
               requires: [select_columns, filter_range, filter_null, sort]
-              param_defaults: { n: 10 }
+              param_defaults: { n: 10 , today: { rel: "0d", as: date } }
               sql: |
                 -- :today=2026-08-05, :max_m=500(주차장 거리 상한 — 멀어서 안 차는 행사 배제), :n=10
                 SELECT title, venue_name, gu, nearest_parking_name,
@@ -1724,7 +1725,7 @@ models:
                   AND (:route = 'ALL' OR nearest_station_route = :route)
                 ORDER BY nearest_station_dist_m ASC, event_start_date DESC LIMIT :n
               requires: [select_columns, filter_set, filter_range, sort]
-              param_defaults: { station: "ALL", route: "ALL", n: 10 }
+              param_defaults: { station: "ALL", route: "ALL", n: 10 , today: { rel: "0d", as: date } }
             - pattern_id: "most_subway_options_events"
               question_ko: "도보권(800m) 지하철 선택지가 가장 많은 행사는?"
               axes: "행사 랭킹(미종료, 역 개수 임계) — 800m 내 역 개수 DESC, 최근접 거리 ASC"
@@ -1740,7 +1741,7 @@ models:
                 WHERE event_end_date >= :today AND stations_within_800m >= :min_st
                 ORDER BY stations_within_800m DESC, nearest_station_dist_m ASC LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { min_st: 3, n: 10 }
+              param_defaults: { min_st: 3, n: 10 , today: { rel: "0d", as: date } }
             - pattern_id: "station_access_distribution"
               question_ko: "행사들의 지하철 접근성은 초역세권/도보권/외곽으로 어떻게 분포하나?"
               axes: "분포·비율(미종료, 구 센티널) — 거리 버킷별 건수와 비중(%)"
@@ -1760,7 +1761,7 @@ models:
                 GROUP BY access_band
                 ORDER BY access_band
               requires: [select_columns, aggregate, group_by, window, filter_range]
-              param_defaults: { gu: "ALL" }
+              param_defaults: { gu: "ALL" , today: { rel: "0d", as: date } }
             - pattern_id: "transit_desert_events"
               question_ko: "도보권 지하철역이 아예 없어 셔틀·자차가 필요한 행사는?"
               axes: "단면(미종료, 800m 내 역 0개, 구 센티널) — 최근접 역 거리 DESC(접근성 최악순)"
@@ -1778,7 +1779,7 @@ models:
                   AND (:gu = 'ALL' OR gu = :gu)
                 ORDER BY nearest_station_dist_m DESC LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { gu: "ALL", n: 10 }
+              param_defaults: { gu: "ALL", n: 10 , today: { rel: "0d", as: date } }
             - pattern_id: "both_modes_events"
               question_ko: "지하철도 가깝고 주차도 여유 있는, 대중교통·자차 모두 편한 행사는?"
               axes: "행사 랭킹(미종료, 역·주차장 개수 임계) — 도보권 역+주차장 합 DESC"
@@ -1798,7 +1799,7 @@ models:
                 ORDER BY (stations_within_800m + parkings_within_500m) DESC,
                          nearest_station_dist_m ASC LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { min_st: 1, min_pk: 1, n: 10 }
+              param_defaults: { min_st: 1, min_pk: 1, n: 10 , today: { rel: "0d", as: date } }
             - pattern_id: "events_in_selected_gus"
               question_ko: "선택한 여러 자치구에서 (특정 유형의) 진행 중 행사를 한꺼번에 보려면?"
               axes: "다중 선택 필터(구 배열 IN + 유형 센티널, 미종료) — 시작일 최신순"
@@ -1816,7 +1817,7 @@ models:
                   AND (:type = 'ALL' OR event_type = :type)
                 ORDER BY event_start_date DESC, event_ref LIMIT :n
               requires: [select_columns, filter_set, subquery, filter_range, sort]
-              param_defaults: { type: "ALL", n: 20 }
+              param_defaults: { type: "ALL", n: 20 , today: { rel: "0d", as: date } }
           display:
             title: 행사장 가는 길 안내
             summary: 문화행사마다 가장 가까운 지하철역과 공영주차장을 거리와 함께 보여줍니다.
