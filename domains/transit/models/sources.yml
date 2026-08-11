@@ -254,6 +254,29 @@ sources:
                   config:
                     tags: [gate]
 
+      - name: subway_timetable
+        identifier: bronze_subway_timetable
+        description: >
+          지하철 역별 공표 시간표(SearchSTNTimeTableByIDService, ASAC-DAG#766) —
+          (역×요일 1평일/2토/3휴일×방향 1상/2하) 콤보 단위 열차 시각표 원본 + 요청
+          콤보 메타·cycle_id(YYYY-MM 월 순회). 커버리지는 1~9호선(민자 1단계 포함,
+          2026-08-11 실측) — 신분당·우이신설 등은 원천이 미제공(INFO-200).
+          월 전량·일 분할 수집이라 순회 중엔 일부 역만 있을 수 있다.
+          gold_transit_subway_timetable 이 소비.
+        meta:
+          source_rights:
+            source_name: 서울교통공사_역코드로 지하철역 열차 시간표 검색
+            dataset_id: "OA-101"
+            source_url: https://data.seoul.go.kr/dataList/OA-101/S/1/datasetView.do
+            api_service: SearchSTNTimeTableByIDService
+            license: 공공누리 제1유형(출처표시)
+            attribution: 서울교통공사
+            commercial_use: true
+            redistribution: true
+            verified_at: "2026-08-11"
+        loaded_at_field: collected_at
+        freshness: null  # 월 순회 참조 데이터 — 분 단위 신선도 게이트 비대상
+
   # ---- 크로스 도메인 published 테이블 (#289) ----
   # citydata 프로젝트의 관례(sources.yml)와 동일: database 는 target 이 해석(iceberg[_dev]),
   # schema 는 상대 도메인 고정. 신선도 게이트는 상대 도메인 소관이라 걸지 않는다.
