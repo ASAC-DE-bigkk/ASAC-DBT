@@ -76,6 +76,7 @@ models:
               verified_rows: 1
               verified_at: "2026-08-05T14:39:11Z"
               verified_publication_id: "962864413564452f960be7c075b0bad1"
+              param_defaults: { as_of_at: { rel: "-30d", as: datetime } }
               sql: |
                 -- :place_id='seoul_admd_1114054000', :as_of_at='2026-07-30 00:00:00'
                 SELECT place_id, window_start_at, window_end_at
@@ -212,7 +213,7 @@ models:
                 LIMIT :n
               requires: [select_columns, filter_range, sort]
               allow_empty: true   # 무강수 기간 0행 정상(강수 구간 축)
-              param_defaults: { n: 100 }
+              param_defaults: { n: 100 , at: { rel: "0d", as: datetime } }
             - pattern_id: "precipitation_windows_by_edge_in_range"
               question_ko: "특정 시간 범위에 강수가 시작(또는 종료)되는 구간은 무엇입니까?"
               axes: "시작/종료 시각 축 전환·시간 범위 필터 — 해당 시각 ASC"

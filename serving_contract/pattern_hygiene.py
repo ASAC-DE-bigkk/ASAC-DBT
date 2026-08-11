@@ -144,8 +144,9 @@ def plan_rel_default(sql: str, name: str, value: str, product: str) -> tuple[dic
     """파라미터 하나의 상대 기본값 정책 결정. (default|None, 분류)"""
     body = executable_sql(sql)
     as_dt = bool(DT_VAL.match(value))
-    # 시간 버킷 등호 — 제외
-    if re.search(rf"=\s*:{name}(?![a-z0-9_])", body) and (name in BUCKET_EQ_NAMES or as_dt):
+    # 시간 버킷 **등호** — 제외. `>=`/`<=` 의 `=` 를 등호로 오인하면 datetime 범위
+    # 하한(from_at 류)까지 스킵된다(실측 사고 — outlook_forecast_window from_at 누락).
+    if re.search(rf"(?<![<>!])=\s*:{name}(?![a-z0-9_])", body) and (name in BUCKET_EQ_NAMES or as_dt):
         return None, "bucket_eq_skip"
     if name == "today" or re.search(rf">=\s*:{name}(?![a-z0-9_])", body) and name in ("today", "now"):
         return {"rel": "0d", "as": "date"}, "today_guard"
