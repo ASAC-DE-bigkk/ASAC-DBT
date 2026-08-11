@@ -54,8 +54,15 @@ ordered_history as (
 )
 
 select
-    link_id as product_row_id,
-    link_id,
+    ordered_history.link_id as product_row_id,
+    ordered_history.link_id,
+    cast(road.road_name as varchar) as road_name,
+    cast(road.admin_dong_code as varchar) as admin_dong_code,
+    cast(road.admin_dong as varchar) as admin_dong,
+    cast(road.gu_code as varchar) as gu_code,
+    cast(road.gu as varchar) as gu,
+    cast(coalesce(road.link_reference_quality, 'missing_info') as varchar)
+        as link_reference_quality,
     flow_speed,
     flow_travel_time,
     flow_value_quality,
@@ -83,4 +90,6 @@ select
     payload_hash,
     dag_run_id
 from ordered_history
+left join {{ ref('silver_seoul_traffic_link_reference') }} as road
+  on ordered_history.link_id = road.link_id
 where latest_row_num = 1

@@ -92,7 +92,7 @@ def _portfolio_test_nodes() -> dict[str, dict[str, object]]:
     )
     add_group(
         "gold_gate",
-        156,
+        162,
         "traffic_gold_gate",
         "model.asac_seoul.gold_traffic_incident_summary",
         generic=True,
@@ -200,18 +200,18 @@ def _inventory() -> dict[str, object]:
     return {
         "version": 1,
         "tiers": {
-            "gate": {"expected_count": 156},
+            "gate": {"expected_count": 162},
             "hourly_extension": {"expected_count": 20},
             "daily_extension": {"expected_count": 30},
             "full_static": {"expected_count": 10},
         },
         "total_expected": {
-            "gold_gate": 156,
-            "gold_hourly": 176,
-            "gold_full": 206,
-            "traffic_gate": 354,
-            "traffic_hourly": 374,
-            "traffic_full": 414,
+            "gold_gate": 162,
+            "gold_hourly": 182,
+            "gold_full": 212,
+            "traffic_gate": 360,
+            "traffic_hourly": 380,
+            "traffic_full": 420,
         },
         "tests": tests,
     }
@@ -238,9 +238,9 @@ def test_valid_inventory_matches_manifest(validator) -> None:
 
 def test_manifest_selector_counts_match_exact_cadence_unions(validator) -> None:
     assert validator.manifest_selector_counts(_manifest()) == {
-        "ask_seoul_traffic_transform_gold_gate_tests": 156,
-        "ask_seoul_traffic_transform_gold_hourly_tests": 176,
-        "ask_seoul_traffic_transform_gold_full_tests": 206,
+        "ask_seoul_traffic_transform_gold_gate_tests": 162,
+        "ask_seoul_traffic_transform_gold_hourly_tests": 182,
+        "ask_seoul_traffic_transform_gold_full_tests": 212,
     }
 
 
@@ -483,7 +483,7 @@ def test_candidate_contains_manifest_identity_and_contract_fields(validator) -> 
         "availability": 1,
         "bronze_source": 121,
         "silver": 76,
-        "gold_gate": 156,
+        "gold_gate": 162,
         "gold_hourly_extension": 20,
         "gold_daily_extension": 30,
         "full_static": 10,
