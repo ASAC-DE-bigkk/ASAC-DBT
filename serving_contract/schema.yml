@@ -7,7 +7,7 @@
 # Keep this file and the ASAC-DAG doc in lockstep. On any change, bump `schema_version`
 # and update the doc per its §8 version policy.
 
-schema_version: v1.13
+schema_version: v1.15
 supported_contract_versions: [v1]
 
 # 조건부 필수 — `if_present` 필드를 선언한 모델은 `then_required` 필드도 선언해야 한다.
@@ -40,6 +40,8 @@ optional:
   freshness_field:        {type: string} # v1.9: event_time과 다른 실제 품질 신선도 축
   # v1.13: zero_policy=allow 희소 상품이 0행일 때 상위 관계에서 freshness를 읽는 fail-closed 축
   empty_result_freshness: {type: object}
+  # v1.14: public catalog에서 안전히 retire할 disabled·non-external product 선언
+  retire_on_publish:      {type: bool}
   retention_or_horizon:   {type: string}
   partial_policy:         {type: object}
   freshness_slo_minutes:  {type: int, min: 1}
@@ -148,6 +150,10 @@ quality_coverage_fields:
 # relation은 같은 manifest의 dbt model, field는 그 model의 실제 physical column이어야 한다.
 empty_result_freshness_fields:
   required: [relation, field]
+
+# v1.15: enabled=true·external=true·zero_policy=allow 공개 희소 상품은 위 freshness
+# fallback과 mcp_projection.empty_result(valid_empty)를 함께 선언해야 한다. 이 규칙은
+# Worker가 0행을 수집 실패와 혼동하지 않고, 과금 없이 설명 가능한 빈 결과로 반환하게 한다.
 
 # v1.10 (#706): display 하위 필드. 세 도메인(citydata·culture·transit)이 계약 밖에서
 # 이미 같은 네 키로 수렴해 있던 것을 그대로 승격했다 — 새 설계가 아니다.

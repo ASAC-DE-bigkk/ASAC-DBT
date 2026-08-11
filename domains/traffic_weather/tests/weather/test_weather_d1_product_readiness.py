@@ -23,16 +23,53 @@ PRECIP_NON_OVERLAPPING_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_precipi
 FORECAST_CHANGE_CONSISTENCY_TEST = (
     GOLD_TEST_DIR / "assert_gold_weather_place_forecast_change_daily_consistent.sql"
 )
+RISK_FUTURE_ONLY_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_risk_window_future_only.sql"
+GRID_PRECIP_VALID_EMPTY_TEST = (
+    GOLD_TEST_DIR / "assert_gold_weather_grid_precipitation_window_valid_empty.sql"
+)
+SERVING_AS_OF_HOUR_MACRO = (
+    PROJECT_DIR / "macros" / "weather" / "weather_serving_as_of_hour.sql"
+)
+SERVING_TIME_BOUNDARY_SQL = (
+    CURRENT_SQL,
+    GOLD_DIR / "gold_weather_place_precipitation_window.sql",
+    GOLD_DIR / "gold_weather_place_risk_window.sql",
+    GOLD_DIR / "gold_weather_place_forecast_change_daily.sql",
+    GOLD_DIR / "gold_weather_grid_current_outlook.sql",
+    GOLD_DIR / "gold_weather_grid_precipitation_window.sql",
+    PRECIP_VALID_EMPTY_TEST,
+    RISK_FUTURE_ONLY_TEST,
+    GRID_PRECIP_VALID_EMPTY_TEST,
+)
+
+PUBLIC_WEATHER_MODEL_PATHS = (
+    CURRENT_MODEL,
+    PRECIP_MODEL,
+    RISK_WINDOW_MODEL,
+    FORECAST_CHANGE_MODEL,
+    GOLD_DIR / "gold_weather_grid_current_outlook.yml",
+    GOLD_DIR / "gold_weather_grid_precipitation_window.yml",
+)
+PUBLIC_WEATHER_PRODUCT_IDS = {
+    "weather_place_current_outlook",
+    "weather_place_precipitation_window",
+    "weather_place_risk_window",
+    "weather_place_forecast_change_daily",
+}
 
 CURRENT_PUBLIC_PROJECTION = [
     "product_row_id", "place_id", "place_name", "alias_names", "admin_dong_code", "admin_dong",
     "gu_code", "gu", "latitude", "longitude", "forecast_at", "forecast_category_count",
-    "forecast_issued_at_min", "forecast_issued_at_max", "forecast_collected_at_max", "temp_c",
+    "forecast_issued_at_min", "forecast_issued_at_max", "forecast_collected_at_max", "snapshot_as_of_hour", "temp_c",
     "humidity_pct", "wind_ms", "wind_dir_deg", "precip_prob_pct", "sky_code", "sky_label",
     "pty_code", "pty_label", "is_precipitating", "pcp_raw", "pcp_mm", "sno_raw", "sno_cm",
     "forecast_lead_hours",
 ]
-PRECIP_PUBLIC_PROJECTION = ["product_row_id", "place_id", "place_name", "window_start_at", "window_end_at"]
+PRECIP_PUBLIC_PROJECTION = [
+    "product_row_id", "place_id", "place_name", "admin_dong_code", "admin_dong", "gu_code", "gu",
+    "window_start_at", "window_end_at", "precipitation_hour_count", "precip_prob_max_pct", "pcp_max_mm",
+    "sno_max_cm", "forecast_issued_at_min", "forecast_issued_at_max", "forecast_collected_at_max",
+]
 FORECAST_CHANGE_V1_PUBLIC_PROJECTION = [
     "product_row_id", "place_id", "forecast_date", "latest_issued_at", "change_state",
 ]
@@ -75,19 +112,42 @@ def test_weather_wave_a_serving_contracts_keep_truth_labels() -> None:
     precip_serving = precipitation["config"]["meta"]["serving"]
 
     assert current_serving["zero_policy"] == "fail"
+    assert current_serving["freshness_field"] == "forecast_collected_at_max"
+    assert current_serving["publication_trigger"] == {"schedule_cron": "0 * * * *"}
+    assert current_serving["mcp_projection"]["currentness"] == {
+        "field": "forecast_at",
+        "minimum": "current_kst_hour",
+    }
     assert precip_serving["zero_policy"] == "allow"
+    assert precip_serving["freshness_field"] == "forecast_collected_at_max"
+    assert precip_serving["publication_trigger"] == {"schedule_cron": "0 * * * *"}
     assert precip_serving["empty_result_freshness"] == {
         "relation": "gold_weather_place_hourly_outlook",
         "field": "forecast_collected_at_max",
     }
+    assert precip_serving["mcp_projection"]["empty_result"] == {
+        "state": "valid_empty",
+        "code": "no_upcoming_precipitation_forecast",
+        "message_ko": "현재 수집된 유효 단기예보에는 향후 강수(비·눈) 구간이 없습니다.",
+    }
     risk_serving = _model(RISK_WINDOW_MODEL)["config"]["meta"]["serving"]
+    assert risk_serving["zero_policy"] == "allow"
+    assert risk_serving["publication_trigger"] == {"schedule_cron": "0 * * * *"}
     assert risk_serving["empty_result_freshness"] == {
         "relation": "gold_weather_place_hourly_outlook",
         "field": "forecast_collected_at_max",
     }
+    assert risk_serving["mcp_projection"]["empty_result"] == {
+        "state": "valid_empty",
+        "code": "no_upcoming_weather_risk_candidate",
+        "message_ko": "현재 수집된 유효 단기예보에는 설정된 기준을 충족한 향후 기상 위험 후보 구간이 없습니다.",
+    }
     assert current_serving["public_projection"]["columns"] == CURRENT_PUBLIC_PROJECTION
     assert precip_serving["public_projection"]["columns"] == PRECIP_PUBLIC_PROJECTION
-    assert "snapshot_as_of_hour" not in current_serving["public_projection"]["columns"]
+    assert set(precip_serving["public_projection"]["columns"]) <= set(_columns(precipitation))
+    assert current_serving["public_projection"]["schema_version"] == "1.1.0"
+    assert precip_serving["public_projection"]["schema_version"] == "1.2.0"
+    assert "snapshot_as_of_hour" in current_serving["public_projection"]["columns"]
 
     assert "예보" in current["description"]
     assert "실측" in current["config"]["meta"]["public_gold"]["semantic_caveats"]
@@ -96,7 +156,7 @@ def test_weather_wave_a_serving_contracts_keep_truth_labels() -> None:
     assert "보장" in precipitation["description"]
 
 
-def test_current_outlook_declares_internal_snapshot_anchor_without_public_projection() -> None:
+def test_current_outlook_exposes_snapshot_anchor_with_collection_freshness() -> None:
     model = _model(CURRENT_MODEL)
     columns = _columns(model)
     public_gold = model["config"]["meta"]["public_gold"]
@@ -104,20 +164,32 @@ def test_current_outlook_declares_internal_snapshot_anchor_without_public_projec
 
     assert "snapshot_as_of_hour" in columns
     assert list(columns) == public_gold["column_order"]
-    assert "snapshot_as_of_hour" not in public_projection
+    assert "snapshot_as_of_hour" in public_projection
     anchor = columns["snapshot_as_of_hour"]
     meta = anchor["config"]["meta"]
 
     assert anchor["data_type"] == "timestamp(6)"
     assert "not_null" in _test_names(anchor)
-    assert meta["semantic_role"] == "internal_build_anchor"
-    assert meta["visibility"] == "internal"
+    assert meta["semantic_role"] == "snapshot_time"
+    assert meta["visibility"] == "public"
     assert meta["nullable"] is False
     assert meta["unit"] == "not_applicable"
 
     sql = CURRENT_SQL.read_text(encoding="utf-8")
     assert "snapshot_as_of_hour" in sql
     assert "current_hour_at as snapshot_as_of_hour" in sql
+
+
+def test_weather_serving_models_and_singular_tests_share_one_frozen_kst_hour() -> None:
+    macro = SERVING_AS_OF_HOUR_MACRO.read_text(encoding="utf-8")
+
+    assert "weather_serving_as_of_hour" in macro
+    assert "modules.re.fullmatch" in macro
+    assert "current_timestamp at time zone 'Asia/Seoul'" in macro
+    for path in SERVING_TIME_BOUNDARY_SQL:
+        sql = path.read_text(encoding="utf-8")
+        assert "{{ weather_serving_as_of_hour() }}" in sql, path.name
+        assert "current_timestamp at time zone 'Asia/Seoul'" not in sql, path.name
 
 
 def test_forecast_change_declares_public_gold_semantic_contract() -> None:
@@ -209,6 +281,17 @@ def test_risk_window_declares_coverage_not_applicable_for_sparse_events() -> Non
     }
 
 
+def test_exactly_four_place_weather_products_are_public_and_external() -> None:
+    public_products = {
+        _model(path)["config"]["meta"]["serving"]["product_id"]
+        for path in PUBLIC_WEATHER_MODEL_PATHS
+        if _model(path)["config"]["meta"]["serving"]["enabled"]
+        and _model(path)["config"]["meta"]["serving"]["external"]
+    }
+
+    assert public_products == PUBLIC_WEATHER_PRODUCT_IDS
+
+
 def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() -> None:
     selectors = yaml.safe_load(SELECTORS_PATH.read_text(encoding="utf-8"))["selectors"]
     selector_names = {selector["name"] for selector in selectors}
@@ -230,6 +313,7 @@ def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() ->
         "tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_valid_empty.sql",
         "tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_non_overlapping.sql",
         "tests/weather/transform/gold/assert_gold_weather_place_forecast_change_daily_consistent.sql",
+        "tests/weather/transform/gold/assert_gold_weather_place_risk_window_future_only.sql",
     } <= serving_paths
     assert dbt_project["data_tests"]["asac_seoul"]["weather"]["transform"]["gold"]["+tags"] == [
         "ask_seoul_weather_transform_gold"
@@ -259,6 +343,10 @@ def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() ->
             "max_temp_change_c is distinct from",
             "max_precip_prob_change_pct is distinct from",
             "expected_change_state is distinct from change_state",
+        ],
+        RISK_FUTURE_ONLY_TEST: [
+            "ref('gold_weather_place_risk_window')",
+            "forecast_at < kst_now.current_hour_at",
         ],
     }
     for path, required_fragments in expected.items():

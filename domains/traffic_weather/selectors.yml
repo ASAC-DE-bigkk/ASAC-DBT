@@ -329,7 +329,7 @@ selectors:
     description: Weather scheduled Gold summary model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_gold, indirect_selection: cautious}
   - name: ask_seoul_weather_transform_serving_products
-    description: Weather D1 네 상품과 공통 hourly source를 같은 snapshot에서 재계산한다.
+    description: Weather 공개 네 상품과 retained 80-grid audit Gold를 같은 snapshot에서 재계산한다.
     definition:
       union:
         - {method: fqn, value: gold_weather_place_hourly_outlook, indirect_selection: cautious}
@@ -340,6 +340,20 @@ selectors:
         - {method: fqn, value: gold_weather_grid_hourly_outlook, indirect_selection: cautious}
         - {method: fqn, value: gold_weather_grid_current_outlook, indirect_selection: cautious}
         - {method: fqn, value: gold_weather_grid_precipitation_window, indirect_selection: cautious}
+  - name: ask_seoul_weather_serving_snapshot_refresh
+    description: KST 매시 공개 Weather 장소 상품만 다시 계산하고 직접 serving 계약을 검증한다.
+    definition:
+      union:
+        - {method: fqn, value: gold_weather_place_hourly_outlook, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_current_outlook, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_precipitation_window, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_risk_window, indirect_selection: cautious}
+        - {method: fqn, value: gold_weather_place_forecast_change_daily, indirect_selection: cautious}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_current_outlook_readiness.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_valid_empty.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_non_overlapping.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_risk_window_future_only.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_forecast_change_daily_consistent.sql, indirect_selection: empty}
   - name: ask_seoul_weather_historical_serving_products
     description: Bounded Weather historical transform이 다시 계산해야 하는 serving Gold 범위다.
     definition:
@@ -373,7 +387,7 @@ selectors:
         - {method: path, value: models/weather/transform/grid_mart/gold_weather_forecast_by_grid_serving.sql, indirect_selection: cautious}
         - {method: path, value: tests/weather/transform/grid_mart/assert_dim_weather_coverage_grid_canonical_80.sql, indirect_selection: empty}
   - name: ask_seoul_weather_transform_serving_gold
-    description: Weather D1 네 상품과 그 직접 계약만 선택하며 Citydata 교차 분석 Gold는 포함하지 않는다.
+    description: Weather 공개 네 상품과 retained 80-grid audit Gold의 직접 계약만 선택하며 Citydata 교차 분석 Gold는 포함하지 않는다.
     definition:
       union:
         - {method: path, value: models/weather/transform/place_mart/gold_weather_forecast_by_place_serving.sql, indirect_selection: cautious}
@@ -388,6 +402,7 @@ selectors:
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_current_outlook_readiness.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_valid_empty.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_non_overlapping.sql, indirect_selection: empty}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_risk_window_future_only.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_forecast_change_daily_consistent.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_grid_current_outlook_coverage.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_grid_precipitation_window_valid_empty.sql, indirect_selection: empty}

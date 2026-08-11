@@ -281,6 +281,87 @@ def test_empty_result_freshness_requires_a_manifest_relation_and_physical_field(
     assert "empty_result_freshness_invalid" in _rules(result.findings)
 
 
+def test_external_allow_zero_policy_requires_a_valid_empty_declaration():
+    model = _serving_model(
+        serving_overrides={
+            "zero_policy": "allow",
+            "freshness_slo_minutes": 60,
+            "empty_result_freshness": {
+                "relation": "gold_hourly_outlook",
+                "field": "forecast_collected_at_max",
+            },
+        }
+    )
+
+    result = validate([model])
+
+    assert "valid_empty_contract_invalid" in _rules(result.findings)
+
+    model_without_freshness = _serving_model(
+        serving_overrides={
+            "zero_policy": "allow",
+            "mcp_projection": {
+                "empty_result": {
+                    "state": "valid_empty",
+                    "code": "no_upcoming_events",
+                    "message_ko": "현재 유효한 입력에는 향후 이벤트가 없습니다.",
+                }
+            },
+        }
+    )
+
+    assert "valid_empty_contract_invalid" in _rules(validate([model_without_freshness]).findings)
+
+
+def test_external_allow_zero_policy_accepts_a_valid_empty_declaration():
+    model = _serving_model(
+        serving_overrides={
+            "zero_policy": "allow",
+            "freshness_slo_minutes": 60,
+            "empty_result_freshness": {
+                "relation": "gold_hourly_outlook",
+                "field": "forecast_collected_at_max",
+            },
+            "mcp_projection": {
+                "empty_result": {
+                    "state": "valid_empty",
+                    "code": "no_upcoming_events",
+                    "message_ko": "현재 유효한 입력에는 향후 이벤트가 없습니다.",
+                }
+            },
+        }
+    )
+
+    assert "valid_empty_contract_invalid" not in _rules(validate([model]).findings)
+
+
+@pytest.mark.parametrize(
+    "serving_overrides",
+    [
+        {"retire_on_publish": True},
+        {"retire_on_publish": True, "enabled": False, "external": True},
+    ],
+)
+def test_retire_on_publish_requires_a_disabled_non_external_contract(serving_overrides):
+    model = _serving_model(serving_overrides=serving_overrides)
+
+    result = validate([model])
+
+    assert "retire_on_publish_invalid" in _rules(result.findings)
+
+
+def test_retire_on_publish_accepts_a_disabled_non_external_contract():
+    model = _serving_model(
+        serving_overrides={
+            "retire_on_publish": True,
+            "enabled": False,
+            "external": False,
+        }
+    )
+
+    assert "retire_on_publish_invalid" not in _rules(validate([model]).findings)
+
+
 def test_freshness_field_requires_freshness_slo():
     model = _serving_model(
         serving_overrides={"freshness_field": "collected_at"}

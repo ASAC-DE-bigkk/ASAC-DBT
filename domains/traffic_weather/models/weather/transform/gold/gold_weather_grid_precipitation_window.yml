@@ -2,15 +2,16 @@ version: 2
 
 models:
   - name: gold_weather_grid_precipitation_window
-    description: 서울 bbox 80개 KMA 수집 격자에서 연속 강수 형태가 예보된 미래 시간 구간을 제공하는 공개 Gold 상품이다. 무강수 기간에는 0행이 정상이며 실제 강수 관측이나 행정동 예보를 뜻하지 않는다.
-    access: public
+    description: 서울 bbox 80개 KMA 수집 격자에서 연속 강수 형태가 예보된 미래 시간 구간을 보존하는 internal audit Gold 모델이다. 무강수 기간에는 0행이 정상이며 실제 강수 관측이나 행정동 예보를 뜻하지 않는다.
+    access: protected
     config:
       contract:
         enforced: true
       meta:
         serving:
-          enabled: true
-          external: true
+          enabled: false
+          external: false
+          retire_on_publish: true
           contract_version: v1
           product_id: weather_grid_precipitation_window
           display:

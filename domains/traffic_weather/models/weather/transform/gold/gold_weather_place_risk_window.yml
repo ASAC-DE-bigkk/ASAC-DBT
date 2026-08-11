@@ -18,6 +18,10 @@ models:
             use_cases: ["야외 활동 전 기상 위험 확인"]
           product_question: 서울 주요 장소 중 방문·이동 주의가 필요할 수 있는 예보 시간과 근거는 무엇입니까?
           mcp_projection:
+            empty_result:
+              state: valid_empty
+              code: no_upcoming_weather_risk_candidate
+              message_ko: 현재 수집된 유효 단기예보에는 설정된 기준을 충족한 향후 기상 위험 후보 구간이 없습니다.
             schema_version: mcp-product-projection/v1
             operation:
               id: weather.find_risk_windows
@@ -32,8 +36,7 @@ models:
           publication_mode: snapshot
           zero_policy: allow
           publication_trigger:
-            trigger_type: asset
-            max_interval_minutes: 240
+            schedule_cron: "0 * * * *"
           event_time: forecast_at
           freshness_field: forecast_collected_at_max
           freshness_slo_minutes: 240

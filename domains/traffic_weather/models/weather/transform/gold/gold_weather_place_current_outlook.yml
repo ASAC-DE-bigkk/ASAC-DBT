@@ -20,6 +20,9 @@ models:
           product_question: 지금 서울 주요 장소들의 기상 상태는 대체로 어떻습니까?
           mcp_projection:
             schema_version: mcp-product-projection/v1
+            currentness:
+              field: forecast_at
+              minimum: current_kst_hour
             operation:
               id: weather.get_current_outlook
               approval_status: approved
@@ -33,9 +36,9 @@ models:
           publication_mode: snapshot
           zero_policy: fail
           publication_trigger:
-            trigger_type: asset
-            max_interval_minutes: 240
+            schedule_cron: "0 * * * *"
           event_time: forecast_at
+          freshness_field: forecast_collected_at_max
           freshness_slo_minutes: 240
           shape: wide
           source_evidence:
@@ -172,8 +175,8 @@ models:
               allow_empty: false
               param_defaults: { n: 10 }
           public_projection:
-            schema_version: "1.0.0"
-            columns: [product_row_id, place_id, place_name, alias_names, admin_dong_code, admin_dong, gu_code, gu, latitude, longitude, forecast_at, forecast_category_count, forecast_issued_at_min, forecast_issued_at_max, forecast_collected_at_max, temp_c, humidity_pct, wind_ms, wind_dir_deg, precip_prob_pct, sky_code, sky_label, pty_code, pty_label, is_precipitating, pcp_raw, pcp_mm, sno_raw, sno_cm, forecast_lead_hours]
+            schema_version: "1.1.0"
+            columns: [product_row_id, place_id, place_name, alias_names, admin_dong_code, admin_dong, gu_code, gu, latitude, longitude, forecast_at, forecast_category_count, forecast_issued_at_min, forecast_issued_at_max, forecast_collected_at_max, snapshot_as_of_hour, temp_c, humidity_pct, wind_ms, wind_dir_deg, precip_prob_pct, sky_code, sky_label, pty_code, pty_label, is_precipitating, pcp_raw, pcp_mm, sno_raw, sno_cm, forecast_lead_hours]
         public_gold:
           contract_version: "1.0"
           documentation_language: ko-KR
@@ -447,8 +450,8 @@ models:
         tests: [not_null]
         config:
           meta:
-            semantic_role: internal_build_anchor
-            visibility: internal
+            semantic_role: snapshot_time
+            visibility: public
             nullable: false
             null_meaning: 내부 build anchor가 없으면 현재 예보 선택을 재현할 수 없습니다.
             time_role: build_anchor

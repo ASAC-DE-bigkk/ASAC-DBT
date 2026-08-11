@@ -2,15 +2,16 @@ version: 2
 
 models:
   - name: gold_weather_grid_current_outlook
-    description: KMA 단기예보 수집 계약의 서울 bbox 80개 격자마다 현재 KST 시점 이후 가장 가까운 예보를 제공하는 공개 Gold 상품이다. 행정동이나 실제 행정경계의 날씨로 해석하면 안 된다.
-    access: public
+    description: KMA 단기예보 수집 계약의 서울 bbox 80개 격자마다 현재 KST 시점 이후 가장 가까운 예보를 보존하는 internal audit Gold 모델이다. 행정동이나 실제 행정경계의 날씨로 해석하면 안 된다.
+    access: protected
     config:
       contract:
         enforced: true
       meta:
         serving:
-          enabled: true
-          external: true
+          enabled: false
+          external: false
+          retire_on_publish: true
           contract_version: v1
           product_id: weather_grid_current_outlook
           display:
