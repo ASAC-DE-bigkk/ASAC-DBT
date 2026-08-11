@@ -21,12 +21,21 @@ with poi as (
 ),
 
 pip as (
-    select
-        p.*,
-        b.admin_dong_code as boundary_admin_dong_code
-    from poi p
-    left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b
-      on {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'p.longitude', 'p.latitude') }}
+    -- 경계선상 POI 가 두 폴리곤에 겹치면 fan-out 으로 grain 이 깨진다 — 선행
+    -- 구현(dim_seoul_area, culture_dong_map)과 동일하게 결정적 dedup(#116 리뷰).
+    select area_cd, category, area_nm, longitude, latitude, boundary_admin_dong_code
+    from (
+        select
+            p.*,
+            b.admin_dong_code as boundary_admin_dong_code,
+            row_number() over (
+                partition by p.area_cd order by b.admin_dong_code
+            ) as rn
+        from poi p
+        left join {{ ref('asac_axes', 'seoul_admin_dong_boundary') }} b
+          on {{ asac_axes.admin_dong_contains('b.boundary_wkt', 'p.longitude', 'p.latitude') }}
+    )
+    where rn = 1
 ),
 
 canonical as (
