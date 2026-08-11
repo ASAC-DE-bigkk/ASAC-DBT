@@ -165,3 +165,7 @@ sources:
         description: 장소별 시간 인구·혼잡 관측 Gold다.
       - name: gold_citydata_place_latest
         description: 장소별 최신 혼잡·결제·승하차·따릉이 상태 Gold다.
+      - name: seoul_hotspot_area_geo
+        description: >
+          citydata 도메인의 서울 주요 장소(121 POI) 좌표 seed(물리 테이블) —
+          bridge_weather_poi_admin_dong 이 행정동 매핑(#511)에 읽기 전용으로 사용.
