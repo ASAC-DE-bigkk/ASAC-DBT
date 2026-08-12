@@ -28,7 +28,8 @@ violations as (
         'population_set_mismatch' as violation,
         coalesce(population.place_id, availability.place_id) as evidence
     from population
-    full outer join availability using (place_id)
+    full outer join availability
+      on population.place_id = availability.place_id
     where population.place_id is null or availability.place_id is null
 
     union all

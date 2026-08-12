@@ -45,12 +45,40 @@ source_hourly as (
     where cast(hourly.forecast_at as timestamp(6)) >= kst_now.snapshot_as_of_hour
 ),
 
+source_schedule as (
+    select distinct forecast_at
+    from source_hourly
+),
+
+source_schedule_with_neighbors as (
+    select
+        forecast_at,
+        lag(forecast_at) over (order by forecast_at) as previous_forecast_at,
+        lead(forecast_at) over (order by forecast_at) as next_forecast_at
+    from source_schedule
+),
+
+hourly_cadence_transition as (
+    -- KMA 단기예보는 충분한 미래 구간에서 1시간 간격이 3시간 간격으로 전환된다.
+    -- 두 개의 연속 3시간 간격을 확인했을 때만 이를 정상 cadence 전환으로 인정한다.
+    select min(forecast_at) as first_three_hour_slot_at
+    from source_schedule_with_neighbors
+    where forecast_at = previous_forecast_at + interval '3' hour
+      and next_forecast_at = forecast_at + interval '3' hour
+),
+
 horizon as (
     select
         kst_now.snapshot_as_of_hour,
-        max(source_hourly.forecast_at) as global_forecast_horizon_at
+        case
+            -- 확인된 3시간 cadence tail은 hourly complete prefix의 범위 밖이다.
+            when min(hourly_cadence_transition.first_three_hour_slot_at) is not null
+                then min(hourly_cadence_transition.first_three_hour_slot_at) - interval '3' hour
+            else max(source_schedule.forecast_at)
+        end as global_forecast_horizon_at
     from kst_now
-    left join source_hourly on true
+    left join source_schedule on true
+    left join hourly_cadence_transition on true
     group by 1
 ),
 
