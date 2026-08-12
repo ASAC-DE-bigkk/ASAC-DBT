@@ -328,12 +328,9 @@ selectors:
   - name: ask_seoul_weather_transform_gold
     description: Weather scheduled Gold summary model과 test phase를 선택한다.
     definition: {method: tag, value: ask_seoul_weather_transform_gold, indirect_selection: cautious}
-  - name: ask_seoul_weather_risk_query_availability_unit_tests
+  - name: ask_seoul_weather_risk_query_availability_unit
     description: Weather risk query availability model에 연결된 deterministic unit fixtures만 선택한다.
-    definition:
-      intersection:
-        - {method: tag, value: ask_seoul_weather_risk_query_availability_unit, indirect_selection: empty}
-        - {method: test_type, value: unit}
+    definition: {method: tag, value: ask_seoul_weather_risk_query_availability_unit, indirect_selection: cautious}
   - name: ask_seoul_weather_transform_serving_products
     description: Weather 공개 네 상품과 retained 80-grid audit Gold를 같은 snapshot에서 재계산한다.
     definition:
@@ -364,7 +361,7 @@ selectors:
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_risk_query_availability_grain_unique.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_risk_query_availability_population_reconciles.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_risk_query_availability_reconciles.sql, indirect_selection: empty}
-        - {method: selector, value: ask_seoul_weather_risk_query_availability_unit_tests, indirect_selection: empty}
+        - {method: selector, value: ask_seoul_weather_risk_query_availability_unit, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_forecast_change_daily_consistent.sql, indirect_selection: empty}
   - name: ask_seoul_weather_historical_serving_products
     description: Bounded Weather historical transform이 다시 계산해야 하는 serving Gold 범위다.
@@ -420,7 +417,7 @@ selectors:
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_risk_query_availability_grain_unique.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_risk_query_availability_population_reconciles.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_risk_query_availability_reconciles.sql, indirect_selection: empty}
-        - {method: selector, value: ask_seoul_weather_risk_query_availability_unit_tests, indirect_selection: empty}
+        - {method: selector, value: ask_seoul_weather_risk_query_availability_unit, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_forecast_change_daily_consistent.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_grid_current_outlook_coverage.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_grid_precipitation_window_valid_empty.sql, indirect_selection: empty}
