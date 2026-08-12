@@ -865,7 +865,7 @@ models:
             minimum_ratio: 1.0
           public_projection:
             schema_version: "1.0.0"
-            columns: [event_date, area_cd, area_nm, area_category, gu, ppltn_avg, payment_amt_total, spend_per_crowd_idx, rank_spend, rank_spend_in_gu]
+            columns: [event_date, area_cd, area_nm, area_category, gu, ppltn_avg, payment_amt_total, payment_cnt_total, spend_per_crowd_idx, rank_spend, rank_spend_in_gu]
           usage_patterns:
             - pattern_id: top_purchasing_power_on_date
               question_ko: 특정 날 붐빔 대비 소비(구매력 지수)가 가장 높았던 장소는?
@@ -1082,6 +1082,7 @@ models:
       - name: payment_cnt_total
         data_type: bigint
         description: 그날 결제 건수 합
+        config: {meta: {semantic_role: measure, nullable: true, null_meaning: 해당 장소·일자의 결제 건수 측정이 없음, unit: 건}}
       - name: payment_amt_total
         data_type: bigint
         description: 그날 결제금액 합
