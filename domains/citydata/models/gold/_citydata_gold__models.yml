@@ -49,7 +49,7 @@ models:
               question_ko: 특정 날 가장 붐빈 장소는?
               axes: 장소 랭킹 — max_population DESC (날짜 고정)
               requires: [select_columns, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
               verified_rows: 10
               verified_at: "2026-08-10"
               verified_publication_id: b25bbbbe7d4445a6aea2284fae8568a9
@@ -92,7 +92,7 @@ models:
                   CASE WHEN :dir='desc' THEN (CASE :metric WHEN 'avg' THEN average_population WHEN 'max' THEN max_population ELSE busy_ratio_percent END) END DESC
                 LIMIT :n
               requires: [select_columns, filter_set, sort]
-              param_defaults: { gu: "ALL", atype: "ALL", dir: "desc", n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { gu: "ALL", atype: "ALL", dir: "desc", n: 10 , date: { rel: "-2d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "ppltn_group_aggregate_on_date"
               question_ko: "특정 날 자치구별 또는 지역유형별로 붐빔을 묶어 보면?"
@@ -115,7 +115,7 @@ models:
                 ORDER BY avg_ppltn DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, sort]
-              param_defaults: { n: 25 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 25 , date: { rel: "-2d", as: date } }
             - pattern_id: "ppltn_period_avg_rank"
               question_ko: "일정 기간 동안 평균적으로 가장 붐빈 장소는? (하루가 아니라 기간 전체 기준)"
               axes: "기간 집계 랭킹 — 장소별 AVG(average_population) DESC (기간창, gu·area_type 센티널)"
@@ -176,7 +176,7 @@ models:
                   CASE WHEN :dir='desc' THEN (max_population - min_population) END DESC
                 LIMIT :n
               requires: [select_columns, filter_set, sort]
-              param_defaults: { gu: "ALL", dir: "desc", n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { gu: "ALL", dir: "desc", n: 10 , date: { rel: "-2d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "ppltn_congestion_days_for_place"
               question_ko: "이 장소는 기간 중 각 혼잡 수준(여유·보통·약간 붐빔·붐빔)을 며칠씩 기록했나?"
@@ -204,7 +204,7 @@ models:
               verified_at: "2026-08-10"
               verified_publication_id: b25bbbbe7d4445a6aea2284fae8568a9
               insight_sample_ko: "2026-07-14 세 곳 중 잠실 관광특구가 평균 40,660명으로 가장 붐볐고(최대 74,000명·약간 붐빔), 고속터미널역·이태원 관광특구가 뒤를 이음."
-              param_defaults: { date: { rel: "-1d", as: date } }
+              param_defaults: { date: { rel: "-2d", as: date } }
               sql: |
                 -- :areas=["고속터미널역","이태원 관광특구","잠실 관광특구"], :date=2026-07-14
                 SELECT area_name, gu, area_type, average_population, max_population, busy_ratio_percent, peak_congestion_level
@@ -601,7 +601,7 @@ models:
               question_ko: 특정 날 결제가 가장 많았던 장소는?
               axes: 장소 랭킹 — payment_count_total DESC (날짜 고정)
               requires: [select_columns, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
               verified_rows: 10
               verified_at: "2026-08-10"
               verified_publication_id: 9157752a9add409c9227c24236ed0ac4
@@ -629,7 +629,7 @@ models:
               question_ko: 특정 자치구에서 상권이 가장 바빴던 장소는?
               axes: 장소 랭킹 — busy_ratio_percent DESC (자치구·날짜 고정)
               requires: [select_columns, filter_set, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
               verified_rows: 8
               verified_at: "2026-08-10"
               verified_publication_id: 9157752a9add409c9227c24236ed0ac4
@@ -654,7 +654,7 @@ models:
                 GROUP BY gu
                 ORDER BY total_payments DESC LIMIT :n
               requires: [select_columns, aggregate, group_by, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
             - pattern_id: "category_commerce_breakdown_on_date"
               question_ko: "특정 날 상권 유형(발달상권·관광특구·인구밀집지역·고궁문화유산)별 결제 규모와 붐빔은?"
               axes: "상권유형 단면 집계 — SUM(payment_count_total) DESC (날짜 고정)"
@@ -662,7 +662,7 @@ models:
               verified_at: "2026-08-10"
               verified_publication_id: 9157752a9add409c9227c24236ed0ac4
               insight_sample_ko: "2026-07-30 상권유형 중 인구밀집지역이 45개 상권·총 결제 264,051건으로 최다, 평균 붐빔 33.9%."
-              param_defaults: { date: { rel: "-1d", as: date } }
+              param_defaults: { date: { rel: "-2d", as: date } }
               sql: |
                 -- :date=2026-07-30
                 SELECT area_category, COUNT(*) AS area_count, SUM(payment_count_total) AS total_payments, ROUND(AVG(payment_count_avg),1) AS avg_pay_per_slot, ROUND(AVG(busy_ratio_percent),1) AS avg_busy
@@ -696,7 +696,7 @@ models:
                                  ELSE payment_count_total END END DESC
                 LIMIT :n
               requires: [select_columns, filter_set, sort]
-              param_defaults: { gu: "ALL", dir: "desc", n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { gu: "ALL", dir: "desc", n: 10 , date: { rel: "-2d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "compare_selected_areas_on_date"
               question_ko: "고른 여러 상권을 특정 날 나란히 비교하면?"
@@ -705,7 +705,7 @@ models:
               verified_at: "2026-08-10"
               verified_publication_id: 9157752a9add409c9227c24236ed0ac4
               insight_sample_ko: "2026-07-30 선릉역·익선동·서울대입구역 중 선릉역이 결제 13,485건으로 가장 활발(붐빔 40.2%, 분주한)."
-              param_defaults: { date: { rel: "-1d", as: date } }
+              param_defaults: { date: { rel: "-2d", as: date } }
               sql: |
                 -- :date=2026-07-30, :areas=["익선동","선릉역","서울대입구역"]
                 SELECT area_nm, gu, area_category, payment_count_total, busy_ratio_percent, payment_amt_peak, peak_cmrcl_lvl
@@ -727,7 +727,7 @@ models:
                 WHERE event_date = :date AND (:gu = 'ALL' OR gu = :gu) AND busy_ratio_percent >= :min_busy
                 ORDER BY busy_ratio_percent DESC LIMIT :n
               requires: [select_columns, filter_set, filter_range, sort]
-              param_defaults: { gu: "ALL", min_busy: 40, n: 20 , date: { rel: "-1d", as: date } }
+              param_defaults: { gu: "ALL", min_busy: 40, n: 20 , date: { rel: "-2d", as: date } }
             - pattern_id: "payment_peak_hour_distribution"
               question_ko: "특정 기간 상권들의 결제 피크는 주로 하루 중 몇 시에 발생하나?"
               axes: "시간대 분포 — peak_at 시(hour)별 상권-일 집계 (기간 고정)"
@@ -871,7 +871,7 @@ models:
               question_ko: 특정 날 붐빔 대비 소비(구매력 지수)가 가장 높았던 장소는?
               axes: 장소 랭킹 — spend_per_crowd_idx DESC (날짜 고정)
               requires: [select_columns, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
               verified_rows: 10
               verified_at: "2026-08-10"
               verified_publication_id: fb3eb915ff7d460b88736ccf0e1f8502
@@ -899,7 +899,7 @@ models:
               question_ko: 특정 날 붐비는데 소비는 약했던 장소는?
               axes: 장소 랭킹 — spend_per_crowd_idx ASC (날짜 고정)
               requires: [select_columns, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
               verified_rows: 10
               verified_at: "2026-08-10"
               verified_publication_id: fb3eb915ff7d460b88736ccf0e1f8502
@@ -928,7 +928,7 @@ models:
                   CASE WHEN :dir = 'desc' THEN (CASE :metric WHEN 'spend' THEN spend_per_crowd_idx WHEN 'buy' THEN buy_per_crowd_idx WHEN 'amount' THEN payment_amt_total END) END DESC
                 LIMIT :n
               requires: [select_columns, sort, filter_null]
-              param_defaults: { gu: "ALL", dir: "desc", n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { gu: "ALL", dir: "desc", n: 10 , date: { rel: "-2d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "spend_distribution_by_dim_on_date"
               question_ko: "특정 날, 상권유형/자치구/혼잡수준별 평균 소비강도와 총결제 분포는?"
@@ -937,7 +937,7 @@ models:
               verified_at: "2026-08-10"
               verified_publication_id: fb3eb915ff7d460b88736ccf0e1f8502
               insight_sample_ko: "2026-07-30 상권유형별 평균 소비강도는 고궁·문화유산이 19160.1로 가장 높고(해당 2개 지역, 총결제 6.27억원), 차원 스위치로 자치구별·혼잡수준별 분포도 같은 틀에서 조회된다."
-              param_defaults: { date: { rel: "-1d", as: date } }
+              param_defaults: { date: { rel: "-2d", as: date } }
               sql: |
                 -- :date=2026-07-30, :dim=category
                 SELECT CASE :dim WHEN 'gu' THEN gu WHEN 'congest' THEN congest_peak_lvl ELSE area_category END AS dim_value,
@@ -987,7 +987,7 @@ models:
                 ORDER BY peak_share DESC
                 LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { min_amt: 1000000, n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { min_amt: 1000000, n: 10 , date: { rel: "-2d", as: date } }
             - pattern_id: "avg_ticket_size_on_date"
               question_ko: "특정 날, 결제 1건당 평균 금액(객단가)이 가장 큰 장소는? (최소 결제건수 이상)"
               axes: "장소 랭킹 — payment_amt_total/payment_cnt_total 비율 DESC (날짜 고정, 임계값)"
@@ -1004,7 +1004,7 @@ models:
                 ORDER BY avg_ticket DESC
                 LIMIT :n
               requires: [select_columns, filter_range, sort]
-              param_defaults: { min_cnt: 100, n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { min_cnt: 100, n: 10 , date: { rel: "-2d", as: date } }
             - pattern_id: "compare_places_purchasing_power"
               question_ko: "지정한 여러 장소의 특정 날 구매력(인구·총결제·소비/구매 강도)을 나란히 비교하면?"
               axes: "단면 비교 — 장소 다중선택(IN json_each) × spend_per_crowd_idx DESC (날짜 고정)"
@@ -1012,7 +1012,7 @@ models:
               verified_at: "2026-08-10"
               verified_publication_id: fb3eb915ff7d460b88736ccf0e1f8502
               insight_sample_ko: "지정 3개 장소 중 2026-07-30 소비강도 최고는 강남역으로 spend_per_crowd_idx 18086.9, 총결제 9.91억원, 평균인구 54,794명. 임의 장소 묶음을 한 번에 비교한다."
-              param_defaults: { date: { rel: "-1d", as: date } }
+              param_defaults: { date: { rel: "-2d", as: date } }
               sql: |
                 -- :areas=["강남역","서촌","혜화역"], :date=2026-07-30
                 SELECT area_nm, gu, area_category, ppltn_avg, payment_amt_total, spend_per_crowd_idx, buy_per_crowd_idx
@@ -1181,7 +1181,7 @@ models:
               question_ko: 특정 날 문화행사가 가장 많은 동네는?
               axes: 동 랭킹 — event_count DESC (날짜 고정)
               requires: [select_columns, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
               verified_rows: 10
               verified_at: "2026-08-10"
               verified_publication_id: 284cb17147154a4486186f3f98a4d91e
@@ -1195,7 +1195,7 @@ models:
               question_ko: 특정 날 축제가 열리는 붐비는 동네는?
               axes: 동 랭킹 — ppltn_avg DESC (날짜 고정, 축제 有)
               requires: [select_columns, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
               verified_rows: 3
               verified_at: "2026-08-10"
               verified_publication_id: 284cb17147154a4486186f3f98a4d91e
@@ -1234,7 +1234,7 @@ models:
                 GROUP BY gu
                 ORDER BY total_events DESC LIMIT :n
               requires: [select_columns, aggregate, group_by, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
             - pattern_id: "rank_dongs_by_metric_on_date"
               question_ko: "특정 날, 고른 지표(행사수/공연/전시/축제/평균인구/최대인구)로 동네를 정렬하면?"
               axes: "동 랭킹 — 지표 스위치 + 정렬방향 스위치 (날짜 고정)"
@@ -1252,7 +1252,7 @@ models:
                  CASE WHEN :dir='desc' THEN CASE :metric WHEN 'performance' THEN performance_count WHEN 'exhibition' THEN exhibition_count WHEN 'festival' THEN festival_count WHEN 'ppltn_avg' THEN ppltn_avg WHEN 'ppltn_peak' THEN ppltn_peak ELSE event_count END END DESC
                 LIMIT :n
               requires: [select_columns, sort]
-              param_defaults: { dir: "desc", n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { dir: "desc", n: 10 , date: { rel: "-2d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "crowded_dongs_without_events_on_date"
               question_ko: "특정 날 붐비는데 문화행사가 하나도 없는 동네는? (행사 유치 공백)"
@@ -1268,7 +1268,7 @@ models:
                 WHERE event_date = :date AND has_event = 0
                 ORDER BY ppltn_avg DESC LIMIT :n
               requires: [select_columns, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
             - pattern_id: "dongs_with_event_type_on_date"
               question_ko: "특정 날 특정 유형(KCISA행사/세종문화회관/전시/공연/축제/행사)이 열린 동네는?"
               axes: "동 단면 — event_types 부분일치 필터 (날짜 고정), event_count DESC"
@@ -1283,7 +1283,7 @@ models:
                 WHERE event_date = :date AND event_types LIKE '%' || :type || '%'
                 ORDER BY event_count DESC LIMIT :n
               requires: [select_columns, filter_set, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
             - pattern_id: "city_culture_trend"
               question_ko: "최근 기간 서울 전체의 일별 문화행사 활발도와 붐빔 추이는?"
               axes: "시계열 — event_date 축, 전 동 집계(도시 전체)"
@@ -1324,7 +1324,7 @@ models:
               verified_at: "2026-08-10"
               verified_publication_id: 284cb17147154a4486186f3f98a4d91e
               insight_sample_ko: "2026-07-30 선택 3개 동 중 잠실4동(송파구)이 가장 붐벼 평균 생활인구 51,361.7명(최대 95,000)인데 행사는 2건(행사·KCISA행사)뿐."
-              param_defaults: { date: { rel: "-1d", as: date } }
+              param_defaults: { date: { rel: "-2d", as: date } }
               sql: |
                 -- :dongs=["잠실4동","사직동","역삼1동"], :date=2026-07-30
                 SELECT admin_dong, gu, event_count, performance_count, festival_count, ppltn_avg, ppltn_peak, event_types
@@ -2735,7 +2735,7 @@ models:
               question_ko: 특정 날짜에 어느 자치구·장소 대기질이 더 나빴나?
               axes: 장소 랭킹 — avg_pm10 DESC (날짜 고정)
               requires: [select_columns, filter_set, sort]
-              param_defaults: { n: 25 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 25 , date: { rel: "-2d", as: date } }
               insight_sample_ko: 8/1엔 서남권 장소들의 PM10이 도심보다 높았다.
               verified_rows: 25
               verified_at: "2026-08-10"
@@ -2768,7 +2768,7 @@ models:
                          CASE WHEN :dir='desc' THEN AVG(avg_pm10) END DESC
                 LIMIT :n
               requires: [select_columns, aggregate, group_by, filter_set, sort]
-              param_defaults: { dir: "desc", n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { dir: "desc", n: 10 , date: { rel: "-2d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "air_city_daily_trend"
               question_ko: "서울 전역의 일별 평균 대기질 추이는? (도시 전체 시계열)"
@@ -2808,7 +2808,7 @@ models:
                          CASE WHEN :dir='desc' THEN (CASE :metric WHEN 'pm25' THEN avg_pm25 WHEN 'air_idx' THEN avg_air_idx_value ELSE avg_pm10 END) END DESC
                 LIMIT :n
               requires: [select_columns, filter_set, sort]
-              param_defaults: { dir: "desc", n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { dir: "desc", n: 10 , date: { rel: "-2d", as: date } }
               param_enum: { dir: [asc, desc] }
             - pattern_id: "air_bad_day_frequency_for_places"
               question_ko: "최근 기간 미세먼지 나쁜 날(임계 초과)이 가장 잦았던 지점은? (빈도, 강도 아님)"
@@ -2846,7 +2846,7 @@ models:
                 ORDER BY (max_pm10 - avg_pm10) DESC, max_pm10 DESC
                 LIMIT :n
               requires: [select_columns, filter_set, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
             - pattern_id: "air_compare_selected_areas_on_date"
               question_ko: "내가 고른 여러 지점의 특정 날 대기질을 나란히 비교하면?"
               axes: "단면 비교 — 선택 지점 집합 (날짜 고정, 배열 IN)"
@@ -2854,7 +2854,7 @@ models:
               verified_at: "2026-08-10"
               verified_publication_id: 379e2580e4e94845950513a634910f33
               insight_sample_ko: "선택한 3개 지점의 2026-08-01 PM10 비교 — 건대입구역 42(광진구)로 가장 높고 서울역·창덕궁·종묘가 뒤. :areas 배열에 임의 지점 세트를 넣어 다지점 단면 비교."
-              param_defaults: { date: { rel: "-1d", as: date } }
+              param_defaults: { date: { rel: "-2d", as: date } }
               sql: |
                 -- :areas=["서울역","건대입구역","창덕궁·종묘"], :date=2026-08-01
                 SELECT area_nm, gu, area_category, avg_pm10, avg_pm25, avg_air_idx_value
@@ -2882,7 +2882,7 @@ models:
                 ORDER BY (avg_pm10 - prev_pm10) DESC
                 LIMIT :n
               requires: [select_columns, subquery, window, filter_set, filter_null, sort]
-              param_defaults: { n: 10 , date: { rel: "-1d", as: date } }
+              param_defaults: { n: 10 , date: { rel: "-2d", as: date } }
           display:
             title: 일별 대기질 추이
             summary: 장소마다 날짜별 평균 미세먼지(PM10/PM2.5)와 통합대기지수를 요약했습니다. 실시간 대신 며칠 추세를 봅니다.
@@ -3324,6 +3324,7 @@ models:
             - pattern_id: "dst_on_date"
               question_ko: "특정 날 서울에 어떤 재난 경보가 있었고 그 실제 안내 문구는? (규모 임계 이상만)"
               axes: "단면 — 날짜 고정, affected_areas 임계 필터, affected_areas DESC"
+              allow_empty: true   # 재난문자 없는 날 0행 정상(희소 축)
               verified_rows: 2
               verified_at: "2026-08-10"
               verified_publication_id: e13ee8ebb6054892941f6f6d4d1aae9e
@@ -3335,7 +3336,7 @@ models:
                 WHERE event_date = :date AND affected_areas >= :min_areas
                 ORDER BY affected_areas DESC
               requires: [select_columns, filter_set, filter_range, sort]
-              param_defaults: { min_areas: 1 , date: { rel: "-1d", as: date } }
+              param_defaults: { min_areas: 1 , date: { rel: "-2d", as: date } }
             - pattern_id: "dst_search_message"
               question_ko: "안내 문구에 특정 키워드가 들어간 재난 경보를 찾으면? (예: 정전)"
               axes: "텍스트 검색 — latest_message LIKE, last_alert_at DESC"

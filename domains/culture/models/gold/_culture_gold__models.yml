@@ -852,7 +852,7 @@ models:
                   AND event_end_date BETWEEN :today AND :until
                 ORDER BY event_end_date ASC, rank_no ASC LIMIT :n
               requires: [select_columns, subquery, filter_range, sort]
-              param_defaults: { n: 10 , today: { rel: "0d", as: date }, until: { rel: "0d", as: date } }
+              param_defaults: { n: 10 , today: { rel: "0d", as: date }, until: { rel: "+14d", as: date } }
             - pattern_id: "multi_genre_top"
               question_ko: "이 장르들(예: 뮤지컬·연극) 중에서 지금 예매 상위 공연은?"
               axes: "최신 스냅샷 필터(다중 장르 IN) — rank_no ASC"
