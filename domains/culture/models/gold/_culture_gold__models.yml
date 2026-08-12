@@ -1812,18 +1812,26 @@ models:
         data_type: varchar
         tests: [not_null, unique]
       - name: event_type
-        description: 행사 출처 유형 — 목록에서 아이콘·필터로 쓰기 좋은 축
+        # 값을 설명에도 적는다 — `accepted_values` 는 테스트라 카탈로그·검색에 안 실린다.
+        # 여섯 코드만 보고는 무엇의 약자인지 알 수 없어 필터를 못 채운다.
+        description: 행사 출처 유형 — event(서울시 문화행사)·performance(KOPIS 공연)·exhibition(전시)·festival(축제)·sejong(세종문화회관)·kcisa(문화포털). 목록에서 아이콘·필터로 쓰기 좋은 축
         data_type: varchar
         tests:
           - not_null
           - accepted_values:
               arguments: {values: [event, performance, exhibition, festival, sejong, kcisa]}
       - name: title
-        description: 행사명(원문)
+        # 🔑 **분류로 못 거르는 성격이 있다는 사실을 여기서 말한다.** 어린이 프로그램 985건 ·
+        #    강연 167건 · 야외 행사 92건이 제목에만 있고 category 에는 그 갈래가 아예 없다
+        #    (2026-08-12 실측). 안 적으면 사용자는 category 를 뒤지다 0행을 만난다.
+        description: 행사명(원문). 어린이 프로그램·강연·야외 행사처럼 category 에 갈래가 없는 성격은 제목에만 드러난다 — 분류로는 못 거른다
         data_type: varchar
         tests: [not_null]
       - name: category
-        description: 소스별 분류/장르 원문(값 체계는 event_type 마다 다름 — 통합 분류 아님)
+        # ⚠️ "값 체계가 출처마다 다르다"고만 적어 두면 **무엇을 넣어야 하는지 알 길이 없다.**
+        #    실제로 무슨 값이 들어 있는지가 필터를 채우는 데 필요한 정보라, 출처별 상위값을
+        #    함께 적는다. 원천이 바꾸면 변할 수 있어 **측정 날짜를 붙인다**.
+        description: 소스별 분류/장르 원문(값 체계는 event_type 마다 다름 — 통합 분류 아님). 실제 값의 갈래는 event 가 교육/체험·전시/미술·클래식·콘서트·축제-문화/예술, performance 가 서양음악(클래식)·대중음악·연극·뮤지컬·한국음악(국악)·무용, sejong 이 클래식·공연기타·전시기타·국악·오페라·뮤지컬, kcisa 가 음악/콘서트·전시·교육/체험·연극·무용/발레·뮤지컬/오페라다(2026-08-12 기준 상위값). exhibition 은 분류가 비어 있다
         data_type: varchar
       - name: venue_name
         description: 개최 장소 이름
