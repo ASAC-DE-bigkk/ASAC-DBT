@@ -635,6 +635,7 @@ def _check_semantic(model: ServingModel, manifest: ManifestView) -> list[Finding
     _check_primary_key(model, manifest, add)
     _check_freshness_field(model, manifest, add)
     _check_empty_result_freshness(model, manifest, add)
+    _check_query_availability(model, manifest, add)
     _check_valid_empty_contract(model, add)
     _check_public_projection(model, manifest, add)
     _check_column_vocabularies(model, add)
@@ -778,6 +779,34 @@ def _check_empty_result_freshness(model: ServingModel, manifest: ManifestView, a
             add("empty_result_freshness_invalid", f"empty_result_freshness.relation '{relation}' 이 manifest model에 없다")
         elif field not in manifest.columns(relation):
             add("empty_result_freshness_invalid", f"empty_result_freshness.field '{field}' 이 relation '{relation}' 컬럼에 없다")
+
+
+def _check_query_availability(model: ServingModel, manifest: ManifestView, add) -> None:
+    """Validate the private dbt companion used for filtered-query coverage."""
+    raw = model.serving.get("query_availability")
+    if raw is None:
+        return
+    if not isinstance(raw, dict):
+        return
+    if set(raw) != {"relation"}:
+        add(
+            "query_availability_invalid",
+            "query_availability 는 relation 만 선언해야 한다",
+        )
+        return
+
+    relation = raw.get("relation")
+    if not isinstance(relation, str) or not IDENTIFIER_RE.fullmatch(relation):
+        add("query_availability_invalid", "query_availability.relation 은 dbt model 식별자여야 한다")
+        return
+    if relation == model.name:
+        add("query_availability_invalid", "query_availability.relation 은 현재 공개 상품 자신일 수 없다")
+        return
+    if manifest.supplied and not manifest.has_model(relation):
+        add(
+            "query_availability_invalid",
+            f"query_availability.relation '{relation}' 이 manifest model에 없다",
+        )
 
 
 def _check_valid_empty_contract(model: ServingModel, add) -> None:
