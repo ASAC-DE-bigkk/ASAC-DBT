@@ -1,5 +1,9 @@
 # Weather dbt contract guide
 
+### Weather risk query availability companion
+
+`gold_weather_place_risk_query_availability`는 `gold_weather_place_risk_window`의 private query-availability companion이다. grain은 `dim_weather_place`의 mapped place 427개에 대한 `place_id` 한 행이며, canonical 426 administrative-dong 축으로 대체하지 않는다. `snapshot_as_of_hour`부터 source 전체의 global `forecast_at` maximum까지 1시간 expected slot을 만든다. TMP/WSD의 numeric value evidence, PTY/PCP/SNO의 raw evidence, 각 category의 non-null `collected_at`, 그리고 `risk_evidence_collected_category_count = 5`를 모두 만족한 slot만 complete다. PCP/SNO의 numeric NULL은 raw no-precipitation/no-snow 표현이면 정상이다. hourly source의 `risk_evidence_collected_at_min`/`max`는 이 다섯 qualified category timestamp에서 계산하므로, complete prefix의 `forecast_collected_at_min`은 required category 하나만 stale한 slot도 포함한다. 한 category의 `collected_at`가 NULL이면 다른 네 category의 min/max가 존재해도 slot은 incomplete다. `available_from_at`/`available_to_at`와 collected min/max는 첫 missing 또는 incomplete slot 전의 continuous complete prefix만 나타낸다. prefix가 없으면 네 timestamp는 NULL이고 status는 `incomplete`다. DBT는 이 diagnostic relation을 계산하며 active publication의 complete-status reject와 same-publication atomicity는 DAG Publisher가 수행한다.
+
 이 문서는 weather 도메인 dbt PR에서 지켜야 할 source, time, grain,
 coverage 계약을 정리한다. 공용 package를 바로 만들기보다, weather 도메인 안에서
 현재 KMA 단기예보 모델의 검토 기준을 명확히 남기는 것이 목적이다.

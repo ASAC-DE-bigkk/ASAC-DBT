@@ -15,6 +15,7 @@ SERVING_MODELS = {
     "gold_weather_place_current_outlook",
     "gold_weather_place_precipitation_window",
     "gold_weather_place_risk_window",
+    "gold_weather_place_risk_query_availability",
     "gold_weather_place_forecast_change_daily",
     "gold_weather_grid_hourly_outlook",
     "gold_weather_grid_current_outlook",
@@ -30,6 +31,7 @@ SNAPSHOT_REFRESH_MODELS = {
     "gold_weather_place_current_outlook",
     "gold_weather_place_precipitation_window",
     "gold_weather_place_risk_window",
+    "gold_weather_place_risk_query_availability",
     "gold_weather_place_forecast_change_daily",
 }
 

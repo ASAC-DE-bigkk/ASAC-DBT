@@ -43,6 +43,43 @@ pivoted as (
         min(issued_at) as forecast_issued_at_min,
         max(issued_at) as forecast_issued_at_max,
         max(cast({{ asac_axes.utc_to_kst('collected_at') }} as timestamp(6))) as forecast_collected_at_max,
+        count(distinct case
+                when collected_at is not null
+                 and (
+                     (category in ('TMP', 'WSD') and fcst_value_num is not null)
+                     or (
+                         category in ('PTY', 'PCP', 'SNO')
+                         and nullif(trim(fcst_value_raw), '') is not null
+                     )
+                 )
+                    then category
+            end) as risk_evidence_collected_category_count,
+        min(
+            case
+                when collected_at is not null
+                 and (
+                     (category in ('TMP', 'WSD') and fcst_value_num is not null)
+                     or (
+                         category in ('PTY', 'PCP', 'SNO')
+                         and nullif(trim(fcst_value_raw), '') is not null
+                     )
+                 )
+                    then cast({{ asac_axes.utc_to_kst('collected_at') }} as timestamp(6))
+            end
+        ) as risk_evidence_collected_at_min,
+        max(
+            case
+                when collected_at is not null
+                 and (
+                     (category in ('TMP', 'WSD') and fcst_value_num is not null)
+                     or (
+                         category in ('PTY', 'PCP', 'SNO')
+                         and nullif(trim(fcst_value_raw), '') is not null
+                     )
+                 )
+                    then cast({{ asac_axes.utc_to_kst('collected_at') }} as timestamp(6))
+            end
+        ) as risk_evidence_collected_at_max,
         max(fcst_value_num) filter (where category = 'TMP') as temp_c,
         max(fcst_value_num) filter (where category = 'REH') as humidity_pct,
         max(fcst_value_num) filter (where category = 'WSD') as wind_ms,
@@ -77,6 +114,9 @@ select
     forecast_issued_at_min,
     forecast_issued_at_max,
     forecast_collected_at_max,
+    risk_evidence_collected_category_count,
+    risk_evidence_collected_at_min,
+    risk_evidence_collected_at_max,
     temp_c,
     humidity_pct,
     wind_ms,

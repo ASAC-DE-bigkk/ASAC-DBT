@@ -294,6 +294,45 @@ def test_empty_result_freshness_requires_a_manifest_relation_and_physical_field(
     assert "empty_result_freshness_invalid" in _rules(result.findings)
 
 
+def test_query_availability_requires_exactly_one_other_manifest_relation():
+    model = _serving_model(
+        serving_overrides={
+            "query_availability": {
+                "relation": "gold_weather_place_risk_query_availability",
+                "field": "availability_status",
+            }
+        }
+    )
+    manifest = ManifestView(
+        columns_by_model={
+            "gold_projection_fixture": {"product_row_id", "event_at", "collected_at"},
+            "gold_weather_place_risk_query_availability": {"place_id"},
+        },
+        supplied=True,
+    )
+
+    assert "query_availability_invalid" in _rules(validate([model], manifest).findings)
+
+
+def test_query_availability_accepts_manifest_backed_companion_relation():
+    model = _serving_model(
+        serving_overrides={
+            "query_availability": {
+                "relation": "gold_weather_place_risk_query_availability",
+            }
+        }
+    )
+    manifest = ManifestView(
+        columns_by_model={
+            "gold_projection_fixture": {"product_row_id", "event_at", "collected_at"},
+            "gold_weather_place_risk_query_availability": {"place_id"},
+        },
+        supplied=True,
+    )
+
+    assert "query_availability_invalid" not in _rules(validate([model], manifest).findings)
+
+
 def test_external_allow_zero_policy_requires_a_valid_empty_declaration():
     model = _serving_model(
         serving_overrides={

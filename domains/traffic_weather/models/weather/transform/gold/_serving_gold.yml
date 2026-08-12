@@ -21,6 +21,15 @@ models:
       - name: forecast_collected_at_max
         description: Latest KST collection timestamp among source forecasts for this place and forecast hour.
         tests: [not_null]
+      - name: risk_evidence_collected_category_count
+        description: value evidence와 collected_at가 모두 존재하는 TMP·WSD·PTY·PCP·SNO distinct category 수
+        data_type: bigint
+      - name: risk_evidence_collected_at_min
+        description: value evidence와 collected_at가 모두 존재하는 required risk category 중 가장 오래된 KST collection timestamp
+        data_type: timestamp(6)
+      - name: risk_evidence_collected_at_max
+        description: value evidence와 collected_at가 모두 존재하는 required risk category 중 가장 최신 KST collection timestamp
+        data_type: timestamp(6)
 
   - name: gold_weather_place_daily_outlook
     description: 장소별 일 단위 기온 범위·강수 가능성·강수 시간 수를 제공해 방문일 비교를 돕습니다.

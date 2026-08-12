@@ -16,6 +16,10 @@ CURRENT_SQL = GOLD_DIR / "gold_weather_place_current_outlook.sql"
 PRECIP_MODEL = GOLD_DIR / "gold_weather_place_precipitation_window.yml"
 FORECAST_CHANGE_MODEL = GOLD_DIR / "gold_weather_place_forecast_change_daily.yml"
 RISK_WINDOW_MODEL = GOLD_DIR / "gold_weather_place_risk_window.yml"
+HOURLY_MODEL = GOLD_DIR / "_serving_gold.yml"
+HOURLY_SQL = GOLD_DIR / "gold_weather_place_hourly_outlook.sql"
+QUERY_AVAILABILITY_MODEL = GOLD_DIR / "gold_weather_place_risk_query_availability.yml"
+QUERY_AVAILABILITY_SQL = GOLD_DIR / "gold_weather_place_risk_query_availability.sql"
 
 CURRENT_READINESS_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_current_outlook_readiness.sql"
 PRECIP_VALID_EMPTY_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_precipitation_window_valid_empty.sql"
@@ -24,6 +28,23 @@ FORECAST_CHANGE_CONSISTENCY_TEST = (
     GOLD_TEST_DIR / "assert_gold_weather_place_forecast_change_daily_consistent.sql"
 )
 RISK_FUTURE_ONLY_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_risk_window_future_only.sql"
+QUERY_AVAILABILITY_GRAIN_TEST = (
+    GOLD_TEST_DIR / "assert_gold_weather_place_risk_query_availability_grain_unique.sql"
+)
+QUERY_AVAILABILITY_POPULATION_TEST = (
+    GOLD_TEST_DIR / "assert_gold_weather_place_risk_query_availability_population_reconciles.sql"
+)
+QUERY_AVAILABILITY_RECONCILES_TEST = (
+    GOLD_TEST_DIR / "assert_gold_weather_place_risk_query_availability_reconciles.sql"
+)
+QUERY_AVAILABILITY_UNIT_SELECTOR = "ask_seoul_weather_risk_query_availability_unit"
+QUERY_AVAILABILITY_UNIT_TEST_NAMES = {
+    "risk_query_availability_complete_prefix",
+    "risk_query_availability_first_slot_missing",
+    "risk_query_availability_middle_gap_truncates_prefix",
+    "risk_query_availability_required_evidence_missing",
+    "risk_query_availability_raw_no_precip_numeric_null_complete",
+}
 GRID_PRECIP_VALID_EMPTY_TEST = (
     GOLD_TEST_DIR / "assert_gold_weather_grid_precipitation_window_valid_empty.sql"
 )
@@ -40,6 +61,12 @@ SERVING_TIME_BOUNDARY_SQL = (
     PRECIP_VALID_EMPTY_TEST,
     RISK_FUTURE_ONLY_TEST,
     GRID_PRECIP_VALID_EMPTY_TEST,
+    QUERY_AVAILABILITY_SQL,
+    QUERY_AVAILABILITY_RECONCILES_TEST,
+)
+QUERY_AVAILABILITY_NO_DIRECT_CURRENT_TIME_SQL = (
+    QUERY_AVAILABILITY_GRAIN_TEST,
+    QUERY_AVAILABILITY_POPULATION_TEST,
 )
 
 PUBLIC_WEATHER_MODEL_PATHS = (
@@ -88,6 +115,11 @@ FORECAST_CHANGE_PUBLIC_PROJECTION = [
 def _model(path: Path) -> dict:
     payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     return payload["models"][0]
+
+
+def _named_model(path: Path, name: str) -> dict:
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return next(model for model in payload["models"] if model["name"] == name)
 
 
 def _columns(model: dict) -> dict[str, dict]:
@@ -192,6 +224,13 @@ def test_weather_serving_models_and_singular_tests_share_one_frozen_kst_hour() -
         assert "current_timestamp at time zone 'Asia/Seoul'" not in sql, path.name
 
 
+def test_query_availability_non_anchor_assertions_do_not_read_wall_clock() -> None:
+    for path in QUERY_AVAILABILITY_NO_DIRECT_CURRENT_TIME_SQL:
+        sql = path.read_text(encoding="utf-8")
+        assert "current_timestamp at time zone 'Asia/Seoul'" not in sql, path.name
+        assert "{{ weather_serving_as_of_hour() }}" not in sql, path.name
+
+
 def test_forecast_change_declares_public_gold_semantic_contract() -> None:
     model = _model(FORECAST_CHANGE_MODEL)
     config = model["config"]
@@ -279,6 +318,156 @@ def test_risk_window_declares_coverage_not_applicable_for_sparse_events() -> Non
             "게시 행의 place_id 수는 전체 장소 모집단의 커버리지를 뜻하지 않습니다."
         ),
     }
+
+
+def test_risk_query_availability_companion_is_private_and_declares_place_horizon_contract() -> None:
+    model = _model(QUERY_AVAILABILITY_MODEL)
+    columns = _columns(model)
+
+    assert model["access"] == "private"
+    assert model["config"]["materialized"] == "table"
+    assert list(columns) == [
+        "place_id", "snapshot_as_of_hour", "available_from_at", "available_to_at",
+        "forecast_collected_at_min", "forecast_collected_at_max",
+        "expected_forecast_hour_count", "observed_forecast_hour_count",
+        "availability_status", "source_population_revision",
+    ]
+    assert "427" in model["description"]
+    assert "dim_weather_place" in model["description"]
+    assert _test_names(columns["place_id"]) == {"not_null", "unique"}
+    assert _test_names(columns["availability_status"]) == {"not_null", "accepted_values"}
+    assert columns["available_from_at"]["config"]["meta"]["nullable"] is True
+    assert columns["available_to_at"]["config"]["meta"]["nullable"] is True
+    assert columns["forecast_collected_at_min"]["config"]["meta"]["nullable"] is True
+    assert columns["forecast_collected_at_max"]["config"]["meta"]["nullable"] is True
+
+
+def test_risk_window_declares_private_query_availability_companion() -> None:
+    risk_serving = _model(RISK_WINDOW_MODEL)["config"]["meta"]["serving"]
+    assert risk_serving["query_availability"] == {
+        "relation": "gold_weather_place_risk_query_availability",
+    }
+
+
+def test_hourly_outlook_exposes_required_risk_category_freshness_bounds() -> None:
+    hourly = _named_model(HOURLY_MODEL, "gold_weather_place_hourly_outlook")
+    columns = _columns(hourly)
+    sql = HOURLY_SQL.read_text(encoding="utf-8")
+
+    assert "risk_evidence_collected_at_min" in columns
+    assert "risk_evidence_collected_at_max" in columns
+    assert "risk_evidence_collected_category_count" in columns
+    assert columns["risk_evidence_collected_at_min"]["data_type"] == "timestamp(6)"
+    assert columns["risk_evidence_collected_at_max"]["data_type"] == "timestamp(6)"
+    assert columns["risk_evidence_collected_category_count"]["data_type"] == "bigint"
+    assert "count(distinct case" in sql
+    assert "collected_at is not null" in sql
+    assert "category in ('TMP', 'WSD') and fcst_value_num is not null" in sql
+    assert "category in ('PTY', 'PCP', 'SNO')" in sql
+    assert "risk_evidence_collected_at_min" in sql
+    assert "risk_evidence_collected_at_max" in sql
+
+    companion_sql = QUERY_AVAILABILITY_SQL.read_text(encoding="utf-8")
+    assert "risk_evidence_collected_category_count = 5" in companion_sql
+
+
+def test_risk_query_availability_dbt_unit_fixtures_are_model_bound_and_selected() -> None:
+    document = yaml.safe_load(QUERY_AVAILABILITY_MODEL.read_text(encoding="utf-8"))
+    unit_tests = document["unit_tests"]
+    by_name = {unit_test["name"]: unit_test for unit_test in unit_tests}
+
+    assert set(by_name) == QUERY_AVAILABILITY_UNIT_TEST_NAMES
+    literal_expected_outcomes = {
+        "risk_query_availability_complete_prefix": (
+            "2026-08-12 00:00:00",
+            "2026-08-12 02:00:00",
+            3,
+            3,
+            "complete",
+        ),
+        "risk_query_availability_first_slot_missing": (
+            None,
+            None,
+            3,
+            2,
+            "incomplete",
+        ),
+        "risk_query_availability_middle_gap_truncates_prefix": (
+            "2026-08-12 00:00:00",
+            "2026-08-12 00:00:00",
+            3,
+            2,
+            "incomplete",
+        ),
+        "risk_query_availability_required_evidence_missing": (
+            None,
+            None,
+            1,
+            0,
+            "incomplete",
+        ),
+        "risk_query_availability_raw_no_precip_numeric_null_complete": (
+            "2026-08-12 00:00:00",
+            "2026-08-12 00:00:00",
+            1,
+            1,
+            "complete",
+        ),
+    }
+    for unit_test in by_name.values():
+        assert unit_test["model"] == "gold_weather_place_risk_query_availability"
+        assert unit_test["config"]["tags"] == [
+            "ask_seoul_weather_risk_query_availability_unit"
+        ]
+        assert unit_test["overrides"]["vars"]["weather_serving_as_of_hour"] == (
+            "2026-08-12 00:00:00"
+        )
+        assert {given["input"] for given in unit_test["given"]} == {
+            "ref('dim_weather_place')",
+            "ref('gold_weather_place_hourly_outlook')",
+        }
+        assert unit_test["expect"]["rows"]
+        assert set(unit_test["expect"]["rows"][0]) == {
+            "place_id",
+            "snapshot_as_of_hour",
+            "available_from_at",
+            "available_to_at",
+            "forecast_collected_at_min",
+            "forecast_collected_at_max",
+            "expected_forecast_hour_count",
+            "observed_forecast_hour_count",
+            "availability_status",
+            "source_population_revision",
+        }
+        expected_row = unit_test["expect"]["rows"][0]
+        assert (
+            expected_row["available_from_at"],
+            expected_row["available_to_at"],
+            expected_row["expected_forecast_hour_count"],
+            expected_row["observed_forecast_hour_count"],
+            expected_row["availability_status"],
+        ) == literal_expected_outcomes[unit_test["name"]]
+        assert expected_row["source_population_revision"] == (
+            "kma_admin_dong_grid_20260325:"
+            "638f0e8260b47eeb0335126a87a8a38e7b456da872bf0ea7e28eecf427610e32"
+        )
+
+    selectors = yaml.safe_load(SELECTORS_PATH.read_text(encoding="utf-8"))["selectors"]
+    by_selector = {selector["name"]: selector["definition"] for selector in selectors}
+    assert by_selector[QUERY_AVAILABILITY_UNIT_SELECTOR] == {
+        "method": "tag",
+        "value": QUERY_AVAILABILITY_UNIT_SELECTOR,
+        "indirect_selection": "cautious",
+    }
+    for serving_selector in (
+        "ask_seoul_weather_serving_snapshot_refresh",
+        "ask_seoul_weather_transform_serving_gold",
+    ):
+        assert {
+            "method": "selector",
+            "value": QUERY_AVAILABILITY_UNIT_SELECTOR,
+            "indirect_selection": "empty",
+        } in by_selector[serving_selector]["union"]
 
 
 def test_exactly_four_place_weather_products_are_public_and_external() -> None:
