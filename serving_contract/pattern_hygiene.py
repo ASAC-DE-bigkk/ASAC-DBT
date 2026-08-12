@@ -144,23 +144,38 @@ def plan_rel_default(sql: str, name: str, value: str, product: str) -> tuple[dic
     """파라미터 하나의 상대 기본값 정책 결정. (default|None, 분류)"""
     body = executable_sql(sql)
     as_dt = bool(DT_VAL.match(value))
+    # 임계 파라미터(min_*/max_*)는 값이 연도처럼 보여도 기간 축이 아니다 — min_annual=2000 을
+    # 연도 rel 로 붙였다가 임계가 '2025' 가 되는 사고(#114 실측)를 막는다.
+    if name.startswith(("min_", "max_")) and not re.search(r"lat|lng", name):
+        return None, "threshold_skip"
     # 시간 버킷 **등호** — 제외. `>=`/`<=` 의 `=` 를 등호로 오인하면 datetime 범위
     # 하한(from_at 류)까지 스킵된다(실측 사고 — outlook_forecast_window from_at 누락).
     if re.search(rf"(?<![<>!])=\s*:{name}(?![a-z0-9_])", body) and (name in BUCKET_EQ_NAMES or as_dt):
         return None, "bucket_eq_skip"
     if name == "today" or re.search(rf">=\s*:{name}(?![a-z0-9_])", body) and name in ("today", "now"):
         return {"rel": "0d", "as": "date"}, "today_guard"
+    # 🔴 범위 판정을 ym/연도 점 규칙보다 **먼저** 본다 — 순서를 바꾸면 `ym BETWEEN :a AND :b`
+    #   의 양끝이 같은 -1M 을 받아 구간이 점으로 붕괴한다(ASK-Seoul#114 실측 사고: commerce
+    #   연간 추이 11패턴이 from=to=-1y). 미래축(예보/리스크/강수창/전망) 범위에 과거 창을
+    #   주는 것도 같은 사고 부류다 — 미래축은 0d~+Nd 로 앞을 본다.
+    lower = re.search(rf"(>=|>)\s*:{name}(?![a-z0-9_])|BETWEEN\s+:{name}\b", body, re.I)
+    upper = re.search(rf"(<=|<)\s*:{name}(?![a-z0-9_])|BETWEEN\s+:[a-z0-9_]+\s+AND\s+:{name}\b", body, re.I)
+    future_axis = any(t in product for t in ("forecast", "risk", "precip", "outlook"))
+    if lower or upper:
+        if YM_VAL.match(value):
+            return ({"rel": "0M", "as": "ym"} if upper else {"rel": "-11M", "as": "ym"}), "range_ym"
+        if YEAR_VAL.match(value):
+            return ({"rel": "0y", "as": "year"} if upper else {"rel": "-4y", "as": "year"}), "range_year"
+        as_ = "datetime" if as_dt else "date"
+        if future_axis:
+            return ({"rel": "+2d", "as": as_} if upper else {"rel": "0d", "as": as_}), "range_future"
+        if upper:
+            return {"rel": "0d", "as": as_}, "range_to"
+        return {"rel": "-30d", "as": as_}, "range_from"
     if YM_VAL.match(value):
         return {"rel": "-1M", "as": "ym"}, "ym"
     if YEAR_VAL.match(value):
         return {"rel": "-1y", "as": "year"}, "year"
-    lower = re.search(rf"(>=|>)\s*:{name}(?![a-z0-9_])|BETWEEN\s+:{name}\b", body, re.I)
-    upper = re.search(rf"(<=|<)\s*:{name}(?![a-z0-9_])|BETWEEN\s+:[a-z0-9_]+\s+AND\s+:{name}\b", body, re.I)
-    as_ = "datetime" if as_dt else "date"
-    if lower and not upper:
-        return {"rel": "-30d", "as": as_}, "range_from"
-    if upper:
-        return {"rel": "0d", "as": as_}, "range_to"
     if DATE_VAL.match(value) and not as_dt:                 # 일 단위 등호
         rel = "0d" if "forecast" in product else "-1d"
         return {"rel": rel, "as": "date"}, "date_eq"
