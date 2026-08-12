@@ -76,7 +76,7 @@ models:
               question_ko: 특정 시간 범위에 위험 후보가 예보된 장소·시각은 무엇입니까?
               axes: 예보 대상 시각 범위 필터 — 시간 ASC
               requires: [select_columns, filter_range, sort]
-              param_defaults: { n: 100, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              param_defaults: { n: 100, from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
               allow_empty: true
               verified_rows: 100
               verified_at: "2026-08-05T14:39:11Z"
@@ -108,7 +108,7 @@ models:
               question_ko: 특정 장소의 방문 시간 범위에 위험 후보 예보가 있습니까?
               axes: 장소·예보 대상 시각 범위 필터 — 시간 ASC
               requires: [select_columns, filter_set, filter_range, sort]
-              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              param_defaults: { from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
               allow_empty: true
               verified_rows: 45
               verified_at: "2026-08-05T14:39:11Z"
@@ -128,7 +128,7 @@ models:
               verified_rows: 1
               verified_at: "2026-08-05T14:39:11Z"
               verified_publication_id: "e55bd4bc32cf4af7b95fd7009d980975"
-              param_defaults: { as_of_at: { rel: "-30d", as: datetime } }
+              param_defaults: { as_of_at: { rel: "0d", as: datetime } }
               sql: |
                 -- :place_id='seoul_admd_1120062000', :as_of_at='2026-07-30 00:00:00'
                 SELECT place_id, forecast_at, risk_labels
@@ -171,7 +171,7 @@ models:
               question_ko: 특정 시간 범위에서 장소별 위험 후보 예보 건수는 얼마입니까?
               axes: 예보 대상 시각 범위 집계 — 위험 후보 수 DESC
               requires: [select_columns, filter_range, aggregate, group_by, sort]
-              param_defaults: { n: 100, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              param_defaults: { n: 100, from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
               allow_empty: true
               verified_rows: 100
               verified_at: "2026-08-05T14:39:11Z"
@@ -237,8 +237,8 @@ models:
                 ORDER BY peak_temp_c DESC, risk_hour_count DESC, place_name
                 LIMIT :n
               requires: [select_columns, filter_range, aggregate, group_by, having, sort]
-              allow_empty: false
-              param_defaults: { min_peak_temp: 35, n: 20, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              allow_empty: true   # 폭염 임계 미도달 기간 0행 정상
+              param_defaults: { min_peak_temp: 35, n: 20, from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
             - pattern_id: "risk_exposure_by_area"
               question_ko: "예보 기간 동안 위험 후보 노출(예보 건수·장소 수·최고기온)이 큰 지역은 자치구/행정동 중 어느 단위로 보든 어디입니까?"
               axes: "예보 시각 범위 필터 + 지역 차원 스위치(자치구/행정동) 집계 — 위험 건수 DESC"
@@ -256,7 +256,7 @@ models:
                 LIMIT :n
               requires: [select_columns, filter_range, aggregate, group_by, sort]
               allow_empty: false
-              param_defaults: { n: 25, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              param_defaults: { n: 25, from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
             - pattern_id: "risk_load_by_forecast_time"
               question_ko: "예보 기간 안에서 위험 후보로 표시된 장소 수와 최고기온이 예보 시각마다 어떻게 달라집니까?"
               axes: "예보 시각 범위 필터 + 예보 시각 집계 — 시각 ASC 시계열(장소 수·최고기온·최고풍속·최고강수확률)"
@@ -273,7 +273,7 @@ models:
                 ORDER BY forecast_at ASC
               requires: [select_columns, filter_range, aggregate, group_by, sort]
               allow_empty: false
-              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              param_defaults: { from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
             - pattern_id: "risk_windows_for_gu_set"
               question_ko: "선택한 여러 자치구의 위험 후보 예보를 한 시간 범위에서 함께 보고 싶습니다."
               axes: "자치구 다중 선택(배열 IN) + 예보 시각 범위 필터 — 자치구·시각 ASC"
@@ -291,7 +291,7 @@ models:
                 LIMIT :n
               requires: [select_columns, filter_set, filter_range, subquery, sort]
               allow_empty: false
-              param_defaults: { n: 100, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              param_defaults: { n: 100, from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
             - pattern_id: "high_precip_probability_windows"
               question_ko: "폭염 후보 예보 중에서도 강수확률이 지정 하한 이상으로 높아 소나기가 겹칠 수 있는 장소·시각은 무엇입니까?"
               axes: "강수확률 하한 + 예보 시각 범위 필터 — 강수확률 DESC"
@@ -309,7 +309,7 @@ models:
                 LIMIT :n
               requires: [select_columns, filter_range, sort]
               allow_empty: false
-              param_defaults: { min_precip_prob_pct: 20, n: 50, from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              param_defaults: { min_precip_prob_pct: 20, n: 50, from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
             - pattern_id: "temp_severity_distribution"
               question_ko: "예보 기간 동안 위험 후보 예보가 예보 기온대별로 얼마나 분포합니까?"
               axes: "예보 시각 범위 필터 + 기온 집계 — 기온대별 예보 건수·장소 수 분포(기온 DESC)"
@@ -326,7 +326,7 @@ models:
                 ORDER BY temp_c DESC
               requires: [select_columns, filter_range, aggregate, group_by, sort]
               allow_empty: false
-              param_defaults: { from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime } }
+              param_defaults: { from_at: { rel: "0d", as: datetime }, to_at: { rel: "+2d", as: datetime } }
           public_projection:
             schema_version: "1.2.0"
             columns:
