@@ -102,7 +102,8 @@ complete_prefix as (
         min(slot_matrix.risk_evidence_collected_at_min) as forecast_collected_at_min,
         max(slot_matrix.risk_evidence_collected_at_max) as forecast_collected_at_max
     from slot_matrix
-    inner join place_rollup using (place_id)
+    inner join place_rollup
+      on slot_matrix.place_id = place_rollup.place_id
     where slot_matrix.slot_at is not null
       and coalesce(slot_matrix.slot_complete, false)
       and (
@@ -132,5 +133,7 @@ select
 from population
 cross join horizon
 cross join population_revision
-left join place_rollup using (place_id)
-left join complete_prefix using (place_id)
+left join place_rollup
+  on population.place_id = place_rollup.place_id
+left join complete_prefix
+  on population.place_id = complete_prefix.place_id
