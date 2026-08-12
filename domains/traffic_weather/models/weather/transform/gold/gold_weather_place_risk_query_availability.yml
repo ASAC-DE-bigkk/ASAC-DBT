@@ -114,6 +114,69 @@ unit_tests:
           availability_status: complete
           source_population_revision: kma_admin_dong_grid_20260325:638f0e8260b47eeb0335126a87a8a38e7b456da872bf0ea7e28eecf427610e32
 
+  - name: risk_query_availability_confirmed_three_hour_tail_keeps_hourly_prefix_complete
+    description: KMA가 두 번 연속 3시간 간격으로 전환하면 그 이후는 hourly prefix 범위 밖으로 두고 앞선 1시간 구간만 complete로 증명한다.
+    model: gold_weather_place_risk_query_availability
+    config:
+      tags: [ask_seoul_weather_risk_query_availability_unit]
+    overrides:
+      vars:
+        weather_serving_as_of_hour: "2026-08-12 00:00:00"
+    given:
+      - input: ref('dim_weather_place')
+        format: sql
+        rows: |
+          select
+              cast('place_a' as varchar) as place_id,
+              cast('종로1가' as varchar) as admin_dong,
+              cast('종로구' as varchar) as gu
+      - input: ref('gold_weather_place_hourly_outlook')
+        format: sql
+        rows: |
+          select
+              cast('place_a' as varchar) as place_id,
+              timestamp '2026-08-12 00:00:00' as forecast_at,
+              cast(5 as bigint) as risk_evidence_collected_category_count,
+              timestamp '2026-08-11 20:00:00' as risk_evidence_collected_at_min,
+              timestamp '2026-08-11 20:05:00' as risk_evidence_collected_at_max,
+              cast(25.0 as double) as temp_c,
+              cast(2.0 as double) as wind_ms,
+              cast('0' as varchar) as pty_code,
+              cast('강수없음' as varchar) as pcp_raw,
+              cast('적설없음' as varchar) as sno_raw
+          union all
+          select
+              'place_a', timestamp '2026-08-12 01:00:00', cast(5 as bigint),
+              timestamp '2026-08-11 20:10:00', timestamp '2026-08-11 20:15:00',
+              cast(26.0 as double), cast(2.5 as double), '0', '강수없음', '적설없음'
+          union all
+          select
+              'place_a', timestamp '2026-08-12 02:00:00', cast(5 as bigint),
+              timestamp '2026-08-11 20:20:00', timestamp '2026-08-11 20:25:00',
+              cast(27.0 as double), cast(3.0 as double), '0', '강수없음', '적설없음'
+          union all
+          select
+              'place_a', timestamp '2026-08-12 05:00:00', cast(5 as bigint),
+              timestamp '2026-08-11 20:30:00', timestamp '2026-08-11 20:35:00',
+              cast(28.0 as double), cast(3.5 as double), '0', '강수없음', '적설없음'
+          union all
+          select
+              'place_a', timestamp '2026-08-12 08:00:00', cast(5 as bigint),
+              timestamp '2026-08-11 20:40:00', timestamp '2026-08-11 20:45:00',
+              cast(29.0 as double), cast(4.0 as double), '0', '강수없음', '적설없음'
+    expect:
+      rows:
+        - place_id: place_a
+          snapshot_as_of_hour: "2026-08-12 00:00:00"
+          available_from_at: "2026-08-12 00:00:00"
+          available_to_at: "2026-08-12 02:00:00"
+          forecast_collected_at_min: "2026-08-11 20:00:00"
+          forecast_collected_at_max: "2026-08-11 20:25:00"
+          expected_forecast_hour_count: 3
+          observed_forecast_hour_count: 3
+          availability_status: complete
+          source_population_revision: kma_admin_dong_grid_20260325:638f0e8260b47eeb0335126a87a8a38e7b456da872bf0ea7e28eecf427610e32
+
   - name: risk_query_availability_first_slot_missing
     description: anchor slot이 없으면 이후 complete slot이 있어도 prefix bounds는 NULL이다.
     model: gold_weather_place_risk_query_availability

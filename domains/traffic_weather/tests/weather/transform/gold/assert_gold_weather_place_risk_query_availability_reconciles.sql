@@ -22,10 +22,38 @@ source_hourly as (
     cross join kst_now
     where cast(hourly.forecast_at as timestamp(6)) >= kst_now.snapshot_as_of_hour
 ),
+
+source_schedule as (
+    select distinct forecast_at
+    from source_hourly
+),
+
+source_schedule_with_neighbors as (
+    select
+        forecast_at,
+        lag(forecast_at) over (order by forecast_at) as previous_forecast_at,
+        lead(forecast_at) over (order by forecast_at) as next_forecast_at
+    from source_schedule
+),
+
+hourly_cadence_transition as (
+    select min(forecast_at) as first_three_hour_slot_at
+    from source_schedule_with_neighbors
+    where forecast_at = previous_forecast_at + interval '3' hour
+      and next_forecast_at = forecast_at + interval '3' hour
+),
+
 horizon as (
-    select kst_now.snapshot_as_of_hour, max(source_hourly.forecast_at) as global_forecast_horizon_at
+    select
+        kst_now.snapshot_as_of_hour,
+        case
+            when min(hourly_cadence_transition.first_three_hour_slot_at) is not null
+                then min(hourly_cadence_transition.first_three_hour_slot_at) - interval '3' hour
+            else max(source_schedule.forecast_at)
+        end as global_forecast_horizon_at
     from kst_now
-    left join source_hourly on true
+    left join source_schedule on true
+    left join hourly_cadence_transition on true
     group by 1
 ),
 expected_slots as (
@@ -68,7 +96,8 @@ complete_prefix as (
         min(slot_matrix.risk_evidence_collected_at_min) as forecast_collected_at_min,
         max(slot_matrix.risk_evidence_collected_at_max) as forecast_collected_at_max
     from slot_matrix
-    inner join place_rollup using (place_id)
+    inner join place_rollup
+      on slot_matrix.place_id = place_rollup.place_id
     where slot_matrix.slot_at is not null
       and coalesce(slot_matrix.slot_complete, false)
       and (place_rollup.first_incomplete_at is null or slot_matrix.slot_at < place_rollup.first_incomplete_at)
@@ -92,8 +121,10 @@ expected as (
         end as availability_status
     from population
     cross join horizon
-    left join place_rollup using (place_id)
-    left join complete_prefix using (place_id)
+    left join place_rollup
+      on population.place_id = place_rollup.place_id
+    left join complete_prefix
+      on population.place_id = complete_prefix.place_id
 ),
 actual as (
     select * from {{ ref('gold_weather_place_risk_query_availability') }}
@@ -102,7 +133,8 @@ select
     'availability_reconciliation_mismatch' as violation,
     expected.place_id as evidence
 from expected
-left join actual using (place_id)
+left join actual
+  on expected.place_id = actual.place_id
 where actual.place_id is null
    or actual.snapshot_as_of_hour <> expected.snapshot_as_of_hour
    or actual.available_from_at is distinct from expected.available_from_at

@@ -40,6 +40,7 @@ QUERY_AVAILABILITY_RECONCILES_TEST = (
 QUERY_AVAILABILITY_UNIT_SELECTOR = "ask_seoul_weather_risk_query_availability_unit"
 QUERY_AVAILABILITY_UNIT_TEST_NAMES = {
     "risk_query_availability_complete_prefix",
+    "risk_query_availability_confirmed_three_hour_tail_keeps_hourly_prefix_complete",
     "risk_query_availability_first_slot_missing",
     "risk_query_availability_middle_gap_truncates_prefix",
     "risk_query_availability_required_evidence_missing",
@@ -379,6 +380,13 @@ def test_risk_query_availability_dbt_unit_fixtures_are_model_bound_and_selected(
     assert set(by_name) == QUERY_AVAILABILITY_UNIT_TEST_NAMES
     literal_expected_outcomes = {
         "risk_query_availability_complete_prefix": (
+            "2026-08-12 00:00:00",
+            "2026-08-12 02:00:00",
+            3,
+            3,
+            "complete",
+        ),
+        "risk_query_availability_confirmed_three_hour_tail_keeps_hourly_prefix_complete": (
             "2026-08-12 00:00:00",
             "2026-08-12 02:00:00",
             3,
