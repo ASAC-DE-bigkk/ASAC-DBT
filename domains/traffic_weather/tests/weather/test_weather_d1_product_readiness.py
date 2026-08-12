@@ -37,9 +37,7 @@ QUERY_AVAILABILITY_POPULATION_TEST = (
 QUERY_AVAILABILITY_RECONCILES_TEST = (
     GOLD_TEST_DIR / "assert_gold_weather_place_risk_query_availability_reconciles.sql"
 )
-QUERY_AVAILABILITY_UNIT_TEST_SELECTOR = (
-    "ask_seoul_weather_risk_query_availability_unit_tests"
-)
+QUERY_AVAILABILITY_UNIT_SELECTOR = "ask_seoul_weather_risk_query_availability_unit"
 QUERY_AVAILABILITY_UNIT_TEST_NAMES = {
     "risk_query_availability_complete_prefix",
     "risk_query_availability_first_slot_missing",
@@ -456,15 +454,10 @@ def test_risk_query_availability_dbt_unit_fixtures_are_model_bound_and_selected(
 
     selectors = yaml.safe_load(SELECTORS_PATH.read_text(encoding="utf-8"))["selectors"]
     by_selector = {selector["name"]: selector["definition"] for selector in selectors}
-    assert by_selector[QUERY_AVAILABILITY_UNIT_TEST_SELECTOR] == {
-        "intersection": [
-            {
-                "method": "tag",
-                "value": "ask_seoul_weather_risk_query_availability_unit",
-                "indirect_selection": "empty",
-            },
-            {"method": "test_type", "value": "unit"},
-        ]
+    assert by_selector[QUERY_AVAILABILITY_UNIT_SELECTOR] == {
+        "method": "tag",
+        "value": QUERY_AVAILABILITY_UNIT_SELECTOR,
+        "indirect_selection": "cautious",
     }
     for serving_selector in (
         "ask_seoul_weather_serving_snapshot_refresh",
@@ -472,7 +465,7 @@ def test_risk_query_availability_dbt_unit_fixtures_are_model_bound_and_selected(
     ):
         assert {
             "method": "selector",
-            "value": QUERY_AVAILABILITY_UNIT_TEST_SELECTOR,
+            "value": QUERY_AVAILABILITY_UNIT_SELECTOR,
             "indirect_selection": "empty",
         } in by_selector[serving_selector]["union"]
 
