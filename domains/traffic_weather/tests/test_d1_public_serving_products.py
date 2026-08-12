@@ -374,6 +374,27 @@ def test_v1_skill_products_keep_verified_reference_usage_patterns() -> None:
             assert fragment in pattern["sql"]
 
 
+def test_incident_weather_coverage_pattern_uses_latest_snapshot_hour() -> None:
+    patterns = _models()[
+        "gold_traffic_incident_x_weather_current_hourly"
+    ]["config"]["meta"]["serving"]["usage_patterns"]
+    pattern = next(
+        pattern
+        for pattern in patterns
+        if pattern["pattern_id"] == "incident_count_by_weather_coverage"
+    )
+    executable_sql = re.sub(r"--.*$", "", pattern["sql"], flags=re.MULTILINE)
+
+    assert "최신 평가 시각" in pattern["question_ko"]
+    assert ":hour_at" not in executable_sql
+    assert re.search(
+        r"WHERE\s+hour_at\s*=\s*\(\s*SELECT\s+max\(hour_at\)\s+"
+        r"FROM\s+gold_traffic_incident_x_weather_current_hourly\s*\)",
+        executable_sql,
+        flags=re.IGNORECASE,
+    )
+
+
 def test_external_d1_products_declare_eight_distinct_usage_patterns() -> None:
     models = _models()
 

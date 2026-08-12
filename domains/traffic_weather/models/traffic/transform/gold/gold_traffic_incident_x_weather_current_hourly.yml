@@ -51,7 +51,23 @@ models:
             - {pattern_id: incomplete_weather_context, question_ko: "날씨 카테고리 맥락이 불완전한 교통 행정동은 어디입니까?", axes: "날씨 카테고리 커버리지 부재·상한 필터 — 커버리지 ASC", requires: [select_columns, filter_range, sort], allow_empty: true, verified_rows: 0, verified_at: "2026-08-05T14:39:11Z", verified_publication_id: "31dc2a77459646e79ea990a166005298", sql: "SELECT admin_dong_code, admin_dong, gu, hour_at, incident_count, has_incident, quality_state, weather_category_coverage_count, weather_latest_issued_at FROM gold_traffic_incident_x_weather_current_hourly WHERE hour_at = :hour_at AND coalesce(weather_category_coverage_count, 0) < :required_category_count ORDER BY weather_category_coverage_count ASC, admin_dong_code LIMIT :n -- :hour_at='2026-08-05 13:00:00', :required_category_count=6, :n=100", param_defaults: {n: 100}}
             - {pattern_id: incident_weather_for_gu, question_ko: "특정 자치구 행정동의 같은 평가 시각 교통 돌발과 날씨 맥락은 무엇입니까?", axes: "자치구·평가 시각 필터 — 돌발 건수 DESC", requires: [select_columns, filter_set, sort], allow_empty: true, verified_rows: 20, verified_at: "2026-08-05T14:39:11Z", verified_publication_id: "31dc2a77459646e79ea990a166005298", sql: "SELECT admin_dong_code, admin_dong, gu, hour_at, incident_count, has_incident, quality_state, tmp_value_num, pop_value_num, is_precipitating FROM gold_traffic_incident_x_weather_current_hourly WHERE gu_code = :gu_code AND hour_at = :hour_at ORDER BY incident_count DESC, admin_dong_code LIMIT :n -- :gu_code='11500', :hour_at='2026-08-05 13:00:00', :n=50", param_defaults: {n: 50}}
             - {pattern_id: incident_weather_time_window, question_ko: "특정 행정동에서 시간에 따라 교통 돌발과 날씨 맥락은 어떻게 달라집니까?", axes: "행정동·평가 시각 범위 필터 — 시간 ASC", requires: [select_columns, filter_set, filter_range, sort], allow_empty: true, verified_rows: 1, verified_at: "2026-08-05T14:39:11Z", verified_publication_id: "31dc2a77459646e79ea990a166005298", sql: "SELECT admin_dong, gu, hour_at, incident_count, has_incident, quality_state, weather_category_coverage_count, tmp_value_num, pop_value_num, is_precipitating FROM gold_traffic_incident_x_weather_current_hourly WHERE admin_dong_code = :admin_dong_code AND hour_at >= :from_at AND hour_at < :to_at ORDER BY hour_at ASC -- :admin_dong_code='1150053000', :from_at='2026-08-05 12:00:00', :to_at='2026-08-05 14:00:00'", param_defaults: {from_at: { rel: "-30d", as: datetime }, to_at: { rel: "0d", as: datetime }}}
-            - {pattern_id: incident_count_by_weather_coverage, question_ko: "특정 평가 시각에 날씨 카테고리 커버리지별 교통 돌발 행정동 수는 얼마입니까?", axes: "평가 시각·날씨 커버리지 집계 — 행정동 수 DESC", requires: [select_columns, filter_set, aggregate, group_by, sort], allow_empty: false, verified_rows: 1, verified_at: "2026-08-05T14:39:11Z", verified_publication_id: "31dc2a77459646e79ea990a166005298", sql: "SELECT weather_category_coverage_count, count(*) AS admin_dong_count, sum(incident_count) AS incident_count_sum FROM gold_traffic_incident_x_weather_current_hourly WHERE hour_at = :hour_at GROUP BY weather_category_coverage_count ORDER BY weather_category_coverage_count ASC -- :hour_at='2026-08-05 13:00:00'"}
+            - pattern_id: incident_count_by_weather_coverage
+              question_ko: "최신 평가 시각에 날씨 카테고리 커버리지별 교통 돌발 행정동 수는 얼마입니까?"
+              axes: "최신 평가 시각·날씨 커버리지 집계 — 행정동 수 DESC"
+              requires: [select_columns, filter_set, aggregate, group_by, sort]
+              allow_empty: false
+              verified_rows: 0
+              sql: |
+                SELECT weather_category_coverage_count,
+                       count(*) AS admin_dong_count,
+                       sum(incident_count) AS incident_count_sum
+                FROM gold_traffic_incident_x_weather_current_hourly
+                WHERE hour_at = (
+                  SELECT max(hour_at)
+                  FROM gold_traffic_incident_x_weather_current_hourly
+                )
+                GROUP BY weather_category_coverage_count
+                ORDER BY weather_category_coverage_count ASC
             - pattern_id: "city_incident_weather_snapshot"
               question_ko: "특정 평가 시각에 서울 전체의 교통 돌발·날씨 요약(전체 행정동, 돌발 발생 동수·총 돌발, 강수 동수, 완전 커버리지 동수, 평균 기온·습도·풍속)은 무엇입니까?"
               axes: "평가 시각 필터 — 서울 전역 단일행 롤업(날씨 커버리지 임계값)"
