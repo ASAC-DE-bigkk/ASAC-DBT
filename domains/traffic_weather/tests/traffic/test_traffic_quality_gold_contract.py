@@ -17,6 +17,9 @@ SUMMARY_MODEL = "gold_traffic_incident_summary"
 CROSS_DOMAIN_GOLD_PRODUCTS = {
     "gold_traffic_incident_x_weather_current_hourly",
 }
+CONTROL_PLANE_GOLD_PRODUCTS = {
+    "gold_traffic_incident_expected_slot_coverage_5m",
+}
 
 
 def _traffic_serving_gold_products() -> set[str]:
@@ -74,6 +77,7 @@ def test_traffic_quality_gold_physical_ship_set_is_exactly_five() -> None:
         if path.stem != SUMMARY_MODEL
         and path.stem not in CROSS_DOMAIN_GOLD_PRODUCTS
         and path.stem not in TRAFFIC_SERVING_GOLD_PRODUCTS
+        and path.stem not in CONTROL_PLANE_GOLD_PRODUCTS
     }
 
     assert actual == APPROVED_PRODUCTS

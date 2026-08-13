@@ -51,6 +51,8 @@ sources:
           - name: recovery_class
             description: 적용된 복구 전략 분류입니다.
             tests: [not_null]
+          - name: recovery_evidence_code
+            description: 복구 가능성 판단에 사용한 안전한 증거 코드이며, 이전 이벤트에서는 null일 수 있습니다.
           - name: event_at
             description: 상태 이벤트가 기록된 UTC 시각입니다.
             tests: [not_null]
