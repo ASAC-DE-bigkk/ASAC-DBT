@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: gold_weather_collection_coverage_by_issue_cycle
+    description: |
+      Weather collection-state Gold의 materialized expected slot만 집계하는 KST 발표 주기별 커버리지입니다.
+      운영 지원·제어면 용도이며 공개 서빙 제품으로 게시하지 않습니다.
+    config:
+      meta:
+        collection_coverage_product: true
+        support_only: true
+        serving_publication: false
+    columns:
+      - name: source_id
+        description: 수집 원천 식별자입니다.
+      - name: issued_at_kst
+        description: UTC 수집 슬롯을 KST로 변환한 Weather 발표 주기 시각입니다.
+      - name: expected_slot_count
+        description: 해당 source·발표 주기에 선언된 expected slot 수입니다.
+      - name: not_scheduled_count
+        description: 실제 수집 대상이 아닌 expected slot 수입니다.
+      - name: eligible_expected
+        description: 커버리지 분모가 되는 실제 수집 대상 expected slot 수입니다.
+      - name: observed_count
+        description: 정상 관측 상태 slot 수입니다.
+      - name: source_empty_valid_count
+        description: 원천의 정상 0건 응답이 검증된 slot 수입니다.
+      - name: collection_failed_count
+        description: 수집 실패 상태 slot 수입니다.
+      - name: missing_unknown_count
+        description: terminal event가 없거나 결측으로 판정된 slot 수입니다.
+      - name: recovered_count
+        description: 복구 완료 상태 slot 수입니다.
+      - name: pending
+        description: 복구 대기 상태 slot 수입니다.
+      - name: unrecoverable
+        description: 복구 불가 상태 slot 수입니다.
+      - name: covered
+        description: observed, source_empty_valid, recovered의 합계입니다.
+      - name: coverage_ratio
+        description: eligible_expected가 0이면 0.0, 그 외에는 covered 비율입니다.
+      - name: coverage_status
+        description: not_scheduled, unrecoverable, pending, covered, partial 순서로 결정되는 상태입니다.

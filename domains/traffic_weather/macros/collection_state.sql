@@ -35,6 +35,7 @@ with expected_slots as (
         cast(collection_state as varchar) as event_collection_state,
         cast(recovery_state as varchar) as event_recovery_state,
         cast(recovery_class as varchar) as event_recovery_class,
+        cast(recovery_evidence_code as varchar) as recovery_evidence_code,
         cast(gap_reason_code as varchar) as event_gap_reason_code,
         cast(dag_id as varchar) as dag_id,
         cast(dag_run_id as varchar) as dag_run_id,
@@ -76,6 +77,7 @@ with expected_slots as (
         latest.source_result_code,
         latest.recovery_run_id,
         latest.recovered_at,
+        latest.recovery_evidence_code,
         latest.event_at,
         coalesce(latest.event_state_tie_count, 1) as event_state_tie_count,
         case
