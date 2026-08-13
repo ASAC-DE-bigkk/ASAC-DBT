@@ -168,6 +168,10 @@ def plan_rel_default(sql: str, name: str, value: str, product: str) -> tuple[dic
             return ({"rel": "0y", "as": "year"} if upper else {"rel": "-4y", "as": "year"}), "range_year"
         as_ = "datetime" if as_dt else "date"
         if future_axis:
+            # current_outlook is an hourly snapshot. A 0d datetime lower bound resolves to
+            # the invocation minute and excludes the current-hour row after the hour starts.
+            if lower and as_dt and product == "weather_place_current_outlook":
+                return {"rel": "0d", "as": "date"}, "range_future_current_snapshot"
             return ({"rel": "+2d", "as": as_} if upper else {"rel": "0d", "as": as_}), "range_future"
         if upper:
             return {"rel": "0d", "as": as_}, "range_to"
