@@ -354,6 +354,7 @@ selectors:
         - {method: fqn, value: gold_weather_place_risk_window, indirect_selection: cautious}
         - {method: fqn, value: gold_weather_place_risk_query_availability, indirect_selection: cautious}
         - {method: fqn, value: gold_weather_place_forecast_change_daily, indirect_selection: cautious}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_hourly_outlook_single_issue.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_current_outlook_readiness.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_valid_empty.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_non_overlapping.sql, indirect_selection: empty}
@@ -410,6 +411,7 @@ selectors:
         - {method: path, value: models/weather/transform/gold/gold_weather_grid_hourly_outlook.sql, indirect_selection: cautious}
         - {method: path, value: models/weather/transform/gold/gold_weather_grid_current_outlook.sql, indirect_selection: cautious}
         - {method: path, value: models/weather/transform/gold/gold_weather_grid_precipitation_window.sql, indirect_selection: cautious}
+        - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_hourly_outlook_single_issue.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_current_outlook_readiness.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_valid_empty.sql, indirect_selection: empty}
         - {method: path, value: tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_non_overlapping.sql, indirect_selection: empty}

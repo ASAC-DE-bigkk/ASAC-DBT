@@ -18,6 +18,7 @@ FORECAST_CHANGE_MODEL = GOLD_DIR / "gold_weather_place_forecast_change_daily.yml
 RISK_WINDOW_MODEL = GOLD_DIR / "gold_weather_place_risk_window.yml"
 HOURLY_MODEL = GOLD_DIR / "_serving_gold.yml"
 HOURLY_SQL = GOLD_DIR / "gold_weather_place_hourly_outlook.sql"
+HOURLY_UNIT_MODEL = GOLD_DIR / "gold_weather_place_hourly_outlook_unit.yml"
 QUERY_AVAILABILITY_MODEL = GOLD_DIR / "gold_weather_place_risk_query_availability.yml"
 QUERY_AVAILABILITY_SQL = GOLD_DIR / "gold_weather_place_risk_query_availability.sql"
 
@@ -28,6 +29,9 @@ FORECAST_CHANGE_CONSISTENCY_TEST = (
     GOLD_TEST_DIR / "assert_gold_weather_place_forecast_change_daily_consistent.sql"
 )
 RISK_FUTURE_ONLY_TEST = GOLD_TEST_DIR / "assert_gold_weather_place_risk_window_future_only.sql"
+HOURLY_SINGLE_ISSUE_TEST = (
+    GOLD_TEST_DIR / "assert_gold_weather_place_hourly_outlook_single_issue.sql"
+)
 QUERY_AVAILABILITY_GRAIN_TEST = (
     GOLD_TEST_DIR / "assert_gold_weather_place_risk_query_availability_grain_unique.sql"
 )
@@ -372,6 +376,30 @@ def test_hourly_outlook_exposes_required_risk_category_freshness_bounds() -> Non
     assert "risk_evidence_collected_category_count = 5" in companion_sql
 
 
+def test_hourly_outlook_unit_fixture_rejects_cross_issue_backfill() -> None:
+    document = yaml.safe_load(HOURLY_UNIT_MODEL.read_text(encoding="utf-8"))
+    unit_test = document["unit_tests"][0]
+    sql = HOURLY_SQL.read_text(encoding="utf-8")
+
+    assert unit_test["name"] == "hourly_outlook_uses_latest_issue_without_cross_issue_backfill"
+    assert unit_test["model"] == "gold_weather_place_hourly_outlook"
+    assert unit_test["config"]["tags"] == [QUERY_AVAILABILITY_UNIT_SELECTOR]
+    assert [given["input"] for given in unit_test["given"]] == [
+        "ref('gold_weather_forecast_by_place_serving')"
+    ]
+    expected = unit_test["expect"]["rows"][0]
+    assert expected["forecast_issued_at_min"] == "2026-08-12 02:00:00"
+    assert expected["forecast_issued_at_max"] == "2026-08-12 02:00:00"
+    assert expected["forecast_category_count"] == 4
+    assert expected["risk_evidence_collected_category_count"] == 4
+    assert expected["risk_evidence_collected_at_min"] == "2026-08-12 11:00:00"
+    assert expected["sno_raw"] is None
+    assert "dense_rank() over" in sql
+    assert "partition by place_id, forecast_at" in sql
+    assert "where issue_rank = 1" in sql
+    assert "from latest_forecast_long" in sql
+
+
 def test_risk_query_availability_dbt_unit_fixtures_are_model_bound_and_selected() -> None:
     document = yaml.safe_load(QUERY_AVAILABILITY_MODEL.read_text(encoding="utf-8"))
     unit_tests = document["unit_tests"]
@@ -506,6 +534,7 @@ def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() ->
         if entry["method"] == "path"
     }
     assert {
+        "tests/weather/transform/gold/assert_gold_weather_place_hourly_outlook_single_issue.sql",
         "tests/weather/transform/gold/assert_gold_weather_place_current_outlook_readiness.sql",
         "tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_valid_empty.sql",
         "tests/weather/transform/gold/assert_gold_weather_place_precipitation_window_non_overlapping.sql",
@@ -517,6 +546,11 @@ def test_weather_wave_a_readiness_singular_tests_are_wired_to_gold_selector() ->
     ]
 
     expected = {
+        HOURLY_SINGLE_ISSUE_TEST: [
+            "ref('gold_weather_place_hourly_outlook')",
+            "forecast_issued_at_min is null",
+            "forecast_issued_at_min <> forecast_issued_at_max",
+        ],
         CURRENT_READINESS_TEST: [
             "ref('gold_weather_place_current_outlook')",
             "ref('gold_weather_place_hourly_outlook')",
