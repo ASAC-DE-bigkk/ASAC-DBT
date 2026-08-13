@@ -27,6 +27,22 @@ with forecast_long as (
     from {{ ref('gold_weather_forecast_by_place_serving') }}
 ),
 
+ranked_forecast_long as (
+    select
+        forecast.*,
+        dense_rank() over (
+            partition by place_id, forecast_at
+            order by issued_at desc nulls last
+        ) as issue_rank
+    from forecast_long as forecast
+),
+
+latest_forecast_long as (
+    select *
+    from ranked_forecast_long
+    where issue_rank = 1
+),
+
 pivoted as (
     select
         place_id,
@@ -94,7 +110,7 @@ pivoted as (
         max(raw_object_key) as representative_raw_object_key,
         max(payload_hash) as representative_payload_hash,
         max(dag_run_id) as representative_dag_run_id
-    from forecast_long
+    from latest_forecast_long
     group by 1, 2
 )
 
